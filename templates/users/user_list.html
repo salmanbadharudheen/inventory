@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3>All Users</h3>
+        <a href="{% url 'admin-add' %}" class="btn btn-primary">
+            <i data-lucide="user-plus"></i> Add Admin
+        </a>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 1px solid var(--border-color);">
+                <th style="padding: 1rem;">User</th>
+                <th style="padding: 1rem;">Role</th>
+                <th style="padding: 1rem;">Organization</th>
+                <th style="padding: 1rem;">Branch</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 1rem;">
+                    <div style="font-weight: 500;">{{ user.username }}</div>
+                    <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ user.email }}</div>
+                </td>
+                <td style="padding: 1rem;">
+                    <span
+                        style="padding: 0.25rem 0.5rem; background: #EEF2FF; color: #4F46E5; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">
+                        {{ user.get_role_display }}
+                    </span>
+                </td>
+                <td style="padding: 1rem;">{{ user.organization.name|default:"-" }}</td>
+                <td style="padding: 1rem;">{{ user.branch.name|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    No users found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}{% if object %}Edit Asset: {{ object.asset_tag }}{% else %}Add New Asset{% endif %}{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Category -> SubCategory filtering
+        const categorySelect = document.querySelector('select[name="category"]');
+        const subCategorySelect = document.querySelector('select[name="sub_category"]');
+
+        if (categorySelect && subCategorySelect) {
+            categorySelect.addEventListener('change', function () {
+                const categoryId = this.value;
+                subCategorySelect.innerHTML = '<option value="">---------</option>';
+                if (!categoryId) return;
+
+                fetch(`/assets/ajax/subcategories/?category_id=${categoryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = item.name;
+                            subCategorySelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching subcategories:', error));
+            });
+        }
+
+        // Branch -> Department, Building filtering
+        const branchSelect = document.querySelector('select[name="branch"]');
+        const departmentSelect = document.querySelector('select[name="department"]');
+        const buildingSelect = document.querySelector('select[name="building"]');
+        const floorSelect = document.querySelector('select[name="floor"]');
+        const roomSelect = document.querySelector('select[name="room"]');
+
+        if (branchSelect) {
+            branchSelect.addEventListener('change', function () {
+                const branchId = this.value;
+
+                // Clear dependent dropdowns
+                if (departmentSelect) {
+                    departmentSelect.innerHTML = '<option value="">---------</option>';
+                }
+                if (buildingSelect) {
+                    buildingSelect.innerHTML = '<option value="">---------</option>';
+                }
+                if (floorSelect) {
+                    floorSelect.innerHTML = '<option value="">---------</option>';
+                }
+                if (roomSelect) {
+                    roomSelect.innerHTML = '<option value="">---------</option>';
+                }
+
+                if (!branchId) return;
+
+                // Fetch departments for this branch
+                if (departmentSelect) {
+                    fetch(`/assets/ajax/departments/?branch_id=${branchId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(item => {
+                                const option = document.createElement('option');
+                                option.value = item.id;
+                                option.textContent = item.name;
+                                departmentSelect.appendChild(option);
+                            });
+                        })
+                        .catch(error => console.error('Error fetching departments:', error));
+                }
+
+                // Fetch buildings for this branch
+                if (buildingSelect) {
+                    fetch(`/assets/ajax/buildings/?branch_id=${branchId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(item => {
+                                const option = document.createElement('option');
+                                option.value = item.id;
+                                option.textContent = item.name;
+                                buildingSelect.appendChild(option);
+                            });
+                        })
+                        .catch(error => console.error('Error fetching buildings:', error));
+                }
+            });
+        }
+
+        // Building -> Floor filtering
+        if (buildingSelect && floorSelect) {
+            buildingSelect.addEventListener('change', function () {
+                const buildingId = this.value;
+                floorSelect.innerHTML = '<option value="">---------</option>';
+                if (roomSelect) {
+                    roomSelect.innerHTML = '<option value="">---------</option>';
+                }
+
+                if (!buildingId) return;
+
+                fetch(`/assets/ajax/floors/?building_id=${buildingId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = item.name;
+                            floorSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching floors:', error));
+            });
+        }
+
+        // Floor -> Room filtering
+        if (floorSelect && roomSelect) {
+            floorSelect.addEventListener('change', function () {
+                const floorId = this.value;
+                roomSelect.innerHTML = '<option value="">---------</option>';
+
+                if (!floorId) return;
+
+                fetch(`/assets/ajax/rooms/?floor_id=${floorId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = item.name;
+                            roomSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching rooms:', error));
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+    <form method="post" enctype="multipart/form-data" class="asset-form">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-danger"
+            style="background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
+            <strong>Please check the errors below:</strong>
+            {{ form.errors }}
+        </div>
+        {% endif %}
+
+        <!-- A) Identification -->
+        <div class="card">
+            <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                Identification
+            </h3>
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Asset Name *</label>
+                    {{ form.name }}
+                </div>
+                <div class="form-group">
+                    <label>Asset Type</label>
+                    {{ form.asset_type }}
+                </div>
+                <div class="form-group">
+                    <label>Category *</label>
+                    {{ form.category }}
+                </div>
+                <div class="form-group">
+                    <label>Sub Category</label>
+                    {{ form.sub_category }}
+                </div>
+                <div class="form-group">
+                    <label>Brand</label>
+                    {{ form.brand }}
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    {{ form.model }}
+                </div>
+                <div class="form-group">
+                    <label>Serial Number</label>
+                    {{ form.serial_number }}
+                </div>
+                <div class="form-group">
+                    <label>Condition</label>
+                    {{ form.condition }}
+                </div>
+            </div>
+        </div>
+
+        <!-- B) Location & Ownership -->
+        <div class="card">
+            <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                Location & Ownership
+            </h3>
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Branch *</label>
+                    {{ form.branch }}
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    {{ form.department }}
+                </div>
+                <div class="form-group">
+                    <label>Assigned To</label>
+                    {{ form.assigned_to }}
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    {{ form.status }}
+                </div>
+                <div class="form-group">
+                    <label>Building / Floor / Room</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        {{ form.building }}
+                        {{ form.floor }}
+                        {{ form.room }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- C) Financials -->
+        <div class="card">
+            <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                Financial Details
+            </h3>
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Vendor</label>
+                    {{ form.vendor }}
+                </div>
+                <div class="form-group">
+                    <label>Purchase Date</label>
+                    {{ form.purchase_date }}
+                </div>
+                <div class="form-group">
+                    <label>Purchase Price</label>
+                    {{ form.purchase_price }}
+                </div>
+                <div class="form-group">
+                    <label>Invoice #</label>
+                    {{ form.invoice_number }}
+                </div>
+                <div class="form-group">
+                    <label>Warranty End</label>
+                    {{ form.warranty_end }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1rem;">
+                {% if object %}Update Asset{% else %}Create Asset{% endif %}
+            </button>
+            <a href="{% url 'asset-list' %}" class="btn"
+                style="background: white; border: 1px solid var(--border-color);">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        font-size: 0.95rem;
+        background-color: #fff;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+</style>
+{% endblock %}

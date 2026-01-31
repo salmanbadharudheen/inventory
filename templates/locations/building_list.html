@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Building Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Buildings</h2>
+    <a href="{% url 'building-create' %}" class="btn btn-primary">
+        <i data-lucide="plus"></i> Add New Building
+    </a>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead style="background: #F8FAFC;">
+            <tr>
+                <th style="padding:1rem;">Building Name</th>
+                <th style="padding:1rem;">Branch</th>
+                <th style="padding:1rem;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for building in buildings %}
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:1rem; font-weight: 500;">{{ building.name }}</td>
+                <td style="padding:1rem;">{{ building.branch.name }}</td>
+                <td style="padding:1rem;">
+                    <!-- Edit functionality not requested yet, placeholder or simple link if needed later -->
+                    -
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    No buildings found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

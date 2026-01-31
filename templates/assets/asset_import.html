@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Bulk Asset Import{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div class="card">
+        <h3>Import Assets from CSV</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+            Upload a CSV file to create multiple assets at once.
+            Ensure your CSV matches the required format.
+        </p>
+
+        <div
+            style="background: #F8FAFC; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px dashed var(--border-color);">
+            <h4 style="margin-bottom: 0.5rem;">CSV Requirements:</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary);">
+                    <li><strong>name</strong> (Required)</li>
+                    <li><strong>asset_tag</strong> (Required, unique)</li>
+                    <li><strong>category_code</strong> (Required)</li>
+                    <li><strong>status</strong> (Optional)</li>
+                    <li><strong>purchase_price</strong> (Optional)</li>
+                </ul>
+                <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary);">
+                    <li><strong>brand, model, serial_number</strong></li>
+                    <li><strong>branch, building, floor</strong> (Strict)</li>
+                    <li><strong>room</strong> (Auto-created if new)</li>
+                    <li><strong>vendor</strong> (Strict)</li>
+                </ul>
+            </div>
+            <a href="{% url 'asset-import-sample' %}" class="btn btn-sm"
+                style="background: white; border: 1px solid var(--border-color); margin-top: 1rem; display: inline-block;">
+                <i data-lucide="download"></i> Download Sample CSV
+            </a>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div style="background: #FEF2F2; color: #991B1B; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div style="margin-bottom: 2rem;">
+                <label for="{{ form.csv_file.id_for_label }}"
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                    {{ form.csv_file.label }}
+                </label>
+                {{ form.csv_file }}
+                {% if form.csv_file.errors %}
+                <div style="color: red; font-size: 0.875rem; margin-top: 0.25rem;">
+                    {{ form.csv_file.errors }}
+                </div>
+                {% endif %}
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ form.csv_file.help_text }}
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="upload"></i> Upload & Import
+                </button>
+                <a href="{% url 'asset-list' %}" class="btn" style="background: var(--bg-body);">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+﻿{% extends 'base.html' %}
+
+{% block page_title %}{{ asset.asset_tag }} - {{ asset.name }}{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div>
+            <h2 style="margin-bottom: 0.5rem;">{{ asset.name }}</h2>
+            <div style="display: flex; gap: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                <span><i data-lucide="tag" style="width: 14px; vertical-align: middle;"></i> {{ asset.asset_tag }}</span>
+                <span><i data-lucide="layers" style="width: 14px; vertical-align: middle;"></i> {{ asset.category.name }}</span>
+            </div>
+        </div>
+        <div>
+            <span class="badge status-{{ asset.status|lower }}" style="font-size: 1rem; padding: 0.5rem 1rem;">{{ asset.get_status_display }}</span>
+            <a href="#" class="btn btn-primary" style="margin-left: 1rem;">Edit Asset</a>
+        </div>
+    </div>
+</div>
+
+<div class="grid-details" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Left Column -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+
+        <!-- Identity & Location -->
+        <div class="card">
+            <h3>Overview</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                <div>
+                    <div class="label">Brand / Model</div>
+                    <div class="value">{{ asset.brand }} {{ asset.model }}</div>
+                </div>
+                <div>
+                    <div class="label">Serial Number</div>
+                    <div class="value">{{ asset.serial_number|default:"-" }}</div>
+                </div>
+                <div>
+                    <div class="label">Location</div>
+                    <div class="value">{{ asset.branch.name }} - {{ asset.room }}</div>
+                </div>
+                <div>
+                    <div class="label">Assigned To</div>
+                    <div class="value">
+                        {% if asset.assigned_to %}
+                        {{ asset.assigned_to.username }}
+                        {% else %}
+                        Unassigned
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financials -->
+        <div class="card">
+            <h3>Financial Overview</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-top: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem;">
+                <div>
+                    <div class="label">Purchase Price</div>
+                    <div class="value" style="font-size: 1.25rem; color: var(--text-primary);">{{ asset.currency }} {{ asset.purchase_price }}</div>
+                </div>
+                <div>
+                    <div class="label">Current Book Value</div>
+                    <div class="value" style="font-size: 1.25rem; color: var(--primary);">{{ asset.currency }} {{ asset.current_value }}</div>
+                </div>
+                <div>
+                    <div class="label">Accumulated Depr.</div>
+                    <div class="value" style="font-size: 1.25rem; color: #991b1b;">{{ asset.currency }} {{ asset.accumulated_depreciation }}</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+                <div>
+                    <div class="label">Purchase Date</div>
+                    <div class="value">{{ asset.purchase_date|default:"-" }}</div>
+                </div>
+                <div>
+                    <div class="label">Depreciation Method</div>
+                    <div class="value">{{ asset.get_depreciation_method_display }}</div>
+                </div>
+                <div>
+                    <div class="label">Useful Life</div>
+                    <div class="value">{{ asset.useful_life_years }} Years</div>
+                </div>
+                <div>
+                    <div class="label">Salvage Value</div>
+                    <div class="value">{{ asset.currency }} {{ asset.salvage_value }}</div>
+                </div>
+                <div>
+                    <div class="label">Vendor</div>
+                    <div class="value">{{ asset.vendor.name|default:"-" }}</div>
+                </div>
+                <div>
+                    <div class="label">Warranty Ends</div>
+                    <div class="value">{{ asset.warranty_end|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Depreciation Schedule -->
+        <div class="card">
+            <h3>Depreciation Schedule</h3>
+            <div style="margin-top: 1rem; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 2px solid var(--border-color);">
+                            <th style="padding: 0.75rem 0.5rem;">Year</th>
+                            <th style="padding: 0.75rem 0.5rem;">Date</th>
+                            <th style="padding: 0.75rem 0.5rem; text-align: right;">Depreciation</th>
+                            <th style="padding: 0.75rem 0.5rem; text-align: right;">Accumulated</th>
+                            <th style="padding: 0.75rem 0.5rem; text-align: right;">Net Book Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in asset.get_depreciation_schedule %}
+                        <tr style="border-bottom: 1px solid var(--border-color); {% if row.year_date == today.year %}background: #fdf2f2;{% endif %}">
+                            <td style="padding: 0.75rem 0.5rem;">Year {{ row.year }}</td>
+                            <td style="padding: 0.75rem 0.5rem;">{{ row.year_date }}</td>
+                            <td style="padding: 0.75rem 0.5rem; text-align: right;">{{ asset.currency }} {{ row.depreciation }}</td>
+                            <td style="padding: 0.75rem 0.5rem; text-align: right;">{{ asset.currency }} {{ row.accumulated }}</td>
+                            <td style="padding: 0.75rem 0.5rem; text-align: right; font-weight: 500;">{{ asset.currency }} {{ row.nbv }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        <!-- QRCode Placeholder -->
+        <div class="card" style="text-align: center;">
+            <div style="background: #eee; width: 150px; height: 150px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                QR Code
+            </div>
+            <div style="margin-top: 1rem; font-weight: bold;">{{ asset.asset_tag }}</div>
+            <button class="btn" style="margin-top: 1rem; width: 100%;">Print Label</button>
+        </div>
+
+        <!-- Attachments -->
+        <div class="card">
+            <h3>Attachments</h3>
+            <div style="margin-top: 1rem;">
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">No files uploaded.</p>
+                <button class="btn" style="margin-top: 0.5rem; font-size: 0.8rem;">+ Upload File</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .value {
+        font-weight: 500;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-weight: 500;
+        background: #F1F5F9;
+        color: #64748B;
+    }
+
+    .status-active {
+        background: #DCFCE7;
+        color: #166534;
+    }
+</style>
+{% endblock %}

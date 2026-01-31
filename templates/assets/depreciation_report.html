@@ -1,0 +1,118 @@
+﻿{% extends 'base.html' %}
+{% load humanize %}
+
+{% block page_title %}Depreciation Report{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h2 style="margin: 0;">Financial Depreciation Report</h2>
+        <p style="color: var(--text-secondary); margin: 0.25rem 0 0 0;">Consolidated view of asset valuations and
+            accumulated depreciation.</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <form method="get" style="display: flex; gap: 0.75rem;">
+            <input type="hidden" name="view" value="depreciation">
+            <input type="text" name="q" placeholder="Search report..." value="{{ request.GET.q }}" class="form-control"
+                style="max-width: 250px;">
+            <button type="submit" class="btn btn-primary"><i data-lucide="search"></i></button>
+            {% if request.GET.q %}
+            <a href="?view=depreciation" class="btn"
+                style="background: white; border: 1px solid var(--border-color);">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid-dashboard" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 2rem;">
+    <div class="stat-card">
+        <span class="stat-label">Total Purchase Cost</span>
+        <span class="stat-value">AED {{ total_cost|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="stat-card" style="border-left: 4px solid #991b1b;">
+        <span class="stat-label">Accumulated Depreciation</span>
+        <span class="stat-value" style="color: #991b1b;">AED {{ total_acc_dep|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="stat-card" style="border-left: 4px solid var(--primary);">
+        <span class="stat-label">Net Book Value (NBV)</span>
+        <span class="stat-value" style="color: var(--primary);">AED {{ total_nbv|floatformat:2|intcomma }}</span>
+    </div>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table style="width:100%; text-align:left; border-collapse:collapse; font-size: 0.95rem;">
+        <thead style="background: #F8FAFC;">
+            <tr style="border-bottom: 2px solid var(--border-color);">
+                <th style="padding:1rem;">Asset Information</th>
+                <th style="padding:1rem;">Method</th>
+                <th style="padding:1rem; text-align: center;">Life</th>
+                <th style="padding:1rem;">Purchased</th>
+                <th style="padding:1rem; text-align: right;">Cost</th>
+                <th style="padding:1rem; text-align: right;">Acc. Depr.</th>
+                <th style="padding:1rem; text-align: right;">Current NBV</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asset in assets %}
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:1rem;">
+                    <a href="{% url 'asset-detail' asset.pk %}" style="text-decoration: none; color: inherit;">
+                        <div style="font-weight: 600;">{{ asset.name }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ asset.asset_tag }}</div>
+                    </a>
+                </td>
+                <td style="padding:1rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">{{
+                        asset.get_depreciation_method_display }}</span>
+                </td>
+                <td style="padding:1rem; text-align: center;">{{ asset.useful_life_years }}Y</td>
+                <td style="padding:1rem;">{{ asset.purchase_date|date:"M d, Y"|default:"-" }}</td>
+                <td style="padding:1rem; text-align: right;">{{ asset.currency }} {{
+                    asset.purchase_price|floatformat:2|intcomma }}</td>
+                <td style="padding:1rem; text-align: right; color: #991b1b;">-{{ asset.currency }} {{
+                    asset.accumulated_depreciation|floatformat:2|intcomma }}</td>
+                <td style="padding:1rem; text-align: right; font-weight: 600; color: var(--primary);">{{ asset.currency
+                    }} {{ asset.current_value|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                    No financial data available for the current selection.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if assets %}
+        <tfoot style="background: #F8FAFC; border-top: 2px solid var(--border-color);">
+            <tr style="font-weight: 700;">
+                <td colspan="4" style="padding:1rem; text-align: right;">TOTALS</td>
+                <td style="padding:1rem; text-align: right;">AED {{ total_cost|floatformat:2|intcomma }}</td>
+                <td style="padding:1rem; text-align: right; color: #991b1b;">-AED {{
+                    total_acc_dep|floatformat:2|intcomma }}</td>
+                <td style="padding:1rem; text-align: right; color: var(--primary); font-size: 1.1rem;">AED {{
+                    total_nbv|floatformat:2|intcomma }}</td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+
+{% if is_paginated %}
+<div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 0.5rem;">
+    {% if page_obj.has_previous %}
+    <a href="?view=depreciation&page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+        class="btn" style="background: white; border: 1px solid var(--border-color);">&laquo; Previous</a>
+    {% endif %}
+
+    <span style="padding: 0.5rem 1rem; color: var(--text-secondary);">Page {{ page_obj.number }} of {{
+        page_obj.paginator.num_pages }}</span>
+
+    {% if page_obj.has_next %}
+    <a href="?view=depreciation&page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+        class="btn" style="background: white; border: 1px solid var(--border-color);">Next &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

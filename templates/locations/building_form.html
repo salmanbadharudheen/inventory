@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Add Building{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px;">
+    <div class="card">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div style="margin-bottom: 1rem;">
+                <label for="{{ field.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                    {{ field.label }}
+                    {% if field.field.required %}<span style="color: red;">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.errors %}
+                <div style="color: red; font-size: 0.875rem; margin-top: 0.25rem;">
+                    {{ field.errors }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="save"></i> Save Building
+                </button>
+                <a href="{% url 'building-list' %}" class="btn" style="background: var(--bg-body);">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

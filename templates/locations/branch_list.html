@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Branch Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Branches</h2>
+    <a href="{% url 'branch-create' %}" class="btn btn-primary">
+        <i data-lucide="plus"></i> Add New Branch
+    </a>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead style="background: #F8FAFC;">
+            <tr>
+                <th style="padding:1rem;">Branch Name</th>
+                <th style="padding:1rem;">Code</th>
+                <th style="padding:1rem;">Country</th>
+                <th style="padding:1rem;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for branch in branches %}
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:1rem; font-weight: 500;">{{ branch.name }}</td>
+                <td style="padding:1rem;">{{ branch.code }}</td>
+                <td style="padding:1rem;">{{ branch.country }}</td>
+                <td style="padding:1rem;">
+                    <a href="{% url 'branch-edit' branch.pk %}" class="btn" style="padding: 0.25rem 0.5rem;"><i
+                            data-lucide="edit-2" style="width: 16px;"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    No branches found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

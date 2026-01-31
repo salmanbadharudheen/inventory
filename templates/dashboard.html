@@ -1,0 +1,668 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block page_title %}Executive Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header Section -->
+    <div class="dashboard-header"
+        style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: #0f172a; letter-spacing: -0.025em;">
+                Executive Overview</h1>
+            <p style="margin: 0.25rem 0 0 0; color: #64748b; font-size: 0.85rem; font-weight: 500;">Real-time inventory
+                insights and performance metrics.</p>
+        </div>
+
+        <div class="header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+            <div class="status-badge-live"
+                style="margin-right: 0.25rem; display: flex; align-items: center; gap: 0.5rem; background: #fff; border: 1px solid #e2e8f0; padding: 0.4rem 0.75rem; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <span class="live-dot"
+                    style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); animation: pulse 2s infinite;"></span>
+                <span style="color: #475569; font-size: 0.75rem; font-weight: 600;">System Live</span>
+                <span
+                    style="color: #94a3b8; font-size: 0.75rem; padding-left: 0.25rem; border-left: 1px solid #e2e8f0; margin-left: 0.25rem;">{{
+                    last_updated|date:"H:i" }}</span>
+            </div>
+
+            <a href="{% url 'asset-create' %}" class="btn-primary-premium">
+                <i data-lucide="plus" style="width: 16px;"></i> Add Asset
+            </a>
+            <a href="{% url 'asset-list' %}?view=depreciation" class="btn-outline-premium">
+                <i data-lucide="file-text" style="width: 16px;"></i> Financial Report
+            </a>
+        </div>
+    </div>
+
+    <!-- Tier 1: Financial Performance -->
+    <div class="financial-stats-container"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <!-- Investment Card -->
+        <div class="stat-card-corporate blue">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="icon-shell"><i data-lucide="wallet"></i></div>
+                <div class="data">
+                    <span class="label">Total Acquisition Cost</span>
+                    <h2 class="value">AED {{ total_value|floatformat:0|intcomma }}</h2>
+                    <div class="trend positive"><i data-lucide="shield-check" style="width: 14px;"></i> Secured Value
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NBV Card -->
+        <div class="stat-card-corporate slate">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="icon-shell"><i data-lucide="bar-chart-3"></i></div>
+                <div class="data">
+                    <span class="label">Net Book Value</span>
+                    <h2 class="value">AED {{ total_nbv|floatformat:0|intcomma }}</h2>
+                    <div class="progress-mini">
+                        <div class="fill" style="width: {{ 100|add:depreciation_percentage|floatformat:0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Depreciation Card -->
+        <div class="stat-card-corporate rose">
+            <div class="card-glow"></div>
+            <div class="card-content">
+                <div class="icon-shell"><i data-lucide="trending-down"></i></div>
+                <div class="data">
+                    <span class="label">Total Depreciation</span>
+                    <h2 class="value">AED {{ total_depreciation|floatformat:0|intcomma }}</h2>
+                    <span class="badget-text">{{ depreciation_percentage|floatformat:1 }}% Lifecycle Used</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier 2: Interactive Analytics -->
+    <div class="analytics-grid"
+        style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <!-- Asset Status Chart -->
+        <div class="widget-card">
+            <div class="widget-header">
+                <h3><i data-lucide="pie-chart"></i> Lifecycle Distribution</h3>
+                <span class="count-pill">{{ total_assets }} Total</span>
+            </div>
+            <div class="chart-container"
+                style="position: relative; height: 220px; display: flex; justify-content: center;">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Categories Chart -->
+        <div class="widget-card">
+            <div class="widget-header">
+                <h3><i data-lucide="layers"></i> Category Breakdown</h3>
+            </div>
+            <div class="chart-container" style="position: relative; height: 220px;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier 3: Recent Activity Table -->
+    <div class="table-card">
+        <div class="table-header">
+            <div class="title-group">
+                <h3>Latest Inventory Additions</h3>
+                <p>Track the most recent assets integrated into the system</p>
+            </div>
+            <a href="{% url 'asset-list' %}" class="btn-text">View Full Inventory <i data-lucide="arrow-right"
+                    style="width: 14px;"></i></a>
+        </div>
+        <div class="executive-table-wrapper">
+            <table class="executive-table">
+                <thead>
+                    <tr>
+                        <th>Identified Asset</th>
+                        <th>Classification</th>
+                        <th>Current Status</th>
+                        <th>Deployment Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in recent_assets %}
+                    <tr>
+                        <td>
+                            <div class="asset-identity">
+                                <span class="avatar-box">{{ asset.name|slice:":1" }}</span>
+                                <div class="text">
+                                    <span class="name">{{ asset.name }}</span>
+                                    <span class="tag">{{ asset.asset_tag }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="classification">
+                                <span class="cat">{{ asset.category.name }}</span>
+                                <span class="loc">{{ asset.branch.name|default:"Global" }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge-modern {{ asset.status|lower }}">
+                                <span class="dot"></span> {{ asset.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <span class="date">{{ asset.created_at|date:"M d, Y" }}</span>
+                                <span class="time">{{ asset.created_at|timesince }} ago</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="empty-state">No recent records detected.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.font.size = 11;
+        Chart.defaults.color = '#64748b';
+
+        // --- Status Chart Data ---
+        // Replacing Red with Neutral Tones
+        const statusData = {
+            labels: [{% for stat in status_distribution %}"{{ stat.status }}"{% if not forloop.last %}, {% endif %} {% endfor %}],
+        datasets: [{
+            data: [{% for stat in status_distribution %}{{ stat.count }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    backgroundColor: [
+        '#10b981', // Active - Green (Safe)
+        '#f59e0b', // Maintenance - Amber
+        '#6366f1', // Storage - Indigo
+        '#334155', // Broken - Dark Slate (Neutralized from Red)
+        '#94a3b8'  // Other - Light Slate
+    ],
+        borderWidth: 0,
+            hoverOffset: 4
+            }]
+        };
+
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: statusData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 8,
+                        padding: 15,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: false,
+                    bodyFont: { size: 12 },
+                    callbacks: {
+                        label: function (context) {
+                            return ` ${context.label}: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            cutout: '75%',
+            layout: { padding: 0 }
+        }
+    });
+
+    // --- Category Chart Data ---
+    const categoryData = {
+        labels: [{% for cat in category_breakdown %}"{{ cat.category__name|default:'Uncategorized' }}"{% if not forloop.last %}, {% endif %} {% endfor %}],
+    datasets: [{
+        label: 'Assets',
+        data: [{% for cat in category_breakdown %}{{ cat.count }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    backgroundColor: '#3b82f6', // Corporate Blue
+        borderRadius: 4,
+            barThickness: 16
+            }]
+        };
+
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'bar',
+        data: categoryData,
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { display: false }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 11, weight: '500' },
+                        color: '#475569',
+                        autoSkip: false
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 8,
+                    cornerRadius: 6,
+                    displayColors: false,
+                    bodyFont: { size: 12 }
+                }
+            }
+        }
+    });
+    });
+</script>
+
+<style>
+    :root {
+        --primary-navy: #0f172a;
+        --accent-blue: #2563eb;
+        --success-emerald: #059669;
+        --danger-rose: #e11d48;
+        /* Kept for specific semantic alerts, not brand */
+        --slate-soft: #f8fafc;
+        --border-slate: #e2e8f0;
+    }
+
+    /* Base Layout */
+    .dashboard-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Buttons */
+    .btn-primary-premium {
+        background: var(--primary-navy);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+        box-shadow: 0 2px 5px rgba(15, 23, 42, 0.1);
+    }
+
+    .btn-primary-premium:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(15, 23, 42, 0.2);
+        filter: brightness(1.1);
+    }
+
+    .btn-outline-premium {
+        background: white;
+        color: var(--primary-navy);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-slate);
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+
+    .btn-outline-premium:hover {
+        background: var(--slate-soft);
+        border-color: #cbd5e1;
+    }
+
+    /* Corporate Stat Cards (Compact) */
+    .stat-card-corporate {
+        background: white;
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: 1px solid var(--border-slate);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stat-card-corporate:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent-blue);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .icon-shell i {
+        width: 20px;
+        height: 20px;
+    }
+
+    .blue .icon-shell {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .slate .icon-shell {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .rose .icon-shell {
+        background: #fff1f2;
+        color: #e11d48;
+    }
+
+    .data .label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .data .value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .trend {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .trend.positive {
+        color: #059669;
+    }
+
+    .progress-mini {
+        height: 4px;
+        width: 100%;
+        background: #f1f5f9;
+        border-radius: 10px;
+        margin-top: 0.75rem;
+        overflow: hidden;
+    }
+
+    .progress-mini .fill {
+        height: 100%;
+        background: var(--accent-blue);
+        border-radius: 10px;
+    }
+
+    .badget-text {
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: #fff1f2;
+        color: #e11d48;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        display: inline-block;
+    }
+
+    /* Analytics Widgets (Compact) */
+    .widget-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: 1px solid var(--border-slate);
+    }
+
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .widget-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .widget-header h3 i {
+        width: 16px;
+        color: var(--accent-blue);
+    }
+
+    .count-pill {
+        background: var(--slate-soft);
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #475569;
+    }
+
+    /* Executive table (Compact) */
+    .table-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid var(--border-slate);
+        overflow: hidden;
+    }
+
+    .table-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--border-slate);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .table-header p {
+        margin: 0.1rem 0 0 0;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .btn-text {
+        color: var(--accent-blue);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .executive-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .executive-table th {
+        background: #f8fafc;
+        padding: 0.75rem 1.25rem;
+        text-align: left;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .executive-table td {
+        padding: 0.85rem 1.25rem;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+
+    .asset-identity {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .avatar-box {
+        width: 32px;
+        height: 32px;
+        background: #f1f5f9;
+        color: #475569;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .asset-identity .name {
+        display: block;
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.85rem;
+    }
+
+    .asset-identity .tag {
+        display: block;
+        font-size: 0.7rem;
+        color: #94a3b8;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .classification .cat {
+        display: block;
+        font-weight: 600;
+        color: #475569;
+        font-size: 0.8rem;
+    }
+
+    .classification .loc {
+        display: block;
+        font-size: 0.7rem;
+        color: #94a3b8;
+    }
+
+    .badge-modern {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.7rem;
+    }
+
+    .badge-modern.active {
+        background: #ecfdf5;
+        color: #065f46;
+    }
+
+    .badge-modern.in_storage {
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .badge-modern .dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .date-info .date {
+        display: block;
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.8rem;
+    }
+
+    .date-info .time {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.7rem;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.4;
+            transform: scale(1.2);
+        }
+
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,360 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Asset Management{% endblock %} | Company Logo</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Dynamic Styles -->
+    <style>
+        :root {
+            /* Premium Core Palette - Professional Standard */
+            --bg-body: #F4F5F7;
+            --bg-card: #FFFFFF;
+            --bg-sidebar: #FFFFFF;
+            /* Stick with White sidebar as per recent preference */
+
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --text-on-dark: #1E293B;
+            /* Dark text on white sidebar */
+
+            --primary: #6366F1;
+            /* Indigo 500 - Standard Corporate Primary */
+            --primary-hover: #4F46E5;
+            /* Indigo 600 */
+
+            --border-color: #E2E8F0;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            transition: width 0.3s ease;
+        }
+
+        .brand {
+            padding: 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: #0F172A;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand i {
+            color: var(--primary);
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 1rem 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            color: #64748B;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--primary);
+            background-color: #F8FAFC;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+            background-color: #EEF2FF;
+            /* Indigo tint */
+            border-left-color: var(--primary);
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            height: 64px;
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .page-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: var(--primary);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        /* Utilities */
+        .card {
+            background-color: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .grid-dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <i data-lucide="box"></i> Company Logo
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/" class="nav-item active">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="/assets/" class="nav-item">
+                <i data-lucide="package"></i> Asset Inventory
+            </a>
+            <a href="/assets/?view=depreciation" class="nav-item">
+                <i data-lucide="trending-down"></i> Depreciation Report
+            </a>
+            <a href="#" class="nav-item">
+                <i data-lucide="users"></i> Assignments
+            </a>
+            <a href="#" class="nav-item">
+                <i data-lucide="git-pull-request"></i> Requests
+            </a>
+            <a href="#" class="nav-item">
+                <i data-lucide="wrench"></i> Maintenance
+            </a>
+            <a href="#" class="nav-item">
+                <i data-lucide="bar-chart-2"></i> Reports
+            </a>
+
+            <div
+                style="margin-top: 1rem; margin-bottom: 0.5rem; padding-left: 1rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; font-weight: 600;">
+                Configuration
+            </div>
+
+            <a href="{% url 'category-list' %}" class="nav-item {% if 'categories' in request.path %}active{% endif %}">
+                <i data-lucide="layers"></i>
+                <span>Categories</span>
+            </a>
+            <a href="{% url 'subcategory-list' %}"
+                class="nav-item {% if 'subcategories' in request.path %}active{% endif %}">
+                <i data-lucide="git-branch"></i>
+                <span>Sub Categories</span>
+            </a>
+            <a href="{% url 'branch-list' %}" class="nav-item {% if 'branches' in request.path %}active{% endif %}">
+                <i data-lucide="map-pin"></i>
+                <span>Branches</span>
+            </a>
+            <a href="{% url 'building-list' %}" class="nav-item {% if 'buildings' in request.path %}active{% endif %}">
+                <i data-lucide="building"></i>
+                <span>Buildings</span>
+            </a>
+            <a href="{% url 'floor-list' %}" class="nav-item {% if 'floors' in request.path %}active{% endif %}">
+                <i data-lucide="layers"></i>
+                <span>Floors</span>
+            </a>
+            <a href="{% url 'room-list' %}" class="nav-item {% if 'rooms' in request.path %}active{% endif %}">
+                <i data-lucide="door-open"></i>
+                <span>Rooms</span>
+            </a>
+            <a href="{% url 'department-list' %}"
+                class="nav-item {% if 'departments' in request.path %}active{% endif %}">
+                <i data-lucide="briefcase"></i>
+                <span>Departments</span>
+            </a>
+            <a href="{% url 'vendor-list' %}" class="nav-item {% if 'vendors' in request.path %}active{% endif %}">
+                <i data-lucide="truck"></i>
+                <span>Vendors</span>
+            </a>
+        </nav>
+
+        <div style="padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1)">
+            <a href="{% url 'user-list' %}" class="nav-item">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="#" class="nav-item">
+                <i data-lucide="settings"></i> Settings
+            </a>
+
+            {% if user.is_authenticated %}
+            <form method="post" action="{% url 'logout' %}" style="display: block;">
+                {% csrf_token %}
+                <button type="submit" class="nav-item"
+                    style="width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit;">
+                    <i data-lucide="log-out"></i> Logout
+                </button>
+            </form>
+            {% else %}
+            <a href="{% url 'login' %}" class="nav-item">
+                <i data-lucide="log-in"></i> Login
+            </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="top-bar">
+            <h1 class="page-title">{% block page_title %}Overview{% endblock %}</h1>
+            <div class="user-menu">
+                <button class="btn">
+                    <i data-lucide="bell"></i>
+                </button>
+                <div class="user-avatar">AD</div>
+            </div>
+        </header>
+
+        <main class="content">
+            {% if messages %}
+            <div class="messages" style="margin-bottom: 1.5rem;">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}"
+                    style="padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; {% if message.tags == 'success' %}background: #DEF7EC; color: #03543F;{% elif message.tags == 'error' %}background: #FDE8E8; color: #9B1C1C;{% else %}background: #E1EFFE; color: #1E429F;{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>
