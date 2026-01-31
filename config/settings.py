@@ -92,27 +92,28 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Use DATABASE_URL from environment if available (for production)
 # Otherwise use local PostgreSQL configuration (for development)
-database_url = os.environ.get('DATABASE_URL')
+USE_POSTGRES_LOCAL = os.environ.get("USE_POSTGRES_LOCAL") == "1"
+
+database_url = os.environ.get("DATABASE_URL")
 
 if database_url:
-    # Production: Use DATABASE_URL from environment
+    DATABASES = {"default": dj_database_url.config(default=database_url)}
+elif USE_POSTGRES_LOCAL:
     DATABASES = {
-        'default': dj_database_url.config(
-            default=database_url,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "inventory_db",
+            "USER": "inventory_user",
+            "PASSWORD": "1234",
+            "HOST": "127.0.0.1",
+            "PORT": "5432",
+        }
     }
 else:
-    # Development: Use local PostgreSQL
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'inventory_db',
-            'USER': 'inventory_user',
-            'PASSWORD': '1234',
-            'HOST': '127.0.0.1',
-            'PORT': '5432',
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 
