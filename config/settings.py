@@ -119,6 +119,20 @@ else:
     }
 
 
+ALLOWED_HOSTS = [
+    "web-production-62fee.up.railway.app",
+    ".up.railway.app",
+    "localhost",
+    "127.0.0.1",
+]
+
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://web-production-62fee.up.railway.app",
+    "https://*.up.railway.app",
+]
+
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
