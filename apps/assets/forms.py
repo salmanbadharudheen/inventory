@@ -13,6 +13,7 @@ class AssetForm(forms.ModelForm):
             'warranty_end': forms.DateInput(attrs={'type': 'date'}),
             'next_maintenance_date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
+            'useful_life_years': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -45,11 +46,13 @@ class AssetAttachmentForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-        fields = ['name', 'code', 'useful_life_years']
+        fields = ['name', 'useful_life_years', 'depreciation_method', 'default_salvage_value', 'default_expected_units']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Electronics'}),
-            'code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., ELEC'}),
             'useful_life_years': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'depreciation_method': forms.Select(attrs={'class': 'form-control'}),
+            'default_salvage_value': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01', 'placeholder': '0.00'}),
+            'default_expected_units': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
 class SubCategoryForm(forms.ModelForm):

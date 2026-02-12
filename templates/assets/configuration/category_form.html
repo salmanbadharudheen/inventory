@@ -1,32 +1,62 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block page_title %}{% if object %}Edit Category{% else %}Add Category{% endif %}{% endblock %}
+{% block page_title %}
+{% if form.instance.pk %}Edit{% else %}Add{% endif %} Category
+{% endblock %}
 
 {% block content %}
 <div style="max-width: 600px; margin: 0 auto;">
     <div class="card">
-        <form method="post">
+        <form method="post" novalidate>
             {% csrf_token %}
 
             {% for field in form %}
-            <div class="form-group" style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ field.label }}</label>
+            <div class="form-group" style="margin-bottom: 1.5rem;" id="field-{{ field.name }}">
+
+                <label style="display:block; margin-bottom:0.5rem; font-weight:500;" for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                </label>
                 {{ field }}
+
                 {% if field.help_text %}
-                <small style="color: grey;">{{ field.help_text }}</small>
+                <small style="color: grey; display: block; margin-top: 0.25rem;">{{ field.help_text }}</small>
                 {% endif %}
+
                 {% if field.errors %}
-                <div style="color: red; font-size: 0.875rem;">{{ field.errors }}</div>
+                <div style="color: red; font-size: 0.875rem; margin-top: 0.25rem;">
+                    {% for error in field.errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
                 {% endif %}
             </div>
+            {% empty %}
+            <p>No fields available.</p>
             {% endfor %}
 
-            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <div style="display:flex; gap:1rem; margin-top:2rem;">
                 <button type="submit" class="btn btn-primary">Save Category</button>
-                <a href="{% url 'category-list' %}" class="btn"
-                    style="border: 1px solid var(--border-color);">Cancel</a>
+                <a href="{% url 'category-list' %}" class="btn" style="border: 1px solid var(--border-color);">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var methodEl = document.getElementById("id_depreciation_method");
+        var expectedWrapper = document.getElementById("field-default_expected_units");
+
+        function toggleExpectedUnits() {
+            if (!methodEl || !expectedWrapper) return;
+            var isUoP = methodEl.value === "UNITS_OF_PRODUCTION";
+            expectedWrapper.style.display = isUoP ? "block" : "none";
+        }
+
+        if (methodEl) {
+            methodEl.addEventListener("change", toggleExpectedUnits);
+            toggleExpectedUnits();
+        }
+    });
+</script>
 {% endblock %}

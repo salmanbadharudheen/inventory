@@ -17,23 +17,30 @@
                 <th style="padding:1rem;">Name</th>
                 <th style="padding:1rem;">Code</th>
                 <th style="padding:1rem;">Useful Life (Years)</th>
+                <th style="padding:1rem;">Depreciation Method</th>
+                <th style="padding:1rem;">Default Salvage Value</th>
                 <th style="padding:1rem;">Actions</th>
             </tr>
         </thead>
+
         <tbody>
             {% for category in categories %}
             <tr style="border-bottom:1px solid var(--border-color);">
                 <td style="padding:1rem; font-weight: 500;">{{ category.name }}</td>
                 <td style="padding:1rem;">{{ category.code }}</td>
                 <td style="padding:1rem;">{{ category.useful_life_years }}</td>
+                <td style="padding:1rem;">{{ category.get_depreciation_method_display }}</td>
+                <td style="padding:1rem;">{{ category.default_salvage_value }}</td>
                 <td style="padding:1rem;">
-                    <a href="{% url 'category-edit' category.pk %}" class="btn" style="padding: 0.25rem 0.5rem;"><i
-                            data-lucide="edit-2" style="width: 16px;"></i></a>
+                    <a href="{% url 'category-edit' category.pk %}" class="btn" style="padding: 0.25rem 0.5rem;">
+                        <i data-lucide="edit-2" style="width: 16px;"></i>
+                    </a>
                 </td>
             </tr>
+
             {% empty %}
             <tr>
-                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
                     No categories found.
                 </td>
             </tr>
