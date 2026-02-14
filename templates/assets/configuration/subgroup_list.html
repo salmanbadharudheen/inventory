@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block page_title %}SubGroup Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Asset SubGroups</h2>
+    <a href="{% url 'subgroup-create' %}" class="btn btn-primary">
+        <i data-lucide="plus"></i> Add New SubGroup
+    </a>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead style="background: #F8FAFC;">
+            <tr>
+                <th style="padding:1rem;">Name</th>
+                <th style="padding:1rem;">Group</th>
+                <th style="padding:1rem;">Code</th>
+                <th style="padding:1rem;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for subgroup in subgroups %}
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:1rem; font-weight: 500;">{{ subgroup.name }}</td>
+                <td style="padding:1rem;">{{ subgroup.group.name }}</td>
+                <td style="padding:1rem;">{{ subgroup.code|default:"-" }}</td>
+                <td style="padding:1rem;">
+                    <a href="{% url 'subgroup-edit' subgroup.pk %}" class="btn" style="padding: 0.25rem 0.5rem;">
+                        <i data-lucide="edit-2" style="width: 16px;"></i>
+                    </a>
+                </td>
+            </tr>
+
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    No subgroups found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

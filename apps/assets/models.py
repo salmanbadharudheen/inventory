@@ -89,6 +89,110 @@ class SubCategory(TenantAwareModel):
     def __str__(self):
         return f"{self.category.name} - {self.name}"
 
+# New Master Data Models for Categories & Locations
+
+class Group(TenantAwareModel):
+    """Category classification groups"""
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Groups"
+        unique_together = ('organization', 'name')
+    
+    def __str__(self):
+        return self.name
+
+class SubGroup(TenantAwareModel):
+    """Sub-groups filtered by Group"""
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, null=True, blank=True, related_name='subgroups')
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Sub Groups"
+        unique_together = ('group', 'name')
+    
+    def __str__(self):
+        if self.group:
+            return f"{self.group.name} - {self.name}"
+        return self.name
+
+class Brand(TenantAwareModel):
+    """Brand master data (converted from CharField)"""
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Brands"
+        unique_together = ('organization', 'name')
+    
+    def __str__(self):
+        return self.name
+
+class Company(TenantAwareModel):
+    """Company ownership"""
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, blank=True)
+    address = models.TextField(blank=True)
+    contact_person = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Companies"
+        unique_together = ('organization', 'name')
+    
+    def __str__(self):
+        return self.name
+
+class Supplier(TenantAwareModel):
+    """Supplier/vendor information"""
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, blank=True)
+    contact_person = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    address = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Suppliers"
+        unique_together = ('organization', 'name')
+    
+    def __str__(self):
+        return self.name
+
+class Custodian(TenantAwareModel):
+    """Asset custodians linked to User model"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='custodian_profile')
+    employee_id = models.CharField(max_length=100, blank=True)
+    department_name = models.CharField(max_length=255, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Custodians"
+        unique_together = ('organization', 'user')
+    
+    def __str__(self):
+        if self.user:
+            return f"{self.user.get_full_name() or self.user.username} ({self.employee_id})"
+        return f"Custodian {self.employee_id}"
+
+class AssetRemarks(TenantAwareModel):
+    """Standardized asset remarks"""
+    remark = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name_plural = "Asset Remarks"
+        unique_together = ('organization', 'remark')
+    
+    def __str__(self):
+        return self.remark
+
 def generate_asset_tag(organization):
     """
     Generate sequential asset tag for an organization.
@@ -115,9 +219,10 @@ def generate_asset_tag(organization):
 
 class Asset(TenantAwareModel):
     class Type(models.TextChoices):
-        PHYSICAL = 'PHYSICAL', _('Physical')
-        DIGITAL = 'DIGITAL', _('Digital')
-        LICENSE = 'LICENSE', _('License')
+        TAGGABLE = 'TAGGABLE', _('Taggable')
+        BUILDING_IMPROVEMENTS = 'BUILDING_IMPROVEMENTS', _('Building Improvements')
+        NTA = 'NTA', _('NTA')
+        CAPEX = 'CAPEX', _('CAPEX')
 
     class Condition(models.TextChoices):
         NEW = 'NEW', _('New')
@@ -133,31 +238,66 @@ class Asset(TenantAwareModel):
         STOLEN = 'STOLEN', _('Stolen')
         RETIRED = 'RETIRED', _('Retired')
 
+    class LabelType(models.TextChoices):
+        METAL = 'METAL', _('Metal')
+        NON_METAL = 'NON_METAL', _('Non-Metal')
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     # A) Identification
     name = models.CharField(max_length=255)
-    asset_tag = models.CharField(max_length=100, help_text="Unique Asset Code")
+    description = models.TextField(blank=True, verbose_name="Description")
+    short_description = models.CharField(max_length=150, blank=True, verbose_name="Short Description")
+    
+    asset_tag = models.CharField(max_length=100, help_text="Unique Asset ID (Autogenerated)", verbose_name="Asset ID")
+    custom_asset_tag = models.CharField(max_length=100, blank=True, null=True, verbose_name="Asset Tag")
+    asset_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Asset Code")
+    erp_asset_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="ERP Asset Number")
+    
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Quantity")
+    label_type = models.CharField(max_length=50, choices=LabelType.choices, default=LabelType.NON_METAL, verbose_name="Label Type")
+    
     serial_number = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Hierarchy
+    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children', verbose_name="Parent Asset")
     
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
     sub_category = models.ForeignKey(SubCategory, on_delete=models.SET_NULL, null=True, blank=True)
-    asset_type = models.CharField(max_length=20, choices=Type.choices, default=Type.PHYSICAL)
+    asset_type = models.CharField(max_length=50, choices=Type.choices, default=Type.TAGGABLE)
     
-    brand = models.CharField(max_length=100, blank=True)
-    model = models.CharField(max_length=100, blank=True)
-    condition = models.CharField(max_length=20, choices=Condition.choices, default=Condition.NEW)
+    # New Categories & Locations Fields
+    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    sub_group = models.ForeignKey(SubGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    
+    # Brand: keeping old CharField for backward compatibility, adding new FK field
+    brand = models.CharField(max_length=100, blank=True)  # Legacy field
+    brand_new = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets', verbose_name="Brand (New)")
+    model = models.CharField(max_length=100, blank=True)  # Kept as free text
+    condition = models.CharField(max_length=20, choices=Condition.choices, default=Condition.NEW, verbose_name="Asset Status")
 
-    # B) Ownership
+    # B) Ownership (existing + new fields)
     department = models.ForeignKey('locations.Department', on_delete=models.SET_NULL, null=True, blank=True)
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_assets')
     cost_center = models.CharField(max_length=100, blank=True)
+    
+    # New Ownership Fields
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    custodian = models.ForeignKey(Custodian, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    employee_number = models.CharField(max_length=100, blank=True, verbose_name="Employee Number")
 
-    # C) Location
+    # C) Location (existing + new hierarchy)
     branch = models.ForeignKey('locations.Branch', on_delete=models.SET_NULL, null=True, blank=True)
     building = models.ForeignKey('locations.Building', on_delete=models.SET_NULL, null=True, blank=True)
     floor = models.ForeignKey('locations.Floor', on_delete=models.SET_NULL, null=True, blank=True)
     room = models.ForeignKey('locations.Room', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # New Location Hierarchy
+    region = models.ForeignKey('locations.Region', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    site = models.ForeignKey('locations.Site', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    location = models.ForeignKey('locations.Location', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
+    sub_location = models.ForeignKey('locations.SubLocation', on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
 
     # D) Financial
     vendor = models.ForeignKey(Vendor, on_delete=models.SET_NULL, null=True, blank=True)
@@ -181,6 +321,32 @@ class Asset(TenantAwareModel):
     # F) Compliance & Extras
     notes = models.TextField(blank=True)
     custom_fields = models.JSONField(default=dict, blank=True)
+    
+    # New Procurement Fields
+    grn_number = models.CharField(max_length=100, blank=True, verbose_name="GRN Number")
+    
+    # New PO & Deliveries Fields
+    po_number = models.CharField(max_length=100, blank=True, verbose_name="PO Number")
+    po_date = models.DateField(null=True, blank=True, verbose_name="PO Date")
+    do_number = models.CharField(max_length=100, blank=True, verbose_name="DO Number")
+    do_date = models.DateField(null=True, blank=True, verbose_name="DO Date")
+    invoice_date = models.DateField(null=True, blank=True, verbose_name="Invoice Date")
+    date_placed_in_service = models.DateField(null=True, blank=True, verbose_name="Date Place in Service")
+    tagged_date = models.DateField(null=True, blank=True, verbose_name="Tagged Date")
+    insurance_start_date = models.DateField(null=True, blank=True, verbose_name="Insurance Start Date")
+    insurance_end_date = models.DateField(null=True, blank=True, verbose_name="Insurance End Date")
+    maintenance_start_date = models.DateField(null=True, blank=True, verbose_name="Maintenance Start Date")
+    maintenance_end_date = models.DateField(null=True, blank=True, verbose_name="Maintenance End Date")
+
+    # Document Upload Fields
+    image = models.FileField(upload_to='assets/images/', null=True, blank=True, verbose_name="Upload Image")
+    po_file = models.FileField(upload_to='assets/po/', null=True, blank=True, verbose_name="Upload Purchase Order")
+    invoice_file = models.FileField(upload_to='assets/invoices/', null=True, blank=True, verbose_name="Upload Invoice/Contract")
+    delivery_note_file = models.FileField(upload_to='assets/delivery_notes/', null=True, blank=True, verbose_name="Upload Delivery Note")
+    insurance_file = models.FileField(upload_to='assets/insurance/', null=True, blank=True, verbose_name="Upload Insurance Contract")
+    amc_file = models.FileField(upload_to='assets/amc/', null=True, blank=True, verbose_name="Upload AMC Contract")
+
+    asset_remarks = models.ForeignKey(AssetRemarks, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
 
     # G) Status
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACTIVE)

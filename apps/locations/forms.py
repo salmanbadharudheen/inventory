@@ -1,5 +1,5 @@
 from django import forms
-from .models import Branch, Department, Building, Floor, Room
+from .models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 
 class BranchForm(forms.ModelForm):
     class Meta:
@@ -72,3 +72,68 @@ class RoomForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if request and hasattr(request.user, 'organization'):
             self.fields['floor'].queryset = Floor.objects.filter(building__branch__organization=request.user.organization)
+
+# New Location Hierarchy Forms
+
+class RegionForm(forms.ModelForm):
+    class Meta:
+        model = Region
+        fields = ['name', 'code', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g., North Region'}),
+            'code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Optional'}),
+            'description': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
+        }
+
+class SiteForm(forms.ModelForm):
+    class Meta:
+        model = Site
+        fields = ['region', 'name', 'code', 'address']
+        widgets = {
+            'region': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g., Main Site'}),
+            'code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Optional'}),
+            'address': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request and hasattr(request.user, 'organization'):
+            self.fields['region'].queryset = Region.objects.filter(organization=request.user.organization)
+
+class LocationForm(forms.ModelForm):
+    class Meta:
+        model = Location
+        fields = ['site', 'building', 'name', 'code', 'description']
+        widgets = {
+            'site': forms.Select(attrs={'class': 'form-select'}),
+            'building': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g., Warehouse A'}),
+            'code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Optional'}),
+            'description': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request and hasattr(request.user, 'organization'):
+            self.fields['site'].queryset = Site.objects.filter(region__organization=request.user.organization)
+            self.fields['building'].queryset = Building.objects.filter(branch__organization=request.user.organization)
+
+class SubLocationForm(forms.ModelForm):
+    class Meta:
+        model = SubLocation
+        fields = ['location', 'name', 'code', 'description']
+        widgets = {
+            'location': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g., Section A1'}),
+            'code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Optional'}),
+            'description': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request and hasattr(request.user, 'organization'):
+            self.fields['location'].queryset = Location.objects.filter(site__region__organization=request.user.organization)

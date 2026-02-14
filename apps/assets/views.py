@@ -6,8 +6,10 @@ from django.db.models import Q
 from django.contrib import messages
 import csv
 import io
-from .models import Asset, AssetAttachment, Category, SubCategory, Vendor, generate_asset_tag
-from .forms import AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm
+from .models import (Asset, AssetAttachment, Category, SubCategory, Vendor, generate_asset_tag,
+                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks)
+from .forms import (AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm,
+                    GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm)
 from django.db import transaction
 from apps.locations.models import Branch, Building, Floor, Room
 from django.urls import reverse
@@ -47,7 +49,30 @@ def get_rooms(request):
     if floor_id:
         rooms = Room.objects.filter(floor_id=floor_id).values('id', 'name')
         return JsonResponse(list(rooms), safe=False)
-    return JsonResponse([], safe=False)
+    return JsonResponse(list(rooms), safe=False)
+
+def lookup_asset(request):
+    query = request.GET.get('q')
+    if query:
+        # Prioritize exact match on tags, then partial on name
+        asset = Asset.objects.filter(
+            Q(asset_tag__iexact=query) | 
+            Q(custom_asset_tag__iexact=query) |
+            Q(asset_code__iexact=query),
+            organization=request.user.organization
+        ).first()
+        
+        if not asset:
+             # Fallback to name search if no exact tag match
+             asset = Asset.objects.filter(
+                name__icontains=query,
+                organization=request.user.organization
+             ).first()
+             
+        if asset:
+            return JsonResponse({'id': asset.id, 'name': asset.name})
+    
+    return JsonResponse({'error': 'Not found'}, status=404)
 
 def download_sample_csv(request):
     response = HttpResponse(content_type='text/csv')
@@ -132,6 +157,22 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
     form_class = AssetForm
     template_name = 'assets/asset_form.html'
     success_url = reverse_lazy('asset-list')
+
+    def get(self, request, *args, **kwargs):
+        try:
+            return super().get(request, *args, **kwargs)
+        except Exception:
+            import traceback
+            print(traceback.format_exc())
+            raise
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except Exception:
+            import traceback
+            print(traceback.format_exc())
+            raise
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -415,3 +456,224 @@ class VendorUpdateView(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         return Vendor.objects.filter(organization=self.request.user.organization)
 
+# New Master Data CRUD Views
+
+# --- GROUP VIEWS ---
+class GroupListView(LoginRequiredMixin, ListView):
+    model = Group
+    template_name = 'assets/configuration/group_list.html'
+    context_object_name = 'groups'
+
+    def get_queryset(self):
+        return Group.objects.filter(organization=self.request.user.organization)
+
+class GroupCreateView(LoginRequiredMixin, CreateView):
+    model = Group
+    form_class = GroupForm
+    template_name = 'assets/configuration/group_form.html'
+    success_url = reverse_lazy('group-list')
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+class GroupUpdateView(LoginRequiredMixin, UpdateView):
+    model = Group
+    form_class = GroupForm
+    template_name = 'assets/configuration/group_form.html'
+    success_url = reverse_lazy('group-list')
+    
+    def get_queryset(self):
+        return Group.objects.filter(organization=self.request.user.organization)
+
+# --- SUBGROUP VIEWS ---
+class SubGroupListView(LoginRequiredMixin, ListView):
+    model = SubGroup
+    template_name = 'assets/configuration/subgroup_list.html'
+    context_object_name = 'subgroups'
+
+    def get_queryset(self):
+        return SubGroup.objects.filter(group__organization=self.request.user.organization).select_related('group')
+
+class SubGroupCreateView(LoginRequiredMixin, CreateView):
+    model = SubGroup
+    form_class = SubGroupForm
+    template_name = 'assets/configuration/subgroup_form.html'
+    success_url = reverse_lazy('subgroup-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+class SubGroupUpdateView(LoginRequiredMixin, UpdateView):
+    model = SubGroup
+    form_class = SubGroupForm
+    template_name = 'assets/configuration/subgroup_form.html'
+    success_url = reverse_lazy('subgroup-list')
+    
+    def get_queryset(self):
+        return SubGroup.objects.filter(group__organization=self.request.user.organization)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+# --- BRAND VIEWS ---
+class BrandListView(LoginRequiredMixin, ListView):
+    model = Brand
+    template_name = 'assets/configuration/brand_list.html'
+    context_object_name = 'brands'
+
+    def get_queryset(self):
+        return Brand.objects.filter(organization=self.request.user.organization)
+
+class BrandCreateView(LoginRequiredMixin, CreateView):
+    model = Brand
+    form_class = BrandForm
+    template_name = 'assets/configuration/brand_form.html'
+    success_url = reverse_lazy('brand-list')
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+class BrandUpdateView(LoginRequiredMixin, UpdateView):
+    model = Brand
+    form_class = BrandForm
+    template_name = 'assets/configuration/brand_form.html'
+    success_url = reverse_lazy('brand-list')
+    
+    def get_queryset(self):
+        return Brand.objects.filter(organization=self.request.user.organization)
+
+# --- COMPANY VIEWS ---
+class CompanyListView(LoginRequiredMixin, ListView):
+    model = Company
+    template_name = 'assets/configuration/company_list.html'
+    context_object_name = 'companies'
+
+    def get_queryset(self):
+        return Company.objects.filter(organization=self.request.user.organization)
+
+class CompanyCreateView(LoginRequiredMixin, CreateView):
+    model = Company
+    form_class = CompanyForm
+    template_name = 'assets/configuration/company_form.html'
+    success_url = reverse_lazy('company-list')
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+class CompanyUpdateView(LoginRequiredMixin, UpdateView):
+    model = Company
+    form_class = CompanyForm
+    template_name = 'assets/configuration/company_form.html'
+    success_url = reverse_lazy('company-list')
+    
+    def get_queryset(self):
+        return Company.objects.filter(organization=self.request.user.organization)
+
+# --- SUPPLIER VIEWS ---
+class SupplierListView(LoginRequiredMixin, ListView):
+    model = Supplier
+    template_name = 'assets/configuration/supplier_list.html'
+    context_object_name = 'suppliers'
+
+    def get_queryset(self):
+        return Supplier.objects.filter(organization=self.request.user.organization)
+
+class SupplierCreateView(LoginRequiredMixin, CreateView):
+    model = Supplier
+    form_class = SupplierForm
+    template_name = 'assets/configuration/supplier_form.html'
+    success_url = reverse_lazy('supplier-list')
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+class SupplierUpdateView(LoginRequiredMixin, UpdateView):
+    model = Supplier
+    form_class = SupplierForm
+    template_name = 'assets/configuration/supplier_form.html'
+    success_url = reverse_lazy('supplier-list')
+    
+    def get_queryset(self):
+        return Supplier.objects.filter(organization=self.request.user.organization)
+
+# --- CUSTODIAN VIEWS ---
+class CustodianListView(LoginRequiredMixin, ListView):
+    model = Custodian
+    template_name = 'assets/configuration/custodian_list.html'
+    context_object_name = 'custodians'
+
+    def get_queryset(self):
+        return Custodian.objects.filter(organization=self.request.user.organization).select_related('user')
+
+class CustodianCreateView(LoginRequiredMixin, CreateView):
+    model = Custodian
+    form_class = CustodianForm
+    template_name = 'assets/configuration/custodian_form.html'
+    success_url = reverse_lazy('custodian-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+class CustodianUpdateView(LoginRequiredMixin, UpdateView):
+    model = Custodian
+    form_class = CustodianForm
+    template_name = 'assets/configuration/custodian_form.html'
+    success_url = reverse_lazy('custodian-list')
+    
+    def get_queryset(self):
+        return Custodian.objects.filter(organization=self.request.user.organization)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+# --- ASSET REMARKS VIEWS ---
+class AssetRemarksListView(LoginRequiredMixin, ListView):
+    model = AssetRemarks
+    template_name = 'assets/configuration/assetremarks_list.html'
+    context_object_name = 'remarks'
+
+    def get_queryset(self):
+        return AssetRemarks.objects.filter(organization=self.request.user.organization)
+
+class AssetRemarksCreateView(LoginRequiredMixin, CreateView):
+    model = AssetRemarks
+    form_class = AssetRemarksForm
+    template_name = 'assets/configuration/assetremarks_form.html'
+    success_url = reverse_lazy('assetremarks-list')
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+class AssetRemarksUpdateView(LoginRequiredMixin, UpdateView):
+    model = AssetRemarks
+    form_class = AssetRemarksForm
+    template_name = 'assets/configuration/assetremarks_form.html'
+    success_url = reverse_lazy('assetremarks-list')
+    
+    def get_queryset(self):
+        return AssetRemarks.objects.filter(organization=self.request.user.organization)
+
+# AJAX endpoints for new cascading dropdowns
+def get_subgroups(request):
+    group_id = request.GET.get('group_id')
+    if group_id:
+        subgroups = SubGroup.objects.filter(group_id=group_id).values('id', 'name')
+        return JsonResponse(list(subgroups), safe=False)
+    return JsonResponse([], safe=False)

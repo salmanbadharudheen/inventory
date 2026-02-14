@@ -260,7 +260,7 @@
 
             <div
                 style="margin-top: 1rem; margin-bottom: 0.5rem; padding-left: 1rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; font-weight: 600;">
-                Configuration
+                Asset Configuration
             </div>
 
             <a href="{% url 'category-list' %}" class="nav-item {% if 'categories' in request.path %}active{% endif %}">
@@ -272,8 +272,65 @@
                 <i data-lucide="git-branch"></i>
                 <span>Sub Categories</span>
             </a>
-            <a href="{% url 'branch-list' %}" class="nav-item {% if 'branches' in request.path %}active{% endif %}">
+            <a href="{% url 'group-list' %}" class="nav-item {% if 'groups' in request.path %}active{% endif %}">
+                <i data-lucide="folder"></i>
+                <span>Groups</span>
+            </a>
+            <a href="{% url 'subgroup-list' %}" class="nav-item {% if 'subgroups' in request.path %}active{% endif %}">
+                <i data-lucide="folder-tree"></i>
+                <span>Sub Groups</span>
+            </a>
+            <a href="{% url 'brand-list' %}" class="nav-item {% if 'brands' in request.path %}active{% endif %}">
+                <i data-lucide="tag"></i>
+                <span>Brands</span>
+            </a>
+            <a href="{% url 'company-list' %}" class="nav-item {% if 'companies' in request.path %}active{% endif %}">
+                <i data-lucide="building-2"></i>
+                <span>Companies</span>
+            </a>
+            <a href="{% url 'supplier-list' %}" class="nav-item {% if 'suppliers' in request.path %}active{% endif %}">
+                <i data-lucide="truck"></i>
+                <span>Suppliers</span>
+            </a>
+            <a href="{% url 'custodian-list' %}"
+                class="nav-item {% if 'custodians' in request.path %}active{% endif %}">
+                <i data-lucide="user-check"></i>
+                <span>Custodians</span>
+            </a>
+            <a href="{% url 'vendor-list' %}" class="nav-item {% if 'vendors' in request.path %}active{% endif %}">
+                <i data-lucide="shopping-cart"></i>
+                <span>Vendors</span>
+            </a>
+            <a href="{% url 'assetremarks-list' %}"
+                class="nav-item {% if 'remarks' in request.path %}active{% endif %}">
+                <i data-lucide="message-square"></i>
+                <span>Remarks</span>
+            </a>
+
+            <div
+                style="margin-top: 1rem; margin-bottom: 0.5rem; padding-left: 1rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; font-weight: 600;">
+                Location Configuration
+            </div>
+            <a href="{% url 'region-list' %}" class="nav-item {% if 'regions' in request.path %}active{% endif %}">
+                <i data-lucide="globe"></i>
+                <span>Regions</span>
+            </a>
+            <a href="{% url 'site-list' %}" class="nav-item {% if 'sites' in request.path %}active{% endif %}">
+                <i data-lucide="map"></i>
+                <span>Sites</span>
+            </a>
+            <a href="{% url 'location-list' %}"
+                class="nav-item {% if 'locations_list' in request.path %}active{% endif %}">
                 <i data-lucide="map-pin"></i>
+                <span>Locations</span>
+            </a>
+            <a href="{% url 'sublocation-list' %}"
+                class="nav-item {% if 'sublocations' in request.path %}active{% endif %}">
+                <i data-lucide="pin"></i>
+                <span>Sub Locations</span>
+            </a>
+            <a href="{% url 'branch-list' %}" class="nav-item {% if 'branches' in request.path %}active{% endif %}">
+                <i data-lucide="home"></i>
                 <span>Branches</span>
             </a>
             <a href="{% url 'building-list' %}" class="nav-item {% if 'buildings' in request.path %}active{% endif %}">
@@ -292,10 +349,6 @@
                 class="nav-item {% if 'departments' in request.path %}active{% endif %}">
                 <i data-lucide="briefcase"></i>
                 <span>Departments</span>
-            </a>
-            <a href="{% url 'vendor-list' %}" class="nav-item {% if 'vendors' in request.path %}active{% endif %}">
-                <i data-lucide="truck"></i>
-                <span>Vendors</span>
             </a>
         </nav>
 

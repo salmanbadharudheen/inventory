@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Custodian Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2>Custodians</h2>
+    <a href="{% url 'custodian-create' %}" class="btn btn-primary">
+        <i data-lucide="plus"></i> Add New Custodian
+    </a>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead style="background: #F8FAFC;">
+            <tr>
+                <th style="padding:1rem;">User</th>
+                <th style="padding:1rem;">Employee ID</th>
+                <th style="padding:1rem;">Department</th>
+                <th style="padding:1rem;">Phone</th>
+                <th style="padding:1rem;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for custodian in custodians %}
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:1rem; font-weight: 500;">
+                    {% if custodian.user %}
+                    {{ custodian.user.get_full_name|default:custodian.user.username }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td style="padding:1rem;">{{ custodian.employee_id|default:"-" }}</td>
+                <td style="padding:1rem;">{{ custodian.department_name|default:"-" }}</td>
+                <td style="padding:1rem;">{{ custodian.phone|default:"-" }}</td>
+                <td style="padding:1rem;">
+                    <a href="{% url 'custodian-edit' custodian.pk %}" class="btn" style="padding: 0.25rem 0.5rem;">
+                        <i data-lucide="edit-2" style="width: 16px;"></i>
+                    </a>
+                </td>
+            </tr>
+
+            {% empty %}
+            <tr>
+                <td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    No custodians found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
