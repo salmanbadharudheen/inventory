@@ -4,36 +4,59 @@
 {% block page_title %}Bulk Asset Import{% endblock %}
 
 {% block content %}
-<div style="max-width: 800px; margin: 0 auto;">
+<div style="max-width: 900px; margin: 0 auto;">
     <div class="card">
-        <h3>Import Assets from CSV</h3>
+        <h3>Import Assets from Excel or CSV</h3>
         <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-            Upload a CSV file to create multiple assets at once.
-            Ensure your CSV matches the required format.
+            Upload an Excel (.xlsx) or CSV file to create multiple assets at once.
+            Ensure your file headers match the system fields.
         </p>
 
         <div
             style="background: #F8FAFC; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px dashed var(--border-color);">
-            <h4 style="margin-bottom: 0.5rem;">CSV Requirements:</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary);">
-                    <li><strong>name</strong> (Required)</li>
-                    <li><strong>asset_tag</strong> (Required, unique)</li>
-                    <li><strong>category_code</strong> (Required)</li>
-                    <li><strong>status</strong> (Optional)</li>
-                    <li><strong>purchase_price</strong> (Optional)</li>
-                </ul>
-                <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary);">
-                    <li><strong>brand, model, serial_number</strong></li>
-                    <li><strong>branch, building, floor</strong> (Strict)</li>
-                    <li><strong>room</strong> (Auto-created if new)</li>
-                    <li><strong>vendor</strong> (Strict)</li>
-                </ul>
+            <h4 style="margin-bottom: 0.5rem;">Import Guidelines:</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <h5 style="margin-bottom: 0.5rem; font-size: 0.9rem;">Required Fields:</h5>
+                    <ul
+                        style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                        <li><strong>name</strong>: Asset name</li>
+                        <li><strong>category</strong>: Code or Name of Category</li>
+                    </ul>
+
+                    <h5 style="margin-top: 1rem; margin-bottom: 0.5rem; font-size: 0.9rem;">Identification:</h5>
+                    <ul
+                        style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                        <li><strong>asset_tag</strong>: Unique ID (Autogen if empty)</li>
+                        <li><strong>serial_number</strong>: Manufacturer S/N</li>
+                        <li><strong>asset_code</strong>, <strong>erp_asset_number</strong></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 style="margin-bottom: 0.5rem; font-size: 0.9rem;">Master Data & Location:</h5>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                        Looked up by name (case-insensitive).
+                    </p>
+                    <ul
+                        style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                        <li><strong>branch, building, floor, room</strong></li>
+                        <li><strong>region, site, location, sub_location</strong></li>
+                        <li><strong>brand, group, company, supplier</strong></li>
+                        <li><strong>custodian</strong>: Use Employee ID or Username</li>
+                    </ul>
+                </div>
             </div>
-            <a href="{% url 'asset-import-sample' %}" class="btn btn-sm"
-                style="background: white; border: 1px solid var(--border-color); margin-top: 1rem; display: inline-block;">
-                <i data-lucide="download"></i> Download Sample CSV
-            </a>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                <a href="{% url 'asset-import-sample-excel' %}" class="btn btn-sm"
+                    style="background: white; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="download"></i> Download Excel Template
+                </a>
+                <a href="{% url 'asset-import-sample' %}" class="btn btn-sm"
+                    style="background: white; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="download"></i> Download CSV Template
+                </a>
+            </div>
         </div>
 
         <form method="post" enctype="multipart/form-data">
@@ -46,18 +69,18 @@
             {% endif %}
 
             <div style="margin-bottom: 2rem;">
-                <label for="{{ form.csv_file.id_for_label }}"
+                <label for="{{ form.import_file.id_for_label }}"
                     style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-                    {{ form.csv_file.label }}
+                    {{ form.import_file.label }}
                 </label>
-                {{ form.csv_file }}
-                {% if form.csv_file.errors %}
+                {{ form.import_file }}
+                {% if form.import_file.errors %}
                 <div style="color: red; font-size: 0.875rem; margin-top: 0.25rem;">
-                    {{ form.csv_file.errors }}
+                    {{ form.import_file.errors }}
                 </div>
                 {% endif %}
                 <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                    {{ form.csv_file.help_text }}
+                    {{ form.import_file.help_text }}
                 </p>
             </div>
 

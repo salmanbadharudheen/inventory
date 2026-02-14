@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView, 
-    download_sample_csv, get_subcategories, get_departments, get_buildings, get_floors, get_rooms, lookup_asset,
+    BulkAssetActionView, ExportAssetExcelView,
+    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_floors, get_rooms, lookup_asset,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
@@ -17,8 +18,11 @@ from .views import (
 urlpatterns = [
     # Assets
     path('', AssetListView.as_view(), name='asset-list'),
+    path('bulk-action/', BulkAssetActionView.as_view(), name='asset-bulk-action'),
+    path('export/excel/', ExportAssetExcelView.as_view(), name='asset-export-excel'),
     path('import/', AssetImportView.as_view(), name='asset-import'),
-    path('import/sample/', download_sample_csv, name='asset-import-sample'),
+    path('import/sample/csv/', download_sample_csv, name='asset-import-sample'),
+    path('import/sample/excel/', download_sample_excel, name='asset-import-sample-excel'),
     path('ajax/subcategories/', get_subcategories, name='get-subcategories'),
     path('ajax/departments/', get_departments, name='get-departments'),
     path('ajax/buildings/', get_buildings, name='get-buildings'),

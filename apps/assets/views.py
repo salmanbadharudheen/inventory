@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView
+from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.db.models import Q
@@ -11,9 +11,13 @@ from .models import (Asset, AssetAttachment, Category, SubCategory, Vendor, gene
 from .forms import (AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm,
                     GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm)
 from django.db import transaction
-from apps.locations.models import Branch, Building, Floor, Room
+from apps.locations.models import (Branch, Building, Floor, Room, 
+                                   Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
+from decimal import Decimal
+from datetime import date, datetime
+import openpyxl
 
 def get_subcategories(request):
     category_id = request.GET.get('category_id')
@@ -74,30 +78,72 @@ def lookup_asset(request):
     
     return JsonResponse({'error': 'Not found'}, status=404)
 
+ASSET_IMPORT_FIELDS = [
+    'name', 'description', 'short_description', 'asset_tag', 'custom_asset_tag', 
+    'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
+    'category', 'sub_category', 'asset_type', 'group', 'sub_group', 'brand', 
+    'model', 'condition', 'status', 'department', 'cost_center', 'company', 
+    'supplier', 'vendor', 'custodian', 'employee_number', 'branch', 'building', 
+    'floor', 'room', 'region', 'site', 'location', 'sub_location', 'purchase_date', 
+    'purchase_price', 'currency', 'invoice_number', 'invoice_date', 'po_number', 
+    'po_date', 'do_number', 'do_date', 'grn_number', 'warranty_start', 'warranty_end', 
+    'tagged_date', 'date_placed_in_service', 'insurance_start_date', 'insurance_end_date', 
+    'maintenance_start_date', 'maintenance_end_date', 'next_maintenance_date', 
+    'maintenance_frequency_days', 'expected_units', 'useful_life_years', 
+    'salvage_value', 'depreciation_method', 'remarks', 'notes'
+]
+
 def download_sample_csv(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="sample_assets.csv"'
 
     writer = csv.writer(response)
-    # Header
+    writer.writerow(ASSET_IMPORT_FIELDS)
+    
+    # Sample Row
     writer.writerow([
-        'name', 'asset_tag', 'category_code', 'status', 'purchase_price',
-        'brand', 'model', 'serial_number', 'notes',
-        'branch', 'building', 'floor', 'room', 'vendor'
-    ])
-    # Sample Row 1 - with custom asset tag
-    writer.writerow([
-        'MacBook Pro 16', 'CUSTOM-001', 'IT', 'ACTIVE', '2499.00', 
-        'Apple', 'M3 Pro', 'SN12345678', 'Assigned to Design Team',
-        'Main Branch', 'HQ Building', '2nd Floor', 'Office 204', 'TechStore Inc.'
-    ])
-    # Sample Row 2 - asset tag will be auto-generated (AST-00001, AST-00002, etc.)
-    writer.writerow([
-        'Office Chair', '', 'FUR', 'IN_STORAGE', '150.00',
-        'Herman Miller', 'Aeron', '', '',
-        'Main Branch', 'HQ Building', '1st Floor', 'Storage Room B', ''
+        'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
+        'C001', 'ERP-100', '1', 'NON_METAL', 'SN123456', 
+        'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
+        'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
+        'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
+        '2nd Floor', 'Room 201', 'North Region', 'Main Site', 'Main Location', 'Sub 1', '2023-01-01', 
+        '5000', 'AED', 'INV-001', '2023-01-01', 'PO-100', 
+        '2022-12-15', 'DO-100', '2022-12-28', 'GRN-100', '2023-01-01', '2026-01-01', 
+        '2023-01-02', '2023-01-10', '2023-01-01', '2024-01-01', 
+        '2023-01-01', '2024-01-01', '2023-06-01', '180', '1000', '5', '500', 
+        'STRAIGHT_LINE', 'Needs Setup', 'Initial deployment'
     ])
     
+    return response
+
+def download_sample_excel(request):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Assets"
+
+    # Header
+    ws.append(ASSET_IMPORT_FIELDS)
+
+    # Sample Row
+    ws.append([
+        'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
+        'C001', 'ERP-100', 1, 'NON_METAL', 'SN123456', 
+        'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
+        'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
+        'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
+        '2nd Floor', 'Room 201', 'North Region', 'Main Site', 'Main Location', 'Sub 1', '2023-01-01', 
+        5000, 'AED', 'INV-001', '2023-01-01', 'PO-100', 
+        '2022-12-15', 'DO-100', '2022-12-28', 'GRN-100', '2023-01-01', '2026-01-01', 
+        '2023-01-02', '2023-01-10', '2023-01-01', '2024-01-01', 
+        '2023-01-01', '2024-01-01', '2023-06-01', '180', '1000', '5', '500', 
+        'STRAIGHT_LINE', 'Needs Setup', 'Initial deployment'
+    ])
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="sample_assets.xlsx"'
+    wb.save(response)
     return response
 
 # --- ASSET VIEWS ---
@@ -116,7 +162,10 @@ class AssetListView(LoginRequiredMixin, ListView):
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
             is_deleted=False
-        ).select_related('category', 'branch', 'assigned_to')
+        ).select_related(
+            'category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room'
+        )
 
         # Search
         query = self.request.GET.get('q')
@@ -124,24 +173,43 @@ class AssetListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(name__icontains=query) | 
                 Q(asset_tag__icontains=query) |
-                Q(serial_number__icontains=query)
+                Q(serial_number__icontains=query) |
+                Q(erp_asset_number__icontains=query)
             )
             
-        # Filters
-        status = self.request.GET.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
+        # Advanced Filters
+        filters = {
+            'status': 'status',
+            'category': 'category_id',
+            'site': 'site_id',
+            'building': 'building_id',
+            'brand': 'brand_new_id',
+        }
+        
+        for param, field in filters.items():
+            val = self.request.GET.get(param)
+            if val:
+                queryset = queryset.filter(**{field: val})
 
-        return queryset
+        return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        
+        # Dropdown data for filters
+        context['categories'] = Category.objects.filter(organization=org).order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).order_by('name')
+        context['brands'] = Brand.objects.filter(organization=org).order_by('name')
+        context['statuses'] = Asset.Status.choices
+
         if self.request.GET.get('view') == 'depreciation':
             # Calculate totals for the visible queryset (respects filters)
             queryset = self.get_queryset()
             all_visible = list(queryset)
             
-            total_cost = sum((a.purchase_price or 0) for a in all_visible)
+            total_cost = sum((a.purchase_price or Decimal('0')) for a in all_visible)
             total_acc_dep = sum(a.accumulated_depreciation for a in all_visible)
             total_nbv = sum(a.current_value for a in all_visible)
             
@@ -150,7 +218,79 @@ class AssetListView(LoginRequiredMixin, ListView):
             context['total_nbv'] = total_nbv
             context['is_report'] = True
             
+        # Ensure filters persist during pagination
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context['query_params'] = query_params.urlencode()
+            
         return context
+
+class BulkAssetActionView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        asset_ids = request.POST.getlist('asset_ids')
+        action = request.POST.get('action')
+        
+        if not asset_ids:
+            messages.warning(request, "No assets selected.")
+            return redirect('asset-list')
+            
+        assets = Asset.objects.filter(
+            id__in=asset_ids, 
+            organization=request.user.organization
+        )
+        
+        count = assets.count()
+        
+        if action == 'delete':
+            assets.update(is_deleted=True)
+            messages.success(request, f"Successfully deleted {count} assets.")
+        elif action.startswith('status_'):
+            new_status = action.replace('status_', '').upper()
+            assets.update(status=new_status)
+            messages.success(request, f"Successfully updated status for {count} assets.")
+            
+        return redirect('asset-list')
+
+class ExportAssetExcelView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        # We reuse the logic from AssetListView to respect current filters
+        view = AssetListView()
+        view.request = request
+        queryset = view.get_queryset()
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Assets Export"
+        
+        headers = [
+            'Asset Tag', 'Name', 'Category', 'Status', 
+            'Site', 'Building', 'Room', 'Condition', 
+            'Purchase Price', 'Currency', 'Purchase Date'
+        ]
+        ws.append(headers)
+        
+        for asset in queryset:
+            ws.append([
+                asset.asset_tag,
+                asset.name,
+                asset.category.name if asset.category else '',
+                asset.get_status_display(),
+                asset.site.name if asset.site else '',
+                asset.building.name if asset.building else '',
+                str(asset.room) if asset.room else '',
+                asset.get_condition_display(),
+                float(asset.purchase_price) if asset.purchase_price else 0,
+                asset.currency,
+                asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else ''
+            ])
+            
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="assets_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+        wb.save(response)
+        return response
 
 class AssetCreateView(LoginRequiredMixin, CreateView):
     model = Asset
@@ -187,150 +327,328 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
             form.instance.asset_tag = generate_asset_tag(self.request.user.organization)
         return super().form_valid(form)
 
+
 class AssetImportView(LoginRequiredMixin, FormView):
     template_name = 'assets/asset_import.html'
     form_class = AssetImportForm
     success_url = reverse_lazy('asset-list')
 
+    def get_file_data(self, uploaded_file):
+        """Extract data rows from CSV or Excel file efficiently."""
+        data = []
+        filename = uploaded_file.name.lower()
+        
+        if filename.endswith('.csv'):
+            try:
+                # Use a generator or list but decoded efficiently
+                decoded_file = uploaded_file.read().decode('utf-8-sig')
+                io_string = io.StringIO(decoded_file)
+                reader = csv.DictReader(io_string)
+                data = list(reader)
+            except Exception as e:
+                raise ValueError(f"Error reading CSV: {str(e)}")
+        
+        elif filename.endswith('.xlsx'):
+            try:
+                # Optimized Excel reading for large files
+                wb = openpyxl.load_workbook(uploaded_file, data_only=True, read_only=True)
+                sheet = wb.active
+                
+                # Get headers from the first row
+                rows_gen = sheet.iter_rows(values_only=True)
+                headers = [h for h in next(rows_gen) if h]
+                
+                for row in rows_gen:
+                    if any(row):  # Skip empty rows
+                        row_dict = dict(zip(headers, row))
+                        data.append(row_dict)
+                wb.close() # Important for read_only=True
+            except Exception as e:
+                raise ValueError(f"Error reading Excel: {str(e)}")
+        
+        return data
+
+    def parse_date(self, value):
+        if not value:
+            return None
+        if isinstance(value, (datetime, date)):
+            return value
+        val_str = str(value).strip()
+        if not val_str or val_str.lower() in ('none', 'null', 'nan'):
+            return None
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S'):
+            try:
+                return datetime.strptime(val_str, fmt).date()
+            except (ValueError, TypeError):
+                continue
+        return None
+
     def form_valid(self, form):
-        csv_file = form.cleaned_data['csv_file']
+        import_file = form.cleaned_data['import_file']
+        org = self.request.user.organization
+        
         try:
-            decoded_file = csv_file.read().decode('utf-8-sig')
-        except UnicodeDecodeError:
-            messages.error(self.request, "File encoding error. Please ensure the CSV is UTF-8 encoded.")
-            return self.form_invalid(form)
-        except Exception as e:
-            messages.error(self.request, f"Error reading file: {str(e)}")
+            rows = self.get_file_data(import_file)
+        except ValueError as e:
+            messages.error(self.request, str(e))
             return self.form_invalid(form)
 
-        io_string = io.StringIO(decoded_file)
-        reader = csv.DictReader(io_string)
+        if not rows:
+            messages.warning(self.request, "No data found in the file.")
+            return self.form_invalid(form)
+
+        # --- PRE-FETCH MASTER DATA (CACHING) ---
+        def build_cache(model, field='name', org_relevant=True):
+            qs = model.objects.all()
+            if org_relevant and hasattr(model, 'organization'):
+                qs = qs.filter(organization=org)
+            elif org_relevant and hasattr(model, 'category') and hasattr(model.category, 'organization'):
+                # For SubCategory if it didn't have direct org link (it does, but just in case)
+                qs = qs.filter(category__organization=org)
+            
+            cache = {}
+            for obj in qs:
+                val = getattr(obj, field)
+                if val:
+                    cache[str(val).strip().lower()] = obj
+            return cache
+
+        # Asset-specific master data
+        categories_by_code = build_cache(Category, 'code')
+        categories_by_name = build_cache(Category, 'name')
+        subcategories = build_cache(SubCategory, 'name')
+        groups = build_cache(Group, 'name')
+        subgroups = build_cache(SubGroup, 'name')
+        brands = build_cache(Brand, 'name')
+        companies = build_cache(Company, 'name')
+        suppliers = build_cache(Supplier, 'name')
+        vendors = build_cache(Vendor, 'name')
+        remarks = build_cache(AssetRemarks, 'remark')
         
+        # Custodians (Lookup by Employee ID or Username)
+        custodians_by_eid = build_cache(Custodian, 'employee_id')
+        # Custodian by username requires related lookup
+        custodians_by_user = {
+            str(c.user.username).lower(): c 
+            for c in Custodian.objects.filter(organization=org).select_related('user') 
+            if c.user
+        }
+
+        # Location master data
+        branches = build_cache(Branch, 'name')
+        buildings = build_cache(Building, 'name')
+        floors = build_cache(Floor, 'name')
+        rooms = build_cache(Room, 'name')
+        regions = build_cache(Region, 'name')
+        sites = build_cache(Site, 'name')
+        locations = build_cache(Location, 'name')
+        sub_locations = build_cache(SubLocation, 'name')
+        departments = build_cache(Department, 'name')
+
+        # Helper to avoid repetitive dictionary lookups
+        def get_from_cache(cache, val):
+            if val is None: return None
+            return cache.get(str(val).strip().lower())
+
         errors = []
         assets_to_create = []
 
-        # 1. Validation Phase
-        for row_idx, row in enumerate(reader, start=1):
+        # --- SEQUENTIAL ASSET TAG GENERATION ---
+        # Robustly find the next serial number
+        start_tag_num = 0
+        tag_prefix = "AST-"
+        # Optimized: only fetch tags that match the expected format
+        existing_tags = Asset.objects.filter(
+            organization=org, 
+            asset_tag__startswith=tag_prefix
+        ).values_list('asset_tag', flat=True)
+        
+        for tag in existing_tags:
             try:
-                # Basic Fields
-                name = row.get('name', '').strip()
-                asset_tag = row.get('asset_tag', '').strip()
-                category_code = row.get('category_code', '').strip()
-                
-                # Only name and category_code are required, asset_tag will be auto-generated if empty
-                if not all([name, category_code]):
-                    raise ValueError(f"Missing required fields (name, category_code).")
-                
-                # Auto-generate asset tag if not provided
+                # Expecting AST-XXXXX
+                suffix = tag[len(tag_prefix):]
+                num = int(suffix)
+                if num > start_tag_num: start_tag_num = num
+            except (ValueError, IndexError, TypeError):
+                continue
+        
+        current_tag_num = start_tag_num + 1
+
+        for row_idx, row in enumerate(rows, start=2):
+            try:
+                # 1. Identification
+                name = str(row.get('name') or '').strip()
+                if not name:
+                    raise ValueError("Asset Name is required.")
+
+                cat_val = str(row.get('category') or '').strip()
+                category = get_from_cache(categories_by_code, cat_val) or get_from_cache(categories_by_name, cat_val)
+                if not category:
+                    raise ValueError(f"Category '{cat_val}' not found.")
+
+                asset_tag = str(row.get('asset_tag') or '').strip()
                 if not asset_tag:
-                    asset_tag = generate_asset_tag(self.request.user.organization)
+                    asset_tag = f"AST-{current_tag_num:05d}"
+                    current_tag_num += 1
 
-                # Category (Strict)
-                try:
-                    category = Category.objects.get(
-                        organization=self.request.user.organization, 
-                        code=category_code
-                    )
-                except Category.DoesNotExist:
-                    raise ValueError(f"Category code '{category_code}' not found.")
+                # 2. Enums / Choices
+                def get_choice(val, choices_model, default):
+                    if val is None: return default
+                    v = str(val).strip().upper()
+                    if v in choices_model.values: return v
+                    # Search by display name if possible? 
+                    # For now just upper-case exact match with choices
+                    return default
 
-                # Status
-                status_input = row.get('status', 'ACTIVE').upper()
-                status = Asset.Status.ACTIVE
-                if status_input in Asset.Status.values:
-                    status = status_input
+                status = get_choice(row.get('status'), Asset.Status, Asset.Status.ACTIVE)
+                condition = get_choice(row.get('condition'), Asset.Condition, Asset.Condition.NEW)
+                asset_type = get_choice(row.get('asset_type'), Asset.Type, Asset.Type.TAGGABLE)
+                label_type = get_choice(row.get('label_type'), Asset.LabelType, Asset.LabelType.NON_METAL)
+
+                # 3. Master Data Lookups (from cache)
+                sub_category = get_from_cache(subcategories, row.get('sub_category'))
+                group = get_from_cache(groups, row.get('group'))
+                sub_group = get_from_cache(subgroups, row.get('sub_group'))
+                brand_new = get_from_cache(brands, row.get('brand'))
+                company = get_from_cache(companies, row.get('company'))
+                supplier = get_from_cache(suppliers, row.get('supplier'))
+                vendor = get_from_cache(vendors, row.get('vendor'))
                 
-                # Location Logic (Strict Chain)
-                branch_name = row.get('branch', '').strip()
-                building_name = row.get('building', '').strip()
-                floor_name = row.get('floor', '').strip()
-                room_name = row.get('room', '').strip()
+                # Custodian lookup (EID then Username)
+                cust_val = row.get('custodian')
+                custodian = get_from_cache(custodians_by_eid, cust_val) or get_from_cache(custodians_by_user, cust_val)
                 
-                branch = None
-                building = None
-                floor = None
-                room = None
+                asset_remarks = get_from_cache(remarks, row.get('remarks'))
 
-                if branch_name:
-                    try:
-                        branch = Branch.objects.get(organization=self.request.user.organization, name__iexact=branch_name)
-                    except Branch.DoesNotExist:
-                        raise ValueError(f"Branch '{branch_name}' not found. (Strict Mode)")
+                # 4. Location Details (from cache)
+                branch = get_from_cache(branches, row.get('branch'))
+                department = get_from_cache(departments, row.get('department'))
+                building = get_from_cache(buildings, row.get('building'))
+                floor = get_from_cache(floors, row.get('floor'))
+                room = get_from_cache(rooms, row.get('room'))
+                
+                # Special case: Auto-create room if missing but floor exists
+                if not room and floor and row.get('room'):
+                    room_name = str(row.get('room')).strip()
+                    room = Room.objects.create(organization=org, floor=floor, name=room_name)
+                    # Add to cache to prevent duplicate creation in this session
+                    rooms[room_name.lower()] = room
 
-                if building_name:
-                    if not branch: raise ValueError(f"Building '{building_name}' designated but no valid Branch provided.")
-                    try:
-                        building = Building.objects.get(branch=branch, name__iexact=building_name)
-                    except Building.DoesNotExist:
-                        raise ValueError(f"Building '{building_name}' not found in Branch '{branch.name}'. (Strict Mode)")
+                region = get_from_cache(regions, row.get('region'))
+                site = get_from_cache(sites, row.get('site'))
+                location = get_from_cache(locations, row.get('location'))
+                sub_location = get_from_cache(sub_locations, row.get('sub_location'))
 
-                if floor_name:
-                    if not building: raise ValueError(f"Floor '{floor_name}' designated but no valid Building provided.")
-                    try:
-                        floor = Floor.objects.get(building=building, name__iexact=floor_name)
-                    except Floor.DoesNotExist:
-                        raise ValueError(f"Floor '{floor_name}' not found in Building '{building.name}'. (Strict Mode)")
+                # 5. Numerical Parsing
+                def parse_decimal(val):
+                    if val is None or str(val).strip() == '': return None
+                    try: return Decimal(str(val).replace(',', ''))
+                    except: return None
+                
+                def parse_int(val, default=None):
+                    if val is None or str(val).strip() == '': return default
+                    try: return int(float(str(val)))
+                    except: return default
 
-                if room_name:
-                    if not floor: raise ValueError(f"Room '{room_name}' designated but no valid Floor provided.")
-                    # Fetch or Create Room manually to handle iexact correctly
-                    room = Room.objects.filter(floor=floor, name__iexact=room_name).first()
-                    if not room:
-                        room = Room.objects.create(floor=floor, name=room_name)
-
-                # Vendor (Strict)
-                vendor_name = row.get('vendor', '').strip()
-                vendor = None
-                if vendor_name:
-                    try:
-                        vendor = Vendor.objects.get(organization=self.request.user.organization, name__iexact=vendor_name)
-                    except Vendor.DoesNotExist:
-                        raise ValueError(f"Vendor '{vendor_name}' not found. (Strict Mode)")
-
-                # Gather Data
-                assets_to_create.append(Asset(
-                    organization=self.request.user.organization,
+                # Create Asset Instance (in memory)
+                asset = Asset(
+                    organization=org,
+                    created_by=self.request.user,
                     name=name,
+                    description=str(row.get('description') or ''),
+                    short_description=str(row.get('short_description') or ''),
                     asset_tag=asset_tag,
+                    custom_asset_tag=row.get('custom_asset_tag'),
+                    asset_code=row.get('asset_code'),
+                    erp_asset_number=row.get('erp_asset_number'),
+                    quantity=parse_int(row.get('quantity'), 1),
+                    label_type=label_type,
+                    serial_number=row.get('serial_number'),
                     category=category,
+                    sub_category=sub_category,
+                    asset_type=asset_type,
                     status=status,
-                    purchase_price=row.get('purchase_price') or None,
-                    brand=row.get('brand', '').strip(),
-                    model=row.get('model', '').strip(),
-                    serial_number=row.get('serial_number', '').strip(),
-                    notes=row.get('notes', '').strip(),
+                    condition=condition,
+                    group=group,
+                    sub_group=sub_group,
+                    brand_new=brand_new,
+                    brand=str(row.get('brand') or '')[:100],
+                    model=str(row.get('model') or '')[:100],
+                    department=department,
+                    cost_center=str(row.get('cost_center') or '')[:100],
+                    company=company,
+                    supplier=supplier,
+                    vendor=vendor,
+                    custodian=custodian,
+                    employee_number=str(row.get('employee_number') or '')[:100],
                     branch=branch,
                     building=building,
                     floor=floor,
                     room=room,
-                    vendor=vendor,
-                    useful_life_years=category.useful_life_years,
-                    depreciation_method=category.depreciation_method,
-                    created_by=self.request.user
-                ))
+                    region=region,
+                    site=site,
+                    location=location,
+                    sub_location=sub_location,
+                    purchase_date=self.parse_date(row.get('purchase_date')),
+                    purchase_price=parse_decimal(row.get('purchase_price')),
+                    currency=str(row.get('currency') or 'AED')[:10],
+                    invoice_number=str(row.get('invoice_number') or '')[:100],
+                    invoice_date=self.parse_date(row.get('invoice_date')),
+                    po_number=str(row.get('po_number') or '')[:100],
+                    po_date=self.parse_date(row.get('po_date')),
+                    do_number=str(row.get('do_number') or '')[:100],
+                    do_date=self.parse_date(row.get('do_date')),
+                    grn_number=str(row.get('grn_number') or '')[:100],
+                    warranty_start=self.parse_date(row.get('warranty_start')),
+                    warranty_end=self.parse_date(row.get('warranty_end')),
+                    tagged_date=self.parse_date(row.get('tagged_date')),
+                    date_placed_in_service=self.parse_date(row.get('date_placed_in_service')),
+                    insurance_start_date=self.parse_date(row.get('insurance_start_date')),
+                    insurance_end_date=self.parse_date(row.get('insurance_end_date')),
+                    maintenance_start_date=self.parse_date(row.get('maintenance_start_date')),
+                    maintenance_end_date=self.parse_date(row.get('maintenance_end_date')),
+                    next_maintenance_date=self.parse_date(row.get('next_maintenance_date')),
+                    maintenance_frequency_days=parse_int(row.get('maintenance_frequency_days'), 0),
+                    expected_units=parse_int(row.get('expected_units')),
+                    useful_life_years=parse_int(row.get('useful_life_years')),
+                    salvage_value=parse_decimal(row.get('salvage_value')),
+                    depreciation_method=str(row.get('depreciation_method') or '').upper() or None,
+                    asset_remarks=asset_remarks,
+                    notes=str(row.get('notes') or '')
+                )
+
+                # Performance: Manually apply inheritance from category (since bulk_create bypasses save())
+                if asset.category:
+                    if asset.useful_life_years in (None, 0):
+                        asset.useful_life_years = asset.category.useful_life_years
+                    if not asset.depreciation_method:
+                        asset.depreciation_method = asset.category.depreciation_method
+                    if asset.salvage_value is None or asset.salvage_value == 0:
+                        asset.salvage_value = asset.category.default_salvage_value
+                    if asset.depreciation_method == 'UNITS_OF_PRODUCTION' and not asset.expected_units:
+                        asset.expected_units = asset.category.default_expected_units
+
+                assets_to_create.append(asset)
 
             except Exception as e:
                 errors.append(f"Row {row_idx}: {str(e)}")
-        
+
         if errors:
-            for err in errors[:10]: # Show first 10 errors
+            # Display limited errors to avoid overwhelming the message system
+            for err in errors[:15]:
                 messages.error(self.request, err)
-            if len(errors) > 10:
-                messages.error(self.request, f"...and {len(errors) - 10} more errors.")
-            messages.warning(self.request, "Import aborted due to validation errors. No assets were created.")
-            return self.form_invalid(form)
-        
-        if not assets_to_create:
-            messages.warning(self.request, "No valid assets found in the CSV file.")
+            if len(errors) > 15:
+                messages.error(self.request, f"...and {len(errors) - 15} more errors.")
             return self.form_invalid(form)
 
+        # --- BULK SAVE ---
         try:
             with transaction.atomic():
-                for asset in assets_to_create:
-                    asset.save()
+                # Process in batches of 1000 for stability
+                Asset.objects.bulk_create(assets_to_create, batch_size=1000)
                 messages.success(self.request, f"Successfully imported {len(assets_to_create)} assets.")
         except Exception as e:
-            messages.error(self.request, f"Database error during save: {str(e)}")
+            messages.error(self.request, f"Database error during bulk save: {str(e)}")
             return self.form_invalid(form)
 
         return redirect(self.success_url)

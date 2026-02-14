@@ -3,121 +3,333 @@
 {% block page_title %}Asset Inventory{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <!-- Filters -->
-    <div style="display: flex; gap: 1rem; flex: 1;">
-        <form method="get" style="display: flex; gap: 0.75rem; width: 100%;">
-            <input type="text" name="q" placeholder="Search asset tag, name..." value="{{ request.GET.q }}"
-                class="form-control" style="max-width: 300px;">
-            <button type="submit" class="btn btn-primary"><i data-lucide="search"></i></button>
-        </form>
+<div class="asset-list-header" style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
+        <div>
+            <h2 style="margin: 0;">Assets</h2>
+            <p style="color: var(--text-secondary); margin-top: 0.25rem;">Manage and track your organization's assets.</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{% url 'asset-export-excel' %}?{{ request.GET.urlencode }}" class="btn"
+                style="background: white; border: 1px solid var(--border-color);">
+                <i data-lucide="download"></i> Export Excel
+            </a>
+            <a href="{% url 'asset-import' %}" class="btn"
+                style="background: white; border: 1px solid var(--border-color);">
+                <i data-lucide="upload"></i> Import Assets
+            </a>
+            <a href="{% url 'asset-create' %}" class="btn btn-primary">
+                <i data-lucide="plus"></i> Add New Asset
+            </a>
+        </div>
     </div>
 
-    <!-- Actions -->
-    <h2>Assets</h2>
-    <div style="display: flex; gap: 1rem;">
-        <a href="{% url 'asset-import' %}" class="btn"
-            style="background: var(--bg-body); border: 1px solid var(--border-color);">
-            <i data-lucide="upload"></i> Import CSV
-        </a>
-        <a href="{% url 'asset-create' %}" class="btn btn-primary">
-            <i data-lucide="plus"></i> Add New Asset
-        </a>
-    </div>
+    <!-- Quick Search & Advanced Filter Toggle -->
+    <form method="get" id="filter-form"
+        style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px; position: relative;">
+                <i data-lucide="search"
+                    style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-secondary);"></i>
+                <input type="text" name="q" placeholder="Search by name, tag, serial, or ERP number..."
+                    value="{{ request.GET.q }}" class="form-control" style="padding-left: 3rem; width: 100%;">
+            </div>
+
+            <select name="status" class="form-control" style="width: auto; min-width: 150px;">
+                <option value="">All Statuses</option>
+                {% for code, label in statuses %}
+                <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="category" class="form-control" style="width: auto; min-width: 150px;">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
+                    {{ cat.name }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="button" class="btn" onclick="toggleAdvancedFilters()"
+                style="background: #F8FAFC; border: 1px solid var(--border-color);">
+                <i data-lucide="filter"></i> Filters
+            </button>
+
+            <button type="submit" class="btn btn-primary">Apply</button>
+            <a href="{% url 'asset-list' %}" class="btn" style="color: var(--text-secondary);">Clear</a>
+        </div>
+
+        <!-- Collapsible Advanced Filters -->
+        <div id="advanced-filters"
+            style="display: {% if request.GET.site or request.GET.building or request.GET.brand %}grid{% else %}none{% endif %}; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Site</label>
+                <select name="site" class="form-control" style="width: 100%;">
+                    <option value="">All Sites</option>
+                    {% for site in sites %}
+                    <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>{{ site.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Building</label>
+                <select name="building" class="form-control" style="width: 100%;">
+                    <option value="">All Buildings</option>
+                    {% for bld in buildings %}
+                    <option value="{{ bld.id }}" {% if request.GET.building == bld.id|stringformat:"s" %}selected{% endif %}>{{ bld.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Brand</label>
+                <select name="brand" class="form-control" style="width: 100%;">
+                    <option value="">All Brands</option>
+                    {% for brand in brands %}
+                    <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>{{ brand.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </form>
 </div>
 
-<div class="card" style="padding: 0;">
-    <table style="width:100%; text-align:left; border-collapse:collapse;">
-        <thead style="background: #F8FAFC;">
-            <tr>
-                <th style="padding:1rem;">Asset Info</th>
-                <th style="padding:1rem;">Category</th>
-                <th style="padding:1rem;">Location</th>
-                <th style="padding:1rem;">Given To</th>
-                <th style="padding:1rem;">Status</th>
-                <th style="padding:1rem;">Value</th>
-                <th style="padding:1rem;">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for asset in assets %}
-            <tr style="border-bottom:1px solid var(--border-color);">
-                <td style="padding:1rem;">
-                    <a href="{% url 'asset-detail' asset.pk %}" style="text-decoration: none; color: inherit;">
-                        <div style="font-weight: 600;">{{ asset.name }}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ asset.asset_tag }}</div>
-                    </a>
-                </td>
-                <td style="padding:1rem;">{{ asset.category.name }}</td>
-                <td style="padding:1rem;">
-                    <div>{{ asset.branch.code }}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ asset.room }}</div>
-                </td>
-                <td style="padding:1rem;">
-                    {% if asset.assigned_to %}
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div class="user-avatar" style="width: 24px; height: 24px; font-size: 0.7rem;">{{
-                            asset.assigned_to.username|slice:":2" }}</div>
-                        {{ asset.assigned_to.username }}
-                    </div>
-                    {% else %}
-                    <span style="color: var(--text-secondary);">-</span>
-                    {% endif %}
-                </td>
-                <td style="padding:1rem;">
-                    <span class="badge status-{{ asset.status|lower }}">{{ asset.get_status_display }}</span>
-                </td>
-                <td style="padding:1rem;">
-                    {% if asset.purchase_price %}
-                    <div style="font-weight: 600; color: var(--primary);">{{ asset.currency }} {{ asset.current_value }}
-                    </div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Cost: {{ asset.purchase_price }}
-                    </div>
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-                <td style="padding:1rem;">
-                    <a href="{% url 'asset-detail' asset.pk %}" class="btn" style="padding: 0.25rem 0.5rem;"
-                        title="View Detail"><i data-lucide="eye" style="width: 16px;"></i></a>
-                    <a href="{% url 'asset-update' asset.pk %}" class="btn" style="padding: 0.25rem 0.5rem;"
-                        title="Edit"><i data-lucide="edit-2" style="width: 16px;"></i></a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
-                    No assets found. Start by adding one!
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<form id="bulk-action-form" method="post" action="{% url 'asset-bulk-action' %}">
+    {% csrf_token %}
+    <div class="card" style="padding: 0; overflow-x: auto; border-radius: 12px;">
+        <table style="width:100%; text-align:left; border-collapse:collapse;">
+            <thead style="background: #F8FAFC; border-bottom: 1px solid var(--border-color);">
+                <tr>
+                    <th style="padding:1rem; width: 40px;">
+                        <input type="checkbox" id="select-all" class="form-check-input">
+                    </th>
+                    <th style="padding:1rem;">Asset Info</th>
+                    <th style="padding:1rem;">Category</th>
+                    <th style="padding:1rem;">Location</th>
+                    <th style="padding:1rem;">Given To</th>
+                    <th style="padding:1rem;">Status</th>
+                    <th style="padding:1rem;">Value</th>
+                    <th style="padding:1rem; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asset in assets %}
+                <tr style="border-bottom:1px solid var(--border-color); transition: background 0.2s;"
+                    onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
+                    <td style="padding:1rem;">
+                        <input type="checkbox" name="asset_ids" value="{{ asset.id }}"
+                            class="asset-checkbox form-check-input">
+                    </td>
+                    <td style="padding:1rem;">
+                        <a href="{% url 'asset-detail' asset.pk %}" style="text-decoration: none; color: inherit; display: block;">
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ asset.name }}</div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.2rem;">
+                                <span style="font-size: 0.75rem; background: #EDF2F7; padding: 1px 6px; border-radius: 4px; color: #4A5568;">{{ asset.asset_tag }}</span>
+                                {% if asset.serial_number %}
+                                <span style="font-size: 0.75rem; color: var(--text-secondary);">S/N: {{ asset.serial_number }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </td>
+                    <td style="padding:1rem;">
+                        <div style="font-size: 0.9rem;">{{ asset.category.name }}</div>
+                        {% if asset.brand_new %}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ asset.brand_new.name }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="padding:1rem;">
+                        <div style="font-size: 0.9rem;">{{ asset.site.name|default:"-" }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ asset.building.name|default:"" }} {% if asset.room %}• {{ asset.room.name }}{% endif %}</div>
+                    </td>
+                    <td style="padding:1rem;">
+                        {% if asset.assigned_to %}
+                        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+                            <div class="user-avatar" style="width: 24px; height: 24px; font-size: 0.7rem;">{{ asset.assigned_to.username|slice:":2"|upper }}</div>
+                            {{ asset.assigned_to.username }}
+                        </div>
+                        {% else %}
+                        <span style="color: var(--text-secondary); font-size: 0.9rem;">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:1rem;">
+                        <span class="badge status-{{ asset.status|lower }}">{{ asset.get_status_display }}</span>
+                    </td>
+                    <td style="padding:1rem;">
+                        {% if asset.purchase_price %}
+                        <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem;">{{ asset.currency }} {{ asset.current_value }}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary);">Cost: {{ asset.purchase_price }}</div>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:1rem; text-align: right;">
+                        <div style="display: flex; gap: 0.25rem; justify-content: flex-end;">
+                            <a href="{% url 'asset-detail' asset.pk %}" class="btn-icon" title="View Detail"><i data-lucide="eye"></i></a>
+                            <a href="{% url 'asset-update' asset.pk %}" class="btn-icon" title="Edit"><i data-lucide="edit-2"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="padding: 4rem; text-align: center; color: var(--secondary);">
+                        <div style="margin-bottom: 1rem;"><i data-lucide="package-search" style="width: 48px; height: 48px; opacity: 0.2;"></i></div>
+                        <div style="font-size: 1.1rem; font-weight: 600;">No assets found</div>
+                        <div style="font-size: 0.9rem; margin-top: 0.5rem;">Try adjusting your search or filters.</div>
+                        <a href="{% url 'asset-create' %}" class="btn btn-primary" style="margin-top: 1.5rem;">Add First Asset</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Floating Bulk Action Bar -->
+    <div id="bulk-action-bar"
+        style="display: none; position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #1E293B; color: white; padding: 0.75rem 1.5rem; border-radius: 9999px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); align-items: center; gap: 1.5rem; z-index: 1000;">
+        <div style="font-size: 0.9rem; font-weight: 500;">
+            <span id="selected-count">1</span> assets selected
+        </div>
+        <div style="height: 20px; width: 1px; background: rgba(255,255,255,0.2);"></div>
+        <div style="display: flex; gap: 0.75rem;">
+            <select name="action" id="bulk-action-select" class="form-control"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 0.85rem; padding: 0.25rem 0.75rem; height: 32px;">
+                <option value="" style="color: black;">Choose action...</option>
+                <optgroup label="Change Status" style="color: black;">
+                    {% for code, label in statuses %}
+                    <option value="status_{{ code }}" style="color: black;">Mark as {{ label }}</option>
+                    {% endfor %}
+                </optgroup>
+                <optgroup label="Danger Zone" style="color: black;">
+                    <option value="delete" style="color: #EF4444;">Delete Permanently</option>
+                </optgroup>
+            </select>
+            <button type="submit" class="btn btn-primary"
+                style="padding: 0.25rem 1rem; height: 32px; font-size: 0.85rem;">Execute</button>
+            <button type="button" class="btn"
+                style="padding: 0.25rem 0; height: 32px; color: rgba(255,255,255,0.6); background: transparent;"
+                onclick="deselectAll()">Cancel</button>
+        </div>
+    </div>
+</form>
+
+<div style="margin-top: 1.5rem;">
+    {% include 'includes/pagination.html' %}
 </div>
 
 <style>
+    .asset-list-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg-body);
+        padding-top: 1rem;
+    }
+
     .badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: 9999px;
-        font-weight: 500;
-        background: #F1F5F9;
-        color: #64748B;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
     }
 
-    .status-active {
-        background: #DCFCE7;
-        color: #166534;
+    .status-active { background: #DCFCE7; color: #166534; }
+    .status-in_storage { background: #DBEAFE; color: #1E40AF; }
+    .status-under_maintenance { background: #FEF3C7; color: #92400E; }
+    .status-lost, .status-stolen { background: #FEE2E2; color: #991B1B; }
+    .status-retired { background: #F1F5F9; color: #475569; }
+
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+        text-decoration: none;
     }
 
-    .status-in_storage {
-        background: #DBEAFE;
-        color: #1E40AF;
+    .btn-icon:hover {
+        background: #EDF2F7;
+        color: var(--primary);
     }
 
-    .status-broken {
-        background: #FEE2E2;
-        color: #991b1b;
+    .btn-icon i {
+        width: 18px;
+        height: 18px;
+    }
+
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        border: 2px solid var(--border-color);
+        border-radius: 4px;
     }
 </style>
+
+<script>
+    function toggleAdvancedFilters() {
+        const adv = document.getElementById('advanced-filters');
+        adv.style.display = adv.style.display === 'none' ? 'grid' : 'none';
+        lucide.createIcons();
+    }
+
+    const selectAll = document.getElementById('select-all');
+    const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
+    const bulkBar = document.getElementById('bulk-action-bar');
+    const selectedCountSpan = document.getElementById('selected-count');
+    const bulkForm = document.getElementById('bulk-action-form');
+
+    function updateBulkBar() {
+        const checkedCount = document.querySelectorAll('.asset-checkbox:checked').length;
+        if (checkedCount > 0) {
+            bulkBar.style.display = 'flex';
+            selectedCountSpan.textContent = checkedCount;
+        } else {
+            bulkBar.style.display = 'none';
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            assetCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
+            updateBulkBar();
+        });
+    }
+
+    assetCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function () {
+            updateBulkBar();
+            if (selectAll) {
+                selectAll.checked = document.querySelectorAll('.asset-checkbox:checked').length === assetCheckboxes.length;
+            }
+        });
+    });
+
+    function deselectAll() {
+        if (selectAll) selectAll.checked = false;
+        assetCheckboxes.forEach(cb => cb.checked = false);
+        updateBulkBar();
+    }
+
+    bulkForm.addEventListener('submit', function (e) {
+        const action = document.getElementById('bulk-action-select').value;
+        if (!action) {
+            alert('Please select an action to perform.');
+            e.preventDefault();
+            return;
+        }
+
+        if (action === 'delete') {
+            if (!confirm('Are you sure you want to delete the selected assets permanently? This cannot be undone.')) {
+                e.preventDefault();
+            }
+        }
+    });
+</script>
 {% endblock %}

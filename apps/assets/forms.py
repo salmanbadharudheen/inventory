@@ -133,16 +133,17 @@ class VendorForm(forms.ModelForm):
         }
 
 class AssetImportForm(forms.Form):
-    csv_file = forms.FileField(
-        label="Select CSV File",
-        help_text="Required: name, asset_tag, category_code. Optional: status, price, brand, model, serial_number, branch, building, floor, room, vendor"
+    import_file = forms.FileField(
+        label="Select File",
+        help_text="Upload .csv or .xlsx file. Headers must match the template."
     )
 
-    def clean_csv_file(self):
-        csv_file = self.cleaned_data['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            raise forms.ValidationError("Only CSV files are allowed.")
-        return csv_file
+    def clean_import_file(self):
+        import_file = self.cleaned_data['import_file']
+        name = import_file.name.lower()
+        if not (name.endswith('.csv') or name.endswith('.xlsx')):
+            raise forms.ValidationError("Only .csv and .xlsx files are allowed.")
+        return import_file
 
 # New Master Data Forms
 

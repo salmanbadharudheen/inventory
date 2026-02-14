@@ -1,0 +1,26 @@
+{% if is_paginated %}
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;">
+    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} entries
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        {% if page_obj.has_previous %}
+        <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            class="btn"
+            style="background: white; border: 1px solid var(--border-color); padding: 0.25rem 0.75rem;">Previous</a>
+        {% endif %}
+
+        <div style="display: flex; gap: 0.25rem; align-items: center;">
+            <span
+                style="padding: 0.25rem 0.75rem; background: var(--primary); color: white; border-radius: 6px; font-weight: 600;">{{
+                page_obj.number }}</span>
+            <span style="color: var(--text-secondary);">of {{ paginator.num_pages }}</span>
+        </div>
+
+        {% if page_obj.has_next %}
+        <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn"
+            style="background: white; border: 1px solid var(--border-color); padding: 0.25rem 0.75rem;">Next</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
