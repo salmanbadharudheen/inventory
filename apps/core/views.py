@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from apps.assets.models import Asset
+from apps.assets.models import Asset, Group, SubGroup, Category, SubCategory
+from apps.locations.models import Region, Site, Building, Floor
 from django.db.models import Sum, Count
 from django.utils import timezone
 
@@ -31,9 +32,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             
             # Calculate depreciation percentage
             if total_purchase > 0:
-                context['depreciation_percentage'] = (total_dep / total_purchase) * 100
+                dep_per = (total_dep / total_purchase) * 100
+                context['depreciation_percentage'] = dep_per
+                context['remaining_percentage'] = 100 - dep_per
             else:
                 context['depreciation_percentage'] = 0
+                context['remaining_percentage'] = 100
             
             context['assigned_assets'] = qs.filter(assigned_to__isnull=False).count()
             context['in_repair_assets'] = qs.filter(status=Asset.Status.UNDER_MAINTENANCE).count()
@@ -56,6 +60,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     })
             context['status_distribution'] = status_data
             context['recent_assets'] = qs.order_by('-created_at')[:5]
+            
+            # Master Data Counts
+            context['group_count'] = Group.objects.filter(organization=org).count()
+            context['sub_group_count'] = SubGroup.objects.filter(organization=org).count()
+            context['category_count'] = Category.objects.filter(organization=org).count()
+            context['sub_category_count'] = SubCategory.objects.filter(organization=org).count()
+            
+            context['region_count'] = Region.objects.filter(organization=org).count()
+            context['site_count'] = Site.objects.filter(organization=org).count()
+            context['building_count'] = Building.objects.filter(organization=org).count()
+            context['floor_count'] = Floor.objects.filter(organization=org).count()
             
         else:
             context['total_assets'] = 0

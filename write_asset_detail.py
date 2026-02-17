@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+template_content = r"""{% extends 'base.html' %}
 
 {% block page_title %}{{ asset.asset_tag }} - {{ asset.name }}{% endblock %}
 
@@ -228,3 +228,7 @@
     .document-link:hover i { color: var(--primary); }
 </style>
 {% endblock %}
+"""
+
+with open('templates/assets/asset_detail.html', 'w', encoding='utf-8') as f:
+    f.write(template_content)

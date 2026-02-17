@@ -190,6 +190,15 @@ class AssetListView(LoginRequiredMixin, ListView):
             val = self.request.GET.get(param)
             if val:
                 queryset = queryset.filter(**{field: val})
+        
+        # Date Range Filters
+        purchase_date_from = self.request.GET.get('purchase_date_from')
+        purchase_date_to = self.request.GET.get('purchase_date_to')
+        
+        if purchase_date_from:
+            queryset = queryset.filter(purchase_date__gte=purchase_date_from)
+        if purchase_date_to:
+            queryset = queryset.filter(purchase_date__lte=purchase_date_to)
 
         return queryset.order_by('-created_at')
 
@@ -659,7 +668,15 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'asset'
 
     def get_queryset(self):
-        return Asset.objects.filter(organization=self.request.user.organization)
+        return Asset.objects.filter(
+            organization=self.request.user.organization
+        ).select_related(
+            'category', 'sub_category', 'group', 'sub_group',
+            'brand_new', 'department', 'assigned_to', 'company',
+            'supplier', 'custodian', 'branch', 'building', 'floor',
+            'room', 'region', 'site', 'location', 'sub_location',
+            'vendor', 'asset_remarks'
+        )
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -61,7 +61,7 @@
 
         <!-- Collapsible Advanced Filters -->
         <div id="advanced-filters"
-            style="display: {% if request.GET.site or request.GET.building or request.GET.brand %}grid{% else %}none{% endif %}; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
+            style="display: {% if request.GET.site or request.GET.building or request.GET.brand or request.GET.purchase_date_from or request.GET.purchase_date_to %}grid{% else %}none{% endif %}; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
             <div>
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Site</label>
                 <select name="site" class="form-control" style="width: 100%;">
@@ -88,6 +88,27 @@
                     <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>{{ brand.name }}</option>
                     {% endfor %}
                 </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Quick Date Filter</label>
+                <select name="date_range" class="form-control" onchange="applyQuickDateFilter(this)" style="width: 100%;">
+                    <option value="">Custom Range</option>
+                    <option value="this_year">This Year</option>
+                    <option value="last_year">Last Year</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="last_30_days">Last 30 Days</option>
+                    <option value="last_90_days">Last 90 Days</option>
+                    <option value="last_365_days">Last 365 Days</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Purchase Date From</label>
+                <input type="date" name="purchase_date_from" id="purchase_date_from" class="form-control" value="{{ request.GET.purchase_date_from }}" style="width: 100%;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Purchase Date To</label>
+                <input type="date" name="purchase_date_to" id="purchase_date_to" class="form-control" value="{{ request.GET.purchase_date_to }}" style="width: 100%;">
             </div>
         </div>
     </form>
@@ -275,6 +296,62 @@
         const adv = document.getElementById('advanced-filters');
         adv.style.display = adv.style.display === 'none' ? 'grid' : 'none';
         lucide.createIcons();
+    }
+
+    function applyQuickDateFilter(selectElement) {
+        const range = selectElement.value;
+        const today = new Date();
+        let fromDate = null;
+        let toDate = new Date(today);
+        
+        // Reset if custom range selected
+        if (!range) {
+            document.getElementById('purchase_date_from').value = '';
+            document.getElementById('purchase_date_to').value = '';
+            return;
+        }
+        
+        switch(range) {
+            case 'this_year':
+                fromDate = new Date(today.getFullYear(), 0, 1);
+                break;
+            case 'last_year':
+                fromDate = new Date(today.getFullYear() - 1, 0, 1);
+                toDate = new Date(today.getFullYear() - 1, 11, 31);
+                break;
+            case 'this_month':
+                fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                break;
+            case 'last_month':
+                fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'last_30_days':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 30);
+                break;
+            case 'last_90_days':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 90);
+                break;
+            case 'last_365_days':
+                fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - 365);
+                break;
+        }
+        
+        // Format dates as YYYY-MM-DD
+        if (fromDate) {
+            document.getElementById('purchase_date_from').value = formatDate(fromDate);
+        }
+        document.getElementById('purchase_date_to').value = formatDate(toDate);
+    }
+
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     const selectAll = document.getElementById('select-all');
