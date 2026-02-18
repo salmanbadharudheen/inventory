@@ -138,6 +138,7 @@
     tbody tr {
         border-bottom: 1px solid var(--border-color);
         transition: all 0.2s ease;
+        cursor: pointer;
     }
 
     tbody tr:hover {
@@ -311,7 +312,13 @@
 <div class="admin-header">
     <div class="admin-title-group">
         <div class="admin-title">Manage Users</div>
-        <div class="admin-subtitle">View and manage all users in {% if request.user.is_superuser %}the system{% else %}{{ request.user.organization.name }}{% endif %}</div>
+        <div class="admin-subtitle">
+            {% if request.user.is_superuser %}
+                View and manage all users in the system
+            {% else %}
+                View and manage users in {{ request.user.organization.name|default:"your organization" }}
+            {% endif %}
+        </div>
     </div>
     <div class="admin-actions">
         <a href="{% url 'admin-dashboard' %}" class="btn btn-secondary">
@@ -351,6 +358,13 @@
 <div class="card">
     {% if users %}
     <div class="card-content">
+        <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+            {% if search_query %}
+                <strong>{{ users|length }}</strong> user(s) found matching "{{ search_query }}"
+            {% else %}
+                Showing <strong>{{ page_obj.start_index|default:"0" }}-{{ page_obj.end_index|default:total_users }}</strong> of <strong>{{ total_users }}</strong> users
+            {% endif %}
+        </div>
         <div class="table-responsive">
             <table>
                 <thead>
@@ -367,7 +381,7 @@
                 </thead>
                 <tbody>
                     {% for user in users %}
-                    <tr style="cursor: pointer;" onclick="window.location.href='{% url 'admin-user-detail' user.id %}';">
+                    <tr onclick="window.location.href='{% url 'admin-user-detail' user.id %}';">
                         <td>
                             <div class="user-info">
                                 <span class="user-name">{{ user.get_full_name|default:user.username }}</span>

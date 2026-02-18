@@ -3,6 +3,8 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, TemplateView, DetailView
+from django.http import Http404
+from django.contrib import messages
 from .models import User
 from .forms import AdminCreationForm, UserCreationForm
 from apps.core.models import Organization
@@ -12,6 +14,11 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """Mixin to check if user is superuser or admin"""
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.role == User.Role.ADMIN
+    
+    def handle_no_permission(self):
+        """Handle when user doesn't have permission"""
+        messages.error(self.request, "You don't have permission to access this page. Admin or Superuser access required.")
+        return super().handle_no_permission()
 
 class SignUpView(CreateView):
     model = User
@@ -86,14 +93,14 @@ class AdminUserListView(AdminRequiredMixin, ListView):
     paginate_by = 50
     
     def get_queryset(self):
-        qs = User.objects.all().select_related('organization', 'branch', 'department')
+        qs = User.objects.all().select_related('organization', 'branch', 'department').order_by('-date_joined')
         
         # If not superuser, filter to their organization only
         if not self.request.user.is_superuser and self.request.user.organization:
             qs = qs.filter(organization=self.request.user.organization)
         
         # Filter by search query if provided
-        search = self.request.GET.get('q', '')
+        search = self.request.GET.get('q', '').strip()
         if search:
             qs = qs.filter(
                 Q(username__icontains=search) |
@@ -103,11 +110,12 @@ class AdminUserListView(AdminRequiredMixin, ListView):
                 Q(employee_id__icontains=search)
             )
         
-        return qs.order_by('-date_joined')
+        return qs
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('q', '')
+        context['total_users'] = self.get_queryset().count()
         return context
 
 
