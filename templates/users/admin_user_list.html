@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block page_title %}Manage Users - Admin Panel{% endblock %}
 
@@ -325,7 +326,7 @@
             <svg data-lucide="arrow-left" style="width: 16px; height: 16px;"></svg>
             Back to Dashboard
         </a>
-        <a href="{% url 'admin-add' %}" class="btn btn-primary">
+        <a href="{% url 'user-add' %}" class="btn btn-primary">
             <svg data-lucide="user-plus" style="width: 16px; height: 16px;"></svg>
             Add Admin
         </a>
@@ -390,7 +391,7 @@
                             </div>
                         </td>
                         <td>
-                            <span class="role-badge role-{{ user.role|lower|replace:'_':'-' }}">
+                            <span class="role-badge role-{{ user.role|lower|slugify }}">
                                 {{ user.get_role_display }}
                             </span>
                         </td>

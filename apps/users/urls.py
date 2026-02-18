@@ -5,7 +5,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path('admins/add/', AdminCreateView.as_view(), name='admin-add'),
+    path('add/', AdminCreateView.as_view(), name='user-add'),
     path('', UserListView.as_view(), name='user-list'),
     # Admin panel routes
     path('admin/', AdminDashboardView.as_view(), name='admin-dashboard'),

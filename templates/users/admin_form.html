@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block page_title %}Add New Admin{% endblock %}
+{% block page_title %}Add New User{% endblock %}
 
 {% block content %}
 <div style="max-width: 600px;">
@@ -28,7 +28,7 @@
 
             <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                 <button type="submit" class="btn btn-primary">
-                    <i data-lucide="save"></i> Create Admin
+                    <i data-lucide="save"></i> Create User
                 </button>
                 <a href="{% url 'user-list' %}" class="btn" style="background: var(--bg-body);">Cancel</a>
             </div>

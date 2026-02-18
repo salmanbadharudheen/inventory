@@ -20,6 +20,51 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         messages.error(self.request, "You don't have permission to access this page. Admin or Superuser access required.")
         return super().handle_no_permission()
 
+
+class ApprovalAccessMixin(LoginRequiredMixin):
+    """Mixin to ensure user has approval workflow access"""
+    def test_func(self):
+        """User must be data entry, checker, senior manager, or admin"""
+        user = self.request.user
+        return user.is_data_entry or user.is_checker or user.is_senior_manager or user.is_superuser or user.role == User.Role.ADMIN
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to access approval workflows.")
+        return super().handle_no_permission()
+
+
+class CheckerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Mixin to ensure user is a checker"""
+    def test_func(self):
+        user = self.request.user
+        return user.is_checker or user.is_superuser or user.role == User.Role.ADMIN
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Only checkers can perform this action.")
+        return super().handle_no_permission()
+
+
+class SeniorManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Mixin to ensure user is a senior manager"""
+    def test_func(self):
+        user = self.request.user
+        return user.is_senior_manager or user.is_superuser or user.role == User.Role.ADMIN
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Only senior managers can perform this action.")
+        return super().handle_no_permission()
+
+
+class DataEntryRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Mixin to ensure user is data entry"""
+    def test_func(self):
+        user = self.request.user
+        return user.is_data_entry or user.is_superuser or user.role == User.Role.ADMIN
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "Only data entry users can create approval requests.")
+        return super().handle_no_permission()
+
 class SignUpView(CreateView):
     model = User
     form_class = UserCreationForm
@@ -27,19 +72,16 @@ class SignUpView(CreateView):
     success_url = reverse_lazy('login')
 
 class AdminCreateView(LoginRequiredMixin, CreateView):
+    """Create a user (previously 'Add Admin') — allows selecting role."""
     model = User
-    form_class = AdminCreationForm
+    form_class = UserCreationForm
     template_name = 'users/admin_form.html'
     success_url = reverse_lazy('user-list')
 
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        # Add permission check logic here later (e.g., only superusers or existing admins can create admins)
-
     def form_valid(self, form):
-        # We can auto-assign organization from current user if needed:
+        # Auto-assign organization from current user when present
         if self.request.user.organization:
-             form.instance.organization = self.request.user.organization
+            form.instance.organization = self.request.user.organization
         return super().form_valid(form)
 
 class UserListView(LoginRequiredMixin, ListView):
