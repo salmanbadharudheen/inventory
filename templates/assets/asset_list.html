@@ -184,8 +184,108 @@
                     </td>
                     <td style="padding:1rem; text-align: right;">
                         <div style="display: flex; gap: 0.25rem; justify-content: flex-end;">
+                            <a href="javascript:void(0)" class="btn-icon" title="Toggle Details" onclick="toggleDetails('{{ asset.id }}')"><i data-lucide="chevrons-down-up"></i></a>
                             <a href="{% url 'asset-detail' asset.pk %}" class="btn-icon" title="View Detail"><i data-lucide="eye"></i></a>
                             <a href="{% url 'asset-update' asset.pk %}" class="btn-icon" title="Edit"><i data-lucide="edit-2"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                <tr id="detail-{{ asset.id }}" class="asset-detail-row" style="display:none;">
+                    <td colspan="8" style="padding:0; border-bottom:1px solid var(--border-color);">
+                        <div class="asset-detail-card">
+                            <div class="detail-left">
+                                <div class="asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
+                                <div class="asset-main">
+                                    <div class="asset-name">{{ asset.name }}</div>
+                                    <div class="asset-sub">{{ asset.asset_tag }} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
+                                </div>
+                                <div class="asset-stats">
+                                    <div>
+                                        <div class="stat-label">NBV</div>
+                                        <div class="stat-value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</div>
+                                    </div>
+                                    <div>
+                                        <div class="stat-label">Accum. Dep.</div>
+                                        <div class="stat-value">{{ asset.accumulated_depreciation }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="stat-label">Status</div>
+                                        <div class="stat-badge">{{ asset.get_status_display }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="detail-right">
+                                    <!-- Refactored: ordered key/value layout for clarity -->
+                                    <div class="detail-section">
+                                        <div class="kv-section">
+                                            <h4>Identification</h4>
+                                            <div class="kv-grid">
+                                                <div class="kv"><span class="label">Asset Tag</span><span class="value">{{ asset.asset_tag }}</span></div>
+                                                <div class="kv"><span class="label">Custom Tag</span><span class="value">{{ asset.custom_asset_tag|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Asset Code</span><span class="value">{{ asset.asset_code|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">ERP #</span><span class="value">{{ asset.erp_asset_number|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Serial #</span><span class="value">{{ asset.serial_number|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Quantity</span><span class="value">{{ asset.quantity }}</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="kv-section">
+                                            <h4>Classification</h4>
+                                            <div class="kv-grid">
+                                                <div class="kv"><span class="label">Category</span><span class="value">{{ asset.category.name }}</span></div>
+                                                <div class="kv"><span class="label">Sub Category</span><span class="value">{{ asset.sub_category.name|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Group</span><span class="value">{{ asset.group.name|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Sub Group</span><span class="value">{{ asset.sub_group.name|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Label Type</span><span class="value">{{ asset.get_label_type_display }}</span></div>
+                                                <div class="kv"><span class="label">Condition</span><span class="value">{{ asset.get_condition_display }}</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="kv-section">
+                                            <h4>Location & Ownership</h4>
+                                            <div class="kv-grid">
+                                                <div class="kv"><span class="label">Site</span><span class="value">{{ asset.site.name|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Building</span><span class="value">{{ asset.building.name|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Floor</span><span class="value">{% if asset.floor %}{{ asset.floor.name }}{% else %}-{% endif %}</span></div>
+                                                <div class="kv"><span class="label">Room</span><span class="value">{% if asset.room %}{{ asset.room.name }}{% else %}-{% endif %}</span></div>
+                                                <div class="kv"><span class="label">Assigned To</span><span class="value">{% if asset.assigned_to %}{{ asset.assigned_to.get_full_name|default:asset.assigned_to.username }}{% else %}-{% endif %}</span></div>
+                                                <div class="kv"><span class="label">Department</span><span class="value">{{ asset.department.name|default:'-' }}</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="kv-section">
+                                            <h4>Financial & Procurement</h4>
+                                            <div class="kv-grid">
+                                                <div class="kv"><span class="label">Purchase Date</span><span class="value">{{ asset.purchase_date|date:'Y-m-d'|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Purchase Price</span><span class="value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.purchase_price }}{% else %}-{% endif %}</span></div>
+                                                <div class="kv"><span class="label">Vendor</span><span class="value">{{ asset.vendor.name|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Invoice #</span><span class="value">{{ asset.invoice_number|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">PO / GRN</span><span class="value">{{ asset.po_number|default:'-' }} / {{ asset.grn_number|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Warranty</span><span class="value">{{ asset.warranty_start|date:'Y-m-d'|default:'-' }} — {{ asset.warranty_end|date:'Y-m-d'|default:'-' }}</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="kv-section">
+                                            <h4>Depreciation</h4>
+                                            <div class="kv-grid">
+                                                <div class="kv"><span class="label">Method</span><span class="value">{{ asset.get_depreciation_method_display }}</span></div>
+                                                <div class="kv"><span class="label">Useful Life (yrs)</span><span class="value">{{ asset.useful_life_years|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Salvage</span><span class="value">{{ asset.salvage_value|default:'-' }}</span></div>
+                                                <div class="kv"><span class="label">Accum. Depreciation</span><span class="value">{{ asset.accumulated_depreciation }}</span></div>
+                                                <div class="kv"><span class="label">Net Book Value</span><span class="value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</span></div>
+                                                <div class="kv"><span class="label">Units (consumed)</span><span class="value">{{ asset.expected_units|default:'-' }} / {{ asset.units_consumed }}</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="kv-section notes">
+                                            <h4>Notes</h4>
+                                            <div class="kv-grid">
+                                                <div class="kv" style="grid-column:1 / -1;"><span class="value">{{ asset.notes|default:'-' }}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -231,6 +331,15 @@
         </div>
     </div>
 </form>
+
+<script>
+    function toggleDetails(id) {
+        const row = document.getElementById('detail-' + id);
+        if (!row) return;
+        row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+        lucide.createIcons();
+    }
+</script>
 
 <div style="margin-top: 1.5rem;">
     {% include 'includes/pagination.html' %}
@@ -288,6 +397,83 @@
         cursor: pointer;
         border: 2px solid var(--border-color);
         border-radius: 4px;
+    }
+
+    /* Asset detail card styles */
+    .asset-detail-row td { background: transparent; }
+    .asset-detail-card {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        align-items: flex-start;
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
+    }
+
+    .asset-detail-card .detail-left {
+        width: 260px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem;
+        border-right: 1px solid var(--border-color);
+    }
+
+    .asset-thumb {
+        width: 72px;
+        height: 72px;
+        border-radius: 12px;
+        background: linear-gradient(135deg,#6366F1,#4F46E5);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 1.25rem;
+    }
+
+    .asset-main { text-align: center; }
+    .asset-name { font-weight: 700; margin-bottom: 0.25rem; }
+    .asset-sub { color: var(--text-secondary); font-size: 0.85rem; }
+
+    .asset-stats { display:flex; gap:0.5rem; width:100%; justify-content:space-between; margin-top:0.5rem; }
+    .stat-label { font-size:0.75rem; color:var(--text-secondary); }
+    .stat-value { font-weight:700; color:var(--primary); }
+    .stat-badge { background:#F1F5F9; padding:0.25rem 0.5rem; border-radius:6px; font-weight:600; color:var(--text-secondary); }
+
+    .detail-right { flex:1; padding: 0.5rem 1rem; }
+    .detail-section { margin-bottom: 0.75rem; }
+    .detail-section h4 { margin:0 0 0.5rem 0; font-size:0.95rem; color:var(--text-primary); }
+    .detail-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:0.5rem; }
+    .detail-grid > div { background: transparent; }
+    .detail-grid strong { display:block; font-weight:600; color:var(--text-secondary); font-size:0.78rem; }
+
+    .detail-section.notes { margin-top: 0.5rem; }
+
+    /* Key/value grid for improved readability */
+    .kv-section { margin-bottom: 0.75rem; }
+    .kv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem 1rem; }
+    .kv { padding: 0.25rem 0; }
+    .kv .label { display:block; font-size:0.75rem; color:var(--text-secondary); }
+    .kv .value { font-weight:600; color:var(--text-primary); margin-top:0.15rem; }
+
+    @media (max-width: 900px) {
+        .kv-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 560px) {
+        .kv-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+        .asset-detail-card { flex-direction: column; }
+        .asset-detail-card .detail-left { width: auto; border-right: none; align-items: flex-start; }
+        .detail-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 560px) {
+        .detail-grid { grid-template-columns: 1fr; }
     }
 </style>
 

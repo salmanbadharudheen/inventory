@@ -167,15 +167,45 @@ class AssetListView(LoginRequiredMixin, ListView):
             'site', 'building', 'brand_new', 'room'
         )
 
-        # Search
+        # Search across many asset fields and common related names
         query = self.request.GET.get('q')
         if query:
-            queryset = queryset.filter(
-                Q(name__icontains=query) | 
+            q = (
+                Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
+                Q(asset_code__icontains=query) |
+                Q(erp_asset_number__icontains=query) |
                 Q(serial_number__icontains=query) |
-                Q(erp_asset_number__icontains=query)
+                Q(model__icontains=query) |
+                Q(brand__icontains=query) |
+                Q(brand_new__name__icontains=query) |
+                Q(category__name__icontains=query) |
+                Q(sub_category__name__icontains=query) |
+                Q(vendor__name__icontains=query) |
+                Q(supplier__name__icontains=query) |
+                Q(company__name__icontains=query) |
+                Q(invoice_number__icontains=query) |
+                Q(po_number__icontains=query) |
+                Q(grn_number__icontains=query) |
+                Q(do_number__icontains=query) |
+                Q(tagged_date__icontains=query) |
+                Q(purchase_date__icontains=query) |
+                Q(department__name__icontains=query) |
+                Q(branch__name__icontains=query) |
+                Q(building__name__icontains=query) |
+                Q(room__name__icontains=query) |
+                Q(site__name__icontains=query) |
+                Q(region__name__icontains=query) |
+                Q(location__name__icontains=query) |
+                Q(sub_location__name__icontains=query) |
+                Q(assigned_to__username__icontains=query) |
+                Q(assigned_to__first_name__icontains=query) |
+                Q(assigned_to__last_name__icontains=query) |
+                Q(notes__icontains=query)
             )
+
+            queryset = queryset.filter(q)
             
         # Advanced Filters
         filters = {

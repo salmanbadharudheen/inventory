@@ -105,8 +105,7 @@
         class="btn" style="background: white; border: 1px solid var(--border-color);">&laquo; Previous</a>
     {% endif %}
 
-    <span style="padding: 0.5rem 1rem; color: var(--text-secondary);">Page {{ page_obj.number }} of {{
-        page_obj.paginator.num_pages }}</span>
+    <span style="padding: 0.5rem 1rem; color: var(--text-secondary);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
 
     {% if page_obj.has_next %}
     <a href="?view=depreciation&page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
