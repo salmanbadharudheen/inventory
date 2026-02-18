@@ -548,8 +548,24 @@
                 <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             </div>
             <div class="user-menu">
-                <div class="user-avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
-                <span>{{ user.first_name|default:user.username }}</span>
+                {% if user.is_authenticated %}
+                <div class="user-dropdown" id="userDropdown">
+                    <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+                        <div class="user-avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
+                        <span class="user-name">{{ user.first_name|default:user.username }}</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+
+                    <div class="user-dropdown-menu" id="userDropdownMenu" role="menu" aria-labelledby="userDropdownBtn" style="display:none;">
+                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item">Sign out</button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{% url 'login' %}" class="btn" style="background: transparent; border: 1px solid var(--border-color); padding: 0.35rem 0.6rem; margin-left:0.75rem;">Sign in</a>
+                {% endif %}
             </div>
         </div>
 
@@ -615,6 +631,26 @@
                 if (window.innerWidth > 768) {
                     menuToggle.classList.remove('active');
                     sidebar.classList.remove('active');
+                }
+            });
+        }
+
+        // User dropdown
+        const userDropdownBtn = document.getElementById('userDropdownBtn');
+        const userDropdownMenu = document.getElementById('userDropdownMenu');
+        if (userDropdownBtn && userDropdownMenu) {
+            userDropdownBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const open = userDropdownMenu.style.display === 'block';
+                userDropdownMenu.style.display = open ? 'none' : 'block';
+                userDropdownBtn.setAttribute('aria-expanded', (!open).toString());
+            });
+
+            // Close when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+                    userDropdownMenu.style.display = 'none';
+                    userDropdownBtn.setAttribute('aria-expanded', 'false');
                 }
             });
         }
