@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Manage Users - Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .admin-title-group {
+        flex: 1;
+    }
+
+    .admin-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .admin-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .admin-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 1px solid var(--primary);
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-body);
+        border-color: var(--primary);
+    }
+
+    .search-box {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-box input {
+        flex: 1;
+        max-width: 400px;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: var(--bg-card);
+        color: var(--text-primary);
+    }
+
+    .search-box input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .card-content {
+        padding: 1.5rem;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead tr {
+        border-bottom: 2px solid var(--border-color);
+        background-color: var(--bg-body);
+    }
+
+    th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+
+    tbody tr:hover {
+        background-color: var(--bg-body);
+    }
+
+    td {
+        padding: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .user-name {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .user-email {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        width: fit-content;
+    }
+
+    .role-admin {
+        background-color: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .role-finance {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+
+    .role-asset-manager {
+        background-color: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .role-auditor {
+        background-color: #E9D5FF;
+        color: #6B21A8;
+    }
+
+    .role-dept-manager {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+
+    .role-employee {
+        background-color: #F3E8FF;
+        color: #581C87;
+    }
+
+    .status-active {
+        color: #10B981;
+        font-weight: 500;
+    }
+
+    .status-inactive {
+        color: #EF4444;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+        font-size: 0.875rem;
+    }
+
+    .pagination-wrapper {
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .pagination-wrapper a,
+    .pagination-wrapper span {
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        text-decoration: none;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .pagination-wrapper a:hover {
+        background-color: var(--bg-body);
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .pagination-wrapper span.page-current {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+        .admin-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .admin-actions {
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .search-box {
+            flex-direction: column;
+        }
+
+        .search-box input {
+            max-width: 100%;
+        }
+
+        table {
+            font-size: 0.75rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+        }
+
+        .user-info {
+            gap: 0.1rem;
+        }
+
+        .user-name {
+            font-size: 0.875rem;
+        }
+
+        .user-email {
+            font-size: 0.7rem;
+        }
+    }
+</style>
+
+<div class="admin-header">
+    <div class="admin-title-group">
+        <div class="admin-title">Manage Users</div>
+        <div class="admin-subtitle">View and manage all users in {% if request.user.is_superuser %}the system{% else %}{{ request.user.organization.name }}{% endif %}</div>
+    </div>
+    <div class="admin-actions">
+        <a href="{% url 'admin-dashboard' %}" class="btn btn-secondary">
+            <svg data-lucide="arrow-left" style="width: 16px; height: 16px;"></svg>
+            Back to Dashboard
+        </a>
+        <a href="{% url 'admin-add' %}" class="btn btn-primary">
+            <svg data-lucide="user-plus" style="width: 16px; height: 16px;"></svg>
+            Add Admin
+        </a>
+    </div>
+</div>
+
+<!-- Search Box -->
+<div class="search-box">
+    <form method="get" style="display: flex; gap: 0.75rem; width: 100%;">
+        <input 
+            type="text" 
+            name="q" 
+            placeholder="Search by username, email, name, or employee ID..." 
+            value="{{ search_query }}"
+        >
+        <button type="submit" class="btn btn-primary">
+            <svg data-lucide="search" style="width: 16px; height: 16px;"></svg>
+            Search
+        </button>
+        {% if search_query %}
+        <a href="{% url 'admin-users' %}" class="btn btn-secondary">
+            <svg data-lucide="x" style="width: 16px; height: 16px;"></svg>
+            Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+    {% if users %}
+    <div class="card-content">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Organization</th>
+                        <th>Branch</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <div class="user-info">
+                                <span class="user-name">{{ user.username }}</span>
+                                <span class="user-email">{{ user.email }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="role-badge role-{{ user.role|lower|replace:'_':'-' }}">
+                                {{ user.get_role_display }}
+                            </span>
+                        </td>
+                        <td>{{ user.organization.name|default:"-" }}</td>
+                        <td>{{ user.branch.name|default:"-" }}</td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="status-active">
+                                <svg data-lucide="check-circle" style="width: 14px; height: 14px; display: inline;"></svg>
+                                Active
+                            </span>
+                            {% else %}
+                            <span class="status-inactive">
+                                <svg data-lucide="x-circle" style="width: 14px; height: 14px; display: inline;"></svg>
+                                Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="pagination-wrapper">
+        {% if page_obj.has_previous %}
+            <a href="?q={{ search_query }}&page=1">First</a>
+            <a href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <span class="page-current">{{ num }}</span>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="?q={{ search_query }}&page={{ num }}">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <a href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Next</a>
+            <a href="?q={{ search_query }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <svg data-lucide="users" style="width: 48px; height: 48px;"></svg>
+        </div>
+        <div class="empty-state-text">
+            {% if search_query %}
+                No users found matching "{{ search_query }}"
+            {% else %}
+                No users found
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

@@ -1,0 +1,496 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Manage Organizations - Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .admin-title-group {
+        flex: 1;
+    }
+
+    .admin-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .admin-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .admin-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 1px solid var(--primary);
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-body);
+        border-color: var(--primary);
+    }
+
+    .search-box {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-box input {
+        flex: 1;
+        max-width: 400px;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: var(--bg-card);
+        color: var(--text-primary);
+    }
+
+    .search-box input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .org-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .org-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .org-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        border-color: var(--primary);
+    }
+
+    .org-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .org-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .org-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .org-info {
+        flex: 1;
+    }
+
+    .org-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+        line-height: 1.2;
+    }
+
+    .org-slug {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        font-family: 'Courier New', monospace;
+    }
+
+    .org-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        margin: 1rem 0;
+    }
+
+    .org-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .org-stat-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background-color: var(--bg-body);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        flex-shrink: 0;
+    }
+
+    .org-stat-icon svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .org-stat-value {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .org-stat-number {
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+
+    .org-stat-label {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .org-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+    }
+
+    .org-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .org-meta-item svg {
+        width: 14px;
+        height: 14px;
+        color: var(--primary);
+    }
+
+    .org-meta-label {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .org-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .org-action {
+        flex: 1;
+        padding: 0.5rem;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--primary);
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+    }
+
+    .org-action:hover {
+        background-color: var(--bg-body);
+        border-color: var(--primary);
+    }
+
+    .org-action svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+        font-size: 0.875rem;
+    }
+
+    .pagination-wrapper {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 2rem;
+    }
+
+    .pagination-wrapper a,
+    .pagination-wrapper span {
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        text-decoration: none;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .pagination-wrapper a:hover {
+        background-color: var(--bg-body);
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .pagination-wrapper span.page-current {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+        .admin-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .admin-actions {
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .search-box {
+            flex-direction: column;
+        }
+
+        .search-box input {
+            max-width: 100%;
+        }
+
+        .org-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .org-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .org-actions {
+            flex-direction: column;
+        }
+
+        .org-action {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="admin-header">
+    <div class="admin-title-group">
+        <div class="admin-title">Manage Organizations</div>
+        <div class="admin-subtitle">View and manage all organizations in the system</div>
+    </div>
+    <div class="admin-actions">
+        <a href="{% url 'admin-dashboard' %}" class="btn btn-secondary">
+            <svg data-lucide="arrow-left" style="width: 16px; height: 16px;"></svg>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Search Box -->
+<div class="search-box">
+    <form method="get" style="display: flex; gap: 0.75rem; width: 100%;">
+        <input 
+            type="text" 
+            name="q" 
+            placeholder="Search by organization name or slug..." 
+            value="{{ search_query }}"
+        >
+        <button type="submit" class="btn btn-primary">
+            <svg data-lucide="search" style="width: 16px; height: 16px;"></svg>
+            Search
+        </button>
+        {% if search_query %}
+        <a href="{% url 'admin-orgs' %}" class="btn btn-secondary">
+            <svg data-lucide="x" style="width: 16px; height: 16px;"></svg>
+            Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Organizations Grid -->
+{% if organizations %}
+<div class="org-grid">
+    {% for org in organizations %}
+    <div class="org-card">
+        <div class="org-header">
+            <div class="org-icon">
+                <svg data-lucide="building-2"></svg>
+            </div>
+            <div class="org-info">
+                <div class="org-name">{{ org.name }}</div>
+                <div class="org-slug">{{ org.slug }}</div>
+            </div>
+        </div>
+
+        <div class="org-stats">
+            <div class="org-stat">
+                <div class="org-stat-icon">
+                    <svg data-lucide="users"></svg>
+                </div>
+                <div class="org-stat-value">
+                    <span class="org-stat-number">{{ org.user_count|default:0 }}</span>
+                    <span class="org-stat-label">Users</span>
+                </div>
+            </div>
+
+            <div class="org-stat">
+                <div class="org-stat-icon">
+                    <svg data-lucide="package"></svg>
+                </div>
+                <div class="org-stat-value">
+                    <span class="org-stat-number">{{ org.asset_count|default:0 }}</span>
+                    <span class="org-stat-label">Assets</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="org-meta">
+            <div class="org-meta-item">
+                <svg data-lucide="calendar"></svg>
+                <span><span class="org-meta-label">Created:</span> {{ org.created_at|date:"M d, Y" }}</span>
+            </div>
+        </div>
+
+        <div class="org-actions">
+            <a href="#" class="org-action" title="View Details">
+                <svg data-lucide="eye"></svg>
+                Details
+            </a>
+            <a href="#" class="org-action" title="Edit Organization">
+                <svg data-lucide="edit"></svg>
+                Edit
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="pagination-wrapper">
+    {% if page_obj.has_previous %}
+        <a href="?q={{ search_query }}&page=1">First</a>
+        <a href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            <span class="page-current">{{ num }}</span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <a href="?q={{ search_query }}&page={{ num }}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Next</a>
+        <a href="?q={{ search_query }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <svg data-lucide="building-2"></svg>
+    </div>
+    <div class="empty-state-text">
+        {% if search_query %}
+            No organizations found matching "{{ search_query }}"
+        {% else %}
+            No organizations found
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

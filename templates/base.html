@@ -511,13 +511,23 @@
             </div>
 
             <!-- Admin Section -->
+            {% if user.is_superuser or user.role == 'ADMIN' %}
             <div class="nav-section">
                 <span class="nav-section-title">Administration</span>
-                <a href="{% url 'admin:index' %}" class="nav-item" data-label="Admin">
-                    <i data-lucide="settings"></i>
-                    <span>Admin Panel</span>
+                <a href="{% url 'admin-dashboard' %}" class="nav-item {% if 'admin' in request.path and 'admin-dashboard' in request.resolver_match.url_name %}active{% endif %}" data-label="Dashboard">
+                    <i data-lucide="gauge"></i>
+                    <span>Admin Dashboard</span>
+                </a>
+                <a href="{% url 'admin-users' %}" class="nav-item {% if 'admin-users' in request.resolver_match.url_name %}active{% endif %}" data-label="Users">
+                    <i data-lucide="users"></i>
+                    <span>Manage Users</span>
+                </a>
+                <a href="{% url 'admin-orgs' %}" class="nav-item {% if 'admin-orgs' in request.resolver_match.url_name %}active{% endif %}" data-label="Organizations">
+                    <i data-lucide="building-2"></i>
+                    <span>Organizations</span>
                 </a>
             </div>
+            {% endif %}
         </nav>
 
         <div class="sidebar-footer">

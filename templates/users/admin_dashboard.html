@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .admin-header {
+        margin-bottom: 2rem;
+    }
+
+    .admin-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .admin-subtitle {
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--bg-card);
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 24px;
+    }
+
+    .stat-icon.users {
+        background-color: #EEF2FF;
+        color: #4F46E5;
+    }
+
+    .stat-icon.orgs {
+        background-color: #ECFDF5;
+        color: #10B981;
+    }
+
+    .stat-icon.assets {
+        background-color: #FEF3C7;
+        color: #F59E0B;
+    }
+
+    .stat-icon.admins {
+        background-color: #FCE7F3;
+        color: #EC4899;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .admin-section {
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .section-title svg {
+        width: 20px;
+        height: 20px;
+        color: var(--primary);
+    }
+
+    .org-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .org-card {
+        background: var(--bg-card);
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .org-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+    }
+
+    .org-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .org-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .org-meta-item strong {
+        color: var(--text-primary);
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .action-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--primary);
+        color: white;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: 1px solid var(--primary);
+    }
+
+    .action-link:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+
+    .action-link.secondary {
+        background: transparent;
+        color: var(--primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .action-link.secondary:hover {
+        background: var(--bg-body);
+        border-color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .admin-title {
+            font-size: 1.5rem;
+        }
+
+        .org-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="admin-header">
+    <div class="admin-title">Admin Dashboard</div>
+    <div class="admin-subtitle">System overview and management</div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon users">
+            <svg data-lucide="users"></svg>
+        </div>
+        <div class="stat-number">{{ total_users }}</div>
+        <div class="stat-label">Total Users</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon orgs">
+            <svg data-lucide="building-2"></svg>
+        </div>
+        <div class="stat-number">{{ total_orgs }}</div>
+        <div class="stat-label">Organizations</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon assets">
+            <svg data-lucide="package"></svg>
+        </div>
+        <div class="stat-number">{{ total_assets }}</div>
+        <div class="stat-label">Total Assets</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon admins">
+            <svg data-lucide="shield-admin"></svg>
+        </div>
+        <div class="stat-number">{{ admin_users }}</div>
+        <div class="stat-label">Admin Users</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="admin-section">
+    <div class="section-title">
+        <svg data-lucide="zap"></svg>
+        Quick Actions
+    </div>
+    <div class="quick-actions">
+        <a href="{% url 'admin-users' %}" class="action-link">
+            <svg data-lucide="users" style="width: 16px; height: 16px;"></svg>
+            Manage Users
+        </a>
+        <a href="{% url 'admin-orgs' %}" class="action-link">
+            <svg data-lucide="building-2" style="width: 16px; height: 16px;"></svg>
+            Manage Organizations
+        </a>
+        <a href="{% url 'admin-add' %}" class="action-link">
+            <svg data-lucide="user-plus" style="width: 16px; height: 16px;"></svg>
+            Add Admin
+        </a>
+    </div>
+</div>
+
+<!-- Organizations Overview -->
+{% if organizations %}
+<div class="admin-section">
+    <div class="section-title">
+        <svg data-lucide="building-2"></svg>
+        Recent Organizations
+    </div>
+    <div class="org-grid">
+        {% for org in organizations %}
+        <div class="org-card">
+            <div class="org-name">{{ org.name }}</div>
+            <div class="org-meta">
+                <div class="org-meta-item">
+                    <svg data-lucide="code" style="width: 14px; height: 14px;"></svg>
+                    <strong>Slug:</strong> {{ org.slug }}
+                </div>
+                <div class="org-meta-item">
+                    <svg data-lucide="calendar" style="width: 14px; height: 14px;"></svg>
+                    <strong>Created:</strong> {{ org.created_at|date:"M d, Y" }}
+                </div>
+                {% if org.user_count %}
+                <div class="org-meta-item">
+                    <svg data-lucide="users" style="width: 14px; height: 14px;"></svg>
+                    <strong>Users:</strong> {{ org.user_count }}
+                </div>
+                {% endif %}
+                {% if org.asset_count %}
+                <div class="org-meta-item">
+                    <svg data-lucide="package" style="width: 14px; height: 14px;"></svg>
+                    <strong>Assets:</strong> {{ org.asset_count }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="quick-actions">
+                <a href="{% url 'admin-orgs' %}" class="action-link secondary">
+                    <svg data-lucide="arrow-right" style="width: 14px; height: 14px;"></svg>
+                    View All
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}
