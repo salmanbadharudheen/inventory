@@ -358,17 +358,20 @@
                         <th>User</th>
                         <th>Role</th>
                         <th>Organization</th>
-                        <th>Branch</th>
+                        <th>Department</th>
+                        <th>Employee ID</th>
                         <th>Status</th>
                         <th>Joined</th>
+                        <th>Last Login</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
-                    <tr>
+                    <tr style="cursor: pointer;" onclick="window.location.href='{% url 'admin-user-detail' user.id %}';">
                         <td>
                             <div class="user-info">
-                                <span class="user-name">{{ user.username }}</span>
+                                <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                                <span class="user-email">{{ user.username }}</span>
                                 <span class="user-email">{{ user.email }}</span>
                             </div>
                         </td>
@@ -378,7 +381,8 @@
                             </span>
                         </td>
                         <td>{{ user.organization.name|default:"-" }}</td>
-                        <td>{{ user.branch.name|default:"-" }}</td>
+                        <td>{{ user.department.name|default:"-" }}</td>
+                        <td>{{ user.employee_id|default:"-" }}</td>
                         <td>
                             {% if user.is_active %}
                             <span class="status-active">
@@ -393,6 +397,13 @@
                             {% endif %}
                         </td>
                         <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                        <td>
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"M d, Y" }}
+                            {% else %}
+                                <span style="color: var(--text-secondary); font-size: 0.75rem;">Never</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

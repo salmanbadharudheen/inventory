@@ -1,7 +1,8 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, ListView, TemplateView
+from django.views.generic import CreateView, ListView, TemplateView, DetailView
 from .models import User
 from .forms import AdminCreationForm, UserCreationForm
 from apps.core.models import Organization
@@ -140,4 +141,29 @@ class AdminOrgListView(AdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('q', '')
+        return context
+
+
+class AdminUserDetailView(AdminRequiredMixin, DetailView):
+    """Admin panel for viewing detailed user information"""
+    model = User
+    template_name = 'users/admin_user_detail.html'
+    context_object_name = 'detail_user'
+    
+    def get_queryset(self):
+        qs = User.objects.select_related('organization', 'branch', 'department')
+        
+        # If not superuser, only allow viewing users in their organization
+        if not self.request.user.is_superuser and self.request.user.organization:
+            qs = qs.filter(organization=self.request.user.organization)
+        
+        return qs
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Get user's assets if applicable
+        user_obj = self.get_object()
+        context['assigned_assets'] = Asset.objects.filter(
+            assigned_to=user_obj
+        ).select_related('category', 'organization')[:10]
         return context

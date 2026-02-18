@@ -1,0 +1,493 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}User Details - {{ detail_user.username }} {% endblock %}
+
+{% block content %}
+<style>
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .detail-title-group {
+        flex: 1;
+    }
+
+    .detail-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .detail-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        text-decoration: none;
+        border: 1px solid;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-body);
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .detail-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-title svg {
+        width: 18px;
+        height: 18px;
+        color: var(--primary);
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-weight: 500;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .detail-value {
+        color: var(--text-primary);
+        font-weight: 500;
+        text-align: right;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-active {
+        background-color: #DCFCE7;
+        color: #16A34A;
+    }
+
+    .status-inactive {
+        background-color: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .role-admin {
+        background-color: #FEE2E2;
+        color: #DC2626;
+    }
+
+    .role-finance {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+
+    .role-asset-manager {
+        background-color: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .role-auditor {
+        background-color: #E9D5FF;
+        color: #6B21A8;
+    }
+
+    .role-dept-manager {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+
+    .role-employee {
+        background-color: #F3E8FF;
+        color: #581C87;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid var(--border-color);
+    }
+
+    .section-title svg {
+        width: 20px;
+        height: 20px;
+        color: var(--primary);
+    }
+
+    .assets-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .assets-table thead tr {
+        background-color: var(--bg-body);
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .assets-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .assets-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.875rem;
+    }
+
+    .assets-table tbody tr:hover {
+        background-color: var(--bg-body);
+    }
+
+    .asset-name {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .asset-tag {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .detail-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .detail-actions {
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-row {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .detail-value {
+            text-align: left;
+        }
+
+        .assets-table {
+            font-size: 0.75rem;
+        }
+
+        .assets-table th,
+        .assets-table td {
+            padding: 0.5rem;
+        }
+    }
+</style>
+
+<div class="detail-header">
+    <div class="detail-title-group">
+        <div class="detail-title">{{ detail_user.get_full_name|default:detail_user.username }}</div>
+        <div class="detail-subtitle">User ID: {{ detail_user.id }}</div>
+    </div>
+    <div class="detail-actions">
+        <a href="{% url 'admin-users' %}" class="btn btn-secondary">
+            <svg data-lucide="arrow-left" style="width: 16px; height: 16px;"></svg>
+            Back to Users
+        </a>
+    </div>
+</div>
+
+<!-- User Information Cards -->
+<div class="detail-grid">
+    <!-- Account Information -->
+    <div class="detail-card">
+        <div class="card-title">
+            <svg data-lucide="user"></svg>
+            Account Information
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Username</span>
+            <span class="detail-value">{{ detail_user.username }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Email</span>
+            <span class="detail-value">{{ detail_user.email|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Full Name</span>
+            <span class="detail-value">{{ detail_user.get_full_name|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Role</span>
+            <span class="detail-value">
+                <span class="role-badge role-{{ detail_user.role|lower|replace:'_':'-' }}">
+                    {{ detail_user.get_role_display }}
+                </span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Status Information -->
+    <div class="detail-card">
+        <div class="card-title">
+            <svg data-lucide="activity"></svg>
+            Status
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Account Status</span>
+            <span class="detail-value">
+                {% if detail_user.is_active %}
+                <span class="status-badge status-active">
+                    <svg data-lucide="check-circle" style="width: 12px; height: 12px;"></svg>
+                    Active
+                </span>
+                {% else %}
+                <span class="status-badge status-inactive">
+                    <svg data-lucide="x-circle" style="width: 12px; height: 12px;"></svg>
+                    Inactive
+                </span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Superuser</span>
+            <span class="detail-value">
+                {% if detail_user.is_superuser %}
+                <svg data-lucide="check" style="width: 16px; height: 16px; color: #10B981;"></svg>
+                {% else %}
+                <svg data-lucide="x" style="width: 16px; height: 16px; color: #EF4444;"></svg>
+                {% endif %}
+            </span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Staff Status</span>
+            <span class="detail-value">
+                {% if detail_user.is_staff %}
+                <svg data-lucide="check" style="width: 16px; height: 16px; color: #10B981;"></svg>
+                {% else %}
+                <svg data-lucide="x" style="width: 16px; height: 16px; color: #EF4444;"></svg>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Organization & Location -->
+    <div class="detail-card">
+        <div class="card-title">
+            <svg data-lucide="map-pin"></svg>
+            Organization & Location
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Organization</span>
+            <span class="detail-value">{{ detail_user.organization.name|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Branch</span>
+            <span class="detail-value">{{ detail_user.branch.name|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Department</span>
+            <span class="detail-value">{{ detail_user.department.name|default:"-" }}</span>
+        </div>
+    </div>
+
+    <!-- Employee Information -->
+    <div class="detail-card">
+        <div class="card-title">
+            <svg data-lucide="briefcase"></svg>
+            Employee Information
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Employee ID</span>
+            <span class="detail-value">{{ detail_user.employee_id|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Designation</span>
+            <span class="detail-value">{{ detail_user.designation|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">First Name</span>
+            <span class="detail-value">{{ detail_user.first_name|default:"-" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Last Name</span>
+            <span class="detail-value">{{ detail_user.last_name|default:"-" }}</span>
+        </div>
+    </div>
+
+    <!-- Activity Information -->
+    <div class="detail-card">
+        <div class="card-title">
+            <svg data-lucide="calendar"></svg>
+            Activity
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Joined Date</span>
+            <span class="detail-value">{{ detail_user.date_joined|date:"M d, Y - g:i A" }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Last Login</span>
+            <span class="detail-value">
+                {% if detail_user.last_login %}
+                    {{ detail_user.last_login|date:"M d, Y - g:i A" }}
+                {% else %}
+                    <span style="color: var(--text-secondary);">Never</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Assigned Assets -->
+{% if assigned_assets %}
+<div>
+    <div class="section-title">
+        <svg data-lucide="package"></svg>
+        Assigned Assets
+    </div>
+    <div class="detail-card">
+        <div style="overflow-x: auto;">
+            <table class="assets-table">
+                <thead>
+                    <tr>
+                        <th>Asset Name</th>
+                        <th>Asset Tag</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in assigned_assets %}
+                    <tr>
+                        <td>
+                            <div>
+                                <div class="asset-name">{{ asset.asset_name }}</div>
+                                <div class="asset-tag">{{ asset.asset_code|default:"-" }}</div>
+                            </div>
+                        </td>
+                        <td>{{ asset.asset_tag|default:"-" }}</td>
+                        <td>{{ asset.category.name|default:"-" }}</td>
+                        <td>
+                            <span style="padding: 0.25rem 0.5rem; background: #EEF2FF; color: #4F46E5; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                                {{ asset.status|default:"-" }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">{{ asset.original_cost|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}
