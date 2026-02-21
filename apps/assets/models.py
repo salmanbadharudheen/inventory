@@ -562,3 +562,249 @@ def create_default_subcategory(sender, instance, created, **kwargs):
             category=instance,
             name="General"
         )
+
+
+# ==================== APPROVAL WORKFLOW MODELS ====================
+
+class ApprovalRequest(TenantAwareModel):
+    """Track approval requests for asset operations"""
+    
+    class RequestType(models.TextChoices):
+        ASSET_CREATE = 'ASSET_CREATE', _('Asset Creation')
+        ASSET_UPDATE = 'ASSET_UPDATE', _('Asset Update')
+        ASSET_TRANSFER = 'ASSET_TRANSFER', _('Asset Transfer')
+        ASSET_RETIRE = 'ASSET_RETIRE', _('Asset Retirement')
+        ASSET_WRITE_OFF = 'ASSET_WRITE_OFF', _('Asset Write-off')
+        BULK_IMPORT = 'BULK_IMPORT', _('Bulk Import')
+    
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        CHECKER_APPROVED = 'CHECKER_APPROVED', _('Checker Approved')
+        CHECKER_REJECTED = 'CHECKER_REJECTED', _('Checker Rejected')
+        SENIOR_APPROVED = 'SENIOR_APPROVED', _('Senior Manager Approved')
+        SENIOR_REJECTED = 'SENIOR_REJECTED', _('Senior Manager Rejected')
+        APPROVED = 'APPROVED', _('Fully Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    request_type = models.CharField(max_length=50, choices=RequestType.choices)
+    status = models.CharField(max_length=50, choices=Status.choices, default=Status.PENDING)
+    
+    # Requester (Data Entry person)
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='approval_requests_created'
+    )
+    
+    # Related asset
+    asset = models.ForeignKey(
+        Asset, 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='approval_requests'
+    )
+    
+    # Request details (stored as JSON for flexibility)
+    data = models.JSONField(
+        default=dict,
+        help_text="Asset details submitted for approval"
+    )
+    
+    comments = models.TextField(blank=True, help_text="Requester's comments or notes")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Approval Request"
+        verbose_name_plural = "Approval Requests"
+    
+    def __str__(self):
+        asset_info = f" - {self.asset.asset_tag}" if self.asset else ""
+        return f"{self.get_request_type_display()}{asset_info} ({self.status})"
+    
+    @property
+    def needs_checker_approval(self):
+        return self.status == self.Status.PENDING
+    
+    @property
+    def needs_senior_approval(self):
+        return self.status == self.Status.CHECKER_APPROVED
+    
+    @property
+    def is_fully_approved(self):
+        return self.status == self.Status.APPROVED
+
+
+class ApprovalLog(TenantAwareModel):
+    """Track approval decisions and comments"""
+    
+    class Decision(models.TextChoices):
+        APPROVED = 'APPROVED', _('Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    approval_request = models.ForeignKey(
+        ApprovalRequest,
+        on_delete=models.CASCADE,
+        related_name='approval_logs'
+    )
+    
+    # Approver info
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='approval_logs'
+    )
+    
+    decision = models.CharField(max_length=20, choices=Decision.choices)
+    approval_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('CHECKER', _('Checker')),
+            ('SENIOR_MANAGER', _('Senior Manager')),
+        ]
+    )
+    comments = models.TextField(blank=True, help_text="Approval comments and feedback")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Approval Log"
+        verbose_name_plural = "Approval Logs"
+    
+    def __str__(self):
+        return f"{self.approval_request} - {self.decision} by {self.approver}"
+
+
+class AssetTransfer(TenantAwareModel):
+    """
+    Track asset transfers between users, departments, locations, etc.
+    """
+    
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', _('Pending')
+        IN_TRANSIT = 'IN_TRANSIT', _('In Transit')
+        RECEIVED = 'RECEIVED', _('Received')
+        REJECTED = 'REJECTED', _('Rejected')
+        CANCELLED = 'CANCELLED', _('Cancelled')
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Asset being transferred
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='transfers')
+    
+    # Transfer details
+    transfer_date = models.DateTimeField(auto_now_add=True)
+    expected_receipt_date = models.DateField(null=True, blank=True)
+    actual_receipt_date = models.DateField(null=True, blank=True)
+    
+    # From whom/where
+    transferred_from_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='assets_transferred_from'
+    )
+    transferred_from_department = models.ForeignKey(
+        'locations.Department',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from'
+    )
+    transferred_from_location = models.ForeignKey(
+        'locations.Location',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from'
+    )
+    
+    # To whom/where
+    transferred_to_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to'
+    )
+    transferred_to_department = models.ForeignKey(
+        'locations.Department',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to'
+    )
+    transferred_to_location = models.ForeignKey(
+        'locations.Location',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to'
+    )
+    
+    # Status tracking
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING
+    )
+    
+    # Reason and notes
+    transfer_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Reason for transfer (e.g., Employee promotion, Department restructuring)"
+    )
+    notes = models.TextField(blank=True, help_text="Additional notes or comments")
+    
+    # Approval tracking
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='transfers_initiated'
+    )
+    
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='transfers_received'
+    )
+    
+    received_comments = models.TextField(blank=True, help_text="Receiver's confirmation comments")
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Asset Transfer"
+        verbose_name_plural = "Asset Transfers"
+    
+    def __str__(self):
+        return f"{self.asset.asset_tag} - Transfer {self.status}"
+    
+    @property
+    def transfer_summary(self):
+        """Summary of transfer details"""
+        from_info = self.transferred_from_user.get_full_name() if self.transferred_from_user else (
+            self.transferred_from_department.name if self.transferred_from_department else "Unknown"
+        )
+        to_info = self.transferred_to_user.get_full_name() if self.transferred_to_user else (
+            self.transferred_to_department.name if self.transferred_to_department else "Unknown"
+        )
+        return f"From {from_info} to {to_info}"

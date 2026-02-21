@@ -1,0 +1,369 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Approval Request - {{ approval.get_request_type_display }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-2">{{ approval.get_request_type_display }}</h2>
+            <p class="text-muted">Request ID: <code>{{ approval.id }}</code></p>
+        </div>
+        <span class="badge badge-lg badge-status badge-status-{{ approval.status|lower|slugify }}">
+            {{ approval.get_status_display }}
+        </span>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Request Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Request Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="detail-group">
+                        <div class="detail-row">
+                            <span class="detail-label">Request Type:</span>
+                            <span class="detail-value">{{ approval.get_request_type_display }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value">
+                                <span class="badge badge-status badge-status-{{ approval.status|lower|slugify }}">
+                                    {{ approval.get_status_display }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Submitted By:</span>
+                            <span class="detail-value">{{ approval.requester.get_full_name|default:approval.requester.username }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Submitted At:</span>
+                            <span class="detail-value">{{ approval.created_at|date:'F d, Y H:i' }}</span>
+                        </div>
+                        {% if approval.asset %}
+                        <div class="detail-row">
+                            <span class="detail-label">Asset:</span>
+                            <span class="detail-value">
+                                <a href="{% url 'asset-detail' approval.asset.pk %}">{{ approval.asset.asset_tag }} - {{ approval.asset.name }}</a>
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Request Data -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Asset Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if approval.data %}
+                    <div class="data-preview">
+                        {% for key, value in approval.data.items %}
+                        <div class="detail-row">
+                            <span class="detail-label">{{ key|title }}:</span>
+                            <span class="detail-value">
+                                {% if value %}
+                                    {{ value }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No additional data provided.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Requester Comments -->
+            {% if approval.comments %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Comments</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ approval.comments }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Approval History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Approval History</h5>
+                </div>
+                <div class="card-body">
+                    {% if approval_logs %}
+                    <div class="approval-timeline">
+                        {% for log in approval_logs %}
+                        <div class="approval-item">
+                            <div class="approval-icon {% if log.decision == 'APPROVED' %}approved{% else %}rejected{% endif %}">
+                                {% if log.decision == 'APPROVED' %}
+                                    <i class="lucide-check"></i>
+                                {% else %}
+                                    <i class="lucide-x"></i>
+                                {% endif %}
+                            </div>
+                            <div class="approval-content">
+                                <div class="approval-header">
+                                    <strong>{{ log.approver.get_full_name|default:log.approver.username }}</strong>
+                                    <span class="badge badge-{{ log.decision|lower }}">{{ log.get_decision_display }}</span>
+                                </div>
+                                <div class="approval-level">{{ log.get_approval_level_display }}</div>
+                                {% if log.comments %}
+                                <div class="approval-comments mt-2">
+                                    <p>{{ log.comments }}</p>
+                                </div>
+                                {% endif %}
+                                <div class="approval-date">{{ log.created_at|date:'F d, Y H:i' }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No approvals yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Approval Actions -->
+            {% if can_approve_checker or can_approve_senior %}
+            <div class="card card-danger mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        {% if can_approve_checker %}Checker Review{% else %}Final Approval{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'approval_approve' approval.pk %}">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label for="decision" class="form-label">Decision</label>
+                            <select name="decision" id="decision" class="form-control" required>
+                                <option value="">-- Select --</option>
+                                <option value="APPROVED">✓ Approve</option>
+                                <option value="REJECTED">✕ Reject</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="comments" class="form-label">Comments (Optional)</label>
+                            <textarea name="comments" id="comments" class="form-control" rows="4" placeholder="Add your feedback or reasons..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="lucide-send"></i> Submit Decision
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Request Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Request Info</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <span class="info-label">Request ID:</span>
+                        <span class="info-value"><code>{{ approval.id }}</code></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Type:</span>
+                        <span class="info-value">{{ approval.get_request_type_display }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Status:</span>
+                        <span class="info-value">
+                            <span class="badge badge-status badge-status-{{ approval.status|lower|slugify }}">
+                                {{ approval.get_status_display }}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Created:</span>
+                        <span class="info-value">{{ approval.created_at|date:'M d' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Updated:</span>
+                        <span class="info-value">{{ approval.updated_at|date:'M d H:i' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.detail-group {
+    display: grid;
+    gap: 20px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #666;
+    min-width: 150px;
+}
+
+.detail-value {
+    color: #333;
+    word-break: break-word;
+}
+
+.data-preview {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.approval-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.approval-item {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #dee2e6;
+}
+
+.approval-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.approval-icon.approved {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-left-color: #0f5132;
+}
+
+.approval-icon.rejected {
+    background-color: #f8d7da;
+    color: #842029;
+    border-left-color: #842029;
+}
+
+.approval-content {
+    flex: 1;
+}
+
+.approval-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.approval-level {
+    font-size: 12px;
+    color: #999;
+    font-weight: 500;
+}
+
+.approval-comments {
+    font-size: 14px;
+    color: #555;
+    background-color: white;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+
+.approval-date {
+    font-size: 12px;
+    color: #999;
+    margin-top: 8px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #666;
+    font-size: 12px;
+}
+
+.info-value {
+    color: #333;
+    font-size: 13px;
+}
+
+.badge-lg {
+    font-size: 14px;
+    padding: 8px 16px;
+}
+
+.badge-status {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-approved {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.badge-rejected {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #d63384;
+}
+</style>
+{% endblock %}

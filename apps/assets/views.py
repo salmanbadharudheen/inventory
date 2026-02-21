@@ -7,9 +7,9 @@ from django.contrib import messages
 import csv
 import io
 from .models import (Asset, AssetAttachment, Category, SubCategory, Vendor, generate_asset_tag,
-                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks)
+                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer)
 from .forms import (AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm,
-                    GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm)
+                    GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm, AssetTransferForm, AssetTransferReceiveForm)
 from django.db import transaction
 from apps.locations.models import (Branch, Building, Floor, Room, 
                                    Region, Site, Location, SubLocation, Department)
@@ -56,27 +56,77 @@ def get_rooms(request):
     return JsonResponse(list(rooms), safe=False)
 
 def lookup_asset(request):
+    # Support lookup by free-text `q` (tag/name/code) or by explicit `asset_id`.
+    asset_id = request.GET.get('asset_id')
     query = request.GET.get('q')
-    if query:
+
+    asset = None
+    org = getattr(request.user, 'organization', None)
+
+    if asset_id:
+        try:
+            asset = Asset.objects.select_related(
+                'department', 'branch', 'building', 'floor', 'room',
+                'region', 'site', 'location', 'sub_location', 'assigned_to'
+            ).get(id=asset_id, organization=org)
+        except Asset.DoesNotExist:
+            asset = None
+
+    elif query:
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
             Q(asset_tag__iexact=query) | 
             Q(custom_asset_tag__iexact=query) |
             Q(asset_code__iexact=query),
-            organization=request.user.organization
+            organization=org
         ).first()
-        
+
         if not asset:
-             # Fallback to name search if no exact tag match
-             asset = Asset.objects.filter(
+            # Fallback to name search if no exact tag match
+            asset = Asset.objects.filter(
                 name__icontains=query,
-                organization=request.user.organization
-             ).first()
-             
-        if asset:
-            return JsonResponse({'id': asset.id, 'name': asset.name})
-    
-    return JsonResponse({'error': 'Not found'}, status=404)
+                organization=org
+            ).first()
+
+    if not asset:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+    # Current location/ownership details
+    assigned = None
+    if asset.assigned_to:
+        assigned = {'id': asset.assigned_to.id, 'name': asset.assigned_to.get_full_name() or asset.assigned_to.username}
+
+    current = {
+        'id': str(asset.id),
+        'name': asset.name,
+        'asset_tag': asset.asset_tag,
+        'department': {'id': asset.department.id, 'name': asset.department.name} if asset.department else None,
+        'branch': {'id': asset.branch.id, 'name': asset.branch.name} if asset.branch else None,
+        'building': {'id': asset.building.id, 'name': asset.building.name} if asset.building else None,
+        'floor': {'id': asset.floor.id, 'name': asset.floor.name} if asset.floor else None,
+        'room': {'id': asset.room.id, 'name': asset.room.name} if asset.room else None,
+        'region': {'id': asset.region.id, 'name': asset.region.name} if getattr(asset, 'region', None) else None,
+        'site': {'id': asset.site.id, 'name': asset.site.name} if getattr(asset, 'site', None) else None,
+        'location': {'id': asset.location.id, 'name': asset.location.name} if getattr(asset, 'location', None) else None,
+        'sub_location': {'id': asset.sub_location.id, 'name': asset.sub_location.name} if getattr(asset, 'sub_location', None) else None,
+        'assigned_to': assigned,
+        'status': asset.status,
+    }
+
+    # Available transfer options (simple lists to populate selects)
+    departments = list(Department.objects.filter(organization=org).values('id', 'name')) if org else []
+    locations = list(Location.objects.filter(organization=org).values('id', 'name')) if org else []
+    users = []
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = list(User.objects.filter(organization=org).values('id', 'first_name', 'last_name', 'username')) if org else []
+        # normalize to id/name
+        users = [{'id': u['id'], 'name': (u['first_name'] + ' ' + u['last_name']).strip() or u['username']} for u in users]
+    except Exception:
+        users = []
+
+    return JsonResponse({'asset': current, 'departments': departments, 'locations': locations, 'users': users})
 
 ASSET_IMPORT_FIELDS = [
     'name', 'description', 'short_description', 'asset_tag', 'custom_asset_tag', 
@@ -214,6 +264,9 @@ class AssetListView(LoginRequiredMixin, ListView):
             'site': 'site_id',
             'building': 'building_id',
             'brand': 'brand_new_id',
+            'department': 'department_id',
+            'subcategory': 'sub_category_id',
+            'group': 'group_id',
         }
         
         for param, field in filters.items():
@@ -241,6 +294,9 @@ class AssetListView(LoginRequiredMixin, ListView):
         context['sites'] = Site.objects.filter(organization=org).order_by('name')
         context['buildings'] = Building.objects.filter(organization=org).order_by('name')
         context['brands'] = Brand.objects.filter(organization=org).order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).order_by('name')
+        context['subcategories'] = SubCategory.objects.filter(organization=org).order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).order_by('name')
         context['statuses'] = Asset.Status.choices
 
         if self.request.GET.get('view') == 'depreciation':
@@ -1042,3 +1098,540 @@ def get_subgroups(request):
         subgroups = SubGroup.objects.filter(group_id=group_id).values('id', 'name')
         return JsonResponse(list(subgroups), safe=False)
     return JsonResponse([], safe=False)
+
+# ==================== APPROVAL WORKFLOW VIEWS ====================
+
+from .models import ApprovalRequest, ApprovalLog
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.shortcuts import HttpResponseRedirect
+from apps.users.views import ApprovalAccessMixin, CheckerRequiredMixin, SeniorManagerRequiredMixin, DataEntryRequiredMixin
+
+class ApprovalListView(ApprovalAccessMixin, ListView):
+    """List approval requests for current user"""
+    model = ApprovalRequest
+    template_name = 'assets/approval_list.html'
+    context_object_name = 'approvals'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Checkers see pending requests and requests they approved
+        if user.is_checker:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization,
+                status__in=[
+                    ApprovalRequest.Status.PENDING,
+                    ApprovalRequest.Status.CHECKER_APPROVED,
+                    ApprovalRequest.Status.CHECKER_REJECTED
+                ]
+            ).order_by('-created_at')
+        
+        # Senior managers see all requests that need approval or they've already approved
+        elif user.is_senior_manager:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization,
+                status__in=[
+                    ApprovalRequest.Status.CHECKER_APPROVED,
+                    ApprovalRequest.Status.SENIOR_APPROVED,
+                    ApprovalRequest.Status.SENIOR_REJECTED,
+                    ApprovalRequest.Status.APPROVED
+                ]
+            ).order_by('-created_at')
+        
+        # Data entry persons see their own requests
+        elif user.is_data_entry:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization,
+                requester=user
+            ).order_by('-created_at')
+        
+        # Admins see all
+        elif user.is_superuser or user.role == user.Role.ADMIN:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization
+            ).order_by('-created_at')
+        
+        return ApprovalRequest.objects.none()
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Count pending for user's role
+        queryset = self.get_queryset()
+        if user.is_checker:
+            context['pending_count'] = queryset.filter(status=ApprovalRequest.Status.PENDING).count()
+        elif user.is_senior_manager:
+            context['pending_count'] = queryset.filter(status=ApprovalRequest.Status.CHECKER_APPROVED).count()
+        
+        return context
+
+
+class ApprovalDetailView(ApprovalAccessMixin, DetailView):
+    """View approval request details"""
+    model = ApprovalRequest
+    template_name = 'assets/approval_detail.html'
+    context_object_name = 'approval'
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == user.Role.ADMIN:
+            return ApprovalRequest.objects.filter(organization=user.organization)
+        return ApprovalRequest.objects.filter(organization=user.organization)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        approval = self.object
+        context['approval_logs'] = approval.approval_logs.all().order_by('-created_at')
+        context['can_approve_checker'] = self.request.user.is_checker and approval.needs_checker_approval
+        context['can_approve_senior'] = self.request.user.is_senior_manager and approval.needs_senior_approval
+        return context
+
+
+class ApprovalApproveView(LoginRequiredMixin, View):
+    """Approve an approval request"""
+    
+    def post(self, request, pk):
+        approval = get_object_or_404(ApprovalRequest, pk=pk, organization=request.user.organization)
+        user = request.user
+        
+        decision = request.POST.get('decision')  # 'APPROVED' or 'REJECTED'
+        comments = request.POST.get('comments', '')
+        
+        # Checker approval
+        if user.is_checker and approval.status == ApprovalRequest.Status.PENDING:
+            if decision == 'APPROVED':
+                approval.status = ApprovalRequest.Status.CHECKER_APPROVED
+                messages.success(request, 'Request approved by checker. Pending senior manager approval.')
+            elif decision == 'REJECTED':
+                approval.status = ApprovalRequest.Status.CHECKER_REJECTED
+                messages.warning(request, 'Request rejected by checker.')
+            
+            approval.save()
+            
+            # Create approval log
+            ApprovalLog.objects.create(
+                approval_request=approval,
+                approver=user,
+                decision=decision,
+                approval_level='CHECKER',
+                comments=comments,
+                organization=user.organization
+            )
+        
+        # Senior manager approval
+        elif user.is_senior_manager and approval.status == ApprovalRequest.Status.CHECKER_APPROVED:
+            if decision == 'APPROVED':
+                approval.status = ApprovalRequest.Status.APPROVED
+                messages.success(request, 'Request fully approved!')
+            elif decision == 'REJECTED':
+                approval.status = ApprovalRequest.Status.SENIOR_REJECTED
+                messages.warning(request, 'Request rejected by senior manager.')
+            
+            approval.save()
+            
+            # Create approval log
+            ApprovalLog.objects.create(
+                approval_request=approval,
+                approver=user,
+                decision=decision,
+                approval_level='SENIOR_MANAGER',
+                comments=comments,
+                organization=user.organization
+            )
+        
+        else:
+            messages.error(request, 'You do not have permission to approve this request.')
+            return HttpResponseRedirect(reverse('approval_detail', args=[pk]))
+        
+        return HttpResponseRedirect(reverse('approval_detail', args=[pk]))
+
+
+class CreateApprovalRequestView(DataEntryRequiredMixin, CreateView):
+    """Data entry person creates approval request for new asset"""
+    model = ApprovalRequest
+    fields = ['request_type', 'data', 'comments']
+    template_name = 'assets/approval_request_form.html'
+    
+    def form_valid(self, form):
+        form.instance.requester = self.request.user
+        form.instance.organization = self.request.user.organization
+        messages.success(self.request, 'Approval request submitted for review.')
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('approval_list')
+
+
+class ReportsListView(LoginRequiredMixin, View):
+    """Display list of available reports"""
+    template_name = 'assets/reports_list.html'
+    
+    def get(self, request):
+        # Define available reports
+        reports = [
+            {
+                'name': 'Depreciation Report',
+                'description': 'View asset depreciation analysis and financial depreciation data.',
+                'icon': 'trending-down',
+                'url': reverse('asset-list') + '?view=depreciation',
+                'color': 'info'
+            },
+            {
+                'name': 'Asset Inventory',
+                'description': 'Complete list of all assets in your inventory with details.',
+                'icon': 'package',
+                'url': reverse('asset-list'),
+                'color': 'primary'
+            },
+            {
+                'name': 'Asset Approvals',
+                'description': 'View and manage pending and completed asset approval requests.',
+                'icon': 'check-circle',
+                'url': reverse('approval_list'),
+                'color': 'success'
+            },
+        ]
+        
+        context = {
+            'reports': reports,
+            'total_assets': Asset.objects.filter(
+                organization=request.user.organization
+            ).count(),
+        }
+        
+        return render(request, self.template_name, context)
+
+
+class MastersListView(LoginRequiredMixin, View):
+    """Display list of all assets with complete details - with pagination and filters"""
+    template_name = 'assets/masters_list.html'
+    paginate_by = 50
+    
+    def get(self, request):
+        from django.core.paginator import Paginator
+        from django.db.models import Q
+        organization = request.user.organization
+        
+        # Get search and filter parameters
+        search_query = request.GET.get('q', '').strip()
+        category_filter = request.GET.get('category', '').strip()
+        sub_category_filter = request.GET.get('sub_category', '').strip()
+        company_filter = request.GET.get('company', '').strip()
+        department_filter = request.GET.get('department', '').strip()
+        condition_filter = request.GET.get('condition', '').strip()
+        status_filter = request.GET.get('status', '').strip()
+        brand_filter = request.GET.get('brand', '').strip()
+        vendor_filter = request.GET.get('vendor', '').strip()
+        supplier_filter = request.GET.get('supplier', '').strip()
+        group_filter = request.GET.get('group', '').strip()
+        subgroup_filter = request.GET.get('subgroup', '').strip()
+        custodian_filter = request.GET.get('custodian', '').strip()
+        purchase_date_from = request.GET.get('purchase_date_from', '').strip()
+        purchase_date_to = request.GET.get('purchase_date_to', '').strip()
+        sort_by = request.GET.get('sort_by', '-created_at').strip()
+        sort_order = request.GET.get('sort_order', 'desc').strip()
+        
+        # Fetch assets with optimization
+        assets_qs = Asset.objects.filter(
+            organization=organization
+        ).select_related(
+            'category', 'sub_category', 'group', 'sub_group', 'brand_new',
+            'company', 'supplier', 'custodian', 'department', 'assigned_to',
+            'branch', 'building', 'floor', 'room', 'region', 'site', 
+            'location', 'sub_location', 'vendor', 'asset_remarks', 'parent'
+        )
+        
+        # Apply sorting
+        if sort_by:
+            if sort_order == 'asc':
+                assets_qs = assets_qs.order_by(sort_by)
+            else:
+                assets_qs = assets_qs.order_by(f'-{sort_by}' if not sort_by.startswith('-') else sort_by)
+        else:
+            assets_qs = assets_qs.order_by('-created_at')
+        
+        # Apply search filter
+        if search_query:
+            assets_qs = assets_qs.filter(
+                Q(asset_tag__icontains=search_query) |
+                Q(name__icontains=search_query) |
+                Q(serial_number__icontains=search_query) |
+                Q(category__name__icontains=search_query)
+            )
+        
+        # Apply category and sub-category filters
+        if category_filter:
+            assets_qs = assets_qs.filter(category_id=category_filter)
+        if sub_category_filter:
+            assets_qs = assets_qs.filter(sub_category_id=sub_category_filter)
+        
+        # Apply company filter
+        if company_filter:
+            assets_qs = assets_qs.filter(company_id=company_filter)
+        
+        # Apply department filter
+        if department_filter:
+            assets_qs = assets_qs.filter(department_id=department_filter)
+        
+        # Apply condition filter
+        if condition_filter:
+            assets_qs = assets_qs.filter(condition=condition_filter)
+        
+        # Apply status filter
+        if status_filter:
+            assets_qs = assets_qs.filter(status=status_filter)
+        
+        # Apply brand filter
+        if brand_filter:
+            assets_qs = assets_qs.filter(brand_new_id=brand_filter)
+        
+        # Apply vendor filter
+        if vendor_filter:
+            assets_qs = assets_qs.filter(vendor_id=vendor_filter)
+        
+        # Apply supplier filter
+        if supplier_filter:
+            assets_qs = assets_qs.filter(supplier_id=supplier_filter)
+        
+        # Apply group filter
+        if group_filter:
+            assets_qs = assets_qs.filter(group_id=group_filter)
+        
+        # Apply subgroup filter
+        if subgroup_filter:
+            assets_qs = assets_qs.filter(sub_group_id=subgroup_filter)
+        
+        # Apply custodian filter
+        if custodian_filter:
+            assets_qs = assets_qs.filter(custodian_id=custodian_filter)
+        
+        # Apply purchase date range filters
+        if purchase_date_from:
+            try:
+                from datetime import datetime
+                from_date = datetime.strptime(purchase_date_from, '%Y-%m-%d').date()
+                assets_qs = assets_qs.filter(purchase_date__gte=from_date)
+            except:
+                pass
+        
+        if purchase_date_to:
+            try:
+                from datetime import datetime
+                to_date = datetime.strptime(purchase_date_to, '%Y-%m-%d').date()
+                assets_qs = assets_qs.filter(purchase_date__lte=to_date)
+            except:
+                pass
+        
+        # Paginate results
+        paginator = Paginator(assets_qs, self.paginate_by)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        
+        # Get filter options
+        categories = Category.objects.filter(organization=organization).order_by('name')
+        sub_categories = SubCategory.objects.filter(organization=organization).order_by('name')
+        companies = Company.objects.filter(organization=organization).order_by('name')
+        departments = Department.objects.filter(organization=organization).order_by('name')
+        brands = Brand.objects.filter(organization=organization).order_by('name')
+        vendors = Vendor.objects.filter(organization=organization).order_by('name')
+        suppliers = Supplier.objects.filter(organization=organization).order_by('name')
+        groups = Group.objects.filter(organization=organization).order_by('name')
+        subgroups = SubGroup.objects.filter(organization=organization).order_by('name')
+        custodians = Custodian.objects.filter(organization=organization).order_by('employee_id')
+        
+        context = {
+            'page_obj': page_obj,
+            'assets': page_obj.object_list,
+            'total_assets': paginator.count,
+            'search_query': search_query,
+            'category_filter': category_filter,
+            'sub_category_filter': sub_category_filter,
+            'company_filter': company_filter,
+            'department_filter': department_filter,
+            'condition_filter': condition_filter,
+            'status_filter': status_filter,
+            'brand_filter': brand_filter,
+            'vendor_filter': vendor_filter,
+            'supplier_filter': supplier_filter,
+            'group_filter': group_filter,
+            'subgroup_filter': subgroup_filter,
+            'custodian_filter': custodian_filter,
+            'purchase_date_from': purchase_date_from,
+            'purchase_date_to': purchase_date_to,
+            'sort_by': sort_by,
+            'sort_order': sort_order,
+            'categories': categories,
+            'sub_categories': sub_categories,
+            'companies': companies,
+            'departments': departments,
+            'brands': brands,
+            'vendors': vendors,
+            'suppliers': suppliers,
+            'groups': groups,
+            'subgroups': subgroups,
+            'custodians': custodians,
+            'condition_choices': Asset._meta.get_field('condition').choices,
+            'status_choices': Asset._meta.get_field('status').choices,
+        }
+        
+        return render(request, self.template_name, context)
+
+
+# ========================
+# Asset Transfer Views
+# ========================
+
+class AssetTransferListView(LoginRequiredMixin, ListView):
+    """List all asset transfers with filtering"""
+    model = AssetTransfer
+    template_name = 'assets/transfer_list.html'
+    context_object_name = 'transfers'
+    paginate_by = 50
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        queryset = AssetTransfer.objects.filter(organization=org).select_related(
+            'asset',
+            'transferred_from_user',
+            'transferred_from_department',
+            'transferred_to_user',
+            'transferred_to_department',
+            'created_by'
+        )
+        
+        # Filter by status
+        status = self.request.GET.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        # Filter by asset
+        asset_id = self.request.GET.get('asset')
+        if asset_id:
+            queryset = queryset.filter(asset_id=asset_id)
+        
+        # Filter by date range
+        date_from = self.request.GET.get('date_from')
+        date_to = self.request.GET.get('date_to')
+        if date_from:
+            queryset = queryset.filter(transfer_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(transfer_date__lte=date_to)
+        
+        # Search
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(asset__asset_tag__icontains=search) |
+                Q(asset__name__icontains=search) |
+                Q(transfer_reason__icontains=search)
+            )
+        
+        return queryset.order_by('-transfer_date')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        
+        context['status_choices'] = AssetTransfer.Status.choices
+        context['assets'] = Asset.objects.filter(organization=org)
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['asset_filter'] = self.request.GET.get('asset', '')
+        context['date_from'] = self.request.GET.get('date_from', '')
+        context['date_to'] = self.request.GET.get('date_to', '')
+        context['search'] = self.request.GET.get('search', '')
+        
+        return context
+
+
+class AssetTransferCreateView(LoginRequiredMixin, CreateView):
+    """Create a new asset transfer"""
+    model = AssetTransfer
+    form_class = AssetTransferForm
+    template_name = 'assets/transfer_form.html'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+    
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        form.instance.created_by = self.request.user
+        response = super().form_valid(form)
+        messages.success(self.request, f'Asset transfer created successfully for {form.instance.asset.asset_tag}')
+        return response
+    
+    def get_success_url(self):
+        return reverse('transfer-detail', kwargs={'pk': self.object.pk})
+
+
+class AssetTransferDetailView(LoginRequiredMixin, DetailView):
+    """View details of a specific asset transfer"""
+    model = AssetTransfer
+    template_name = 'assets/transfer_detail.html'
+    context_object_name = 'transfer'
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        return AssetTransfer.objects.filter(organization=org).select_related(
+            'asset',
+            'transferred_from_user',
+            'transferred_from_department',
+            'transferred_from_location',
+            'transferred_to_user',
+            'transferred_to_department',
+            'transferred_to_location',
+            'created_by',
+            'received_by'
+        )
+
+
+class AssetTransferUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an asset transfer (mainly for status changes)"""
+    model = AssetTransfer
+    form_class = AssetTransferForm
+    template_name = 'assets/transfer_form.html'
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        return AssetTransfer.objects.filter(organization=org)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Asset transfer updated successfully')
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('transfer-detail', kwargs={'pk': self.object.pk})
+
+
+class AssetTransferReceiveView(LoginRequiredMixin, UpdateView):
+    """Mark an asset transfer as received"""
+    model = AssetTransfer
+    form_class = AssetTransferReceiveForm
+    template_name = 'assets/transfer_receive.html'
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        return AssetTransfer.objects.filter(organization=org)
+    
+    def form_valid(self, form):
+        form.instance.received_by = self.request.user
+        if form.instance.status == AssetTransfer.Status.RECEIVED:
+            if not form.instance.actual_receipt_date:
+                form.instance.actual_receipt_date = date.today()
+            messages.success(self.request, f'Asset transfer marked as received: {form.instance.asset.asset_tag}')
+        elif form.instance.status == AssetTransfer.Status.REJECTED:
+            messages.warning(self.request, f'Asset transfer rejected: {form.instance.asset.asset_tag}')
+        
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('transfer-detail', kwargs={'pk': self.object.pk})

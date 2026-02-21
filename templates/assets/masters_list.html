@@ -1,0 +1,998 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Asset Masters{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary: #6366F1;
+        --primary-hover: #4F46E5;
+        --bg-light: #F9FAFB;
+        --text-primary: #111827;
+        --text-secondary: #6B7280;
+        --text-tertiary: #9CA3AF;
+        --border-color: #E5E7EB;
+        --success: #10B981;
+        --warning: #F59E0B;
+        --danger: #EF4444;
+    }
+
+    .masters-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 2rem;
+    }
+
+    /* Header */
+    .masters-header-content h1 {
+        font-size: 1.875rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin: 0 0 0.25rem 0;
+    }
+
+    .masters-header-content p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* Filter Form - Compact */
+    .filter-form {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+
+    .search-filters {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .sort-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .sort-control label {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .sort-control select {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        background: white;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        min-width: 160px;
+    }
+
+    .sort-control select:hover {
+        border-color: var(--primary);
+    }
+
+    .sort-control select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    .search-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--bg-light);
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .search-bar i {
+        width: 16px;
+        height: 16px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+    }
+
+    .search-bar input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        background: transparent;
+    }
+
+    .search-bar input::placeholder {
+        color: var(--text-tertiary);
+    }
+
+    .clear-search {
+        background: none;
+        border: none;
+        color: var(--text-tertiary);
+        cursor: pointer;
+        padding: 0.2rem;
+        display: none;
+    }
+
+    .search-bar.active .clear-search {
+        display: block;
+    }
+
+    .clear-search:hover {
+        color: var(--danger);
+    }
+
+    .filter-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.875rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .filter-toggle:hover {
+        background: var(--primary-hover);
+    }
+
+    .filter-toggle i {
+        width: 16px;
+        height: 16px;
+    }
+
+    .filter-count {
+        display: inline-block;
+        font-size: 0.6rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Filters Panel */
+    .filters-panel {
+        display: none;
+        padding: 0.75rem 1rem 1rem 1rem;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-light);
+    }
+
+    .filters-panel.show {
+        display: block;
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .filter-item label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .filter-item select {
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.3rem;
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        background: white;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .filter-item select:hover {
+        border-color: var(--primary);
+    }
+
+    .filter-item select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    /* Date Range Filter */
+    .date-range-filter {
+        grid-column: span 2;
+    }
+
+    .date-inputs {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .date-inputs input {
+        flex: 1;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.3rem;
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        background: white;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .date-inputs input:hover {
+        border-color: var(--primary);
+    }
+
+    .date-inputs input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    .date-separator {
+        font-size: 0.75rem;
+        color: var(--text-tertiary);
+        font-weight: 600;
+        text-transform: uppercase;
+        white-space: nowrap;
+        padding: 0 0.2rem;
+    }
+
+    .filter-reset {
+        display: flex;
+        align-items: flex-end;
+    }
+
+    .btn-reset {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        padding: 0.4rem 0.65rem;
+        background: var(--bg-light);
+        border: 1px solid var(--border-color);
+        border-radius: 0.3rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-size: 0.75rem;
+        width: 100%;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .btn-reset:hover {
+        background: var(--danger);
+        color: white;
+        border-color: var(--danger);
+    }
+
+    .btn-reset i {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Statistics Bar */
+    .stats-bar {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    /* Table Section */
+    .table-section {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        height: 100%;
+    }
+
+    .assets-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+    }
+
+    .assets-table thead {
+        background: linear-gradient(to right, #F3F4F6, #F9FAFB);
+        border-bottom: 1px solid var(--border-color);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .assets-table th {
+        padding: 0.75rem 0.875rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .assets-table th:hover {
+        background: rgba(99, 102, 241, 0.05);
+        color: var(--primary);
+    }
+
+    .assets-table th a {
+        color: inherit;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .assets-table th a:hover {
+        color: var(--primary);
+    }
+
+    .sort-indicator {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        font-size: 0.65rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .assets-table th:hover .sort-indicator {
+        opacity: 0.4;
+    }
+
+    .assets-table th.sorted .sort-indicator {
+        opacity: 1;
+        color: var(--primary);
+    }
+
+    .assets-table td {
+        padding: 0.75rem 0.875rem;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-secondary);
+    }
+
+    .assets-table tbody tr:hover {
+        background: var(--bg-light);
+    }
+
+    /* Key columns */
+    .asset-tag-cell {
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 0.75rem;
+        font-family: 'Courier New', monospace;
+    }
+
+    .asset-name-cell {
+        font-weight: 600;
+        color: var(--text-primary);
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.3rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+    }
+
+    .badge-primary {
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--primary);
+    }
+
+    .badge-success {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success);
+    }
+
+    .badge-warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+    }
+
+    .badge-danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--danger);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2.5rem 1.5rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        color: var(--border-color);
+        margin-bottom: 0.75rem;
+        display: block;
+    }
+
+    /* Pagination */
+    .pagination-section {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 1rem;
+        border-top: 1px solid var(--border-color);
+        flex-wrap: wrap;
+    }
+
+    .pagination-info {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-right: 0.75rem;
+    }
+
+    .pagination a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 0.35rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.3rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: all 0.15s ease;
+        font-size: 0.8rem;
+    }
+
+    .pagination a:hover {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        border-color: var(--primary);
+    }
+
+    .pagination .page-current {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        min-width: 28px;
+        height: 28px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .filters-grid {
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .masters-container {
+            padding: 1rem;
+        }
+
+        .masters-header-content h1 {
+            font-size: 1.5rem;
+        }
+
+        .search-filters {
+            flex-direction: column;
+        }
+
+        .search-bar {
+            min-width: 100%;
+        }
+
+        .filter-toggle {
+            width: 100%;
+        }
+
+        .filters-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .assets-table {
+            font-size: 0.75rem;
+        }
+
+        .assets-table th,
+        .assets-table td {
+            padding: 0.5rem 0.6rem;
+        }
+
+        .filter-reset {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .filters-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .assets-table {
+            font-size: 0.7rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="masters-container">
+    <!-- Header -->
+    <div class="masters-header-content">
+        <h1>Asset Master Data</h1>
+        <p>Complete inventory management with {{ total_assets }} total assets</p>
+    </div>
+
+    <!-- Search and Filters Section -->
+    <form method="get" class="filter-form" id="filterForm">
+        <!-- Search Bar + Sort + Filter Toggle -->
+        <div class="search-filters">
+            <div class="search-bar {% if search_query %}active{% endif %}">
+                <i data-lucide="search"></i>
+                <input 
+                    type="text" 
+                    name="q" 
+                    placeholder="Search assets..." 
+                    value="{{ search_query }}"
+                    autocomplete="off"
+                >
+                {% if search_query %}
+                <button type="button" class="clear-search" onclick="document.querySelector('input[name=q]').value=''; this.form.submit();" title="Clear search">
+                    <i data-lucide="x"></i>
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Sort Control -->
+            <div class="sort-control">
+                <label for="sortBy">Sort</label>
+                <select id="sortBy" name="sort_by" onchange="this.form.submit()">
+                    <option value="-created_at" {% if sort_by == '-created_at' %}selected{% endif %}>Recently Added</option>
+                    <option value="asset_tag" {% if sort_by == 'asset_tag' %}selected{% endif %}>Asset Tag (A-Z)</option>
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                    <option value="purchase_date" {% if sort_by == 'purchase_date' %}selected{% endif %}>Purchase Date (Oldest)</option>
+                    <option value="-purchase_date" {% if sort_by == '-purchase_date' %}selected{% endif %}>Purchase Date (Newest)</option>
+                    <option value="purchase_price" {% if sort_by == 'purchase_price' %}selected{% endif %}>Price (Low to High)</option>
+                    <option value="-purchase_price" {% if sort_by == '-purchase_price' %}selected{% endif %}>Price (High to Low)</option>
+                    <option value="category__name" {% if sort_by == 'category__name' %}selected{% endif %}>Category (A-Z)</option>
+                    <option value="status" {% if sort_by == 'status' %}selected{% endif %}>Status (A-Z)</option>
+                    <option value="condition" {% if sort_by == 'condition' %}selected{% endif %}>Condition (A-Z)</option>
+                </select>
+            </div>
+
+            <button type="button" class="filter-toggle" id="filterToggle" title="Toggle filters">
+                <i data-lucide="sliders-horizontal"></i>
+                Filters
+                {% if category_filter or sub_category_filter or company_filter or department_filter or condition_filter or status_filter or brand_filter or vendor_filter or supplier_filter or group_filter or subgroup_filter or custodian_filter or purchase_date_from or purchase_date_to %}
+                <span class="filter-count">●</span>
+                {% endif %}
+            </button>
+        </div>
+
+        <!-- Filters Panel (Collapsible) -->
+        <div class="filters-panel" id="filtersPanel">
+            <div class="filters-grid">
+                <div class="filter-item">
+                    <label>Category</label>
+                    <select name="category" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if category.id|stringformat:"s" == category_filter %}selected{% endif %}>
+                            {{ category.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Sub Category</label>
+                    <select name="sub_category" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for sub_cat in sub_categories %}
+                        <option value="{{ sub_cat.id }}" {% if sub_cat.id|stringformat:"s" == sub_category_filter %}selected{% endif %}>
+                            {{ sub_cat.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Company</label>
+                    <select name="company" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {% if company.id|stringformat:"s" == company_filter %}selected{% endif %}>
+                            {{ company.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Department</label>
+                    <select name="department" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == department_filter %}selected{% endif %}>
+                            {{ dept.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Brand</label>
+                    <select name="brand" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand.id }}" {% if brand.id|stringformat:"s" == brand_filter %}selected{% endif %}>
+                            {{ brand.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Vendor</label>
+                    <select name="vendor" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for vendor in vendors %}
+                        <option value="{{ vendor.id }}" {% if vendor.id|stringformat:"s" == vendor_filter %}selected{% endif %}>
+                            {{ vendor.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Supplier</label>
+                    <select name="supplier" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}" {% if supplier.id|stringformat:"s" == supplier_filter %}selected{% endif %}>
+                            {{ supplier.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Group</label>
+                    <select name="group" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for group in groups %}
+                        <option value="{{ group.id }}" {% if group.id|stringformat:"s" == group_filter %}selected{% endif %}>
+                            {{ group.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Sub Group</label>
+                    <select name="subgroup" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for subgroup in subgroups %}
+                        <option value="{{ subgroup.id }}" {% if subgroup.id|stringformat:"s" == subgroup_filter %}selected{% endif %}>
+                            {{ subgroup.name|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Condition</label>
+                    <select name="condition" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for value, label in condition_choices %}
+                        <option value="{{ value }}" {% if value == condition_filter %}selected{% endif %}>
+                            {{ label|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Status</label>
+                    <select name="status" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>
+                            {{ label|truncatechars:15 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label>Custodian</label>
+                    <select name="custodian" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for custodian in custodians %}
+                        <option value="{{ custodian.id }}" {% if custodian.id|stringformat:"s" == custodian_filter %}selected{% endif %}>
+                            {% if custodian.user %}{{ custodian.user.get_full_name|default:custodian.user.username|truncatechars:15 }}{% else %}{{ custodian.employee_id|truncatechars:15 }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Date Range Filter -->
+                <div class="filter-item date-range-filter">
+                    <label>Purchase Date</label>
+                    <div class="date-inputs">
+                        <input 
+                            type="date" 
+                            name="purchase_date_from" 
+                            value="{{ purchase_date_from }}"
+                            placeholder="From"
+                            onchange="this.form.submit()"
+                            title="Purchase date from"
+                        >
+                        <span class="date-separator">to</span>
+                        <input 
+                            type="date" 
+                            name="purchase_date_to" 
+                            value="{{ purchase_date_to }}"
+                            placeholder="To"
+                            onchange="this.form.submit()"
+                            title="Purchase date to"
+                        >
+                    </div>
+                </div>
+
+                <!-- Clear All Button -->
+                <div class="filter-item filter-reset">
+                    <button type="button" class="btn-reset" onclick="document.location='?';" title="Clear all filters">
+                        <i data-lucide="x"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Statistics -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">Total:</span>
+            <span class="stat-value">{{ total_assets }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Showing:</span>
+            <span class="stat-value">{{ assets|length }}</span>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="stat-item">
+            <span class="stat-label">Page:</span>
+            <span class="stat-value">{{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Assets Table -->
+    <div class="table-section">
+        <div class="table-wrapper">
+            {% if assets %}
+            <table class="assets-table">
+                <thead>
+                    <tr>
+                        <th class="{% if sort_by == 'asset_tag' %}sorted{% endif %}"><a href="?sort_by=asset_tag&sort_order={% if sort_by == 'asset_tag' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Asset Tag<span class="sort-indicator">{% if sort_by == 'asset_tag' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th class="{% if sort_by == 'name' %}sorted{% endif %}"><a href="?sort_by=name&sort_order={% if sort_by == 'name' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Name<span class="sort-indicator">{% if sort_by == 'name' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th class="{% if sort_by == 'category__name' %}sorted{% endif %}"><a href="?sort_by=category__name&sort_order={% if sort_by == 'category__name' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Category<span class="sort-indicator">{% if sort_by == 'category__name' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th>Sub Cat</th>
+                        <th class="{% if sort_by == 'asset_type' %}sorted{% endif %}"><a href="?sort_by=asset_type&sort_order={% if sort_by == 'asset_type' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Asset Type<span class="sort-indicator">{% if sort_by == 'asset_type' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th>Group</th>
+                        <th>Sub Group</th>
+                        <th>Brand</th>
+                        <th>Model</th>
+                        <th class="{% if sort_by == 'quantity' %}sorted{% endif %}"><a href="?sort_by=quantity&sort_order={% if sort_by == 'quantity' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Qty<span class="sort-indicator">{% if sort_by == 'quantity' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th class="{% if sort_by == 'condition' %}sorted{% endif %}"><a href="?sort_by=condition&sort_order={% if sort_by == 'condition' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Condition<span class="sort-indicator">{% if sort_by == 'condition' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th>Serial #</th>
+                        <th>Supplier</th>
+                        <th>Vendor</th>
+                        <th>Company</th>
+                        <th>Dept</th>
+                        <th>Custodian</th>
+                        <th>Emp#</th>
+                        <th>Region</th>
+                        <th>Branch</th>
+                        <th>Building</th>
+                        <th>Floor</th>
+                        <th>Room</th>
+                        <th>Location</th>
+                        <th>Site</th>
+                        <th class="{% if sort_by == 'purchase_date' %}sorted{% endif %}"><a href="?sort_by=purchase_date&sort_order={% if sort_by == 'purchase_date' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Purchase Date<span class="sort-indicator">{% if sort_by == 'purchase_date' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th class="{% if sort_by == 'purchase_price' %}sorted{% endif %}"><a href="?sort_by=purchase_price&sort_order={% if sort_by == 'purchase_price' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Purchase Price<span class="sort-indicator">{% if sort_by == 'purchase_price' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th>Currency</th>
+                        <th>Invoice #</th>
+                        <th>PO #</th>
+                        <th>GRN #</th>
+                        <th>Warranty Start</th>
+                        <th>Warranty End</th>
+                        <th>Tagged Date</th>
+                        <th>Maintenance Start</th>
+                        <th>Maintenance Freq</th>
+                        <th>Next Maintenance</th>
+                        <th class="{% if sort_by == 'useful_life_years' %}sorted{% endif %}"><a href="?sort_by=useful_life_years&sort_order={% if sort_by == 'useful_life_years' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Useful Life<span class="sort-indicator">{% if sort_by == 'useful_life_years' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th class="{% if sort_by == 'salvage_value' %}sorted{% endif %}"><a href="?sort_by=salvage_value&sort_order={% if sort_by == 'salvage_value' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Salvage Value<span class="sort-indicator">{% if sort_by == 'salvage_value' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th>Depreciation</th>
+                        <th class="{% if sort_by == 'status' %}sorted{% endif %}"><a href="?sort_by=status&sort_order={% if sort_by == 'status' and sort_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}">Status<span class="sort-indicator">{% if sort_by == 'status' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% else %}↕{% endif %}</span></a></th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in assets %}
+                    <tr>
+                        <td class="asset-tag-cell">{{ asset.asset_tag|default:"—" }}</td>
+                        <td class="asset-name-cell">{{ asset.name|default:"—" }}</td>
+                        <td>{% if asset.category %}{{ asset.category.name }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.sub_category %}{{ asset.sub_category.name|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{{ asset.asset_type|default:"—" }}</td>
+                        <td>{% if asset.group %}{{ asset.group.name|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.sub_group %}{{ asset.sub_group.name|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.brand_new %}{{ asset.brand_new.name|truncatechars:10 }}{% elif asset.brand %}{{ asset.brand|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{{ asset.model|truncatechars:12|default:"—" }}</td>
+                        <td>{{ asset.quantity|default:"—" }}</td>
+                        <td>{% if asset.get_condition_display %}{{ asset.get_condition_display }}{% else %}—{% endif %}</td>
+                        <td>{{ asset.serial_number|truncatechars:12|default:"—" }}</td>
+                        <td>{% if asset.supplier %}{{ asset.supplier.name|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.vendor %}{{ asset.vendor.name|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.company %}{{ asset.company.name|truncatechars:10 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.department %}{{ asset.department.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.custodian %}{% if asset.custodian.user %}{{ asset.custodian.user.get_full_name|default:asset.custodian.user.username|truncatechars:10 }}{% else %}{{ asset.custodian.employee_id|truncatechars:8 }}{% endif %}{% else %}—{% endif %}</td>
+                        <td>{{ asset.employee_number|truncatechars:8|default:"—" }}</td>
+                        <td>{% if asset.region %}{{ asset.region.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.branch %}{{ asset.branch.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.building %}{{ asset.building.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.floor %}{{ asset.floor.name|truncatechars:6 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.room %}{{ asset.room.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.location %}{{ asset.location.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{% if asset.site %}{{ asset.site.name|truncatechars:8 }}{% else %}—{% endif %}</td>
+                        <td>{{ asset.purchase_date|date:"d-M-y"|default:"—" }}</td>
+                        <td>{{ asset.purchase_price|default:"—" }}</td>
+                        <td>{{ asset.currency|truncatechars:5|default:"—" }}</td>
+                        <td>{{ asset.invoice_number|truncatechars:10|default:"—" }}</td>
+                        <td>{{ asset.po_number|truncatechars:10|default:"—" }}</td>
+                        <td>{{ asset.grn_number|truncatechars:10|default:"—" }}</td>
+                        <td>{{ asset.warranty_start|date:"d-M-y"|default:"—" }}</td>
+                        <td>{{ asset.warranty_end|date:"d-M-y"|default:"—" }}</td>
+                        <td>{{ asset.tagged_date|date:"d-M-y"|default:"—" }}</td>
+                        <td>{{ asset.maintenance_start_date|date:"d-M-y"|default:"—" }}</td>
+                        <td>{{ asset.maintenance_frequency_days|default:"—" }}</td>
+                        <td>{{ asset.next_maintenance_date|date:"d-M-y"|default:"—" }}</td>
+                        <td>{{ asset.useful_life_years|default:"—" }}</td>
+                        <td>{{ asset.salvage_value|default:"—" }}</td>
+                        <td>{{ asset.get_depreciation_method_display|default:asset.depreciation_method|default:"—" }}</td>
+                        <td>{{ asset.get_status_display|default:"—" }}</td>
+                        <td>{{ asset.remarks|truncatechars:15|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i data-lucide="inbox"></i>
+                <p><strong>No assets found</strong></p>
+                <p style="font-size: 0.85rem;">Try adjusting your search or filter criteria</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="pagination-section">
+            <span class="pagination-info">
+                Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_assets }}
+            </span>
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" title="First">«</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" title="Previous">‹</a>
+                {% endif %}
+
+                {% for page_number in page_obj.paginator.page_range %}
+                    {% if page_number == page_obj.number %}
+                        <span class="page-current">{{ page_number }}</span>
+                    {% elif page_number > page_obj.number|add:'-3' and page_number < page_obj.number|add:'3' %}
+                        <a href="?page={{ page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" title="Page {{ page_number }}">{{ page_number }}</a>
+                    {% elif page_number == 1 or page_number == page_obj.paginator.num_pages %}
+                        <a href="?page={{ page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" title="Page {{ page_number }}">{{ page_number }}</a>
+                    {% elif page_number == 2 or page_number == page_obj.paginator.num_pages|add:'-1' %}
+                        <span>…</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" title="Next">›</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sub_category_filter %}&sub_category={{ sub_category_filter }}{% endif %}{% if company_filter %}&company={{ company_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if condition_filter %}&condition={{ condition_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if brand_filter %}&brand={{ brand_filter }}{% endif %}{% if vendor_filter %}&vendor={{ vendor_filter }}{% endif %}{% if supplier_filter %}&supplier={{ supplier_filter }}{% endif %}{% if group_filter %}&group={{ group_filter }}{% endif %}{% if subgroup_filter %}&subgroup={{ subgroup_filter }}{% endif %}{% if custodian_filter %}&custodian={{ custodian_filter }}{% endif %}{% if purchase_date_from %}&purchase_date_from={{ purchase_date_from }}{% endif %}{% if purchase_date_to %}&purchase_date_to={{ purchase_date_to }}{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" title="Last">»</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+    
+    // Filter toggle functionality
+    const filterToggle = document.getElementById('filterToggle');
+    const filtersPanel = document.getElementById('filtersPanel');
+    
+    if (filterToggle && filtersPanel) {
+        filterToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            filtersPanel.classList.toggle('show');
+        });
+
+        // Show filters by default if any filter is active
+        {% if category_filter or sub_category_filter or company_filter or department_filter or condition_filter or status_filter or brand_filter or vendor_filter or supplier_filter or group_filter or subgroup_filter or custodian_filter or purchase_date_from or purchase_date_to %}
+        filtersPanel.classList.add('show');
+        {% endif %}
+    }
+</script>
+{% endblock %}

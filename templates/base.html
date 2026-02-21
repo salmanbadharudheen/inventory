@@ -258,6 +258,45 @@
             color: var(--text-primary);
         }
 
+        .top-bar-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            justify-content: center;
+            margin: 0 2rem;
+        }
+
+        .top-bar-nav-item {
+            padding: 0.5rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .top-bar-nav-item:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-light);
+        }
+
+        .top-bar-nav-item.active {
+            color: var(--primary);
+            background-color: rgba(99, 102, 241, 0.1);
+            font-weight: 600;
+        }
+
+        .top-bar-nav-item i {
+            width: 18px;
+            height: 18px;
+        }
+
         .user-menu {
             display: flex;
             align-items: center;
@@ -462,6 +501,10 @@
                 padding: 0 1rem;
             }
 
+            .top-bar-nav {
+                display: none;
+            }
+
             .content {
                 padding: 1.5rem;
             }
@@ -521,15 +564,28 @@
                     <i data-lucide="layout-dashboard"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="{% url 'asset-list' %}" class="nav-item {% if 'assets' in request.path %}active{% endif %}" data-label="Assets">
+                <a href="{% url 'reports-list' %}" class="nav-item {% if 'reports' in request.path %}active{% endif %}" data-label="Reports">
+                    <i data-lucide="file-text"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="{% url 'asset-list' %}" class="nav-item {% if 'assets' in request.path and 'reports' not in request.path %}active{% endif %}" data-label="Inventory">
                     <i data-lucide="package"></i>
-                    <span>Asset Inventory</span>
+                    <span>Inventory</span>
+                </a>
+            </div>
+
+            <!-- Asset Operations Section -->
+            <div class="nav-section">
+                <span class="nav-section-title">Operations</span>
+                <a href="{% url 'transfer-list' %}" class="nav-item {% if 'transfers' in request.path %}active{% endif %}" data-label="Transfers">
+                    <i data-lucide="arrow-right-left"></i>
+                    <span>Asset Transfers</span>
                 </a>
             </div>
 
             <!-- Asset Setup Section -->
             <div class="nav-section">
-                <span class="nav-section-title">Asset Setup</span>
+                <span class="nav-section-title">Masters</span>
                 <a href="{% url 'category-list' %}" class="nav-item {% if 'categories' in request.path %}active{% endif %}" data-label="Categories">
                     <i data-lucide="layers"></i>
                     <span>Categories</span>
@@ -623,6 +679,23 @@
                 </button>
                 <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             </div>
+
+            <!-- Top Bar Navigation -->
+            <div class="top-bar-nav">
+                <a href="{% url 'reports-list' %}" class="top-bar-nav-item {% if 'reports' in request.path %}active{% endif %}" title="Reports">
+                    <i data-lucide="file-text"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="{% url 'asset-list' %}" class="top-bar-nav-item {% if 'assets' in request.path and 'reports' not in request.path %}active{% endif %}" title="Inventory">
+                    <i data-lucide="package"></i>
+                    <span>Inventory</span>
+                </a>
+                <a href="{% url 'masters-list' %}" class="top-bar-nav-item {% if 'masters' in request.path %}active{% endif %}" title="Masters">
+                    <i data-lucide="layers"></i>
+                    <span>Masters</span>
+                </a>
+            </div>
+
             <div class="user-menu">
                 {% if user.is_authenticated %}
                 <div class="user-dropdown" id="userDropdown">
@@ -633,7 +706,7 @@
                     </button>
 
                     <div class="user-dropdown-menu" id="userDropdownMenu" role="menu" aria-labelledby="userDropdownBtn" style="display:none;">
-                        <a href="#" class="dropdown-item" role="menuitem">
+                        <a href="{% url 'user-list' %}" class="dropdown-item" role="menuitem">
                             <i data-lucide="user" style="display:inline; width:16px; height:16px; margin-right:0.5rem;"></i> My Profile
                         </a>
                         <div class="dropdown-divider"></div>

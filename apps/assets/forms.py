@@ -1,6 +1,6 @@
 from django import forms
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
-                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks)
+                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 from django.utils.translation import gettext_lazy as _
 
@@ -237,3 +237,89 @@ class AssetRemarksForm(forms.ModelForm):
             'remark': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Needs Repair'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+class AssetTransferForm(forms.ModelForm):
+    """Form for creating and updating asset transfers"""
+    
+    class Meta:
+        model = AssetTransfer
+        fields = [
+            'asset',
+            'transferred_from_user',
+            'transferred_from_department',
+            'transferred_from_location',
+            'transferred_to_user',
+            'transferred_to_department',
+            'transferred_to_location',
+            'expected_receipt_date',
+            'transfer_reason',
+            'notes',
+        ]
+        widgets = {
+            'asset': forms.Select(attrs={'class': 'form-control', 'required': True}),
+            'transferred_from_user': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_from_department': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_from_location': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_user': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_department': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_location': forms.Select(attrs={'class': 'form-control'}),
+            'expected_receipt_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'transfer_reason': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Employee promotion, Department restructuring'
+            }),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional notes'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter by organization
+        if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
+            org = self.request.user.organization
+            self.fields['asset'].queryset = Asset.objects.filter(organization=org)
+            self.fields['transferred_from_user'].queryset = (
+                Asset.objects.filter(organization=org).values_list('assigned_to', flat=True)
+            )
+            self.fields['transferred_to_user'].queryset = (
+                Asset.objects.filter(organization=org).values_list('assigned_to', flat=True)
+            )
+            self.fields['transferred_from_department'].queryset = Department.objects.filter(organization=org)
+            self.fields['transferred_to_department'].queryset = Department.objects.filter(organization=org)
+            self.fields['transferred_from_location'].queryset = Location.objects.filter(organization=org)
+            self.fields['transferred_to_location'].queryset = Location.objects.filter(organization=org)
+        
+        # Make from/to fields optional
+        self.fields['transferred_from_user'].required = False
+        self.fields['transferred_from_department'].required = False
+        self.fields['transferred_from_location'].required = False
+        self.fields['transferred_to_user'].required = False
+        self.fields['transferred_to_department'].required = False
+        self.fields['transferred_to_location'].required = False
+        self.fields['transfer_reason'].required = False
+        self.fields['notes'].required = False
+        self.fields['expected_receipt_date'].required = False
+
+
+class AssetTransferReceiveForm(forms.ModelForm):
+    """Form for receiving/confirming asset transfer"""
+    
+    class Meta:
+        model = AssetTransfer
+        fields = ['actual_receipt_date', 'received_comments', 'status']
+        widgets = {
+            'actual_receipt_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'received_comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Receiver confirmation notes'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only allow valid status transitions
+        self.fields['status'].choices = [
+            (AssetTransfer.Status.RECEIVED, _('Received')),
+            (AssetTransfer.Status.REJECTED, _('Rejected')),
+        ]
+        self.fields['actual_receipt_date'].required = False
+        self.fields['received_comments'].required = False

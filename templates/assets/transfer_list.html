@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Asset Transfers{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <!-- Header with Filters -->
+    <div class="premium-header">
+        <!-- Top Row: Title and Actions -->
+        <div class="header-row-main">
+            <h1 class="header-title">Asset Transfers</h1>
+            <div class="header-actions">
+                <a href="{% url 'transfer-create' %}" class="btn-primary-action" title="New Transfer">
+                    <i data-lucide="plus"></i> New Transfer
+                </a>
+            </div>
+        </div>
+
+        <!-- Filter Row -->
+        <form method="get" id="filter-form" class="header-filters">
+            <div class="search-bar-header">
+                <i data-lucide="search"></i>
+                <input 
+                    type="text" 
+                    name="search" 
+                    placeholder="Search transfers..." 
+                    value="{{ search }}" 
+                    class="search-input-header"
+                >
+            </div>
+
+            <div class="filters-group-inline">
+                <select name="status" class="filter-select-inline">
+                    <option value="">All Status</option>
+                    {% for code, label in status_choices %}
+                    <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="asset" class="filter-select-inline">
+                    <option value="">All Assets</option>
+                    {% for asset in assets %}
+                    <option value="{{ asset.id }}" {% if asset_filter == asset.id|stringformat:"s" %}selected{% endif %}>{{ asset.asset_tag }} - {{ asset.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <input type="date" name="date_from" class="filter-select-inline" placeholder="From Date" value="{{ date_from }}">
+                <input type="date" name="date_to" class="filter-select-inline" placeholder="To Date" value="{{ date_to }}">
+
+                <button type="submit" class="btn-filter-apply-main">Apply</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Content -->
+    <div class="card-container">
+        {% if transfers %}
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Asset Tag</th>
+                        <th>Asset Name</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transfer in transfers %}
+                    <tr class="table-row-hover">
+                        <td class="font-weight-bold">{{ transfer.asset.asset_tag }}</td>
+                        <td>{{ transfer.asset.name }}</td>
+                        <td>
+                            {% if transfer.transferred_from_user %}
+                                {{ transfer.transferred_from_user.get_full_name }}
+                            {% elif transfer.transferred_from_department %}
+                                {{ transfer.transferred_from_department.name }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if transfer.transferred_to_user %}
+                                {{ transfer.transferred_to_user.get_full_name }}
+                            {% elif transfer.transferred_to_department %}
+                                {{ transfer.transferred_to_department.name }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ transfer.transfer_date|date:"d M Y" }}</td>
+                        <td>
+                            <span class="badge badge-{{ transfer.status|lower }}">
+                                {{ transfer.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'transfer-detail' transfer.id %}" class="btn-link-action" title="View">
+                                <i data-lucide="eye"></i>
+                            </a>
+                            {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
+                            <a href="{% url 'transfer-update' transfer.id %}" class="btn-link-action" title="Edit">
+                                <i data-lucide="edit"></i>
+                            </a>
+                            {% endif %}
+                            {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
+                            <a href="{% url 'transfer-receive' transfer.id %}" class="btn-link-action" title="Receive">
+                                <i data-lucide="check"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="pagination-container">
+            {% include 'includes/pagination.html' %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <i data-lucide="inbox" class="empty-state-icon"></i>
+            <h3>No transfers found</h3>
+            <p>Create a new asset transfer to get started.</p>
+            <a href="{% url 'transfer-create' %}" class="btn-primary-action">New Transfer</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .badge-pending { background-color: #ffc107; color: #000; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+    .badge-in_transit { background-color: #17a2b8; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+    .badge-received { background-color: #28a745; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+    .badge-rejected { background-color: #dc3545; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+    .badge-cancelled { background-color: #6c757d; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

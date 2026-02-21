@@ -1,0 +1,484 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Transfer Detail - {{ transfer.asset.asset_tag }}{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <!-- Header -->
+    <div class="detail-header">
+        <div class="header-back">
+            <a href="{% url 'transfer-list' %}" class="btn-back-link">
+                <i data-lucide="arrow-left"></i> Back to Transfers
+            </a>
+        </div>
+        <h1 class="detail-title">Transfer: {{ transfer.asset.asset_tag }}</h1>
+        <div class="header-actions">
+            {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
+            <a href="{% url 'transfer-update' transfer.id %}" class="btn-icon-action" title="Edit">
+                <i data-lucide="edit"></i>
+            </a>
+            {% endif %}
+            {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
+            <a href="{% url 'transfer-receive' transfer.id %}" class="btn-primary-action" title="Receive Transfer">
+                <i data-lucide="check"></i> Receive
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="detail-grid">
+        <!-- Left Column -->
+        <div class="detail-main">
+            <!-- Status Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Transfer Status</h2>
+                </div>
+                <div class="card-body">
+                    <div class="status-badge status-{{ transfer.status|lower }}">
+                        <span class="status-label">{{ transfer.get_status_display }}</span>
+                    </div>
+                    <div class="status-timeline">
+                        <div class="timeline-item {% if transfer.status != 'PENDING' %}completed{% endif %}">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <p class="timeline-label">Created</p>
+                                <p class="timeline-date">{{ transfer.created_at|date:"d M Y H:i" }}</p>
+                                {% if transfer.created_by %}
+                                <p class="timeline-by">by {{ transfer.created_by.get_full_name }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item {% if transfer.status in 'IN_TRANSIT,RECEIVED,REJECTED' %}completed{% endif %}">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <p class="timeline-label">In Transit</p>
+                                {% if transfer.expected_receipt_date %}
+                                <p class="timeline-date">Expected: {{ transfer.expected_receipt_date|date:"d M Y" }}</p>
+                                {% else %}
+                                <p class="timeline-date">TBD</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item {% if transfer.status == 'RECEIVED' %}completed{% endif %}">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <p class="timeline-label">Received</p>
+                                {% if transfer.actual_receipt_date %}
+                                <p class="timeline-date">{{ transfer.actual_receipt_date|date:"d M Y" }}</p>
+                                {% if transfer.received_by %}
+                                <p class="timeline-by">by {{ transfer.received_by.get_full_name }}</p>
+                                {% endif %}
+                                {% else %}
+                                <p class="timeline-date">Pending</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asset Details -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Asset Information</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Asset Tag</span>
+                            <span class="info-value font-weight-bold">{{ transfer.asset.asset_tag }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Asset Name</span>
+                            <span class="info-value">{{ transfer.asset.name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Category</span>
+                            <span class="info-value">{{ transfer.asset.category.name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Serial Number</span>
+                            <span class="info-value">{{ transfer.asset.serial_number|default:"N/A" }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Asset Condition</span>
+                            <span class="info-value">{{ transfer.asset.get_condition_display }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Current Status</span>
+                            <span class="info-value">{{ transfer.asset.get_status_display }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transfer Details -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Transfer Details</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item full-width">
+                            <span class="info-label">Reason for Transfer</span>
+                            <span class="info-value">{{ transfer.transfer_reason|default:"Not specified" }}</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Notes</span>
+                            <span class="info-value">{{ transfer.notes|default:"No notes" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receiver Comments (if received) -->
+            {% if transfer.received_comments %}
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Receiver Comments</h2>
+                </div>
+                <div class="card-body">
+                    <p class="info-value">{{ transfer.received_comments }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column -->
+        <div class="detail-sidebar">
+            <!-- From Information -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Transferred From</h2>
+                </div>
+                <div class="card-body">
+                    {% if transfer.transferred_from_user %}
+                    <div class="info-item">
+                        <span class="info-label">User</span>
+                        <span class="info-value">{{ transfer.transferred_from_user.get_full_name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if transfer.transferred_from_department %}
+                    <div class="info-item">
+                        <span class="info-label">Department</span>
+                        <span class="info-value">{{ transfer.transferred_from_department.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if transfer.transferred_from_location %}
+                    <div class="info-item">
+                        <span class="info-label">Location</span>
+                        <span class="info-value">{{ transfer.transferred_from_location.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if not transfer.transferred_from_user and not transfer.transferred_from_department and not transfer.transferred_from_location %}
+                    <p class="text-muted">No specific from location specified</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- To Information -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Transferred To</h2>
+                </div>
+                <div class="card-body">
+                    {% if transfer.transferred_to_user %}
+                    <div class="info-item">
+                        <span class="info-label">User</span>
+                        <span class="info-value">{{ transfer.transferred_to_user.get_full_name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if transfer.transferred_to_department %}
+                    <div class="info-item">
+                        <span class="info-label">Department</span>
+                        <span class="info-value">{{ transfer.transferred_to_department.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if transfer.transferred_to_location %}
+                    <div class="info-item">
+                        <span class="info-label">Location</span>
+                        <span class="info-value">{{ transfer.transferred_to_location.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if not transfer.transferred_to_user and not transfer.transferred_to_department and not transfer.transferred_to_location %}
+                    <p class="text-muted">No specific to location specified</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h2 class="card-title">Metadata</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <span class="info-label">Transfer ID</span>
+                        <span class="info-value font-monospace">{{ transfer.id }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Created</span>
+                        <span class="info-value">{{ transfer.created_at|date:"d M Y H:i" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Updated</span>
+                        <span class="info-value">{{ transfer.updated_at|date:"d M Y H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-back {
+        flex: 1;
+    }
+
+    .btn-back-link {
+        color: #007bff;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+
+    .btn-back-link:hover {
+        text-decoration: underline;
+    }
+
+    .detail-title {
+        flex: 2;
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .header-actions {
+        flex: 1;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    .btn-icon-action {
+        padding: 8px 12px;
+        background-color: #f0f0f0;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        color: #333;
+        transition: all 0.2s;
+    }
+
+    .btn-icon-action:hover {
+        background-color: #e0e0e0;
+    }
+
+    .btn-primary-action {
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary-action:hover {
+        background-color: #0056b3;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .detail-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        background-color: #f9f9f9;
+        padding: 16px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .card-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+        color: #333;
+    }
+
+    .card-body {
+        padding: 16px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .info-item.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .info-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .info-value {
+        display: block;
+        font-size: 14px;
+        color: #333;
+    }
+
+    .font-weight-bold {
+        font-weight: 600;
+    }
+
+    .font-monospace {
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        word-break: break-all;
+    }
+
+    .text-muted {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-bottom: 20px;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-in_transit {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-received {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .status-cancelled {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    .status-timeline {
+        margin-top: 20px;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+
+    .timeline-item.completed {
+        opacity: 1;
+    }
+
+    .timeline-marker {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        background-color: #e0e0e0;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        margin-top: 2px;
+    }
+
+    .timeline-item.completed .timeline-marker {
+        background-color: #28a745;
+        border-color: #fff;
+    }
+
+    .timeline-label {
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 4px 0;
+        font-size: 14px;
+    }
+
+    .timeline-date {
+        color: #666;
+        margin: 0;
+        font-size: 13px;
+    }
+
+    .timeline-by {
+        color: #6c757d;
+        margin: 4px 0 0 0;
+        font-size: 12px;
+    }
+
+    .timeline-content {
+        padding-top: 2px;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

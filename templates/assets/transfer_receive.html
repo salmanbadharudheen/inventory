@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Receive Transfer - {{ form.instance.asset.asset_tag }}{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">
+                Receive Asset Transfer
+            </h1>
+            <p class="form-subtitle">Asset: {{ form.instance.asset.asset_tag }} - {{ form.instance.asset.name }}</p>
+        </div>
+
+        <div class="transfer-info-box">
+            <div class="transfer-info-item">
+                <span class="info-label">Transfer From:</span>
+                <span class="info-value">
+                    {% if form.instance.transferred_from_user %}
+                        {{ form.instance.transferred_from_user.get_full_name }}
+                    {% elif form.instance.transferred_from_department %}
+                        {{ form.instance.transferred_from_department.name }}
+                    {% else %}
+                        <em>Not specified</em>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="transfer-info-item">
+                <span class="info-label">Transfer To:</span>
+                <span class="info-value">
+                    {% if form.instance.transferred_to_user %}
+                        {{ form.instance.transferred_to_user.get_full_name }}
+                    {% elif form.instance.transferred_to_department %}
+                        {{ form.instance.transferred_to_department.name }}
+                    {% else %}
+                        <em>Not specified</em>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="transfer-info-item">
+                <span class="info-label">Transfer Date:</span>
+                <span class="info-value">{{ form.instance.transfer_date|date:"d M Y" }}</span>
+            </div>
+        </div>
+
+        <form method="post" class="asset-form">
+            {% csrf_token %}
+
+            <div class="form-section">
+                <h3 class="form-section-title">Confirmation Details</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.actual_receipt_date.id_for_label }}" class="form-label">
+                            Receipt Date <span class="text-danger">*</span>
+                        </label>
+                        {{ form.actual_receipt_date }}
+                        {% if form.actual_receipt_date.errors %}
+                        <div class="form-error">{{ form.actual_receipt_date.errors }}</div>
+                        {% endif %}
+                        <small class="form-text">Date when the asset was physically received</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="{{ form.status.id_for_label }}" class="form-label">
+                            Status <span class="text-danger">*</span>
+                        </label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                        <div class="form-error">{{ form.status.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="{{ form.received_comments.id_for_label }}" class="form-label">
+                            Comments
+                        </label>
+                        {{ form.received_comments }}
+                        {% if form.received_comments.errors %}
+                        <div class="form-error">{{ form.received_comments.errors }}</div>
+                        {% endif %}
+                        <small class="form-text">Any notes or comments about the receipt (e.g., condition of asset, missing items, etc.)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn-primary-action" id="submit-btn">
+                    <i data-lucide="check"></i> Confirm Receipt
+                </button>
+                <a href="{% url 'transfer-detail' form.instance.id %}" class="btn-secondary-action">
+                    <i data-lucide="x"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 600px;
+        margin: 20px auto;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-header {
+        margin-bottom: 24px;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 16px;
+    }
+
+    .form-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 8px 0;
+    }
+
+    .form-subtitle {
+        font-size: 14px;
+        color: #666;
+        margin: 0;
+    }
+
+    .transfer-info-box {
+        background-color: #e8f4f8;
+        border: 1px solid #b8dfe8;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .transfer-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #0c5460;
+        font-size: 12px;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .info-value {
+        font-size: 14px;
+        color: #0c5460;
+    }
+
+    .form-section {
+        margin-bottom: 24px;
+        padding: 16px;
+        background: #f9f9f9;
+        border-radius: 6px;
+        border-left: 4px solid #007bff;
+    }
+
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 16px 0;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: #555;
+        font-size: 14px;
+    }
+
+    .form-control {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .form-error {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .form-text {
+        color: #6c757d;
+        font-size: 12px;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .text-danger {
+        color: #dc3545;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+        padding-top: 16px;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .btn-primary-action, .btn-secondary-action {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary-action {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .btn-primary-action:hover {
+        background-color: #218838;
+    }
+
+    .btn-secondary-action {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary-action:hover {
+        background-color: #545b62;
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 100px;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        
+        // Auto-set today's date if empty
+        const dateInput = document.querySelector('input[name="actual_receipt_date"]');
+        if (dateInput && !dateInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+    });
+</script>
+{% endblock %}

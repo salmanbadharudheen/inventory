@@ -10,6 +10,9 @@ class User(AbstractUser):
         AUDITOR = 'AUDITOR', _('Auditor')
         DEPT_MANAGER = 'DEPT_MANAGER', _('Department Manager')
         EMPLOYEE = 'EMPLOYEE', _('Employee')
+        DATA_ENTRY = 'DATA_ENTRY', _('Data Entry')
+        CHECKER = 'CHECKER', _('Checker/Manager')
+        SENIOR_MANAGER = 'SENIOR_MANAGER', _('Senior Manager')
 
     role = models.CharField(max_length=50, choices=Role.choices, default=Role.EMPLOYEE)
     organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
@@ -30,3 +33,24 @@ class User(AbstractUser):
     @property
     def is_asset_manager(self):
         return self.role == self.Role.ASSET_MANAGER
+    @property
+    def is_data_entry(self):
+        return self.role == self.Role.DATA_ENTRY
+
+    @property
+    def is_checker(self):
+        return self.role == self.Role.CHECKER
+
+    @property
+    def is_senior_manager(self):
+        return self.role == self.Role.SENIOR_MANAGER
+
+    @property
+    def can_approve(self):
+        """Check if user can approve requests"""
+        return self.role in [self.Role.CHECKER, self.Role.SENIOR_MANAGER, self.Role.ADMIN]
+
+    @property
+    def can_final_approve(self):
+        """Check if user can do final approval"""
+        return self.role in [self.Role.SENIOR_MANAGER, self.Role.ADMIN]

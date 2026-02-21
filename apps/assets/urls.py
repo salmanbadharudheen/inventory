@@ -12,10 +12,19 @@ from .views import (
     CompanyListView, CompanyCreateView, CompanyUpdateView,
     SupplierListView, SupplierCreateView, SupplierUpdateView,
     CustodianListView, CustodianCreateView, CustodianUpdateView,
-    AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView
+    AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
+    ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
+    AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView,
+    ReportsListView, MastersListView
 )
 
 urlpatterns = [
+    # Reports
+    path('reports/', ReportsListView.as_view(), name='reports-list'),
+    
+    # Masters
+    path('masters/', MastersListView.as_view(), name='masters-list'),
+    
     # Assets
     path('', AssetListView.as_view(), name='asset-list'),
     path('bulk-action/', BulkAssetActionView.as_view(), name='asset-bulk-action'),
@@ -83,4 +92,17 @@ urlpatterns = [
     path('remarks/', AssetRemarksListView.as_view(), name='assetremarks-list'),
     path('remarks/add/', AssetRemarksCreateView.as_view(), name='assetremarks-create'),
     path('remarks/<int:pk>/edit/', AssetRemarksUpdateView.as_view(), name='assetremarks-edit'),
+    
+    # Approval Workflow
+    path('approvals/', ApprovalListView.as_view(), name='approval_list'),
+    path('approvals/<uuid:pk>/', ApprovalDetailView.as_view(), name='approval_detail'),
+    path('approvals/<uuid:pk>/approve/', ApprovalApproveView.as_view(), name='approval_approve'),
+    path('approvals/new/', CreateApprovalRequestView.as_view(), name='approval_create'),
+    
+    # Asset Transfer Workflow
+    path('transfers/', AssetTransferListView.as_view(), name='transfer-list'),
+    path('transfers/add/', AssetTransferCreateView.as_view(), name='transfer-create'),
+    path('transfers/<uuid:pk>/', AssetTransferDetailView.as_view(), name='transfer-detail'),
+    path('transfers/<uuid:pk>/edit/', AssetTransferUpdateView.as_view(), name='transfer-update'),
+    path('transfers/<uuid:pk>/receive/', AssetTransferReceiveView.as_view(), name='transfer-receive'),
 ]

@@ -3,484 +3,1498 @@
 {% block page_title %}Asset Inventory{% endblock %}
 
 {% block content %}
-<div class="asset-list-header" style="margin-bottom: 2rem;">
-    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
-        <div>
-            <h2 style="margin: 0;">Assets</h2>
-            <p style="color: var(--text-secondary); margin-top: 0.25rem;">Manage and track your organization's assets.</p>
+<div class="asset-container">
+    <!-- Header with Filters -->
+    <div class="premium-header">
+        <!-- Top Row: Title and Actions -->
+        <div class="header-row-main">
+            <h1 class="header-title">Assets</h1>
+            <div class="header-actions">
+                <a href="{% url 'asset-export-excel' %}?{{ request.GET.urlencode }}" class="btn-icon-action" title="Export">
+                    <i data-lucide="download"></i>
+                </a>
+                <a href="{% url 'asset-import' %}" class="btn-icon-action" title="Import">
+                    <i data-lucide="upload"></i>
+                </a>
+                <a href="{% url 'asset-create' %}" class="btn-primary-action" title="Add Asset">
+                    <i data-lucide="plus"></i> New Asset
+                </a>
+            </div>
         </div>
-        <div style="display: flex; gap: 0.75rem;">
-            <a href="{% url 'asset-export-excel' %}?{{ request.GET.urlencode }}" class="btn"
-                style="background: white; border: 1px solid var(--border-color);">
-                <i data-lucide="download"></i> Export Excel
-            </a>
-            <a href="{% url 'asset-import' %}" class="btn"
-                style="background: white; border: 1px solid var(--border-color);">
-                <i data-lucide="upload"></i> Import Assets
-            </a>
-            <a href="{% url 'asset-create' %}" class="btn btn-primary">
-                <i data-lucide="plus"></i> Add New Asset
-            </a>
-        </div>
-    </div>
 
-    <!-- Quick Search & Advanced Filter Toggle -->
-    <form method="get" id="filter-form"
-        style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 300px; position: relative;">
-                <i data-lucide="search"
-                    style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-secondary);"></i>
-                <input type="text" name="q" placeholder="Search by name, tag, serial, or ERP number..."
-                    value="{{ request.GET.q }}" class="form-control" style="padding-left: 3rem; width: 100%;">
+        <!-- Filter Row -->
+        <form method="get" id="filter-form" class="header-filters">
+            <div class="search-bar-header">
+                <i data-lucide="search"></i>
+                <input 
+                    type="text" 
+                    name="q" 
+                    placeholder="Search assets..." 
+                    value="{{ request.GET.q }}" 
+                    class="search-input-header"
+                >
             </div>
 
-            <select name="status" class="form-control" style="width: auto; min-width: 150px;">
-                <option value="">All Statuses</option>
-                {% for code, label in statuses %}
-                <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+            <div class="filters-group-inline">
+                <select name="status" class="filter-select-inline">
+                    <option value="">All Status</option>
+                    {% for code, label in statuses %}
+                    <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
 
-            <select name="category" class="form-control" style="width: auto; min-width: 150px;">
-                <option value="">All Categories</option>
-                {% for cat in categories %}
-                <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
-                    {{ cat.name }}</option>
-                {% endfor %}
-            </select>
+                <select name="group" class="filter-select-inline">
+                    <option value="">All Groups</option>
+                    {% for grp in groups %}
+                    <option value="{{ grp.id }}" {% if request.GET.group == grp.id|stringformat:"s" %}selected{% endif %}>{{ grp.name }}</option>
+                    {% endfor %}
+                </select>
 
-            <button type="button" class="btn" onclick="toggleAdvancedFilters()"
-                style="background: #F8FAFC; border: 1px solid var(--border-color);">
-                <i data-lucide="filter"></i> Filters
-            </button>
+                <select name="category" class="filter-select-inline">
+                    <option value="">All Category</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
 
-            <button type="submit" class="btn btn-primary">Apply</button>
-            <a href="{% url 'asset-list' %}" class="btn" style="color: var(--text-secondary);">Clear</a>
-        </div>
+                <select name="subcategory" class="filter-select-inline">
+                    <option value="">All Sub Category</option>
+                    {% for subcat in subcategories %}
+                    <option value="{{ subcat.id }}" {% if request.GET.subcategory == subcat.id|stringformat:"s" %}selected{% endif %}>{{ subcat.name }}</option>
+                    {% endfor %}
+                </select>
 
-        <!-- Collapsible Advanced Filters -->
-        <div id="advanced-filters"
-            style="display: {% if request.GET.site or request.GET.building or request.GET.brand or request.GET.purchase_date_from or request.GET.purchase_date_to %}grid{% else %}none{% endif %}; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
-            <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Site</label>
-                <select name="site" class="form-control" style="width: 100%;">
+                <select name="site" class="filter-select-inline">
                     <option value="">All Sites</option>
                     {% for site in sites %}
                     <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>{{ site.name }}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Building</label>
-                <select name="building" class="form-control" style="width: 100%;">
+
+                <select name="building" class="filter-select-inline">
                     <option value="">All Buildings</option>
                     {% for bld in buildings %}
                     <option value="{{ bld.id }}" {% if request.GET.building == bld.id|stringformat:"s" %}selected{% endif %}>{{ bld.name }}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Brand</label>
-                <select name="brand" class="form-control" style="width: 100%;">
-                    <option value="">All Brands</option>
-                    {% for brand in brands %}
-                    <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>{{ brand.name }}</option>
+
+                <select name="department" class="filter-select-inline">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
                     {% endfor %}
                 </select>
+
+                <button type="submit" class="btn-filter-apply-main">Apply</button>
+
+                <button type="button" class="btn-more-filters" onclick="toggleAdvancedFilters()">
+                    <i data-lucide="filter"></i> More
+                </button>
             </div>
-            <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Quick Date Filter</label>
-                <select name="date_range" class="form-control" onchange="applyQuickDateFilter(this)" style="width: 100%;">
-                    <option value="">Custom Range</option>
-                    <option value="this_year">This Year</option>
-                    <option value="last_year">Last Year</option>
-                    <option value="this_month">This Month</option>
-                    <option value="last_month">Last Month</option>
-                    <option value="last_30_days">Last 30 Days</option>
-                    <option value="last_90_days">Last 90 Days</option>
-                    <option value="last_365_days">Last 365 Days</option>
-                </select>
+
+            <!-- Advanced Filters (Hidden by default) -->
+            <div id="advanced-filters-panel" class="advanced-filters-panel" style="display: none;">
+                <div class="advanced-filters-content">
+                    <select name="brand" class="filter-select-inline">
+                        <option value="">All Brands</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>{{ brand.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <select name="date_range" class="filter-select-inline" onchange="applyQuickDateFilter(this)">
+                        <option value="">Date Range</option>
+                        <option value="this_year">This Year</option>
+                        <option value="last_year">Last Year</option>
+                        <option value="this_month">This Month</option>
+                        <option value="last_month">Last Month</option>
+                        <option value="last_30_days">Last 30 Days</option>
+                        <option value="last_90_days">Last 90 Days</option>
+                    </select>
+
+                    <input type="date" name="purchase_date_from" id="purchase_date_from" class="filter-select-inline" placeholder="From" value="{{ request.GET.purchase_date_from }}">
+                    <input type="date" name="purchase_date_to" id="purchase_date_to" class="filter-select-inline" placeholder="To" value="{{ request.GET.purchase_date_to }}">
+
+                    <a href="{% url 'asset-list' %}" class="btn-filter-clear">Clear All</a>
+                </div>
             </div>
-            <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Purchase Date From</label>
-                <input type="date" name="purchase_date_from" id="purchase_date_from" class="form-control" value="{{ request.GET.purchase_date_from }}" style="width: 100%;">
-            </div>
-            <div>
-                <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-secondary);">Purchase Date To</label>
-                <input type="date" name="purchase_date_to" id="purchase_date_to" class="form-control" value="{{ request.GET.purchase_date_to }}" style="width: 100%;">
-            </div>
-        </div>
-    </form>
-</div>
-
-<form id="bulk-action-form" method="post" action="{% url 'asset-bulk-action' %}">
-    {% csrf_token %}
-    <div class="card" style="padding: 0; overflow-x: auto; border-radius: 12px;">
-        <table style="width:100%; text-align:left; border-collapse:collapse;">
-            <thead style="background: #F8FAFC; border-bottom: 1px solid var(--border-color);">
-                <tr>
-                    <th style="padding:1rem; width: 40px;">
-                        <input type="checkbox" id="select-all" class="form-check-input">
-                    </th>
-                    <th style="padding:1rem;">Asset Info</th>
-                    <th style="padding:1rem;">Category</th>
-                    <th style="padding:1rem;">Location</th>
-                    <th style="padding:1rem;">Given To</th>
-                    <th style="padding:1rem;">Status</th>
-                    <th style="padding:1rem;">Value</th>
-                    <th style="padding:1rem; text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for asset in assets %}
-                <tr style="border-bottom:1px solid var(--border-color); transition: background 0.2s;"
-                    onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
-                    <td style="padding:1rem;">
-                        <input type="checkbox" name="asset_ids" value="{{ asset.id }}"
-                            class="asset-checkbox form-check-input">
-                    </td>
-                    <td style="padding:1rem;">
-                        <a href="{% url 'asset-detail' asset.pk %}" style="text-decoration: none; color: inherit; display: block;">
-                            <div style="font-weight: 600; color: var(--text-primary);">{{ asset.name }}</div>
-                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.2rem;">
-                                <span style="font-size: 0.75rem; background: #EDF2F7; padding: 1px 6px; border-radius: 4px; color: #4A5568;">{{ asset.asset_tag }}</span>
-                                {% if asset.serial_number %}
-                                <span style="font-size: 0.75rem; color: var(--text-secondary);">S/N: {{ asset.serial_number }}</span>
-                                {% endif %}
-                            </div>
-                        </a>
-                    </td>
-                    <td style="padding:1rem;">
-                        <div style="font-size: 0.9rem;">{{ asset.category.name }}</div>
-                        {% if asset.brand_new %}
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ asset.brand_new.name }}</div>
-                        {% endif %}
-                    </td>
-                    <td style="padding:1rem;">
-                        <div style="font-size: 0.9rem;">{{ asset.site.name|default:"-" }}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ asset.building.name|default:"" }} {% if asset.room %}• {{ asset.room.name }}{% endif %}</div>
-                    </td>
-                    <td style="padding:1rem;">
-                        {% if asset.assigned_to %}
-                        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
-                            <div class="user-avatar" style="width: 24px; height: 24px; font-size: 0.7rem;">{{ asset.assigned_to.username|slice:":2"|upper }}</div>
-                            {{ asset.assigned_to.username }}
-                        </div>
-                        {% else %}
-                        <span style="color: var(--text-secondary); font-size: 0.9rem;">Unassigned</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding:1rem;">
-                        <span class="badge status-{{ asset.status|lower }}">{{ asset.get_status_display }}</span>
-                    </td>
-                    <td style="padding:1rem;">
-                        {% if asset.purchase_price %}
-                        <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem;">{{ asset.currency }} {{ asset.current_value }}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-secondary);">Cost: {{ asset.purchase_price }}</div>
-                        {% else %}
-                        <span style="color: var(--text-secondary);">-</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding:1rem; text-align: right;">
-                        <div style="display: flex; gap: 0.25rem; justify-content: flex-end;">
-                            <a href="javascript:void(0)" class="btn-icon" title="Toggle Details" onclick="toggleDetails('{{ asset.id }}')"><i data-lucide="chevrons-down-up"></i></a>
-                            <a href="{% url 'asset-detail' asset.pk %}" class="btn-icon" title="View Detail"><i data-lucide="eye"></i></a>
-                            <a href="{% url 'asset-update' asset.pk %}" class="btn-icon" title="Edit"><i data-lucide="edit-2"></i></a>
-                        </div>
-                    </td>
-                </tr>
-                <tr id="detail-{{ asset.id }}" class="asset-detail-row" style="display:none;">
-                    <td colspan="8" style="padding:0; border-bottom:1px solid var(--border-color);">
-                        <div class="asset-detail-card">
-                            <div class="detail-left">
-                                <div class="asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
-                                <div class="asset-main">
-                                    <div class="asset-name">{{ asset.name }}</div>
-                                    <div class="asset-sub">{{ asset.asset_tag }} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
-                                </div>
-                                <div class="asset-stats">
-                                    <div>
-                                        <div class="stat-label">NBV</div>
-                                        <div class="stat-value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</div>
-                                    </div>
-                                    <div>
-                                        <div class="stat-label">Accum. Dep.</div>
-                                        <div class="stat-value">{{ asset.accumulated_depreciation }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="stat-label">Status</div>
-                                        <div class="stat-badge">{{ asset.get_status_display }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="detail-right">
-                                    <!-- Refactored: ordered key/value layout for clarity -->
-                                    <div class="detail-section">
-                                        <div class="kv-section">
-                                            <h4>Identification</h4>
-                                            <div class="kv-grid">
-                                                <div class="kv"><span class="label">Asset Tag</span><span class="value">{{ asset.asset_tag }}</span></div>
-                                                <div class="kv"><span class="label">Custom Tag</span><span class="value">{{ asset.custom_asset_tag|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Asset Code</span><span class="value">{{ asset.asset_code|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">ERP #</span><span class="value">{{ asset.erp_asset_number|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Serial #</span><span class="value">{{ asset.serial_number|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Quantity</span><span class="value">{{ asset.quantity }}</span></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="kv-section">
-                                            <h4>Classification</h4>
-                                            <div class="kv-grid">
-                                                <div class="kv"><span class="label">Category</span><span class="value">{{ asset.category.name }}</span></div>
-                                                <div class="kv"><span class="label">Sub Category</span><span class="value">{{ asset.sub_category.name|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Group</span><span class="value">{{ asset.group.name|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Sub Group</span><span class="value">{{ asset.sub_group.name|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Label Type</span><span class="value">{{ asset.get_label_type_display }}</span></div>
-                                                <div class="kv"><span class="label">Condition</span><span class="value">{{ asset.get_condition_display }}</span></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="kv-section">
-                                            <h4>Location & Ownership</h4>
-                                            <div class="kv-grid">
-                                                <div class="kv"><span class="label">Site</span><span class="value">{{ asset.site.name|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Building</span><span class="value">{{ asset.building.name|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Floor</span><span class="value">{% if asset.floor %}{{ asset.floor.name }}{% else %}-{% endif %}</span></div>
-                                                <div class="kv"><span class="label">Room</span><span class="value">{% if asset.room %}{{ asset.room.name }}{% else %}-{% endif %}</span></div>
-                                                <div class="kv"><span class="label">Assigned To</span><span class="value">{% if asset.assigned_to %}{{ asset.assigned_to.get_full_name|default:asset.assigned_to.username }}{% else %}-{% endif %}</span></div>
-                                                <div class="kv"><span class="label">Department</span><span class="value">{{ asset.department.name|default:'-' }}</span></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="kv-section">
-                                            <h4>Financial & Procurement</h4>
-                                            <div class="kv-grid">
-                                                <div class="kv"><span class="label">Purchase Date</span><span class="value">{{ asset.purchase_date|date:'Y-m-d'|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Purchase Price</span><span class="value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.purchase_price }}{% else %}-{% endif %}</span></div>
-                                                <div class="kv"><span class="label">Vendor</span><span class="value">{{ asset.vendor.name|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Invoice #</span><span class="value">{{ asset.invoice_number|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">PO / GRN</span><span class="value">{{ asset.po_number|default:'-' }} / {{ asset.grn_number|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Warranty</span><span class="value">{{ asset.warranty_start|date:'Y-m-d'|default:'-' }} — {{ asset.warranty_end|date:'Y-m-d'|default:'-' }}</span></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="kv-section">
-                                            <h4>Depreciation</h4>
-                                            <div class="kv-grid">
-                                                <div class="kv"><span class="label">Method</span><span class="value">{{ asset.get_depreciation_method_display }}</span></div>
-                                                <div class="kv"><span class="label">Useful Life (yrs)</span><span class="value">{{ asset.useful_life_years|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Salvage</span><span class="value">{{ asset.salvage_value|default:'-' }}</span></div>
-                                                <div class="kv"><span class="label">Accum. Depreciation</span><span class="value">{{ asset.accumulated_depreciation }}</span></div>
-                                                <div class="kv"><span class="label">Net Book Value</span><span class="value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</span></div>
-                                                <div class="kv"><span class="label">Units (consumed)</span><span class="value">{{ asset.expected_units|default:'-' }} / {{ asset.units_consumed }}</span></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="kv-section notes">
-                                            <h4>Notes</h4>
-                                            <div class="kv-grid">
-                                                <div class="kv" style="grid-column:1 / -1;"><span class="value">{{ asset.notes|default:'-' }}</span></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="8" style="padding: 4rem; text-align: center; color: var(--secondary);">
-                        <div style="margin-bottom: 1rem;"><i data-lucide="package-search" style="width: 48px; height: 48px; opacity: 0.2;"></i></div>
-                        <div style="font-size: 1.1rem; font-weight: 600;">No assets found</div>
-                        <div style="font-size: 0.9rem; margin-top: 0.5rem;">Try adjusting your search or filters.</div>
-                        <a href="{% url 'asset-create' %}" class="btn btn-primary" style="margin-top: 1.5rem;">Add First Asset</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        </form>
     </div>
 
-    <!-- Floating Bulk Action Bar -->
-    <div id="bulk-action-bar"
-        style="display: none; position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #1E293B; color: white; padding: 0.75rem 1.5rem; border-radius: 9999px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); align-items: center; gap: 1.5rem; z-index: 1000;">
-        <div style="font-size: 0.9rem; font-weight: 500;">
-            <span id="selected-count">1</span> assets selected
-        </div>
-        <div style="height: 20px; width: 1px; background: rgba(255,255,255,0.2);"></div>
-        <div style="display: flex; gap: 0.75rem;">
-            <select name="action" id="bulk-action-select" class="form-control"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 0.85rem; padding: 0.25rem 0.75rem; height: 32px;">
-                <option value="" style="color: black;">Choose action...</option>
-                <optgroup label="Change Status" style="color: black;">
-                    {% for code, label in statuses %}
-                    <option value="status_{{ code }}" style="color: black;">Mark as {{ label }}</option>
-                    {% endfor %}
-                </optgroup>
-                <optgroup label="Danger Zone" style="color: black;">
-                    <option value="delete" style="color: #EF4444;">Delete Permanently</option>
-                </optgroup>
-            </select>
-            <button type="submit" class="btn btn-primary"
-                style="padding: 0.25rem 1rem; height: 32px; font-size: 0.85rem;">Execute</button>
-            <button type="button" class="btn"
-                style="padding: 0.25rem 0; height: 32px; color: rgba(255,255,255,0.6); background: transparent;"
-                onclick="deselectAll()">Cancel</button>
-        </div>
-    </div>
-</form>
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <form id="bulk-action-form" method="post" action="{% url 'asset-bulk-action' %}">
+            {% csrf_token %}
+            <div class="assets-card">
+                <div class="table-header-bar">
+                    <div class="table-header-title">
+                        <h3>Asset List</h3>
+                        <span class="asset-count">{{ assets|length }} Assets</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="premium-table">
+                        <thead>
+                            <tr>
+                                <th class="th-check">
+                                    <input type="checkbox" id="select-all" class="form-check-input">
+                                </th>
+                                <th class="th-name">Asset Name</th>
+                                <th class="th-tag">Asset Tag</th>
+                                <th class="th-serial">Serial #</th>
+                                <th class="th-category">Category</th>
+                                <th class="th-brand">Brand</th>
+                                <th class="th-location">Location</th>
+                                <th class="th-department">Department</th>
+                                <th class="th-assigned">Assigned To</th>
+                                <th class="th-condition">Condition</th>
+                                <th class="th-status">Status</th>
+                                <th class="th-value">Value</th>
+                                <th class="th-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in assets %}
+                            <tr class="table-row">
+                                <td class="td-check">
+                                    <input type="checkbox" name="asset_ids" value="{{ asset.id }}" class="asset-checkbox form-check-input">
+                                </td>
+                                <td class="td-name">
+                                    <a href="{% url 'asset-detail' asset.pk %}" class="asset-link">
+                                        <span class="asset-title">{{ asset.name }}</span>
+                                    </a>
+                                </td>
+                                <td class="td-tag">
+                                    <span class="tag-badge">{{ asset.asset_tag }}</span>
+                                </td>
+                                <td class="td-serial">
+                                    <span class="serial-text">{{ asset.serial_number|default:"-" }}</span>
+                                </td>
+                                <td class="td-category">
+                                    <span class="category-badge">{{ asset.category.name }}</span>
+                                </td>
+                                <td class="td-brand">
+                                    <span class="brand-text">{{ asset.brand.name|default:"-" }}</span>
+                                </td>
+                                <td class="td-location">
+                                    <div class="location-info">
+                                        <span class="location-site">{{ asset.site.name|default:"-" }}</span>
+                                    </div>
+                                </td>
+                                <td class="td-department">
+                                    <span class="dept-text">{{ asset.department.name|default:"-" }}</span>
+                                </td>
+                                <td class="td-assigned">
+                                    {% if asset.assigned_to %}
+                                    <div class="assigned-user">
+                                        <span class="user-initial">{{ asset.assigned_to.username|slice:":1"|upper }}</span>
+                                        <span class="user-name">{{ asset.assigned_to.username }}</span>
+                                    </div>
+                                    {% else %}
+                                    <span class="unassigned">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="td-condition">
+                                    <span class="condition-badge condition-{{ asset.get_condition_display|lower|cut:' ' }}">{{ asset.get_condition_display|default:"-" }}</span>
+                                </td>
+                                <td class="td-status">
+                                    <span class="badge-status status-{{ asset.status|lower }}">{{ asset.get_status_display }}</span>
+                                </td>
+                                <td class="td-value">
+                                    {% if asset.purchase_price %}
+                                    <span class="value-display">{{ asset.currency }} {{ asset.current_value }}</span>
+                                    {% else %}
+                                    <span class="no-value">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="td-actions">
+                                    <div class="action-buttons">
+                                        <a href="{% url 'asset-detail' asset.pk %}" class="action-btn view-btn" title="View Details">
+                                            <i data-lucide="eye"></i>
+                                        </a>
+                                        <a href="{% url 'asset-update' asset.pk %}" class="action-btn edit-btn" title="Edit">
+                                            <i data-lucide="edit-2"></i>
+                                        </a>
+                                        <button type="button" class="action-btn expand-btn" onclick="toggleDetails('{{ asset.id }}')" title="Show More">
+                                            <i data-lucide="chevrons-down"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="detail-{{ asset.id }}" class="detail-row" style="display:none;">
+                                <td colspan="8">
+                                    <div class="detail-content">
+                        <div class="detail-left">
+                            <div class="asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
+                            <div class="asset-main">
+                                <div class="asset-name">{{ asset.name }}</div>
+                                <div class="asset-sub">{{ asset.asset_tag }} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
+                            </div>
+                            <div class="asset-stats">
+                                <div>
+                                    <div class="stat-label">NBV</div>
+                                    <div class="stat-value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Accum. Dep.</div>
+                                    <div class="stat-value">{{ asset.accumulated_depreciation }}</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Status</div>
+                                    <div class="stat-badge">{{ asset.get_status_display }}</div>
+                                </div>
+                            </div>
+                        </div>
 
-<script>
-    function toggleDetails(id) {
-        const row = document.getElementById('detail-' + id);
-        if (!row) return;
-        row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
-        lucide.createIcons();
-    }
-</script>
+                        <div class="detail-right">
+                                <!-- Refactored: ordered key/value layout for clarity -->
+                                <div class="detail-section">
+                                    <div class="kv-section">
+                                        <h4>Identification</h4>
+                                        <div class="kv-grid">
+                                            <div class="kv"><span class="label">Asset Tag</span><span class="value">{{ asset.asset_tag }}</span></div>
+                                            <div class="kv"><span class="label">Custom Tag</span><span class="value">{{ asset.custom_asset_tag|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Asset Code</span><span class="value">{{ asset.asset_code|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">ERP #</span><span class="value">{{ asset.erp_asset_number|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Serial #</span><span class="value">{{ asset.serial_number|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Quantity</span><span class="value">{{ asset.quantity }}</span></div>
+                                        </div>
+                                    </div>
 
-<div style="margin-top: 1.5rem;">
-    {% include 'includes/pagination.html' %}
+                                    <div class="kv-section">
+                                        <h4>Classification</h4>
+                                        <div class="kv-grid">
+                                            <div class="kv"><span class="label">Category</span><span class="value">{{ asset.category.name }}</span></div>
+                                            <div class="kv"><span class="label">Sub Category</span><span class="value">{{ asset.sub_category.name|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Group</span><span class="value">{{ asset.group.name|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Sub Group</span><span class="value">{{ asset.sub_group.name|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Label Type</span><span class="value">{{ asset.get_label_type_display }}</span></div>
+                                            <div class="kv"><span class="label">Condition</span><span class="value">{{ asset.get_condition_display }}</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="kv-section">
+                                        <h4>Location & Ownership</h4>
+                                        <div class="kv-grid">
+                                            <div class="kv"><span class="label">Site</span><span class="value">{{ asset.site.name|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Building</span><span class="value">{{ asset.building.name|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Floor</span><span class="value">{% if asset.floor %}{{ asset.floor.name }}{% else %}-{% endif %}</span></div>
+                                            <div class="kv"><span class="label">Room</span><span class="value">{% if asset.room %}{{ asset.room.name }}{% else %}-{% endif %}</span></div>
+                                            <div class="kv"><span class="label">Assigned To</span><span class="value">{% if asset.assigned_to %}{{ asset.assigned_to.get_full_name|default:asset.assigned_to.username }}{% else %}-{% endif %}</span></div>
+                                            <div class="kv"><span class="label">Department</span><span class="value">{{ asset.department.name|default:'-' }}</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="kv-section">
+                                        <h4>Financial & Procurement</h4>
+                                        <div class="kv-grid">
+                                            <div class="kv"><span class="label">Purchase Date</span><span class="value">{{ asset.purchase_date|date:'Y-m-d'|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Purchase Price</span><span class="value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.purchase_price }}{% else %}-{% endif %}</span></div>
+                                            <div class="kv"><span class="label">Vendor</span><span class="value">{{ asset.vendor.name|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Invoice #</span><span class="value">{{ asset.invoice_number|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">PO / GRN</span><span class="value">{{ asset.po_number|default:'-' }} / {{ asset.grn_number|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Warranty</span><span class="value">{{ asset.warranty_start|date:'Y-m-d'|default:'-' }} — {{ asset.warranty_end|date:'Y-m-d'|default:'-' }}</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="kv-section">
+                                        <h4>Depreciation</h4>
+                                        <div class="kv-grid">
+                                            <div class="kv"><span class="label">Method</span><span class="value">{{ asset.get_depreciation_method_display }}</span></div>
+                                            <div class="kv"><span class="label">Useful Life (yrs)</span><span class="value">{{ asset.useful_life_years|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Salvage</span><span class="value">{{ asset.salvage_value|default:'-' }}</span></div>
+                                            <div class="kv"><span class="label">Accum. Depreciation</span><span class="value">{{ asset.accumulated_depreciation }}</span></div>
+                                            <div class="kv"><span class="label">Net Book Value</span><span class="value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</span></div>
+                                            <div class="kv"><span class="label">Units (consumed)</span><span class="value">{{ asset.expected_units|default:'-' }} / {{ asset.units_consumed }}</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="kv-section notes">
+                                        <h4>Notes</h4>
+                                        <div class="kv-grid">
+                                            <div class="kv" style="grid-column:1 / -1;"><span class="value">{{ asset.notes|default:'-' }}</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                    </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="empty-cell">
+                                    <div class="empty-state">
+                                        <i data-lucide="inbox"></i>
+                                        <h3>No Assets Found</h3>
+                                        <p>Try adjusting your filters or add a new asset to get started</p>
+                                        <a href="{% url 'asset-create' %}" class="btn-primary-luxury">
+                                            <i data-lucide="plus"></i> Add Your First Asset
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+            <!-- Pagination -->
+            {% if assets.has_other_pages %}
+            <div class="pagination-wrapper">
+                <div class="pagination-container">
+                    {% if assets.has_previous %}
+                    <a href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="First Page">
+                        <i data-lucide="chevrons-left"></i>
+                    </a>
+                    <a href="?page={{ assets.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Previous Page">
+                        <i data-lucide="chevron-left"></i>
+                    </a>
+                    {% endif %}
+
+                    <div class="pagination-pages">
+                        {% for num in assets.paginator.page_range %}
+                            {% if assets.number == num %}
+                            <span class="pagination-current">{{ num }}</span>
+                            {% elif num > assets.number|add:'-3' and num < assets.number|add:'3' %}
+                            <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-link">{{ num }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    {% if assets.has_next %}
+                    <a href="?page={{ assets.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Next Page">
+                        <i data-lucide="chevron-right"></i>
+                    </a>
+                    <a href="?page={{ assets.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Last Page">
+                        <i data-lucide="chevrons-right"></i>
+                    </a>
+                    {% endif %}
+
+                    <span class="pagination-info">Page {{ assets.number }} of {{ assets.paginator.num_pages }}</span>
+                </div>
+            </div>
+            {% endif %}
+            </div>
+        </form>
 </div>
 
 <style>
-    .asset-list-header {
+    /* ============================================
+       MODERN HEADER-BASED ASSET LIST DESIGN
+       ============================================ */
+
+    .asset-container {
+        display: flex;
+        flex-direction: column;
+        background: #f8fafc;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* Modern Header with Filters */
+    .premium-header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+        flex-shrink: 0;
         position: sticky;
         top: 0;
-        z-index: 10;
-        background: var(--bg-body);
-        padding-top: 1rem;
+        z-index: 100;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
-    .badge {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.6rem;
-        border-radius: 6px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
+    .header-row-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
     }
 
-    .status-active { background: #DCFCE7; color: #166534; }
-    .status-in_storage { background: #DBEAFE; color: #1E40AF; }
-    .status-under_maintenance { background: #FEF3C7; color: #92400E; }
-    .status-lost, .status-stolen { background: #FEE2E2; color: #991B1B; }
-    .status-retired { background: #F1F5F9; color: #475569; }
+    .header-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
 
-    .btn-icon {
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .btn-icon-action,
+    .btn-primary-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        gap: 0.5rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .btn-icon-action {
+        width: 36px;
+        height: 36px;
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #cbd5e1;
+    }
+
+    .btn-icon-action:hover {
+        background: #e2e8f0;
+        color: #334155;
+        border-color: #94a3b8;
+    }
+
+    .btn-primary-action {
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary-action:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-icon-action i,
+    .btn-primary-action i {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Filter Row */
+    .header-filters {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .search-bar-header {
+        position: relative;
+        flex: 1;
+        min-width: 240px;
+        display: flex;
+        align-items: center;
+    }
+
+    .search-bar-header i {
+        position: absolute;
+        left: 1rem;
+        width: 18px;
+        height: 18px;
+        color: #6366f1;
+        pointer-events: none;
+    }
+
+    .search-input-header {
+        width: 100%;
+        padding: 0.65rem 1rem 0.65rem 2.8rem;
+        border: 2px solid #e2e8f0;
         border-radius: 8px;
-        color: var(--text-secondary);
-        transition: all 0.2s;
+        font-size: 0.9rem;
+        color: #1e293b;
+        background: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .search-input-header::placeholder {
+        color: #cbd5e1;
+        font-weight: 500;
+    }
+
+    .search-input-header:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .search-input-header:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 2px 8px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Inline Filters */
+    .filters-group-inline {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-select-inline {
+        padding: 0.6rem 0.75rem;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 6px;
+        background: white;
+        color: #1e293b;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 130px;
+    }
+
+    .filter-select-inline:hover {
+        border-color: #94a3b8;
+    }
+
+    .filter-select-inline:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    /* More Filters Button */
+    .btn-filter-apply-main {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.65rem 1.2rem;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-filter-apply-main:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-filter-apply-main:active {
+        transform: translateY(0);
+    }
+
+    .btn-more-filters {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.65rem 0.95rem;
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .btn-more-filters:hover {
+        background: #e2e8f0;
+        color: #334155;
+        border-color: #94a3b8;
+    }
+
+    .btn-more-filters i {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Advanced Filters Panel */
+    .advanced-filters-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 0.75rem;
+        animation: slideDown 0.2s ease;
+        grid-column: 1 / -1;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .advanced-filters-content {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .advanced-filters-content .filter-select-inline {
+        margin: 0;
+    }
+
+    .btn-filter-clear {
+        padding: 0.65rem 1rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    .btn-filter-clear:hover {
+        background: #e2e8f0;
+        color: #334155;
+        border-color: #94a3b8;
+    }
+
+    /* Main Content */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    /* Assets Card */
+    .assets-card {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .table-header-bar {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0.8rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .table-header-title h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .asset-count {
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 0.25rem 0.6rem;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* Table */
+    .table-container {
+        overflow-x: auto;
+        flex: 1;
+    }
+
+    .premium-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+    }
+
+    .premium-table thead {
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+    }
+
+    .premium-table thead th {
+        padding: 0.7rem 0.8rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        text-align: left;
+    }
+
+    .th-check { width: 40px; text-align: center; }
+    .th-name { min-width: 140px; }
+    .th-tag { width: 90px; }
+    .th-serial { width: 100px; }
+    .th-category { width: 85px; }
+    .th-brand { width: 80px; }
+    .th-location { width: 80px; }
+    .th-department { width: 85px; }
+    .th-assigned { width: 95px; }
+    .th-condition { width: 85px; }
+    .th-status { width: 85px; text-align: center; }
+    .th-value { width: 90px; text-align: right; }
+    .th-actions { width: 80px; text-align: center; }
+
+    .premium-table tbody tr {
+        border-bottom: 1px solid #e2e8f0;
+        transition: background 0.1s ease;
+    }
+
+    .premium-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .premium-table tbody td {
+        padding: 0.7rem 0.8rem;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    .td-check { text-align: center; }
+
+    .asset-link {
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .asset-link:hover { color: #6366f1; }
+
+    .asset-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.8rem;
+    }
+
+    .tag-badge {
+        display: inline-block;
+        background: #f3e8ff;
+        color: #7c3aed;
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        font-family: 'Monaco', 'Courier New', monospace;
+    }
+
+    .serial-text {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-family: 'Monaco', 'Courier New', monospace;
+    }
+
+    .brand-text {
+        font-size: 0.8rem;
+        color: #475569;
+        font-weight: 500;
+    }
+
+    .dept-text {
+        font-size: 0.8rem;
+        color: #475569;
+    }
+
+    .category-badge {
+        display: inline-block;
+        background: #f0f4ff;
+        color: #4338ca;
+        padding: 0.25rem 0.6rem;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .condition-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .condition-good { background: #dcfce7; color: #166534; }
+    .condition-fair { background: #fef3c7; color: #92400e; }
+    .condition-poor { background: #fee2e2; color: #991b1b; }
+    .condition-broken { background: #fee2e2; color: #991b1b; }
+
+    .location-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .location-site {
+        font-weight: 500;
+        font-size: 0.8rem;
+    }
+
+    .location-sub {
+        font-size: 0.7rem;
+        color: #94a3b8;
+    }
+
+    .assigned-user {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+    }
+
+    .user-initial {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .unassigned {
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        font-style: italic;
+    }
+
+    .td-status { text-align: center; }
+
+    .badge-status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-in_storage { background: #dbeafe; color: #1e40af; }
+    .status-under_maintenance { background: #fef3c7; color: #92400e; }
+    .status-lost,
+    .status-stolen { background: #fee2e2; color: #991b1b; }
+    .status-retired { background: #f1f5f9; color: #475569; }
+
+    .td-value {
+        text-align: right;
+        font-weight: 600;
+        color: #6366f1;
+        font-size: 0.8rem;
+    }
+
+    .no-value { color: #cbd5e1; }
+
+    .td-actions { text-align: center; }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.3rem;
+        justify-content: center;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        color: #94a3b8;
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
         text-decoration: none;
     }
 
-    .btn-icon:hover {
-        background: #EDF2F7;
-        color: var(--primary);
+    .action-btn:hover {
+        background: #f1f5f9;
+        color: #6366f1;
+        border-color: #cbd5e1;
     }
 
-    .btn-icon i {
-        width: 18px;
-        height: 18px;
+    .action-btn i {
+        width: 14px;
+        height: 14px;
     }
 
-    .form-check-input {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        border: 2px solid var(--border-color);
-        border-radius: 4px;
-    }
+    /* Empty State */
+    .empty-cell { padding: 3rem 2rem !important; }
 
-    /* Asset detail card styles */
-    .asset-detail-row td { background: transparent; }
-    .asset-detail-card {
-        display: flex;
-        gap: 1rem;
-        padding: 1rem;
-        align-items: flex-start;
-        background: linear-gradient(180deg, #ffffff, #fbfdff);
-    }
-
-    .asset-detail-card .detail-left {
-        width: 260px;
-        flex-shrink: 0;
+    .empty-state {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
         align-items: center;
-        padding: 0.75rem;
-        border-right: 1px solid var(--border-color);
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .empty-state i {
+        width: 48px;
+        height: 48px;
+        color: #cbd5e1;
+    }
+
+    .empty-state h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #94a3b8;
+    }
+
+    /* Detail Row */
+    .detail-row td { padding: 0 !important; }
+
+    .detail-content {
+        padding: 1rem;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 1.5rem;
+    }
+
+    .detail-left {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
     }
 
     .asset-thumb {
-        width: 72px;
-        height: 72px;
-        border-radius: 12px;
-        background: linear-gradient(135deg,#6366F1,#4F46E5);
+        width: 60px;
+        height: 60px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 800;
-        font-size: 1.25rem;
+        font-size: 1.5rem;
+        font-weight: 700;
     }
 
-    .asset-main { text-align: center; }
-    .asset-name { font-weight: 700; margin-bottom: 0.25rem; }
-    .asset-sub { color: var(--text-secondary); font-size: 0.85rem; }
-
-    .asset-stats { display:flex; gap:0.5rem; width:100%; justify-content:space-between; margin-top:0.5rem; }
-    .stat-label { font-size:0.75rem; color:var(--text-secondary); }
-    .stat-value { font-weight:700; color:var(--primary); }
-    .stat-badge { background:#F1F5F9; padding:0.25rem 0.5rem; border-radius:6px; font-weight:600; color:var(--text-secondary); }
-
-    .detail-right { flex:1; padding: 0.5rem 1rem; }
-    .detail-section { margin-bottom: 0.75rem; }
-    .detail-section h4 { margin:0 0 0.5rem 0; font-size:0.95rem; color:var(--text-primary); }
-    .detail-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:0.5rem; }
-    .detail-grid > div { background: transparent; }
-    .detail-grid strong { display:block; font-weight:600; color:var(--text-secondary); font-size:0.78rem; }
-
-    .detail-section.notes { margin-top: 0.5rem; }
-
-    /* Key/value grid for improved readability */
-    .kv-section { margin-bottom: 0.75rem; }
-    .kv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem 1rem; }
-    .kv { padding: 0.25rem 0; }
-    .kv .label { display:block; font-size:0.75rem; color:var(--text-secondary); }
-    .kv .value { font-weight:600; color:var(--text-primary); margin-top:0.15rem; }
-
-    @media (max-width: 900px) {
-        .kv-grid { grid-template-columns: repeat(2, 1fr); }
+    .asset-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
     }
 
-    @media (max-width: 560px) {
-        .kv-grid { grid-template-columns: 1fr; }
+    .asset-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1e293b;
     }
 
-    @media (max-width: 900px) {
-        .asset-detail-card { flex-direction: column; }
-        .asset-detail-card .detail-left { width: auto; border-right: none; align-items: flex-start; }
-        .detail-grid { grid-template-columns: repeat(2, 1fr); }
+    .asset-sub {
+        font-size: 0.75rem;
+        color: #94a3b8;
     }
 
-    @media (max-width: 560px) {
-        .detail-grid { grid-template-columns: 1fr; }
+    .asset-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.75rem;
+        padding: 0.8rem;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .stat-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+
+    .stat-value {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .stat-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: #dbeafe;
+        color: #1e40af;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+
+    .detail-right {
+        overflow-y: auto;
+        max-height: 400px;
+        padding-right: 0.5rem;
+    }
+
+    .detail-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .kv-section {
+        background: white;
+        padding: 0.8rem;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .kv-section h4 {
+        margin: 0 0 0.6rem 0;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1e293b;
+        text-transform: uppercase;
+    }
+
+    .kv-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .kv {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .kv .label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+
+    .kv .value {
+        font-size: 0.8rem;
+        color: #1e293b;
+        font-weight: 500;
+    }
+
+    /* Pagination */
+    .pagination-wrapper {
+        margin-top: auto;
+        padding: 1rem 0;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .pagination-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .pagination-btn,
+    .pagination-link,
+    .pagination-current {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: white;
+        color: #64748b;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .pagination-btn:hover {
+        background: #e2e8f0;
+        color: #334155;
+        border-color: #94a3b8;
+    }
+
+    .pagination-btn i {
+        width: 16px;
+        height: 16px;
+    }
+
+    .pagination-link {
+        cursor: pointer;
+    }
+
+    .pagination-link:hover {
+        background: #e2e8f0;
+        color: #334155;
+        border-color: #94a3b8;
+    }
+
+    .pagination-current {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border-color: #6366f1;
+        font-weight: 600;
+        cursor: default;
+    }
+
+    .pagination-pages {
+        display: flex;
+        gap: 0.3rem;
+        align-items: center;
+    }
+
+    .pagination-info {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 500;
+        white-space: nowrap;
+        margin-left: 1rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+        .filter-select-inline {
+            min-width: 110px;
+        }
+
+        .search-bar-header {
+            min-width: 180px;
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .premium-header {
+            padding: 0.75rem 1rem;
+        }
+
+        .header-row-main {
+            margin-bottom: 0.75rem;
+        }
+
+        .header-title {
+            font-size: 1.25rem;
+        }
+
+        .filters-group-inline {
+            gap: 0.4rem;
+        }
+
+        .filter-select-inline {
+            min-width: 100px;
+            padding: 0.5rem 0.6rem;
+            font-size: 0.8rem;
+        }
+
+        .search-bar-header {
+            min-width: 150px;
+        }
+
+        .btn-filter-apply-main {
+            padding: 0.55rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-more-filters {
+            padding: 0.55rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .th-value { display: none; }
+        .td-value { display: none; }
+        .th-assigned { display: none; }
+        .td-assigned { display: none; }
+
+        .premium-table {
+            font-size: 0.75rem;
+        }
+
+        .premium-table tbody td {
+            padding: 0.5rem 0.6rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .premium-header {
+            padding: 0.75rem 0.875rem;
+        }
+
+        .header-row-main {
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+            gap: 0.5rem;
+        }
+
+        .header-title {
+            font-size: 1.1rem;
+            flex: 1;
+        }
+
+        .header-actions {
+            gap: 0.3rem;
+        }
+
+        .btn-icon-action,
+        .btn-primary-action {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            font-size: 0;
+        }
+
+        .btn-primary-action {
+            width: auto;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .header-filters {
+            width: 100%;
+            gap: 0.5rem;
+        }
+
+        .search-bar-header {
+            min-width: 100%;
+            flex: 1;
+        }
+
+        .filters-group-inline {
+            width: 100%;
+            gap: 0.4rem;
+        }
+
+        .filter-select-inline {
+            min-width: 90px;
+            padding: 0.5rem 0.5rem;
+            font-size: 0.75rem;
+            flex: 1;
+        }
+
+        .btn-more-filters {
+            padding: 0.5rem 0.7rem;
+            font-size: 0.75rem;
+            flex: 0 0 auto;
+        }
+
+        .advanced-filters-panel {
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .advanced-filters-content {
+            gap: 0.4rem;
+        }
+
+        .advanced-filters-content .filter-select-inline {
+            flex: 1;
+            min-width: 80px;
+            font-size: 0.75rem;
+            padding: 0.45rem 0.5rem;
+        }
+
+        .btn-filter-clear {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.75rem;
+            flex: 1;
+        }
+
+        .main-content {
+            padding: 0.75rem;
+            gap: 0.75rem;
+        }
+
+        .th-location { display: none; }
+        .td-location { display: none; }
+        .th-category { display: none; }
+        .td-category { display: none; }
+
+        .detail-content {
+            grid-template-columns: 1fr;
+            padding: 0.75rem;
+        }
+
+        .premium-table {
+            font-size: 0.7rem;
+        }
+
+        .premium-table tbody td {
+            padding: 0.4rem 0.5rem;
+        }
+
+        .table-header-bar {
+            padding: 0.6rem 0.75rem;
+        }
+
+        .table-header-title h3 {
+            font-size: 0.85rem;
+        }
+
+        .bulk-action-bar {
+            left: 0.5rem;
+            right: 0.5rem;
+            transform: none;
+            width: auto;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+        }
+
+        .bulk-info {
+            border-right: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-right: 0;
+            padding-bottom: 0.5rem;
+            width: 100%;
+            font-size: 0.8rem;
+        }
+
+        .bulk-controls {
+            width: 100%;
+            gap: 0.4rem;
+        }
+
+        .bulk-select {
+            flex: 1;
+            font-size: 0.75rem;
+        }
+
+        .btn-bulk-apply,
+        .btn-bulk-cancel {
+            flex: 1;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.75rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .premium-header {
+            padding: 0.6rem 0.75rem;
+        }
+
+        .header-title {
+            font-size: 1rem;
+        }
+
+        .btn-icon-action {
+            width: 30px;
+            height: 30px;
+        }
+
+        .btn-primary-action {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.7rem;
+            gap: 0.3rem;
+        }
+
+        .search-input-header {
+            font-size: 0.8rem;
+            padding: 0.5rem 0.6rem 0.5rem 2.2rem;
+        }
+
+        .filter-select-inline {
+            padding: 0.45rem 0.4rem;
+            font-size: 0.7rem;
+            min-width: 75px;
+        }
+
+        .btn-more-filters {
+            padding: 0.45rem 0.6rem;
+            font-size: 0.7rem;
+        }
+
+        .advanced-filters-content {
+            flex-direction: column;
+        }
+
+        .advanced-filters-content .filter-select-inline,
+        .btn-filter-apply,
+        .btn-filter-clear {
+            width: 100%;
+        }
+
+        .main-content {
+            padding: 0.5rem;
+        }
+
+        .premium-table {
+            font-size: 0.65rem;
+        }
+
+        .premium-table thead th {
+            padding: 0.4rem 0.5rem;
+            font-size: 0.6rem;
+        }
+
+        .premium-table tbody td {
+            padding: 0.35rem 0.4rem;
+        }
+
+        .action-btn {
+            width: 24px;
+            height: 24px;
+        }
+
+        .action-btn i {
+            width: 12px;
+            height: 12px;
+        }
+
+        .th-status { display: none; }
+        .td-status { display: none; }
     }
 </style>
 
 <script>
     function toggleAdvancedFilters() {
-        const adv = document.getElementById('advanced-filters');
-        adv.style.display = adv.style.display === 'none' ? 'grid' : 'none';
+        const panel = document.getElementById('advanced-filters-panel');
+        if (!panel) return;
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleDetails(id) {
+        const row = document.getElementById('detail-' + id);
+        if (!row) return;
+        row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
         lucide.createIcons();
     }
 
@@ -489,15 +1503,14 @@
         const today = new Date();
         let fromDate = null;
         let toDate = new Date(today);
-        
-        // Reset if custom range selected
+
         if (!range) {
             document.getElementById('purchase_date_from').value = '';
             document.getElementById('purchase_date_to').value = '';
             return;
         }
-        
-        switch(range) {
+
+        switch (range) {
             case 'this_year':
                 fromDate = new Date(today.getFullYear(), 0, 1);
                 break;
@@ -525,8 +1538,7 @@
                 fromDate.setDate(today.getDate() - 365);
                 break;
         }
-        
-        // Format dates as YYYY-MM-DD
+
         if (fromDate) {
             document.getElementById('purchase_date_from').value = formatDate(fromDate);
         }
@@ -540,6 +1552,7 @@
         return `${year}-${month}-${day}`;
     }
 
+    // Bulk Actions
     const selectAll = document.getElementById('select-all');
     const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
     const bulkBar = document.getElementById('bulk-action-bar');
