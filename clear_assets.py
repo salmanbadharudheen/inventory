@@ -14,7 +14,7 @@ django.setup()
 from apps.assets.models import Asset
 
 def clear_assets():
-    """Delete all asset records"""
+    """Delete all asset records in batches to avoid SQLite variable limit"""
     count = Asset.objects.count()
     
     if count == 0:
@@ -25,8 +25,23 @@ def clear_assets():
     confirm = input(f"Are you sure you want to delete all {count} assets? (yes/no): ")
     
     if confirm.lower() == 'yes':
-        Asset.objects.all().delete()
-        print(f"✓ Successfully deleted {count} assets")
+        # Delete in batches of 500 to avoid SQLite "too many SQL variables" error
+        batch_size = 500
+        deleted_total = 0
+        
+        while True:
+            # Get next batch of asset IDs
+            batch_ids = list(Asset.objects.values_list('id', flat=True)[:batch_size])
+            
+            if not batch_ids:
+                break
+            
+            # Delete this batch
+            deleted, _ = Asset.objects.filter(id__in=batch_ids).delete()
+            deleted_total += deleted
+            print(f"  Deleted {deleted_total}/{count} assets...")
+        
+        print(f"✓ Successfully deleted {deleted_total} assets")
         print("✓ All other data (categories, brands, departments, etc.) remains intact")
     else:
         print("✗ Deletion cancelled")

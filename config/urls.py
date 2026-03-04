@@ -7,8 +7,13 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', DashboardView.as_view(), name='dashboard'),
     path('signup/', SignUpView.as_view(), name='signup'),
+    
+    # Web URLs
     path('assets/', include('apps.assets.urls')),
     path('locations/', include('apps.locations.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
     path('users/', include('apps.users.urls')),
+    
+    # API URLs
+    path('api/', include('apps.api.urls')),
 ]

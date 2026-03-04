@@ -5,12 +5,7 @@ from django.utils.translation import gettext_lazy as _
 class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = 'ADMIN', _('Admin')
-        FINANCE = 'FINANCE', _('Finance')
-        ASSET_MANAGER = 'ASSET_MANAGER', _('Asset Manager')
-        AUDITOR = 'AUDITOR', _('Auditor')
-        DEPT_MANAGER = 'DEPT_MANAGER', _('Department Manager')
         EMPLOYEE = 'EMPLOYEE', _('Employee')
-        DATA_ENTRY = 'DATA_ENTRY', _('Data Entry')
         CHECKER = 'CHECKER', _('Checker/Manager')
         SENIOR_MANAGER = 'SENIOR_MANAGER', _('Senior Manager')
 
@@ -28,14 +23,14 @@ class User(AbstractUser):
     
     @property
     def is_auditor(self):
-        return self.role == self.Role.AUDITOR
+        return False
 
     @property
     def is_asset_manager(self):
-        return self.role == self.Role.ASSET_MANAGER
+        return False
     @property
     def is_data_entry(self):
-        return self.role == self.Role.DATA_ENTRY
+        return self.role == self.Role.EMPLOYEE
 
     @property
     def is_checker(self):

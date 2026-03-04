@@ -1,373 +1,281 @@
 {% extends 'base.html' %}
 
-{% block page_title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer Request{% endblock %}
 
 {% block content %}
 <div class="asset-container">
     <div class="form-container">
         <div class="form-header">
-            <h1 class="form-title">
-                {% if form.instance.pk %}Edit Transfer - {{ form.instance.asset.asset_tag }}{% else %}Create New Asset Transfer{% endif %}
-            </h1>
+          <h1 class="form-title">{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer Request</h1>
+          <p class="form-subtitle">Create a request to move an asset between locations</p>
         </div>
 
-        <form method="post" class="asset-form">
-            {% csrf_token %}
+        <div class="card form-card">
+          <h2 style="display:none">Asset Transfer Request</h2>
 
-            <div class="form-section">
-                <h3 class="form-section-title">Asset Information</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="{{ form.asset.id_for_label }}" class="form-label">
-                            Asset <span class="text-danger">*</span>
-                        </label>
-                            {{ form.asset }}
-                            <div id="asset-current-details" style="margin-top:8px; font-size:13px; color:#444; display:none;">
-                                <strong>Current:</strong>
-                                <div id="asset-current-location"></div>
-                                <div id="asset-current-assigned"></div>
-                                <div id="asset-current-status"></div>
-                            </div>
-                        {% if form.asset.errors %}
-                        <div class="form-error">{{ form.asset.errors }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+                  <form method="post" id="simple-transfer-form" class="asset-form">
+                    {% csrf_token %}
 
-            <div class="form-section">
-                <h3 class="form-section-title">Transfer From</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="{{ form.transferred_from_user.id_for_label }}" class="form-label">
-                            From User
-                        </label>
-                        {{ form.transferred_from_user }}
-                        {% if form.transferred_from_user.errors %}
-                        <div class="form-error">{{ form.transferred_from_user.errors }}</div>
-                        {% endif %}
-                        <small class="form-text">Current custodian/user holding the asset</small>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Transfer No</label>
+                        {{ form.transfer_no }}
+                        {% if form.transfer_no.errors %}<div class="form-error">{{ form.transfer_no.errors }}</div>{% endif %}
+                      </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.transferred_from_department.id_for_label }}" class="form-label">
-                            From Department
-                        </label>
-                        {{ form.transferred_from_department }}
-                        {% if form.transferred_from_department.errors %}
-                        <div class="form-error">{{ form.transferred_from_department.errors }}</div>
-                        {% endif %}
+                    <div class="form-row">
+                      <div class="form-group full-width">
+                        <label class="form-label">Transfer Description</label>
+                        {{ form.transfer_description }}
+                        {% if form.transfer_description.errors %}<div class="form-error">{{ form.transfer_description.errors }}</div>{% endif %}
+                      </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.transferred_from_location.id_for_label }}" class="form-label">
-                            From Location
-                        </label>
-                        {{ form.transferred_from_location }}
-                        {% if form.transferred_from_location.errors %}
-                        <div class="form-error">{{ form.transferred_from_location.errors }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h3 class="form-section-title">Transfer To</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="{{ form.transferred_to_user.id_for_label }}" class="form-label">
-                            To User
-                        </label>
-                        {{ form.transferred_to_user }}
-                        {% if form.transferred_to_user.errors %}
-                        <div class="form-error">{{ form.transferred_to_user.errors }}</div>
-                        {% endif %}
-                        <small class="form-text">New custodian/user receiving the asset</small>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Region To</label>
+                        {{ form.transferred_to_region }}
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Site To</label>
+                        {{ form.transferred_to_site }}
+                      </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.transferred_to_department.id_for_label }}" class="form-label">
-                            To Department
-                        </label>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Building To</label>
+                        {{ form.transferred_to_building }}
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Floor To</label>
+                        {{ form.transferred_to_floor }}
+                      </div>
+                    </div>
+
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Room To</label>
+                        {{ form.transferred_to_room }}
+                      </div>
+                    </div>
+
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Company</label>
+                        {{ form.transferred_to_company }}
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Department</label>
                         {{ form.transferred_to_department }}
-                        {% if form.transferred_to_department.errors %}
-                        <div class="form-error">{{ form.transferred_to_department.errors }}</div>
-                        {% endif %}
+                      </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.transferred_to_location.id_for_label }}" class="form-label">
-                            To Location
-                        </label>
-                        {{ form.transferred_to_location }}
-                        {% if form.transferred_to_location.errors %}
-                        <div class="form-error">{{ form.transferred_to_location.errors }}</div>
-                        {% endif %}
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Custodian</label>
+                        {{ form.transferred_to_custodian }}
+                      </div>
                     </div>
+
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label class="form-label">Movement Reason</label>
+                        {{ form.movement_reason }}
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Request By</label>
+                        {{ form.requester_name }}
+                      </div>
+                    </div>
+
+                    <div class="form-row">
+                      <div class="form-group full-width">
+                        <label class="form-label">Assets (enter asset tags)</label>
+                        <div style="display:flex;gap:8px;">
+                          <input type="text" id="asset-tag-input" class="form-control" placeholder="e.g. ASSET-001 and press Enter" />
+                          <button type="button" id="asset-add-btn" class="btn-default">Add</button>
+                        </div>
+                        {{ form.asset }}
+                        <div id="asset-lookup-result" style="margin-top:6px;color:#555;font-size:13px;"></div>
+                        <div id="asset-list" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+                      </div>
+                    </div>
+
+                    <div class="form-actions">
+                      <button type="submit" class="btn btn-primary">Submit</button>
+                      <a href="{% url 'transfer-list' %}" class="btn-default">Cancel</a>
+                    </div>
+                  </form>
                 </div>
-            </div>
 
-            <div class="form-section">
-                <h3 class="form-section-title">Transfer Details</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="{{ form.expected_receipt_date.id_for_label }}" class="form-label">
-                            Expected Receipt Date
-                        </label>
-                        {{ form.expected_receipt_date }}
-                        {% if form.expected_receipt_date.errors %}
-                        <div class="form-error">{{ form.expected_receipt_date.errors }}</div>
-                        {% endif %}
-                    </div>
+                <script>
+                document.addEventListener('DOMContentLoaded', function(){
+                  // Helpers for AJAX
+                  async function fetchJson(url){
+                    try{ const r = await fetch(url); if(!r.ok) return []; return await r.json(); }catch(e){return []}
+                  }
 
-                    <div class="form-group">
-                        <label for="{{ form.transfer_reason.id_for_label }}" class="form-label">
-                            Transfer Reason
-                        </label>
-                        {{ form.transfer_reason }}
-                        {% if form.transfer_reason.errors %}
-                        <div class="form-error">{{ form.transfer_reason.errors }}</div>
-                        {% endif %}
-                    </div>
-                </div>
+                  const regionSelect = document.getElementById('{{ form.transferred_to_region.id_for_label }}');
+                  const siteSelect = document.getElementById('{{ form.transferred_to_site.id_for_label }}');
+                  const buildingSelect = document.getElementById('{{ form.transferred_to_building.id_for_label }}');
+                  const floorSelect = document.getElementById('{{ form.transferred_to_floor.id_for_label }}');
+                  const roomSelect = document.getElementById('{{ form.transferred_to_room.id_for_label }}');
 
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="{{ form.notes.id_for_label }}" class="form-label">
-                            Additional Notes
-                        </label>
-                        {{ form.notes }}
-                        {% if form.notes.errors %}
-                        <div class="form-error">{{ form.notes.errors }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+                  if(regionSelect){
+                    regionSelect.addEventListener('change', async function(){
+                      const regionId = this.value;
+                      // Load sites
+                      siteSelect.innerHTML = '<option value="">---------</option>';
+                      buildingSelect.innerHTML = '<option value="">---------</option>';
+                      floorSelect.innerHTML = '<option value="">---------</option>';
+                      roomSelect.innerHTML = '<option value="">---------</option>';
+                      if(!regionId) return;
+                      const url = new URL('{% url "get-sites" %}', window.location.origin);
+                      url.searchParams.set('region_id', regionId);
+                      const sites = await fetchJson(url.toString());
+                      sites.forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.name; siteSelect.appendChild(o); });
+                    });
+                  }
 
-            <!-- Form Actions -->
-            <div class="form-actions">
-                <button type="submit" class="btn-primary-action">
-                    <i data-lucide="save"></i> 
-                    {% if form.instance.pk %}Update Transfer{% else %}Create Transfer{% endif %}
-                </button>
-                <a href="{% url 'transfer-list' %}" class="btn-secondary-action">
-                    <i data-lucide="x"></i> Cancel
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
+                  if(siteSelect){
+                    siteSelect.addEventListener('change', async function(){
+                      const siteId = this.value;
+                      buildingSelect.innerHTML = '<option value="">---------</option>';
+                      floorSelect.innerHTML = '<option value="">---------</option>';
+                      roomSelect.innerHTML = '<option value="">---------</option>';
+                      if(!siteId) return;
+                      const url = new URL('{% url "get-buildings-by-site" %}', window.location.origin);
+                      url.searchParams.set('site_id', siteId);
+                      const buildings = await fetchJson(url.toString());
+                      buildings.forEach(b=>{ const o=document.createElement('option'); o.value=b.id; o.textContent=b.name; buildingSelect.appendChild(o); });
+                    });
+                  }
 
-<style>
-    .form-container {
-        background: white;
-        border-radius: 8px;
-        padding: 24px;
-        max-width: 800px;
-        margin: 20px auto;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+                  if(buildingSelect){
+                    buildingSelect.addEventListener('change', async function(){
+                      const bldg = this.value;
+                      floorSelect.innerHTML = '<option value="">---------</option>';
+                      roomSelect.innerHTML = '<option value="">---------</option>';
+                      if(!bldg) return;
+                      const url = new URL('{% url "get-floors" %}', window.location.origin);
+                      url.searchParams.set('building_id', bldg);
+                      const floors = await fetchJson(url.toString());
+                      floors.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=f.name; floorSelect.appendChild(o); });
+                    });
+                  }
 
-    .form-header {
-        margin-bottom: 24px;
-        border-bottom: 2px solid #f0f0f0;
-        padding-bottom: 16px;
-    }
+                  if(floorSelect){
+                    floorSelect.addEventListener('change', async function(){
+                      const fid = this.value;
+                      roomSelect.innerHTML = '<option value="">---------</option>';
+                      if(!fid) return;
+                      const url = new URL('{% url "get-rooms" %}', window.location.origin);
+                      url.searchParams.set('floor_id', fid);
+                      const rooms = await fetchJson(url.toString());
+                      rooms.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=r.name; roomSelect.appendChild(o); });
+                    });
+                  }
 
-    .form-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: #333;
-        margin: 0;
-    }
+                  // Asset lookup by tag -> populate hidden asset field
+                  const assetTagInput = document.getElementById('asset-tag-input');
+                  const assetAddBtn = document.getElementById('asset-add-btn');
+                  const hiddenAsset = document.getElementById('{{ form.asset.id_for_label }}');
+                  const assetResult = document.getElementById('asset-lookup-result');
+                  const assetList = document.getElementById('asset-list');
+                  let selectedAssets = [];
 
-    .form-section {
-        margin-bottom: 24px;
-        padding: 16px;
-        background: #f9f9f9;
-        border-radius: 6px;
-        border-left: 4px solid #007bff;
-    }
+                  function renderAssetChips(){
+                    assetList.innerHTML = '';
+                    selectedAssets.forEach(a=>{
+                      const chip = document.createElement('div');
+                      chip.style.background = '#eef2ff';
+                      chip.style.color = '#1f2937';
+                      chip.style.padding = '6px 10px';
+                      chip.style.borderRadius = '999px';
+                      chip.style.display = 'inline-flex';
+                      chip.style.alignItems = 'center';
+                      chip.style.gap = '8px';
+                      chip.textContent = a.tag + ' — ' + a.name;
+                      const rem = document.createElement('button');
+                      rem.type = 'button';
+                      rem.textContent = '×';
+                      rem.style.background = 'transparent';
+                      rem.style.border = 'none';
+                      rem.style.cursor = 'pointer';
+                      rem.addEventListener('click', function(){
+                        selectedAssets = selectedAssets.filter(x=> x.id !== a.id);
+                        hiddenAsset.value = selectedAssets.map(x=>x.id).join(',');
+                        renderAssetChips();
+                      });
+                      chip.appendChild(rem);
+                      assetList.appendChild(chip);
+                    });
+                  }
 
-    .form-section-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-        margin: 0 0 16px 0;
-    }
+                  async function lookupAndAdd(tag){
+                    assetResult.textContent = '';
+                    if(!tag) return;
+                    const url = new URL('{% url "asset-lookup" %}', window.location.origin);
+                    url.searchParams.set('asset_tag', tag);
+                    try{
+                      const r = await fetch(url.toString());
+                      if(!r.ok){ assetResult.textContent = 'Asset not found'; return; }
+                      const data = await r.json();
+                      const found = data.asset;
+                      // avoid duplicates
+                      if(selectedAssets.some(x=>x.id === found.id)){
+                        assetResult.textContent = 'Asset already added';
+                        return;
+                      }
+                      selectedAssets.push({ id: found.id, tag: found.asset_tag, name: found.name });
+                      hiddenAsset.value = selectedAssets.map(x=>x.id).join(',');
+                      assetResult.textContent = '';
+                      renderAssetChips();
+                      assetTagInput.value = '';
+                    }catch(e){ assetResult.textContent = 'Lookup error'; }
+                  }
 
-    .form-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 16px;
-        margin-bottom: 12px;
-    }
+                  if(assetAddBtn){
+                    assetAddBtn.addEventListener('click', function(){
+                      const t = assetTagInput.value.trim();
+                      if(t) lookupAndAdd(t);
+                    });
+                  }
 
-    .form-group {
-        display: flex;
-        flex-direction: column;
-    }
+                  if(assetTagInput){
+                    assetTagInput.addEventListener('keypress', function(e){
+                      if(e.key === 'Enter'){
+                        e.preventDefault();
+                        const t = assetTagInput.value.trim();
+                        if(t) lookupAndAdd(t);
+                      }
+                    });
+                  }
 
-    .form-group.full-width {
-        grid-column: 1 / -1;
-    }
+                  // Simple submit: ensure asset is set
+                  document.getElementById('simple-transfer-form').addEventListener('submit', function(e){
+                    const a = hiddenAsset.value;
+                    if(!a){ e.preventDefault(); alert('Please enter a valid asset tag (use the field above and leave to lookup).'); }
+                  });
+                });
+                </script>
 
-    .form-label {
-        font-weight: 500;
-        margin-bottom: 6px;
-        color: #555;
-        font-size: 14px;
-    }
-
-    .form-control {
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-        font-family: inherit;
-    }
-
-    .form-control:focus {
-        outline: none;
-        border-color: #007bff;
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    }
-
-    .form-error {
-        color: #dc3545;
-        font-size: 12px;
-        margin-top: 4px;
-    }
-
-    .form-text {
-        color: #6c757d;
-        font-size: 12px;
-        margin-top: 4px;
-        display: block;
-    }
-
-    .text-danger {
-        color: #dc3545;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 12px;
-        margin-top: 32px;
-        padding-top: 16px;
-        border-top: 2px solid #f0f0f0;
-    }
-
-    .btn-primary-action, .btn-secondary-action {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-
-    .btn-primary-action {
-        background-color: #007bff;
-        color: white;
-    }
-
-    .btn-primary-action:hover {
-        background-color: #0056b3;
-    }
-
-    .btn-secondary-action {
-        background-color: #6c757d;
-        color: white;
-    }
-
-    .btn-secondary-action:hover {
-        background-color: #545b62;
-    }
-
-    textarea.form-control {
-        resize: vertical;
-        min-height: 100px;
-    }
+            <style>
+  .form-card { max-width: 760px; margin: 20px auto; padding: 20px; }
+  .form-subtitle { margin-top: 6px; color: #6b7280; font-size: 14px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:12px; }
+  .form-group { display:flex; flex-direction:column; }
+  .form-label { font-weight:600; margin-bottom:6px; color:#374151; font-size:14px; }
+  .form-card .form-control, .form-card select, .form-card input, .form-card textarea { padding:10px; border:1px solid #e5e7eb; border-radius:6px; font-size:14px; }
+  .form-card .form-control:focus, .form-card select:focus, .form-card input:focus, .form-card textarea:focus { outline:none; box-shadow:0 0 0 4px rgba(99,102,241,0.08); border-color:#6366f1; }
+  .form-actions { display:flex; gap:12px; margin-top:18px; }
+  .btn-default { background:#f3f4f6; color:#111827; padding:8px 14px; border-radius:6px; text-decoration:none; }
+  @media (max-width:520px){ .form-row{ grid-template-columns:1fr; } .form-card{ padding:16px } }
 </style>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        lucide.createIcons();
-        // When asset select changes, fetch current asset details and populate transfer options
-        const assetSelect = document.querySelector('select[name="asset"]');
-        const detailsBox = document.getElementById('asset-current-details');
-        const locDiv = document.getElementById('asset-current-location');
-        const assignedDiv = document.getElementById('asset-current-assigned');
-        const statusDiv = document.getElementById('asset-current-status');
-
-        function populateSelect(selectName, items, displayField) {
-            const sel = document.querySelector('select[name="' + selectName + '"]');
-            if (!sel) return;
-            // Keep a blank option if present
-            const blankOption = document.createElement('option');
-            blankOption.value = '';
-            blankOption.textContent = '';
-            sel.innerHTML = '';
-            sel.appendChild(blankOption);
-            items.forEach(function(it){
-                const opt = document.createElement('option');
-                opt.value = it.id;
-                opt.textContent = it.name;
-                sel.appendChild(opt);
-            });
-        }
-
-        async function fetchAssetDetails(id) {
-            if (!id) {
-                detailsBox.style.display = 'none';
-                return;
-            }
-            try {
-                const url = new URL(window.location.origin + '{% url "asset-lookup" %}');
-                url.searchParams.set('asset_id', id);
-                const resp = await fetch(url.toString());
-                if (!resp.ok) throw new Error('Not found');
-                const data = await resp.json();
-                const asset = data.asset;
-
-                // Build location string
-                let locParts = [];
-                if (asset.branch) locParts.push(asset.branch.name);
-                if (asset.site) locParts.push(asset.site.name);
-                if (asset.building) locParts.push(asset.building.name);
-                if (asset.floor) locParts.push(asset.floor.name);
-                if (asset.room) locParts.push(asset.room.name);
-                if (asset.location) locParts.push(asset.location.name);
-                if (asset.sub_location) locParts.push(asset.sub_location.name);
-
-                locDiv.textContent = locParts.length ? locParts.join(' » ') : 'Location: Not specified';
-                assignedDiv.textContent = asset.assigned_to ? ('Assigned to: ' + asset.assigned_to.name) : 'Assigned to: None';
-                statusDiv.textContent = asset.status ? ('Status: ' + asset.status) : '';
-                detailsBox.style.display = 'block';
-
-                // Populate destination selects with provided lists
-                if (data.departments) populateSelect('transferred_to_department', data.departments);
-                if (data.locations) populateSelect('transferred_to_location', data.locations);
-                if (data.users) populateSelect('transferred_to_user', data.users);
-
-            } catch (err) {
-                detailsBox.style.display = 'none';
-            }
-        }
-
-        if (assetSelect) {
-            assetSelect.addEventListener('change', function(e){
-                fetchAssetDetails(e.target.value);
-            });
-            // Trigger load for pre-selected value
-            if (assetSelect.value) fetchAssetDetails(assetSelect.value);
-        }
-    });
-</script>
 {% endblock %}
+
+
+

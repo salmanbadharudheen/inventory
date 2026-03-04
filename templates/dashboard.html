@@ -1098,8 +1098,23 @@
         </div>
     </div>
 
-    <!-- Financial Stats -->
+    <!-- Financial Stats - Reorganized with Total Assets First -->
     <div class="stats-grid">
+        <!-- Total Assets - Moved to First Position -->
+        <div class="stat-card info">
+            <div class="stat-card-header">
+                <div class="stat-icon"><i data-lucide="package-check"></i></div>
+            </div>
+            <div class="stat-card-content">
+                <div class="stat-label">Total Assets in Inventory</div>
+                <div class="stat-value">{{ total_assets|intcomma }}</div>
+                <div class="stat-meta">
+                    <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                    <span>Active inventory items</span>
+                </div>
+            </div>
+        </div>
+
         <div class="stat-card">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="wallet"></i></div>
@@ -1139,20 +1154,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="stat-card info">
-            <div class="stat-card-header">
-                <div class="stat-icon"><i data-lucide="package-check"></i></div>
-            </div>
-            <div class="stat-card-content">
-                <div class="stat-label">Total Assets</div>
-                <div class="stat-value">{{ total_assets }}</div>
-                <div class="stat-meta">
-                    <i data-lucide="check" style="width: 14px; height: 14px;"></i>
-                    <span>Active inventory</span>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Charts -->
@@ -1161,21 +1162,21 @@
             <div class="chart-header">
                 <div>
                     <div class="chart-title">
-                        <i data-lucide="pie-chart"></i>
-                        Lifecycle Distribution
+                        <i data-lucide="layers"></i>
+                        Asset Groups Distribution
                     </div>
                 </div>
                 <div class="chart-count">{{ total_assets }} Total</div>
             </div>
             <div class="chart-container">
-                <canvas id="statusChart"></canvas>
+                <canvas id="groupChart"></canvas>
             </div>
         </div>
 
         <div class="chart-card">
             <div class="chart-header">
                 <div class="chart-title">
-                    <i data-lucide="layers"></i>
+                    <i data-lucide="tag"></i>
                     Category Breakdown
                 </div>
             </div>
@@ -1249,34 +1250,47 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
+<!-- Load Chart.js asynchronously -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<script defer>
+    // Only run when DOM is ready and Chart.js is loaded
+    function initCharts() {
+        if (typeof Chart === 'undefined') {
+            // Chart.js not loaded yet, retry
+            setTimeout(initCharts, 100);
+            return;
+        }
+        
         Chart.defaults.font.family = "'Inter', sans-serif";
         Chart.defaults.font.size = 11;
         Chart.defaults.color = '#6B7280';
 
-        // Status Chart
-        const statusData = {
-            labels: [{% for stat in status_distribution %}"{{ stat.status }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+        // Group Chart
+        const groupData = {
+            labels: [{% for group in group_distribution %}"{{ group.name }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
             datasets: [{
-                data: [{% for stat in status_distribution %}{{ stat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                data: [{% for group in group_distribution %}{{ group.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
                 backgroundColor: [
-                    '#10b981', // Active - Green
-                    '#f59e0b', // Maintenance - Amber
-                    '#6366f1', // Storage - Indigo
-                    '#334155', // Broken - Slate
-                    '#94a3b8'  // Other - Light
+                    '#6366F1', // Indigo
+                    '#8B5CF6', // Violet
+                    '#EC4899', // Pink
+                    '#F43F5E', // Rose
+                    '#FB923C', // Orange
+                    '#FBBF24', // Amber
+                    '#34D399', // Emerald
+                    '#14B8A6', // Teal
+                    '#06B6D4', // Cyan
+                    '#0EA5E9'  // Sky
                 ],
                 borderWidth: 0,
                 hoverOffset: 8
             }]
         };
 
-        const statusCtx = document.getElementById('statusChart').getContext('2d');
-        new Chart(statusCtx, {
+        const groupCtx = document.getElementById('groupChart').getContext('2d');
+        new Chart(groupCtx, {
             type: 'doughnut',
-            data: statusData,
+            data: groupData,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -1351,6 +1365,13 @@
                 }
             }
         });
-    });
+    }
+    
+    // Initialize charts when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCharts);
+    } else {
+        initCharts();
+    }
 </script>
 {% endblock %}

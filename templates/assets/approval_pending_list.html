@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Pending Approvals{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <div class="content-header">
+        <div>
+            <h1 class="page-heading">Pending Approvals</h1>
+            <p class="page-subtext">{{ total_pending }} request(s) awaiting your approval</p>
+        </div>
+    </div>
+
+    {% if pending_requests %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Asset Requests Pending Approval</h3>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Asset Name</th>
+                    <th>Category</th>
+                    <th>Requested By</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in pending_requests %}
+                <tr>
+                    <td>
+                        <a href="{% url 'approval-request-detail' request.id %}" style="color:#2563eb; text-decoration:none;">
+                            {{ request.id|truncatechars:13 }}
+                        </a>
+                    </td>
+                    <td>{{ request.data.asset_name }}</td>
+                    <td>{{ request.data.asset_category }}</td>
+                    <td>{{ request.data.requested_by|default:request.requester.get_full_name }}</td>
+                    <td>{{ request.created_at|date:"d M Y" }}</td>
+                    <td>
+                        <span class="status-badge status-{{ request.status|lower }}">
+                            {% if request.status == 'PENDING' %}
+                                Awaiting Checker
+                            {% elif request.status == 'CHECKER_APPROVED' %}
+                                Awaiting Senior Manager
+                            {% else %}
+                                {{ request.get_status_display }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'approval-request-detail' request.id %}" class="btn-link">Review</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    {% include 'includes/pagination.html' %}
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <div style="text-align:center; padding:48px 24px;">
+            <div style="font-size:48px; margin-bottom:16px;">✓</div>
+            <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:600;">No Pending Approvals</h3>
+            <p style="color:#6b7280; margin:0;">All requests have been reviewed. Great job!</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .data-table { width:100%; border-collapse:collapse; margin-top:16px; }
+    .data-table th { background:#f9f9f9; padding:12px; text-align:left; font-weight:600; border-bottom:2px solid #e5e7eb; }
+    .data-table td { padding:12px; border-bottom:1px solid #e5e7eb; }
+    .data-table tr:hover { background:#f9f9f9; }
+    .btn-link { color:#2563eb; text-decoration:none; font-weight:500; }
+    .btn-link:hover { text-decoration:underline; }
+    .empty-state { background:white; border-radius:8px; margin-top:24px; border:1px solid #e5e7eb; }
+</style>
+{% endblock %}

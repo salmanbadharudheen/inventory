@@ -1,0 +1,111 @@
+class AssetDisposal(TenantAwareModel):
+    """
+    Track asset disposal/retirement requests with approval workflow.
+    Employees can request asset disposal; admins approve.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', _('Pending Approval')
+        APPROVED = 'APPROVED', _('Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+        COMPLETED = 'COMPLETED', _('Disposal Completed')
+        CANCELLED = 'CANCELLED', _('Cancelled')
+
+    class DisposalMethod(models.TextChoices):
+        SCRAP = 'SCRAP', _('Scrap')
+        DONATE = 'DONATE', _('Donate')
+        SELL = 'SELL', _('Sell')
+        RECYCLE = 'RECYCLE', _('Recycle')
+        DISCARD = 'DISCARD', _('Discard')
+        OTHER = 'OTHER', _('Other')
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Asset being disposed
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='disposals')
+
+    # Requester (employee)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='disposal_requests'
+    )
+
+    # Disposal details
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING
+    )
+
+    disposal_method = models.CharField(
+        max_length=50,
+        choices=DisposalMethod.choices,
+        default=DisposalMethod.SCRAP,
+        help_text="Method of disposal"
+    )
+
+    reason = models.TextField(
+        blank=True,
+        help_text="Reason for disposal (e.g., End of life, Damaged, Obsolete)"
+    )
+
+    disposal_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Planned or actual disposal date"
+    )
+
+    estimated_salvage_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Estimated value if sold or donated"
+    )
+
+    # Approval tracking
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='disposals_approved'
+    )
+
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    rejection_reason = models.TextField(
+        blank=True,
+        help_text="Reason for rejection if rejected"
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes or comments"
+    )
+
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Asset Disposal"
+        verbose_name_plural = "Asset Disposals"
+
+    def __str__(self):
+        return f"Disposal {self.asset.asset_tag} - {self.get_status_display()}"
+
+    @property
+    def is_pending(self):
+        return self.status == self.Status.PENDING
+
+    @property
+    def can_be_approved(self):
+        return self.status == self.Status.PENDING
+
+    @property
+    def can_be_rejected(self):
+        return self.status == self.Status.PENDING

@@ -1,0 +1,663 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Approvals Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    * {
+        box-sizing: border-box;
+    }
+    
+    body {
+        background: #f8fafc;
+    }
+    
+    .approval-container {
+        padding: 2rem 0;
+    }
+    
+    /* ===== HEADER SECTION ===== */
+    .approval-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: white;
+        padding: 3rem 2.5rem;
+        border-radius: 16px;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+    }
+    
+    .approval-header::before {
+        content: '';
+        position: absolute;
+        top: -100px;
+        right: -100px;
+        width: 400px;
+        height: 400px;
+        background: rgba(59, 130, 246, 0.1);
+        border-radius: 50%;
+    }
+    
+    .approval-header::after {
+        content: '';
+        position: absolute;
+        bottom: -50px;
+        left: -50px;
+        width: 300px;
+        height: 300px;
+        background: rgba(34, 197, 94, 0.1);
+        border-radius: 50%;
+    }
+    
+    .approval-header-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .approval-header h1 {
+        margin: 0;
+        font-weight: 800;
+        font-size: 2.8rem;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        margin-bottom: 2rem;
+        letter-spacing: -0.6px;
+    }
+    
+    .approval-header h1 i {
+        font-size: 3.2rem;
+        opacity: 0.9;
+    }
+    
+    .stat-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .stat-card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 1.8rem;
+        border-radius: 12px;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+    }
+    
+    .stat-card:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stat-number {
+        font-size: 2.8rem;
+        font-weight: 900;
+        display: block;
+        color: #fff;
+        letter-spacing: -1px;
+    }
+    
+    .stat-label {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin-top: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    
+    /* ===== TABS SECTION ===== */
+    .tabs-container {
+        margin-bottom: 2rem;
+    }
+    
+    .nav-tabs {
+        background: white;
+        border: none;
+        padding: 1.2rem 1.5rem;
+        border-radius: 12px 12px 0 0;
+        gap: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+    }
+    
+    .nav-tabs .nav-link {
+        color: #64748b;
+        border: none;
+        padding: 0.95rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        border-radius: 10px;
+        position: relative;
+        margin: 0;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #1e293b;
+        background: #f1f5f9;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: white;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        font-weight: 700;
+        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+    }
+    
+    .badge-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        font-weight: 800;
+        font-size: 0.75rem;
+        margin-left: 0.6rem;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* ===== TAB CONTENT ===== */
+    .tab-content-wrapper {
+        background: white;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-top: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+        color: #94a3b8;
+    }
+    
+    .empty-state-icon {
+        font-size: 5rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.5;
+    }
+    
+    .empty-state p {
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 500;
+    }
+    
+    /* ===== APPROVAL ITEMS ===== */
+    .approval-item {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 2rem;
+        align-items: center;
+        padding: 1.8rem 2rem;
+        border-bottom: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+    
+    .approval-item:last-child {
+        border-bottom: none;
+    }
+    
+    .approval-item:hover {
+        background: linear-gradient(90deg, #f8fafc 0%, transparent 100%);
+    }
+    
+    .approval-item-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    
+    .approval-item-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        width: fit-content;
+    }
+    
+    .approval-item-type.disposal {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .approval-item-type.asset {
+        background: #bfdbfe;
+        color: #1e40af;
+    }
+    
+    .approval-item-type.transfer {
+        background: #ddd6fe;
+        color: #6d28d9;
+    }
+    
+    .approval-item-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+        letter-spacing: -0.4px;
+    }
+    
+    .approval-item-meta {
+        font-size: 0.9rem;
+        color: #64748b;
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .approval-item-meta span {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    
+    .approval-item-meta i {
+        opacity: 0.7;
+        width: 16px;
+    }
+    
+    .approval-item-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 150px;
+    }
+    
+    .status-badge {
+        padding: 0.7rem 1.4rem;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        text-align: center;
+    }
+    
+    .status-pending {
+        background: #fef08a;
+        color: #713f12;
+    }
+    
+    .status-manager-approved {
+        background: #bae6fd;
+        color: #0c2d6b;
+    }
+    
+    .status-approved {
+        background: #bbf7d0;
+        color: #003d20;
+    }
+    
+    .status-rejected {
+        background: #fecaca;
+        color: #7f1d1d;
+    }
+    
+    .approval-item-actions {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .btn-action {
+        padding: 0.7rem 1.4rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-view {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+    }
+    
+    .btn-view:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        text-decoration: none;
+        color: white;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
+        transform: translateY(-2px);
+    }
+    
+    .btn-approve {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
+    }
+    
+    .btn-approve:hover {
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        text-decoration: none;
+        color: white;
+        box-shadow: 0 12px 24px rgba(34, 197, 94, 0.3);
+        transform: translateY(-2px);
+    }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+        .approval-item {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        
+        .approval-item-status,
+        .approval-item-actions {
+            justify-content: flex-start;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .approval-header {
+            padding: 2rem 1.5rem;
+        }
+        
+        .approval-header h1 {
+            font-size: 2rem;
+        }
+        
+        .stat-cards-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .nav-tabs {
+            padding: 1rem;
+        }
+        
+        .nav-tabs .nav-link {
+            padding: 0.8rem 1.2rem;
+            font-size: 0.9rem;
+        }
+        
+        .approval-item {
+            padding: 1.5rem;
+        }
+        
+        .approval-item-meta {
+            gap: 1rem;
+            font-size: 0.85rem;
+        }
+        
+        .approval-item-actions {
+            width: 100%;
+            flex-direction: column;
+        }
+        
+        .btn-action {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="container-fluid approval-container">
+    <!-- Header with Stats -->
+    <div class="approval-header">
+        <div class="approval-header-content">
+            <h1>
+                <i class="fas fa-clipboard-check"></i>
+                Approvals Dashboard
+            </h1>
+            <div class="stat-cards-grid">
+                <div class="stat-card">
+                    <span class="stat-number">{{ total_pending }}</span>
+                    <span class="stat-label">Pending</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ total_approved }}</span>
+                    <span class="stat-label">Approved</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ total_rejected }}</span>
+                    <span class="stat-label">Rejected</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ disposal_pending }}</span>
+                    <span class="stat-label">Disposals</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for different approval types -->
+    <div class="tabs-container">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-tab-pane" type="button" role="tab">
+                    <i class="fas fa-list"></i> All Approvals
+                    {% if total_pending > 0 %}
+                        <span class="badge-count">{{ total_pending }}</span>
+                    {% endif %}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="disposal-tab" data-bs-toggle="tab" data-bs-target="#disposal-tab-pane" type="button" role="tab">
+                    <i class="fas fa-trash-alt"></i> Asset Disposals
+                    {% if disposal_pending > 0 %}
+                        <span class="badge-count">{{ disposal_pending }}</span>
+                    {% endif %}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="asset-tab" data-bs-toggle="tab" data-bs-target="#asset-tab-pane" type="button" role="tab">
+                    <i class="fas fa-cube"></i> Asset Approvals
+                    {% if asset_pending > 0 %}
+                        <span class="badge-count">{{ asset_pending }}</span>
+                    {% endif %}
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- All Approvals Tab -->
+        <div class="tab-pane fade show active" id="all-tab-pane" role="tabpanel">
+            <div class="tab-content-wrapper">
+                {% if all_approvals %}
+                    {% for approval in all_approvals %}
+                    <div class="approval-item">
+                        <div class="approval-item-left">
+                            <span class="approval-item-type {% if approval.type == 'disposal' %}disposal{% else %}asset{% endif %}">
+                                {% if approval.type == 'disposal' %}
+                                    <i class="fas fa-trash-alt"></i> Disposal
+                                {% else %}
+                                    <i class="fas fa-cube"></i> Asset
+                                {% endif %}
+                            </span>
+                            <h3 class="approval-item-title">
+                                {% if approval.type == 'disposal' %}
+                                    {{ approval.asset.asset_tag }} - {{ approval.asset.name|truncatewords:4 }}
+                                {% else %}
+                                    {{ approval.asset_name|truncatewords:5 }}
+                                {% endif %}
+                            </h3>
+                            <div class="approval-item-meta">
+                                {% if approval.type == 'disposal' %}
+                                    <span><i class="fas fa-circle-question"></i> {{ approval.get_disposal_method_display }}</span>
+                                    <span><i class="fas fa-calendar"></i> {{ approval.created_at|date:"M d, Y" }}</span>
+                                    <span><i class="fas fa-user"></i> {{ approval.requested_by.get_full_name|default:approval.requested_by.username }}</span>
+                                {% else %}
+                                    <span><i class="fas fa-cogs"></i> {{ approval.request_type }}</span>
+                                    <span><i class="fas fa-calendar"></i> {{ approval.created_at|date:"M d, Y" }}</span>
+                                    <span><i class="fas fa-user"></i> {{ approval.requester.get_full_name|default:approval.requester.username }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="approval-item-status">
+                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'MANAGER_APPROVED' %}status-manager-approved{% elif approval.status == 'APPROVED' %}status-approved{% elif approval.status == 'REJECTED' %}status-rejected{% endif %}">
+                                {{ approval.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="approval-item-actions">
+                            <a href="{% if approval.type == 'disposal' %}{% url 'disposal-detail' approval.pk %}{% else %}{% url 'approval-request-detail' approval.pk %}{% endif %}" class="btn-action btn-view">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% if approval.can_approve %}
+                                <a href="{% if approval.type == 'disposal' %}{% if approval.status == 'PENDING' %}{% url 'disposal-manager-approve' approval.pk %}{% else %}{% url 'disposal-approve' approval.pk %}{% endif %}{% else %}{% url 'approval-request-approve' approval.pk %}{% endif %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check"></i> Review
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <p>No approvals to display</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Asset Disposals Tab -->
+        <div class="tab-pane fade" id="disposal-tab-pane" role="tabpanel">
+            <div class="tab-content-wrapper">
+                {% if disposals %}
+                    {% for disposal in disposals %}
+                    <div class="approval-item">
+                        <div class="approval-item-left">
+                            <span class="approval-item-type disposal">
+                                <i class="fas fa-trash-alt"></i> Disposal
+                            </span>
+                            <h3 class="approval-item-title">
+                                {{ disposal.asset.asset_tag }} - {{ disposal.asset.name|truncatewords:4 }}
+                            </h3>
+                            <div class="approval-item-meta">
+                                <span><i class="fas fa-circle-question"></i> {{ disposal.get_disposal_method_display }}</span>
+                                <span><i class="fas fa-calendar"></i> {{ disposal.created_at|date:"M d, Y" }}</span>
+                                <span><i class="fas fa-user"></i> {{ disposal.requested_by.get_full_name|default:disposal.requested_by.username }}</span>
+                                {% if disposal.manager_approved_by %}
+                                    <span style="color: #059669;"><i class="fas fa-check"></i> Manager: {{ disposal.manager_approved_by.get_full_name|truncatewords:2 }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="approval-item-status">
+                            <span class="status-badge {% if disposal.status == 'PENDING' %}status-pending{% elif disposal.status == 'MANAGER_APPROVED' %}status-manager-approved{% elif disposal.status == 'APPROVED' %}status-approved{% elif disposal.status == 'REJECTED' %}status-rejected{% endif %}">
+                                {{ disposal.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="approval-item-actions">
+                            <a href="{% url 'disposal-detail' disposal.pk %}" class="btn-action btn-view">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% if user.role in 'SENIOR_MANAGER,CHECKER' and disposal.status == 'PENDING' %}
+                                <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check-double"></i> Manager Review
+                                </a>
+                            {% elif user.is_superuser or user.role == 'ADMIN' and disposal.status == 'MANAGER_APPROVED' %}
+                                <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check"></i> Admin Approve
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🗑️</div>
+                        <p>No disposal approvals</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Asset Approvals Tab -->
+        <div class="tab-pane fade" id="asset-tab-pane" role="tabpanel">
+            <div class="tab-content-wrapper">
+                {% if asset_approvals %}
+                    {% for approval in asset_approvals %}
+                    <div class="approval-item">
+                        <div class="approval-item-left">
+                            <span class="approval-item-type asset">
+                                <i class="fas fa-cube"></i> {{ approval.get_request_type_display }}
+                            </span>
+                            <h3 class="approval-item-title">
+                                {{ approval.asset.asset_tag }} - {{ approval.asset.name|truncatewords:4 }}
+                            </h3>
+                            <div class="approval-item-meta">
+                                <span><i class="fas fa-cogs"></i> {{ approval.get_request_type_display }}</span>
+                                <span><i class="fas fa-calendar"></i> {{ approval.created_at|date:"M d, Y" }}</span>
+                                <span><i class="fas fa-user"></i> {{ approval.requester.get_full_name|default:approval.requester.username }}</span>
+                            </div>
+                        </div>
+                        <div class="approval-item-status">
+                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'APPROVED' %}status-approved{% elif approval.status == 'REJECTED' %}status-rejected{% endif %}">
+                                {{ approval.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="approval-item-actions">
+                            <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-action btn-view">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% if approval.status == 'PENDING' %}
+                                <a href="{% url 'approval-request-approve' approval.pk %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✓</div>
+                        <p>No asset approvals</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Footer -->
+    <div style="margin-top: 3rem; text-align: center; color: #94a3b8; font-size: 0.9rem;">
+        <p><i class="fas fa-sync-alt"></i> Last updated: <strong id="update-time">just now</strong></p>
+    </div>
+</div>
+<script>
+    // Update the "last updated" time
+    function updateTimestamp() {
+        const timeEl = document.getElementById('update-time');
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        timeEl.textContent = `${hours}:${minutes}`;
+    }
+    
+    updateTimestamp();
+    setInterval(updateTimestamp, 60000); // Update every minute
+</script>
+{% endblock %}

@@ -1,0 +1,613 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block page_title %}Depreciation Report - Category Breakdown{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hide base.html sidebar and adjust layout */
+    body {
+        display: flex !important;
+    }
+    
+    .sidebar {
+        display: none !important;
+    }
+    
+    .main-content {
+        width: 100% !important;
+        flex: 1 !important;
+    }
+    
+    .container-main {
+        width: 100% !important;
+    }
+
+    .page-title {
+        display: none !important;
+    }
+
+    /* Deprecation Report Sidebar - Matching base.html design */
+    .depr-sidebar-wrapper {
+        width: 260px;
+        background: var(--bg-sidebar);
+        color: var(--text-on-sidebar);
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid var(--border-sidebar);
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+        height: 100vh;
+        overflow-y: auto;
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 99;
+    }
+
+    .depr-sidebar-brand {
+        padding: 2rem 1.5rem;
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: var(--text-on-sidebar);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border-bottom: 2px solid var(--border-sidebar);
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .depr-sidebar-brand svg {
+        color: var(--primary);
+        width: 24px;
+        height: 24px;
+        stroke-width: 2;
+        flex-shrink: 0;
+    }
+
+    .depr-sidebar-menu {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 0;
+    }
+
+    .depr-sidebar-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .depr-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+        padding: 0.875rem 1.5rem;
+        color: var(--text-secondary-sidebar);
+        text-decoration: none;
+        transition: all 0.25s ease;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .depr-nav-item:hover {
+        color: var(--text-on-sidebar);
+        background: rgba(99, 102, 241, 0.12);
+        border-left-color: var(--primary);
+    }
+
+    .depr-nav-item.active {
+        color: var(--text-on-sidebar);
+        background: rgba(99, 102, 241, 0.2);
+        border-left-color: var(--primary);
+        font-weight: 600;
+    }
+
+    .depr-nav-item svg {
+        width: 18px;
+        height: 18px;
+        stroke-width: 2;
+        flex-shrink: 0;
+    }
+
+    .depr-sidebar-footer {
+        padding: 1.25rem 1.5rem;
+        border-top: 2px solid var(--border-sidebar);
+        font-size: 0.8rem;
+        color: var(--text-secondary-sidebar);
+        opacity: 0.9;
+        background: rgba(99, 102, 241, 0.04);
+    }
+
+    .depr-content-wrapper {
+        margin-left: 260px;
+        padding: 2rem;
+        background: var(--bg-page);
+        min-height: 100vh;
+    }
+
+    .depr-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .depr-header h2 {
+        font-size: 2.125rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin: 0;
+        letter-spacing: -0.8px;
+    }
+
+    .depr-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .depr-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .depr-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .stat-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--primary);
+        line-height: 1.2;
+    }
+
+    .depr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9375rem;
+    }
+
+    .depr-table thead {
+        background: var(--bg-secondary);
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .depr-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: -0.3px;
+    }
+
+    .depr-table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: background 0.15s ease;
+    }
+
+    .depr-table tbody tr:hover {
+        background: var(--bg-secondary);
+    }
+
+    .depr-table td {
+        padding: 1rem;
+        color: var(--text-primary);
+    }
+
+    .depr-right {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .depr-filter-section {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .depr-filter-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .depr-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .form-group-depr {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group-depr label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .form-group-depr input,
+    .form-group-depr select {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-family: inherit;
+        background: white;
+        color: var(--text-primary);
+    }
+
+    .form-group-depr input:focus,
+    .form-group-depr select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+    }
+
+    .depr-table-container {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .depr-section-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.3px;
+    }
+
+    .depr-button-group {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .depr-btn {
+        padding: 0.5rem 1.25rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .depr-btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .depr-btn-primary:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+    }
+
+    .depr-btn-secondary {
+        background: transparent;
+        border: 1px solid var(--primary);
+        color: var(--primary);
+    }
+
+    .depr-btn-secondary:hover {
+        background: rgba(var(--primary-rgb), 0.05);
+    }
+
+    .depr-active-filters {
+        background: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid var(--primary);
+        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.875rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) { 
+        .depr-filter-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 1024px) { 
+        .depr-cards { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } 
+        .depr-filter-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) { 
+        .depr-cards { grid-template-columns: 1fr; }
+        .depr-filter-grid { grid-template-columns: 1fr; }
+        .depr-header h2 { font-size: 1.125rem; }
+        .depr-content-wrapper { margin-left: 0; padding: 1rem; }
+        .depr-sidebar-wrapper { width: 100%; height: auto; position: relative; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Custom Depreciation Report Sidebar -->
+<div class="depr-sidebar-wrapper">
+    <div class="depr-sidebar-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Reports</span>
+    </div>
+    
+    <nav class="depr-sidebar-menu">
+        <div class="depr-sidebar-section">
+            <a href="{% url 'asset-list' %}?view=depreciation" class="depr-nav-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Summary</span>
+            </a>
+            <a href="{% url 'depreciation-category' %}" class="depr-nav-item active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>Category</span>
+            </a>
+            <a href="{% url 'depreciation-group' %}" class="depr-nav-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Group</span>
+            </a>
+            <a href="{% url 'depreciation-location' %}" class="depr-nav-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <span>Location</span>
+            </a>
+            <a href="{% url 'depreciation-department' %}" class="depr-nav-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>Department</span>
+            </a>
+            <a href="#all-assets" class="depr-nav-item" style="opacity: 0.6; cursor: not-allowed;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6-6 6 6"></path>
+                    <path d="M9 20h6v-8H9v8z"></path>
+                </svg>
+                <span>All Assets</span>
+            </a>
+        </div>
+    </nav>
+    
+    <div class="depr-sidebar-footer">
+        Financial Depreciation Report
+    </div>
+</div>
+
+<!-- Main Content Wrapper -->
+<div class="depr-content-wrapper">
+    <div class="depr-header">
+        <div>
+            <h2>Category Depreciation Breakdown</h2>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="depr-filter-section">
+        <form method="get" style="display: contents;">
+            <div style="display: contents;">
+                <div class="depr-filter-title">Filters</div>
+                <div class="depr-filter-grid">
+                    <div class="form-group-depr">
+                        <label for="search">Search</label>
+                        <input type="text" id="search" name="q" placeholder="Asset name, tag..." value="{{ search_query }}">
+                    </div>
+                    <div class="form-group-depr">
+                        <label for="date_from">From Date</label>
+                        <input type="date" id="date_from" name="depr_date_from" value="{{ depr_date_from }}">
+                    </div>
+                    <div class="form-group-depr">
+                        <label for="date_to">To Date</label>
+                        <input type="date" id="date_to" name="depr_date_to" value="{{ depr_date_to }}">
+                    </div>
+                    <div class="form-group-depr">
+                        <label for="category">Category</label>
+                        <select id="category" name="depr_category">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == depr_category %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group-depr">
+                        <label for="group">Group</label>
+                        <select id="group" name="depr_group">
+                            <option value="">All Groups</option>
+                            {% for g in groups %}
+                            <option value="{{ g.id }}" {% if g.id|stringformat:"s" == depr_group %}selected{% endif %}>{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group-depr">
+                        <label for="department">Department</label>
+                        <select id="department" name="depr_department">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == depr_department %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="depr-button-group">
+                    <button type="submit" class="depr-btn depr-btn-primary">Apply Filters</button>
+                    <a href="{% url 'depreciation-category' %}" class="depr-btn depr-btn-secondary" style="text-decoration: none; display: inline-block;">Clear All</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="depr-cards">
+        <div class="depr-card">
+            <span class="stat-label">Total Purchase Cost</span>
+            <span class="stat-value">
+                {% if total_cost %}
+                    AED {{ total_cost|floatformat:2|intcomma }}
+                {% else %}
+                    AED 0.00
+                {% endif %}
+            </span>
+            {% if is_estimate %}<span style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">*Estimated</span>{% endif %}
+        </div>
+        <div class="depr-card">
+            <span class="stat-label">Accumulated Depreciation</span>
+            <span class="stat-value" style="color:#dc2626;">
+                {% if total_acc_dep %}
+                    -AED {{ total_acc_dep|floatformat:2|intcomma }}
+                {% else %}
+                    -AED 0.00
+                {% endif %}
+            </span>
+        </div>
+        <div class="depr-card">
+            <span class="stat-label">Net Book Value (NBV)</span>
+            <span class="stat-value" style="color:#22c55e;">
+                {% if total_nbv %}
+                    AED {{ total_nbv|floatformat:2|intcomma }}
+                {% else %}
+                    AED 0.00
+                {% endif %}
+            </span>
+        </div>
+        <div class="depr-card">
+            <span class="stat-label">Total Assets</span>
+            <span class="stat-value" style="color:#3b82f6;">
+                {{ total_assets_report|default:"0" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Category Breakdown Table -->
+    <div style="margin-top: 2rem;">
+        <h3 class="depr-section-title">Category Depreciation Summary</h3>
+        <div class="depr-table-container">
+            <table class="depr-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th style="text-align:center; width:80px;">Count</th>
+                        <th class="depr-right">Purchase Cost</th>
+                        <th class="depr-right">Accumulated Depreciation</th>
+                        <th class="depr-right">Net Book Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if grouped_data %}
+                        {% for g in grouped_data %}
+                        <tr>
+                            <td>
+                                <a href="?{% if query_params %}{{ query_params }}&{% endif %}depr_category={{ g.id }}" style="text-decoration:none; color:var(--primary); font-weight:600;">{{ g.name }}</a>
+                            </td>
+                            <td style="text-align:center; font-weight:600;">{{ g.count }}</td>
+                            <td class="depr-right">AED {{ g.total_cost|floatformat:2|intcomma }}</td>
+                            <td class="depr-right" style="color:#dc2626;">-AED {{ g.total_acc_dep|floatformat:2|intcomma }}</td>
+                            <td class="depr-right" style="color:#22c55e; font-weight:700;">AED {{ g.total_nbv|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">No data available</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Assets Table -->
+    <div style="margin-top: 2rem;">
+        <h3 class="depr-section-title">Asset Details</h3>
+        <div class="depr-table-container">
+            <div style="overflow-x:auto;">
+                <table class="depr-table">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Category</th>
+                            <th>Purchase Date</th>
+                            <th class="depr-right">Cost</th>
+                            <th class="depr-right">Acc. Depr.</th>
+                            <th class="depr-right">NBV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'asset-detail' asset.id %}" style="color:var(--primary); text-decoration:none; font-weight:600;">{{ asset.asset_tag|default:asset.name }}</a>
+                            </td>
+                            <td>{{ asset.category.name|default:"—" }}</td>
+                            <td>{{ asset.purchase_date|date:"d/m/Y"|default:"—" }}</td>
+                            <td class="depr-right">AED {{ asset.purchase_price|floatformat:2|intcomma|default:"—" }}</td>
+                            <td class="depr-right" style="color:#dc2626;">-AED {{ asset.accumulated_depreciation|floatformat:2|intcomma }}</td>
+                            <td class="depr-right" style="color:#22c55e; font-weight:700;">AED {{ asset.current_value|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center; justify-content: center;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">First</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">Previous</a>
+            {% endif %}
+            <span style="font-weight:600;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">Last</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

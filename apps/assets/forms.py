@@ -1,6 +1,6 @@
 from django import forms
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
-                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer)
+                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 from django.utils.translation import gettext_lazy as _
 
@@ -241,34 +241,41 @@ class AssetRemarksForm(forms.ModelForm):
 class AssetTransferForm(forms.ModelForm):
     """Form for creating and updating asset transfers"""
     
+    
     class Meta:
         model = AssetTransfer
         fields = [
-            'asset',
-            'transferred_from_user',
-            'transferred_from_department',
-            'transferred_from_location',
-            'transferred_to_user',
+            'transfer_no',
+            'transfer_description',
+            'transferred_to_region',
+            'transferred_to_site',
+            'transferred_to_building',
+            'transferred_to_floor',
+            'transferred_to_room',
+            'transferred_to_company',
             'transferred_to_department',
-            'transferred_to_location',
-            'expected_receipt_date',
-            'transfer_reason',
-            'notes',
+            'transferred_to_custodian',
+            'movement_reason',
+            'requester_name',
+            'asset',
         ]
         widgets = {
-            'asset': forms.Select(attrs={'class': 'form-control', 'required': True}),
-            'transferred_from_user': forms.Select(attrs={'class': 'form-control'}),
-            'transferred_from_department': forms.Select(attrs={'class': 'form-control'}),
-            'transferred_from_location': forms.Select(attrs={'class': 'form-control'}),
-            'transferred_to_user': forms.Select(attrs={'class': 'form-control'}),
+            'transfer_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional transfer reference'}),
+            'transfer_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Short description for this transfer'}),
+            'transferred_to_region': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_site': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_building': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_floor': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_room': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_company': forms.Select(attrs={'class': 'form-control'}),
             'transferred_to_department': forms.Select(attrs={'class': 'form-control'}),
-            'transferred_to_location': forms.Select(attrs={'class': 'form-control'}),
-            'expected_receipt_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'transfer_reason': forms.TextInput(attrs={
+            'transferred_to_custodian': forms.Select(attrs={'class': 'form-control'}),
+            'movement_reason': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'e.g., Employee promotion, Department restructuring'
+                'placeholder': 'Specific reason for this movement'
             }),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional notes'}),
+            'requester_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Requester name (free text)'}),
+            'asset': forms.HiddenInput(),
         }
     
     def __init__(self, *args, **kwargs):
@@ -279,27 +286,31 @@ class AssetTransferForm(forms.ModelForm):
         if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
             self.fields['asset'].queryset = Asset.objects.filter(organization=org)
-            self.fields['transferred_from_user'].queryset = (
-                Asset.objects.filter(organization=org).values_list('assigned_to', flat=True)
-            )
-            self.fields['transferred_to_user'].queryset = (
-                Asset.objects.filter(organization=org).values_list('assigned_to', flat=True)
-            )
-            self.fields['transferred_from_department'].queryset = Department.objects.filter(organization=org)
-            self.fields['transferred_to_department'].queryset = Department.objects.filter(organization=org)
-            self.fields['transferred_from_location'].queryset = Location.objects.filter(organization=org)
-            self.fields['transferred_to_location'].queryset = Location.objects.filter(organization=org)
+            # Populate the 'to' selects
+            self.fields['transferred_to_region'].queryset = Region.objects.filter(organization=org)
+            self.fields['transferred_to_site'].queryset = Site.objects.filter(region__organization=org)
+            # Buildings are linked to Locations -> derive buildings available via locations
+            self.fields['transferred_to_building'].queryset = Building.objects.filter(locations__site__region__organization=org).distinct()
+            self.fields['transferred_to_floor'].queryset = Floor.objects.filter(building__branch__organization=org)
+            self.fields['transferred_to_room'].queryset = Room.objects.filter(floor__building__branch__organization=org)
+            self.fields['transferred_to_company'].queryset = Company.objects.filter(organization=org)
+            self.fields['transferred_to_department'].queryset = Department.objects.filter(branch__organization=org)
+            self.fields['transferred_to_custodian'].queryset = Custodian.objects.filter(organization=org)
         
-        # Make from/to fields optional
-        self.fields['transferred_from_user'].required = False
-        self.fields['transferred_from_department'].required = False
-        self.fields['transferred_from_location'].required = False
-        self.fields['transferred_to_user'].required = False
+        # Make all fields optional (bulk form handles multiple assets via JS)
+        self.fields['transfer_no'].required = False
+        self.fields['asset'].required = False
+        self.fields['transfer_description'].required = False
+        self.fields['transferred_to_region'].required = False
+        self.fields['transferred_to_site'].required = False
+        self.fields['transferred_to_building'].required = False
+        self.fields['transferred_to_floor'].required = False
+        self.fields['transferred_to_room'].required = False
+        self.fields['transferred_to_company'].required = False
         self.fields['transferred_to_department'].required = False
-        self.fields['transferred_to_location'].required = False
-        self.fields['transfer_reason'].required = False
-        self.fields['notes'].required = False
-        self.fields['expected_receipt_date'].required = False
+        self.fields['transferred_to_custodian'].required = False
+        self.fields['movement_reason'].required = False
+        self.fields['requester_name'].required = False
 
 
 class AssetTransferReceiveForm(forms.ModelForm):
@@ -323,3 +334,93 @@ class AssetTransferReceiveForm(forms.ModelForm):
         ]
         self.fields['actual_receipt_date'].required = False
         self.fields['received_comments'].required = False
+
+
+class AssetDisposalForm(forms.ModelForm):
+    """Form for creating/editing asset disposal requests with searchable asset field"""
+    
+    # Searchable asset field using ModelChoiceField with custom widget
+    asset = forms.ModelChoiceField(
+        queryset=Asset.objects.all(),
+        widget=forms.Select(attrs={
+            'class': 'form-control searchable-select',
+            'required': True,
+            'data-placeholder': 'Search and select an asset...'
+        })
+    )
+    
+    class Meta:
+        model = AssetDisposal
+        fields = ['asset', 'disposal_method', 'reason', 'disposal_date', 'estimated_salvage_value', 'notes']
+        widgets = {
+            'disposal_method': forms.Select(attrs={'class': 'form-control'}),
+            'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for disposal'}),
+            'disposal_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'estimated_salvage_value': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional notes'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter assets by organization - supports searching by asset_tag and name
+        if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
+            org = self.request.user.organization
+            self.fields['asset'].queryset = Asset.objects.filter(
+                organization=org,
+                status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
+            ).order_by('asset_tag')
+        
+        self.fields['disposal_date'].required = False
+        self.fields['estimated_salvage_value'].required = False
+        self.fields['reason'].required = False
+        self.fields['notes'].required = False
+    
+    def __str__(self):
+        """Display asset with tag and name for better searchability"""
+        return f"{self.asset_tag} - {self.name}"
+
+
+class AssetDisposalManagerApprovalForm(forms.ModelForm):
+    """Form for manager approval of asset disposal requests (step 1)"""
+    
+    class Meta:
+        model = AssetDisposal
+        fields = ['status', 'manager_rejection_reason', 'notes']
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'manager_rejection_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for rejection'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Manager comments'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only allow manager to approve or reject
+        self.fields['status'].choices = [
+            (AssetDisposal.Status.MANAGER_APPROVED, _('Approve & Send to Admin')),
+            (AssetDisposal.Status.REJECTED, _('Reject')),
+        ]
+
+
+class AssetDisposalApprovalForm(forms.ModelForm):
+    """Form for admin final approval/rejection of asset disposal requests (step 2)"""
+    
+    class Meta:
+        model = AssetDisposal
+        fields = ['status', 'rejection_reason', 'notes']
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'rejection_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for rejection'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Admin approval notes'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only allow admin to approve or reject
+        self.fields['status'].choices = [
+            (AssetDisposal.Status.APPROVED, _('Approve')),
+            (AssetDisposal.Status.REJECTED, _('Reject')),
+        ]
+        self.fields['rejection_reason'].required = False
+        self.fields['notes'].required = False

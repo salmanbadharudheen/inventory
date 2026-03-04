@@ -24,9 +24,9 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 class ApprovalAccessMixin(LoginRequiredMixin):
     """Mixin to ensure user has approval workflow access"""
     def test_func(self):
-        """User must be data entry, checker, senior manager, or admin"""
+        """User must be employee, checker, senior manager, or admin"""
         user = self.request.user
-        return user.is_data_entry or user.is_checker or user.is_senior_manager or user.is_superuser or user.role == User.Role.ADMIN
+        return (user.role == User.Role.EMPLOYEE) or user.is_checker or user.is_senior_manager or user.is_superuser or user.role == User.Role.ADMIN
     
     def handle_no_permission(self):
         messages.error(self.request, "You don't have permission to access approval workflows.")
@@ -55,14 +55,14 @@ class SeniorManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return super().handle_no_permission()
 
 
-class DataEntryRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Mixin to ensure user is data entry"""
+class EmployeeRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Mixin to ensure user is employee"""
     def test_func(self):
         user = self.request.user
-        return user.is_data_entry or user.is_superuser or user.role == User.Role.ADMIN
-    
+        return (user.role == User.Role.EMPLOYEE) or user.is_superuser or user.role == User.Role.ADMIN
+
     def handle_no_permission(self):
-        messages.error(self.request, "Only data entry users can create approval requests.")
+        messages.error(self.request, "Only employees can create approval requests.")
         return super().handle_no_permission()
 
 class SignUpView(CreateView):
@@ -105,19 +105,19 @@ class AdminDashboardView(AdminRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         
         if self.request.user.is_superuser:
-            # Superuser sees global stats
+            # Superuser sees global stats - use only() for minimal queries
             context['total_users'] = User.objects.count()
             context['total_orgs'] = Organization.objects.count()
-            context['total_assets'] = Asset.objects.count()
+            context['total_assets'] = Asset.objects.filter(is_deleted=False).count()
             context['admin_users'] = User.objects.filter(role=User.Role.ADMIN).count()
-            context['organizations'] = Organization.objects.all()[:5]
+            context['organizations'] = Organization.objects.only('id', 'name')[:5]
         else:
             # Regular admin sees organization-specific stats
             org = self.request.user.organization
             if org:
                 context['total_users'] = User.objects.filter(organization=org).count()
                 context['total_orgs'] = 1  # Their organization only
-                context['total_assets'] = Asset.objects.filter(organization=org).count()
+                context['total_assets'] = Asset.objects.filter(organization=org, is_deleted=False).count()
                 context['admin_users'] = User.objects.filter(
                     organization=org, 
                     role=User.Role.ADMIN

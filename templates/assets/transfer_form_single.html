@@ -1,0 +1,592 @@
+{% extends 'base.html' %}
+
+{% block page_title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">
+                {% if form.instance.pk %}Edit Transfer{% else %}Create New Asset Transfer{% endif %}
+            </h1>
+        </div>
+
+        <form method="post" class="asset-form">
+            {% csrf_token %}
+
+            <!-- Asset Lookup Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">Asset Lookup</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Asset Number / Tag <span class="text-danger">*</span>
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <input 
+                                type="text" 
+                                id="asset-search-input" 
+                                class="form-control" 
+                                placeholder="e.g., ASSET-001, LAP-123"
+                                style="flex: 1;"
+                            />
+                            <button type="button" id="asset-search-btn" class="btn-search" title="Search for asset">
+                                <i data-lucide="search"></i> Search
+                            </button>
+                        </div>
+                        <input type="hidden" id="asset-id-hidden" name="asset" value="{{ form.asset.value|default:'' }}" />
+                    </div>
+                </div>
+
+                <!-- Asset Found Display -->
+                <div id="asset-found-info" style="display: none; margin-top: 16px; padding: 12px; background: #e8f5e9; border: 1px solid #4caf50; border-radius: 4px;">
+                    <div style="color: #2e7d32; font-weight: 600; margin-bottom: 8px;">✓ Asset Found</div>
+                    <div id="asset-found-tag" style="font-size: 13px; margin: 4px 0;"><strong>Tag:</strong> <span></span></div>
+                    <div id="asset-found-name" style="font-size: 13px; margin: 4px 0;"><strong>Name:</strong> <span></span></div>
+                </div>
+
+                <!-- Asset Not Found Display -->
+                <div id="asset-error-info" style="display: none; margin-top: 16px; padding: 12px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px;">
+                    <div style="color: #c62828; font-weight: 600;">✕ Asset not found</div>
+                    <div style="font-size: 13px; color: #d32f2f; margin-top: 4px;">Please check the asset number and try again.</div>
+                </div>
+            </div>
+
+            <!-- FROM Location Section (Auto-populated from asset lookup) -->
+            <div class="form-section">
+                <h3 class="form-section-title">From (Current Location & Organization)</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_region.id_for_label }}" class="form-label">Region</label>
+                        {{ form.transferred_from_region }}
+                        {% if form.transferred_from_region.errors %}
+                        <div class="form-error">{{ form.transferred_from_region.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_site.id_for_label }}" class="form-label">Site</label>
+                        {{ form.transferred_from_site }}
+                        {% if form.transferred_from_site.errors %}
+                        <div class="form-error">{{ form.transferred_from_site.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_building.id_for_label }}" class="form-label">Building</label>
+                        {{ form.transferred_from_building }}
+                        {% if form.transferred_from_building.errors %}
+                        <div class="form-error">{{ form.transferred_from_building.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_floor.id_for_label }}" class="form-label">Floor</label>
+                        {{ form.transferred_from_floor }}
+                        {% if form.transferred_from_floor.errors %}
+                        <div class="form-error">{{ form.transferred_from_floor.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_room.id_for_label }}" class="form-label">Room</label>
+                        {{ form.transferred_from_room }}
+                        {% if form.transferred_from_room.errors %}
+                        <div class="form-error">{{ form.transferred_from_room.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_company.id_for_label }}" class="form-label">Company</label>
+                        {{ form.transferred_from_company }}
+                        {% if form.transferred_from_company.errors %}
+                        <div class="form-error">{{ form.transferred_from_company.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_custodian.id_for_label }}" class="form-label">Custodian</label>
+                        {{ form.transferred_from_custodian }}
+                        {% if form.transferred_from_custodian.errors %}
+                        <div class="form-error">{{ form.transferred_from_custodian.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Legacy fields for backwards compatibility -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_user.id_for_label }}" class="form-label">From User</label>
+                        {{ form.transferred_from_user }}
+                        {% if form.transferred_from_user.errors %}
+                        <div class="form-error">{{ form.transferred_from_user.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transferred_from_department.id_for_label }}" class="form-label">From Department</label>
+                        {{ form.transferred_from_department }}
+                        {% if form.transferred_from_department.errors %}
+                        <div class="form-error">{{ form.transferred_from_department.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- TO Location Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">To (Destination Location & Organization)</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.transferred_to_user.id_for_label }}" class="form-label">To User</label>
+                        {{ form.transferred_to_user }}
+                        {% if form.transferred_to_user.errors %}
+                        <div class="form-error">{{ form.transferred_to_user.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transferred_to_department.id_for_label }}" class="form-label">To Department</label>
+                        {{ form.transferred_to_department }}
+                        {% if form.transferred_to_department.errors %}
+                        <div class="form-error">{{ form.transferred_to_department.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">To Building</label>
+                        <select id="to-building" name="to_building" class="form-control">
+                            <option value="">Select Building</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To Floor</label>
+                        <select id="to-floor" name="to_floor" class="form-control">
+                            <option value="">Select Floor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To Room</label>
+                        <select id="to-room" name="to_room" class="form-control">
+                            <option value="">Select Room</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.transferred_to_location.id_for_label }}" class="form-label">To Location</label>
+                        {{ form.transferred_to_location }}
+                        {% if form.transferred_to_location.errors %}
+                        <div class="form-error">{{ form.transferred_to_location.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Movement Details Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">Movement Details</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.movement_reason.id_for_label }}" class="form-label">Movement Reason</label>
+                        {{ form.movement_reason }}
+                        {% if form.movement_reason.errors %}
+                        <div class="form-error">{{ form.movement_reason.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.request_by.id_for_label }}" class="form-label">Request By</label>
+                        {{ form.request_by }}
+                        {% if form.request_by.errors %}
+                        <div class="form-error">{{ form.request_by.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.expected_receipt_date.id_for_label }}" class="form-label">Expected Receipt Date</label>
+                        {{ form.expected_receipt_date }}
+                        {% if form.expected_receipt_date.errors %}
+                        <div class="form-error">{{ form.expected_receipt_date.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.transfer_reason.id_for_label }}" class="form-label">Transfer Reason</label>
+                        {{ form.transfer_reason }}
+                        {% if form.transfer_reason.errors %}
+                        <div class="form-error">{{ form.transfer_reason.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Additional Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <div class="form-error">{{ form.notes.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn-primary-action">
+                    <i data-lucide="save"></i> 
+                    {% if form.instance.pk %}Update Transfer{% else %}Create Transfer{% endif %}
+                </button>
+                <a href="{% url 'transfer-list' %}" class="btn-secondary-action">
+                    <i data-lucide="x"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 900px;
+        margin: 20px auto;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-header {
+        margin-bottom: 24px;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 16px;
+    }
+
+    .form-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .form-section {
+        margin-bottom: 24px;
+        padding: 16px;
+        background: #f9f9f9;
+        border-radius: 6px;
+        border-left: 4px solid #007bff;
+    }
+
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 16px 0;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: #555;
+        font-size: 14px;
+    }
+
+    .form-control {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+        background-color: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .form-error {
+        color: #d32f2f;
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+    .text-danger {
+        color: #d32f2f;
+    }
+
+    .form-actions {
+        margin-top: 32px;
+        padding-top: 16px;
+        border-top: 2px solid #f0f0f0;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-start;
+    }
+
+    .btn-primary-action, .btn-secondary-action {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary-action {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary-action:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-secondary-action {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary-action:hover {
+        background-color: #545b62;
+    }
+
+    .btn-search {
+        padding: 10px 16px;
+        border: 1px solid #007bff;
+        background: #007bff;
+        color: white;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-search:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    [data-lucide] {
+        width: 16px;
+        height: 16px;
+        display: inline-block;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+
+        // ===== Asset Search Functionality =====
+        const assetSearchBtn = document.getElementById('asset-search-btn');
+        const assetSearchInput = document.getElementById('asset-search-input');
+        const assetIdHidden = document.getElementById('asset-id-hidden');
+        const assetFoundInfo = document.getElementById('asset-found-info');
+        const assetErrorInfo = document.getElementById('asset-error-info');
+
+        async function searchAsset(searchQuery) {
+            if (!searchQuery.trim()) {
+                assetFoundInfo.style.display = 'none';
+                assetErrorInfo.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Search by asset tag or number
+                const url = new URL('{% url "asset-lookup" %}', window.location.origin);
+                url.searchParams.set('asset_tag', searchQuery.trim());
+                
+                const resp = await fetch(url.toString());
+                if (!resp.ok) throw new Error('Not found');
+                
+                const data = await resp.json();
+                const asset = data.asset;
+
+                // Display found info
+                document.querySelector('#asset-found-tag span').textContent = asset.asset_tag || 'N/A';
+                document.querySelector('#asset-found-name span').textContent = asset.name || asset.asset_tag;
+                assetFoundInfo.style.display = 'block';
+                assetErrorInfo.style.display = 'none';
+
+                // Store asset ID
+                assetIdHidden.value = asset.id;
+
+                // Auto-populate "From" location fields
+                populateFromFields(asset, data);
+
+            } catch (err) {
+                console.error('Asset search error:', err);
+                assetFoundInfo.style.display = 'none';
+                assetErrorInfo.style.display = 'block';
+            }
+        }
+
+        assetSearchBtn.addEventListener('click', function() {
+            searchAsset(assetSearchInput.value);
+        });
+
+        assetSearchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchAsset(assetSearchInput.value);
+            }
+        });
+
+        // ===== Populate "From" fields from asset lookup =====
+        function populateFromFields(asset, data) {
+            // Set region
+            const regionSel = document.querySelector('select[name="transferred_from_region"]');
+            if (regionSel && asset.region) {
+                const opt = Array.from(regionSel.options).find(o => o.textContent === asset.region.name);
+                if (opt) regionSel.value = opt.value;
+            }
+
+            // Set site
+            const siteSel = document.querySelector('select[name="transferred_from_site"]');
+            if (siteSel && asset.site) {
+                const opt = Array.from(siteSel.options).find(o => o.textContent === asset.site.name);
+                if (opt) siteSel.value = opt.value;
+            }
+
+            // Set building
+            const buildingSel = document.querySelector('select[name="transferred_from_building"]');
+            if (buildingSel && asset.building) {
+                const opt = Array.from(buildingSel.options).find(o => o.textContent === asset.building.name);
+                if (opt) buildingSel.value = opt.value;
+            }
+
+            // Set floor
+            const floorSel = document.querySelector('select[name="transferred_from_floor"]');
+            if (floorSel && asset.floor) {
+                const opt = Array.from(floorSel.options).find(o => o.textContent === asset.floor.name);
+                if (opt) floorSel.value = opt.value;
+            }
+
+            // Set room
+            const roomSel = document.querySelector('select[name="transferred_from_room"]');
+            if (roomSel && asset.room) {
+                const opt = Array.from(roomSel.options).find(o => o.textContent === asset.room.name);
+                if (opt) roomSel.value = opt.value;
+            }
+
+            // Set company
+            const companySel = document.querySelector('select[name="transferred_from_company"]');
+            if (companySel && asset.company) {
+                const opt = Array.from(companySel.options).find(o => o.textContent === asset.company.name);
+                if (opt) companySel.value = opt.value;
+            }
+
+            // Set custodian
+            const custodianSel = document.querySelector('select[name="transferred_from_custodian"]');
+            if (custodianSel && asset.custodian) {
+                const opt = Array.from(custodianSel.options).find(o => o.textContent === asset.custodian.name);
+                if (opt) custodianSel.value = opt.value;
+            }
+
+            // Set user
+            const userSel = document.querySelector('select[name="transferred_from_user"]');
+            if (userSel && asset.assigned_to) {
+                const opt = Array.from(userSel.options).find(o => o.textContent === asset.assigned_to.name);
+                if (opt) userSel.value = opt.value;
+            }
+
+            // Set department
+            const deptSel = document.querySelector('select[name="transferred_from_department"]');
+            if (deptSel && asset.department) {
+                const opt = Array.from(deptSel.options).find(o => o.textContent === asset.department.name);
+                if (opt) deptSel.value = opt.value;
+            }
+        }
+
+        // ===== "To" Location Cascading Selectors =====
+        const toBuilding = document.getElementById('to-building');
+        const toFloor = document.getElementById('to-floor');
+        const toRoom = document.getElementById('to-room');
+        const toLocationSel = document.querySelector('select[name="transferred_to_location"]');
+
+        async function populateSelectFromUrl(sel, url, paramsKey, paramVal) {
+            sel.innerHTML = '<option value="">Loading...</option>';
+            const u = new URL(url, window.location.origin);
+            if (paramVal) u.searchParams.set(paramsKey, paramVal);
+            
+            try {
+                const res = await fetch(u.toString());
+                if (!res.ok) { sel.innerHTML = '<option value="">—</option>'; return; }
+                const data = await res.json();
+                sel.innerHTML = '<option value="">—</option>';
+                data.forEach(function(it){
+                    const o = document.createElement('option');
+                    o.value = it.id; 
+                    o.textContent = it.name; 
+                    sel.appendChild(o);
+                });
+            } catch (err) {
+                sel.innerHTML = '<option value="">—</option>';
+            }
+        }
+
+        // Initialize building selector on load
+        (async function initToSelectors(){
+            const url = new URL('{% url "get-buildings" %}', window.location.origin);
+            await populateSelectFromUrl(toBuilding, url.toString(), 'branch_id', '');
+        })();
+
+        // Wire up cascading selectors
+        toBuilding.addEventListener('change', async function(){
+            const bid = this.value;
+            if (!bid) { 
+                toFloor.innerHTML = '<option value="">—</option>'; 
+                toRoom.innerHTML = '<option value="">—</option>'; 
+                toLocationSel.value = '';
+                return; 
+            }
+            await populateSelectFromUrl(toFloor, '{% url "get-floors" %}', 'building_id', bid);
+            await populateSelectFromUrl(toLocationSel, '{% url "get-locations" %}', 'building_id', bid);
+        });
+
+        toFloor.addEventListener('change', async function(){
+            const fid = this.value;
+            if (!fid) { 
+                toRoom.innerHTML = '<option value="">—</option>'; 
+                return; 
+            }
+            await populateSelectFromUrl(toRoom, '{% url "get-rooms" %}', 'floor_id', fid);
+        });
+    });
+</script>
+{% endblock %}

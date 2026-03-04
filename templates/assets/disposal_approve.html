@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Approve Disposal Request{% endblock %}
+
+{% block content %}
+<style>
+    .approval-header {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    
+    .approval-header h1 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .approval-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .asset-summary {
+        background: linear-gradient(135deg, #f0fdf4 0%, #f0fdf4 100%);
+        border: 2px solid #10b981;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .summary-item label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #047857;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+    
+    .summary-item strong {
+        display: block;
+        font-size: 1rem;
+        color: #065f46;
+    }
+    
+    .approval-form {
+        background: white;
+        border-radius: 8px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section-title {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f3f4f6;
+    }
+    
+    .form-group-wrapper {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group-wrapper label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #1f2937;
+        font-size: 0.95rem;
+    }
+    
+    .form-group-wrapper input,
+    .form-group-wrapper select,
+    .form-group-wrapper textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        transition: all 0.2s;
+    }
+    
+    .form-group-wrapper input:focus,
+    .form-group-wrapper select:focus,
+    .form-group-wrapper textarea:focus {
+        outline: none;
+        border-color: #059669;
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+    
+    .form-group-wrapper textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+    
+    .form-help-text {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+    
+    .form-error {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    }
+    
+    .admin-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #dbeafe;
+        color: #0c4a6e;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .decision-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .decision-option {
+        position: relative;
+    }
+    
+    .decision-option input[type="radio"] {
+        display: none;
+    }
+    
+    .decision-label {
+        display: block;
+        padding: 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .decision-option input[type="radio"]:checked + .decision-label {
+        border-color: #059669;
+        background: #f0fdf4;
+        color: #059669;
+    }
+    
+    .decision-option.reject input[type="radio"]:checked + .decision-label {
+        border-color: #dc2626;
+        background: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+    
+    .btn-approve {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    
+    .btn-approve:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px rgba(5, 150, 105, 0.3);
+    }
+    
+    .btn-cancel {
+        background: white;
+        color: #6b7280;
+        padding: 1rem 2rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-cancel:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+</style>
+
+<div class="approval-header">
+    <h1><i class="fas fa-clipboard-check"></i> Approve Disposal Request</h1>
+    <p style="opacity: 0.9; margin-top: 0.5rem; margin-bottom: 0;">Review and make a final decision on this disposal request</p>
+</div>
+
+<div class="approval-container">
+    <!-- Asset Summary -->
+    <div class="asset-summary">
+        <div class="summary-grid">
+            <div class="summary-item">
+                <label>Asset Tag</label>
+                <strong style="font-family: 'Courier New', monospace;">{{ form.instance.asset.asset_tag }}</strong>
+            </div>
+            <div class="summary-item">
+                <label>Asset Name</label>
+                <strong>{{ form.instance.asset.name }}</strong>
+            </div>
+            <div class="summary-item">
+                <label>Requested By</label>
+                <strong>{{ form.instance.requested_by.get_full_name|default:form.instance.requested_by.username }}</strong>
+            </div>
+            <div class="summary-item">
+                <label>Disposal Method</label>
+                <strong>{{ form.instance.get_disposal_method_display }}</strong>
+            </div>
+            <div class="summary-item">
+                <label>Request Date</label>
+                <strong>{{ form.instance.created_at|date:"M d, Y H:i" }}</strong>
+            </div>
+            <div class="summary-item">
+                <label>Reason</label>
+                <strong style="white-space: pre-wrap;">{{ form.instance.reason|default:"Not provided" }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Form -->
+    <div class="approval-form">
+        <div class="admin-badge">
+            <i class="fas fa-shield-alt"></i> Admin Approval Required
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem; color: #991b1b;">
+                <strong>Error:</strong>
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Decision Section -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-gavel"></i> Your Decision</h3>
+                
+                <div class="decision-buttons">
+                    <div class="decision-option">
+                        <input type="radio" id="approve" name="status" value="APPROVED" required>
+                        <label for="approve" class="decision-label">
+                            <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
+                            <span>Approve Request</span>
+                        </label>
+                    </div>
+                    <div class="decision-option reject">
+                        <input type="radio" id="reject" name="status" value="REJECTED" required>
+                        <label for="reject" class="decision-label">
+                            <i class="fas fa-times-circle" style="font-size: 1.5rem;"></i>
+                            <span>Reject Request</span>
+                        </label>
+                    </div>
+                </div>
+                
+                {% if form.status.errors %}
+                <div class="form-error">{{ form.status.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Rejection Reason -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-comment-dots"></i> Comments</h3>
+                
+                <div class="form-group-wrapper">
+                    <label for="{{ form.rejection_reason.id_for_label }}">Rejection Reason</label>
+                    {{ form.rejection_reason }}
+                    <p class="form-help-text">Required if rejecting. Explain why this request cannot be approved.</p>
+                    {% if form.rejection_reason.errors %}
+                    <div class="form-error">{{ form.rejection_reason.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group-wrapper">
+                    <label for="{{ form.notes.id_for_label }}">Approval Notes</label>
+                    {{ form.notes }}
+                    <p class="form-help-text">Optional additional comments or instructions for the requester</p>
+                    {% if form.notes.errors %}
+                    <div class="form-error">{{ form.notes.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="button-group">
+                <button type="submit" class="btn-approve">
+                    <i class="fas fa-check"></i> Submit Decision
+                </button>
+                <a href="{% url 'disposal-detail' form.instance.pk %}" class="btn-cancel">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

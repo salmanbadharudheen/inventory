@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View
+from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.db.models import Q
@@ -7,9 +7,9 @@ from django.contrib import messages
 import csv
 import io
 from .models import (Asset, AssetAttachment, Category, SubCategory, Vendor, generate_asset_tag,
-                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer)
+                     Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from .forms import (AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm,
-                    GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm, AssetTransferForm, AssetTransferReceiveForm)
+                    GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm, AssetTransferForm, AssetTransferReceiveForm, AssetDisposalForm, AssetDisposalManagerApprovalForm, AssetDisposalApprovalForm)
 from django.db import transaction
 from apps.locations.models import (Branch, Building, Floor, Room, 
                                    Region, Site, Location, SubLocation, Department)
@@ -41,6 +41,15 @@ def get_buildings(request):
         return JsonResponse(list(buildings), safe=False)
     return JsonResponse([], safe=False)
 
+
+def get_buildings_by_site(request):
+    """Return buildings associated with a given site (via Location->building link)."""
+    site_id = request.GET.get('site_id')
+    if site_id:
+        buildings = Building.objects.filter(locations__site_id=site_id).distinct().values('id', 'name')
+        return JsonResponse(list(buildings), safe=False)
+    return JsonResponse([], safe=False)
+
 def get_floors(request):
     building_id = request.GET.get('building_id')
     if building_id:
@@ -55,10 +64,19 @@ def get_rooms(request):
         return JsonResponse(list(rooms), safe=False)
     return JsonResponse(list(rooms), safe=False)
 
+def get_locations(request):
+    """Return locations filtered by building_id (optional)."""
+    building_id = request.GET.get('building_id')
+    if building_id:
+        locations = Location.objects.filter(building_id=building_id).values('id', 'name')
+        return JsonResponse(list(locations), safe=False)
+    return JsonResponse([], safe=False)
+
 def lookup_asset(request):
-    # Support lookup by free-text `q` (tag/name/code) or by explicit `asset_id`.
+    # Support lookup by free-text `q` (tag/name/code), `asset_tag`, or by explicit `asset_id`.
     asset_id = request.GET.get('asset_id')
     query = request.GET.get('q')
+    asset_tag = request.GET.get('asset_tag')
 
     asset = None
     org = getattr(request.user, 'organization', None)
@@ -67,10 +85,23 @@ def lookup_asset(request):
         try:
             asset = Asset.objects.select_related(
                 'department', 'branch', 'building', 'floor', 'room',
-                'region', 'site', 'location', 'sub_location', 'assigned_to'
+                'region', 'site', 'location', 'sub_location', 'assigned_to',
+                'company', 'custodian'
             ).get(id=asset_id, organization=org)
         except Asset.DoesNotExist:
             asset = None
+
+    elif asset_tag:
+        # Search by asset tag
+        asset = Asset.objects.filter(
+            Q(asset_tag__iexact=asset_tag) | 
+            Q(custom_asset_tag__iexact=asset_tag),
+            organization=org
+        ).select_related(
+            'department', 'branch', 'building', 'floor', 'room',
+            'region', 'site', 'location', 'sub_location', 'assigned_to',
+            'company', 'custodian'
+        ).first()
 
     elif query:
         # Prioritize exact match on tags, then partial on name
@@ -79,6 +110,10 @@ def lookup_asset(request):
             Q(custom_asset_tag__iexact=query) |
             Q(asset_code__iexact=query),
             organization=org
+        ).select_related(
+            'department', 'branch', 'building', 'floor', 'room',
+            'region', 'site', 'location', 'sub_location', 'assigned_to',
+            'company', 'custodian'
         ).first()
 
         if not asset:
@@ -86,6 +121,10 @@ def lookup_asset(request):
             asset = Asset.objects.filter(
                 name__icontains=query,
                 organization=org
+            ).select_related(
+                'department', 'branch', 'building', 'floor', 'room',
+                'region', 'site', 'location', 'sub_location', 'assigned_to',
+                'company', 'custodian'
             ).first()
 
     if not asset:
@@ -95,6 +134,14 @@ def lookup_asset(request):
     assigned = None
     if asset.assigned_to:
         assigned = {'id': asset.assigned_to.id, 'name': asset.assigned_to.get_full_name() or asset.assigned_to.username}
+
+    company = None
+    if hasattr(asset, 'company') and asset.company:
+        company = {'id': asset.company.id, 'name': asset.company.name}
+
+    custodian = None
+    if hasattr(asset, 'custodian') and asset.custodian:
+        custodian = {'id': asset.custodian.id, 'name': asset.custodian.name}
 
     current = {
         'id': str(asset.id),
@@ -110,6 +157,8 @@ def lookup_asset(request):
         'location': {'id': asset.location.id, 'name': asset.location.name} if getattr(asset, 'location', None) else None,
         'sub_location': {'id': asset.sub_location.id, 'name': asset.sub_location.name} if getattr(asset, 'sub_location', None) else None,
         'assigned_to': assigned,
+        'company': company,
+        'custodian': custodian,
         'status': asset.status,
     }
 
@@ -213,9 +262,10 @@ class AssetListView(LoginRequiredMixin, ListView):
             organization=self.request.user.organization,
             is_deleted=False
         ).select_related(
-            'category', 'branch', 'assigned_to', 
-            'site', 'building', 'brand_new', 'room'
-        )
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'sub_location', 'group'
+        ).prefetch_related('attachments')
 
         # Search across many asset fields and common related names
         query = self.request.GET.get('q')
@@ -289,30 +339,155 @@ class AssetListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         org = self.request.user.organization
         
-        # Dropdown data for filters
-        context['categories'] = Category.objects.filter(organization=org).order_by('name')
-        context['sites'] = Site.objects.filter(organization=org).order_by('name')
-        context['buildings'] = Building.objects.filter(organization=org).order_by('name')
-        context['brands'] = Brand.objects.filter(organization=org).order_by('name')
-        context['departments'] = Department.objects.filter(organization=org).order_by('name')
-        context['subcategories'] = SubCategory.objects.filter(organization=org).order_by('name')
-        context['groups'] = Group.objects.filter(organization=org).order_by('name')
+        # Use only() to reduce database load for filter dropdowns
+        context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['brands'] = Brand.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['subcategories'] = SubCategory.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['statuses'] = Asset.Status.choices
 
         if self.request.GET.get('view') == 'depreciation':
-            # Calculate totals for the visible queryset (respects filters)
-            queryset = self.get_queryset()
-            all_visible = list(queryset)
+            # Depreciation report with efficient aggregation
+            from django.db.models import Sum, Count
+            from django.db.models.functions import Coalesce
             
-            total_cost = sum((a.purchase_price or Decimal('0')) for a in all_visible)
-            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible)
-            total_nbv = sum(a.current_value for a in all_visible)
+            queryset = self.get_queryset()
+            
+            # Add date filtering for depreciation report
+            depr_date_from = self.request.GET.get('depr_date_from')
+            depr_date_to = self.request.GET.get('depr_date_to')
+            
+            if depr_date_from:
+                try:
+                    from datetime import datetime
+                    date_from = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
+                    queryset = queryset.filter(purchase_date__gte=date_from)
+                except (ValueError, TypeError):
+                    pass
+            if depr_date_to:
+                try:
+                    from datetime import datetime
+                    date_to = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
+                    queryset = queryset.filter(purchase_date__lte=date_to)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Add location and category filters for depreciation report
+            depr_filters = {
+                'depr_category': 'category_id',
+                'depr_group': 'group_id',
+                'depr_department': 'department_id',
+                'depr_site': 'site_id',
+                'depr_branch': 'branch_id',
+                'depr_building': 'building_id',
+                'depr_location': 'location_id',
+            }
+            
+            for param, field in depr_filters.items():
+                val = self.request.GET.get(param)
+                if val:
+                    queryset = queryset.filter(**{field: val})
+                    context[param] = val
+            
+            # Use database aggregation directly for efficiency
+            # Only aggregate purchase_price (a database field)
+            agg = queryset.aggregate(
+                total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+                total_count=Count('id')
+            )
+            
+            total_cost = agg['total_cost']
+            total_count = agg['total_count']
+            
+            # For large datasets, estimate depreciation from a sample
+            # This avoids loading millions of records
+            SAMPLE_SIZE = 5000  # Process only 5000 assets to calculate percentages
+            if total_count > SAMPLE_SIZE:
+                # For very large datasets, calculate on sample
+                sample_qs = queryset[:SAMPLE_SIZE]
+                sample_list = list(sample_qs)
+                avg_depreciation_ratio = (
+                    sum(a.accumulated_depreciation for a in sample_list) / 
+                    sum(a.purchase_price or Decimal('0') for a in sample_list)
+                ) if any(a.purchase_price for a in sample_list) else 0
+                
+                # Estimate total depreciation
+                total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
+                total_nbv = total_cost - total_acc_dep
+                
+                context['is_estimate'] = True
+                context['sample_size'] = SAMPLE_SIZE
+            else:
+                # For small datasets, calculate exact values
+                all_visible = list(queryset)
+                total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
+                total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
+                context['is_estimate'] = False
             
             context['total_cost'] = total_cost
             context['total_acc_dep'] = total_acc_dep
             context['total_nbv'] = total_nbv
             context['is_report'] = True
+            context['total_assets_report'] = total_count
+            context['depr_date_from'] = depr_date_from
+            context['depr_date_to'] = depr_date_to
             
+            # Support grouped summaries
+            group_by = self.request.GET.get('group_by')
+            context['group_by'] = group_by
+            
+            if group_by == 'category':
+                # Efficient category grouping without loading all assets
+                grouped_data = queryset.values('category', 'category__name').annotate(
+                    count=Count('id'),
+                    total_cost=Sum('purchase_price')
+                ).order_by('-total_cost')[:100]  # Limit to top 100 categories
+                
+                # For grouped depreciation, estimate from database-level aggregations
+                grouped_list = []
+                for group in grouped_data:
+                    cat_id = group['category']
+                    cat_qs = queryset.filter(category_id=cat_id)
+                    cat_count = group['count']
+                    
+                    if cat_count > SAMPLE_SIZE:
+                        # Estimate for large categories
+                        sample = list(cat_qs[:SAMPLE_SIZE])
+                        if sample and any(a.purchase_price for a in sample):
+                            avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
+                            total_cat_dep = (group['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
+                        else:
+                            total_cat_dep = Decimal('0')
+                    else:
+                        # Exact for small categories
+                        cat_assets = list(cat_qs)
+                        total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+                    
+                    grouped_list.append({
+                        'id': cat_id,
+                        'name': group['category__name'] or 'Uncategorized',
+                        'total_cost': group['total_cost'] or Decimal('0'),
+                        'total_acc_dep': total_cat_dep,
+                        'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
+                        'count': cat_count,
+                    })
+                context['grouped_data'] = grouped_list
+            
+            # Paginate the filtered depreciation assets
+            from django.core.paginator import Paginator
+            paginator = Paginator(queryset, 25)  # 25 items per page
+            page_number = self.request.GET.get('page', 1)
+            page_obj = paginator.get_page(page_number)
+            
+            context['assets'] = list(page_obj.object_list)
+            context['page_obj'] = page_obj
+            context['is_paginated'] = page_obj.has_other_pages()
+        
         # Ensure filters persist during pagination
         query_params = self.request.GET.copy()
         if 'page' in query_params:
@@ -636,9 +811,41 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
                 # 5. Numerical Parsing
                 def parse_decimal(val):
-                    if val is None or str(val).strip() == '': return None
-                    try: return Decimal(str(val).replace(',', ''))
-                    except: return None
+                    """Parse a numeric value robustly from CSV/Excel imports.
+
+                    Accepts values like "5,000.00", "AED 5,000.00", "$5,000", "(5,000.00)" and returns Decimal or None.
+                    """
+                    if val is None:
+                        return None
+                    s = str(val).strip()
+                    if s == '':
+                        return None
+
+                    # Handle parentheses for negative values: (1,234.56)
+                    negative = False
+                    if s.startswith('(') and s.endswith(')'):
+                        negative = True
+                        s = s[1:-1].strip()
+
+                    # Remove any currency letters/symbols but keep digits, dot, comma and minus
+                    try:
+                        import re
+                        s = re.sub(r"[^0-9.,\-]", "", s)
+                    except Exception:
+                        # Fallback: remove common non-numeric chars
+                        s = s.replace('AED', '').replace('$', '').replace('USD', '')
+
+                    # Normalize commas and dots (remove thousands separators)
+                    s = s.replace(',', '')
+
+                    if s in ('', '-', '.'):
+                        return None
+
+                    try:
+                        d = Decimal(s)
+                        return -d if negative else d
+                    except Exception:
+                        return None
                 
                 def parse_int(val, default=None):
                     if val is None or str(val).strip() == '': return default
@@ -1105,43 +1312,60 @@ from .models import ApprovalRequest, ApprovalLog
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import HttpResponseRedirect
-from apps.users.views import ApprovalAccessMixin, CheckerRequiredMixin, SeniorManagerRequiredMixin, DataEntryRequiredMixin
+from apps.users.views import ApprovalAccessMixin, CheckerRequiredMixin, SeniorManagerRequiredMixin, EmployeeRequiredMixin
 
-class ApprovalListView(ApprovalAccessMixin, ListView):
-    """List approval requests for current user"""
-    model = ApprovalRequest
+class ApprovalListView(ApprovalAccessMixin, TemplateView):
+    """Unified approvals dashboard showing both asset approvals and disposal requests"""
     template_name = 'assets/approval_list.html'
-    context_object_name = 'approvals'
-    paginate_by = 20
     
-    def get_queryset(self):
+    def get_disposal_queryset(self):
+        """Get relevant disposal approvals based on user role"""
+        user = self.request.user
+        org = user.organization
+        
+        # Managers see PENDING disposals to review
+        if user.role in [user.Role.SENIOR_MANAGER, user.Role.CHECKER]:
+            return AssetDisposal.objects.filter(
+                organization=org,
+                status=AssetDisposal.Status.PENDING
+            ).order_by('-created_at')
+        
+        # Admins see MANAGER_APPROVED disposals awaiting final approval
+        elif user.is_superuser or user.role == user.Role.ADMIN:
+            return AssetDisposal.objects.filter(
+                organization=org,
+                status=AssetDisposal.Status.MANAGER_APPROVED
+            ).order_by('-created_at')
+        
+        # Employees see their own disposal requests
+        elif user.role == user.Role.EMPLOYEE:
+            return AssetDisposal.objects.filter(
+                organization=org,
+                requested_by=user
+            ).order_by('-created_at')
+        
+        return AssetDisposal.objects.none()
+    
+    def get_asset_approval_queryset(self):
+        """Get relevant asset approval requests based on user role"""
         user = self.request.user
         
-        # Checkers see pending requests and requests they approved
+        # Checkers see pending requests
         if user.is_checker:
             return ApprovalRequest.objects.filter(
                 organization=user.organization,
-                status__in=[
-                    ApprovalRequest.Status.PENDING,
-                    ApprovalRequest.Status.CHECKER_APPROVED,
-                    ApprovalRequest.Status.CHECKER_REJECTED
-                ]
+                status=ApprovalRequest.Status.PENDING
             ).order_by('-created_at')
         
-        # Senior managers see all requests that need approval or they've already approved
+        # Senior managers see checker-approved requests
         elif user.is_senior_manager:
             return ApprovalRequest.objects.filter(
                 organization=user.organization,
-                status__in=[
-                    ApprovalRequest.Status.CHECKER_APPROVED,
-                    ApprovalRequest.Status.SENIOR_APPROVED,
-                    ApprovalRequest.Status.SENIOR_REJECTED,
-                    ApprovalRequest.Status.APPROVED
-                ]
+                status=ApprovalRequest.Status.CHECKER_APPROVED
             ).order_by('-created_at')
         
-        # Data entry persons see their own requests
-        elif user.is_data_entry:
+        # Employees can see only their own
+        elif user.role == user.Role.EMPLOYEE:
             return ApprovalRequest.objects.filter(
                 organization=user.organization,
                 requester=user
@@ -1159,12 +1383,71 @@ class ApprovalListView(ApprovalAccessMixin, ListView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
-        # Count pending for user's role
-        queryset = self.get_queryset()
-        if user.is_checker:
-            context['pending_count'] = queryset.filter(status=ApprovalRequest.Status.PENDING).count()
-        elif user.is_senior_manager:
-            context['pending_count'] = queryset.filter(status=ApprovalRequest.Status.CHECKER_APPROVED).count()
+        # Get disposals
+        disposals = self.get_disposal_queryset()
+        
+        # Get asset approvals
+        asset_approvals = self.get_asset_approval_queryset()
+        
+        # Combine all for unified list (sort by created_at)
+        all_approvals = []
+        for disposal in disposals:
+            all_approvals.append({
+                'type': 'disposal',
+                'id': disposal.id,
+                'pk': disposal.pk,
+                'asset': disposal.asset,
+                'status': disposal.status,
+                'get_status_display': disposal.get_status_display(),
+                'created_at': disposal.created_at,
+                'requested_by': disposal.requested_by,
+                'get_disposal_method_display': disposal.get_disposal_method_display(),
+                'disposal_method': disposal.disposal_method,
+                'manager_approved_by': disposal.manager_approved_by,
+                'can_approve': (user.role in [user.Role.SENIOR_MANAGER, user.Role.CHECKER] and disposal.status == AssetDisposal.Status.PENDING) or 
+                               (user.is_superuser or user.role == user.Role.ADMIN) and disposal.status == AssetDisposal.Status.MANAGER_APPROVED
+            })
+        
+        for approval in asset_approvals:
+            all_approvals.append({
+                'type': 'asset',
+                'id': approval.id,
+                'pk': approval.pk,
+                'asset': approval.asset,
+                'asset_name': approval.asset.name if approval.asset else 'N/A',
+                'status': approval.status,
+                'get_status_display': approval.get_status_display(),
+                'created_at': approval.created_at,
+                'requester': approval.requester,
+                'request_type': approval.get_request_type_display(),
+                'can_approve': approval.status in [ApprovalRequest.Status.PENDING, ApprovalRequest.Status.CHECKER_APPROVED]
+            })
+        
+        # Sort by created_at
+        all_approvals.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        # Calculate stats
+        disposal_pending = AssetDisposal.objects.filter(
+            organization=user.organization,
+            status=AssetDisposal.Status.PENDING
+        ).count()
+        
+        asset_pending = ApprovalRequest.objects.filter(
+            organization=user.organization,
+            status=ApprovalRequest.Status.PENDING
+        ).count()
+        
+        # Add to context
+        context['disposals'] = disposals
+        context['asset_approvals'] = asset_approvals
+        context['all_approvals'] = all_approvals
+        context['disposal_pending'] = disposals.filter(status=AssetDisposal.Status.PENDING).count()
+        context['asset_pending'] = asset_approvals.filter(status=ApprovalRequest.Status.PENDING).count()
+        context['total_pending'] = context['disposal_pending'] + context['asset_pending']
+        context['total_approved'] = disposals.filter(status=AssetDisposal.Status.APPROVED).count() + \
+                                   asset_approvals.filter(status=ApprovalRequest.Status.APPROVED).count()
+        context['total_rejected'] = disposals.filter(status=AssetDisposal.Status.REJECTED).count() + \
+                                   asset_approvals.filter(status=ApprovalRequest.Status.PENDING).count()
         
         return context
 
@@ -1177,16 +1460,23 @@ class ApprovalDetailView(ApprovalAccessMixin, DetailView):
     
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser or user.role == user.Role.ADMIN:
-            return ApprovalRequest.objects.filter(organization=user.organization)
-        return ApprovalRequest.objects.filter(organization=user.organization)
+        qs = ApprovalRequest.objects.filter(organization=user.organization)
+        # Admins and approvers may view all requests
+        if user.is_superuser or user.role == user.Role.ADMIN or user.is_checker or user.is_senior_manager:
+            return qs
+        # Employees may view only their own requests
+        if user.role == user.Role.EMPLOYEE:
+            return qs.filter(requester=user)
+        return ApprovalRequest.objects.none()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         approval = self.object
         context['approval_logs'] = approval.approval_logs.all().order_by('-created_at')
-        context['can_approve_checker'] = self.request.user.is_checker and approval.needs_checker_approval
-        context['can_approve_senior'] = self.request.user.is_senior_manager and approval.needs_senior_approval
+        # Only admins (or superusers) can perform approval actions
+        is_admin = self.request.user.is_superuser or self.request.user.role == self.request.user.Role.ADMIN
+        context['can_approve_checker'] = is_admin and approval.needs_checker_approval
+        context['can_approve_senior'] = is_admin and approval.needs_senior_approval
         return context
 
 
@@ -1200,18 +1490,15 @@ class ApprovalApproveView(LoginRequiredMixin, View):
         decision = request.POST.get('decision')  # 'APPROVED' or 'REJECTED'
         comments = request.POST.get('comments', '')
         
-        # Checker approval
-        if user.is_checker and approval.status == ApprovalRequest.Status.PENDING:
+        # Only admins (or superusers) can approve; they advance the request through the workflow
+        if (user.is_superuser or user.role == user.Role.ADMIN) and approval.status == ApprovalRequest.Status.PENDING:
             if decision == 'APPROVED':
                 approval.status = ApprovalRequest.Status.CHECKER_APPROVED
-                messages.success(request, 'Request approved by checker. Pending senior manager approval.')
+                messages.success(request, 'Request approved. Pending senior manager approval.')
             elif decision == 'REJECTED':
                 approval.status = ApprovalRequest.Status.CHECKER_REJECTED
-                messages.warning(request, 'Request rejected by checker.')
-            
+                messages.warning(request, 'Request rejected.')
             approval.save()
-            
-            # Create approval log
             ApprovalLog.objects.create(
                 approval_request=approval,
                 approver=user,
@@ -1220,19 +1507,14 @@ class ApprovalApproveView(LoginRequiredMixin, View):
                 comments=comments,
                 organization=user.organization
             )
-        
-        # Senior manager approval
-        elif user.is_senior_manager and approval.status == ApprovalRequest.Status.CHECKER_APPROVED:
+        elif (user.is_superuser or user.role == user.Role.ADMIN) and approval.status == ApprovalRequest.Status.CHECKER_APPROVED:
             if decision == 'APPROVED':
                 approval.status = ApprovalRequest.Status.APPROVED
                 messages.success(request, 'Request fully approved!')
             elif decision == 'REJECTED':
                 approval.status = ApprovalRequest.Status.SENIOR_REJECTED
-                messages.warning(request, 'Request rejected by senior manager.')
-            
+                messages.warning(request, 'Request rejected.')
             approval.save()
-            
-            # Create approval log
             ApprovalLog.objects.create(
                 approval_request=approval,
                 approver=user,
@@ -1241,7 +1523,6 @@ class ApprovalApproveView(LoginRequiredMixin, View):
                 comments=comments,
                 organization=user.organization
             )
-        
         else:
             messages.error(request, 'You do not have permission to approve this request.')
             return HttpResponseRedirect(reverse('approval_detail', args=[pk]))
@@ -1249,8 +1530,8 @@ class ApprovalApproveView(LoginRequiredMixin, View):
         return HttpResponseRedirect(reverse('approval_detail', args=[pk]))
 
 
-class CreateApprovalRequestView(DataEntryRequiredMixin, CreateView):
-    """Data entry person creates approval request for new asset"""
+class CreateApprovalRequestView(EmployeeRequiredMixin, CreateView):
+    """Employee creates approval request for new asset"""
     model = ApprovalRequest
     fields = ['request_type', 'data', 'comments']
     template_name = 'assets/approval_request_form.html'
@@ -1445,6 +1726,7 @@ class MastersListView(LoginRequiredMixin, View):
         context = {
             'page_obj': page_obj,
             'assets': page_obj.object_list,
+            'is_paginated': page_obj.has_other_pages(),
             'total_assets': paginator.count,
             'search_query': search_query,
             'category_filter': category_filter,
@@ -1528,7 +1810,14 @@ class AssetTransferListView(LoginRequiredMixin, ListView):
                 Q(asset__name__icontains=search) |
                 Q(transfer_reason__icontains=search)
             )
-        
+
+        # Employees can create transfers but should only view transfers they initiated or are involved in
+        user = self.request.user
+        if user.role == user.Role.EMPLOYEE:
+            queryset = queryset.filter(
+                Q(created_by=user) | Q(transferred_to_user=user) | Q(transferred_from_user=user)
+            )
+
         return queryset.order_by('-transfer_date')
     
     def get_context_data(self, **kwargs):
@@ -1560,6 +1849,54 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
         form.instance.created_by = self.request.user
+        # Support multiple assets: frontend may submit comma-separated asset IDs in `asset` field
+        asset_field = form.cleaned_data.get('asset') or self.request.POST.get('asset', '')
+        # Normalize to list of ids (strings)
+        if asset_field and isinstance(asset_field, str) and ',' in asset_field:
+            asset_ids = [s.strip() for s in asset_field.split(',') if s.strip()]
+        elif hasattr(asset_field, 'pk'):
+            asset_ids = [str(asset_field.pk)]
+        elif asset_field:
+            asset_ids = [str(asset_field)]
+        else:
+            asset_ids = []
+
+        created = []
+        if asset_ids:
+            for aid in asset_ids:
+                try:
+                    asset_obj = Asset.objects.get(pk=aid, organization=self.request.user.organization)
+                except Asset.DoesNotExist:
+                    continue
+
+                at = AssetTransfer.objects.create(
+                    organization=self.request.user.organization,
+                    created_by=self.request.user,
+                    asset=asset_obj,
+                    transfer_no=form.cleaned_data.get('transfer_no'),
+                    transfer_description=form.cleaned_data.get('transfer_description'),
+                    transferred_to_region=form.cleaned_data.get('transferred_to_region'),
+                    transferred_to_site=form.cleaned_data.get('transferred_to_site'),
+                    transferred_to_building=form.cleaned_data.get('transferred_to_building'),
+                    transferred_to_floor=form.cleaned_data.get('transferred_to_floor'),
+                    transferred_to_room=form.cleaned_data.get('transferred_to_room'),
+                    transferred_to_company=form.cleaned_data.get('transferred_to_company'),
+                    transferred_to_department=form.cleaned_data.get('transferred_to_department'),
+                    transferred_to_custodian=form.cleaned_data.get('transferred_to_custodian'),
+                    movement_reason=form.cleaned_data.get('movement_reason'),
+                    requester_name=form.cleaned_data.get('requester_name'),
+                )
+                created.append(at)
+
+            if created:
+                # Redirect to the first created transfer
+                messages.success(self.request, f'Asset transfer created for {len(created)} asset(s)')
+                return redirect(reverse('transfer-detail', kwargs={'pk': created[0].pk}))
+            else:
+                form.add_error(None, 'No valid assets were provided')
+                return self.form_invalid(form)
+
+        # Fallback: single asset (normal flow)
         response = super().form_valid(form)
         messages.success(self.request, f'Asset transfer created successfully for {form.instance.asset.asset_tag}')
         return response
@@ -1576,7 +1913,7 @@ class AssetTransferDetailView(LoginRequiredMixin, DetailView):
     
     def get_queryset(self):
         org = self.request.user.organization
-        return AssetTransfer.objects.filter(organization=org).select_related(
+        qs = AssetTransfer.objects.filter(organization=org).select_related(
             'asset',
             'transferred_from_user',
             'transferred_from_department',
@@ -1587,6 +1924,11 @@ class AssetTransferDetailView(LoginRequiredMixin, DetailView):
             'created_by',
             'received_by'
         )
+        # Employees may view only transfers they created or where they're involved
+        user = self.request.user
+        if user.role == user.Role.EMPLOYEE:
+            qs = qs.filter(Q(created_by=user) | Q(transferred_to_user=user) | Q(transferred_from_user=user))
+        return qs
 
 
 class AssetTransferUpdateView(LoginRequiredMixin, UpdateView):
@@ -1635,3 +1977,812 @@ class AssetTransferReceiveView(LoginRequiredMixin, UpdateView):
     
     def get_success_url(self):
         return reverse('transfer-detail', kwargs={'pk': self.object.pk})
+
+
+# ========================
+# Asset Disposal Views
+# ========================
+
+class AssetDisposalListView(LoginRequiredMixin, ListView):
+    """List asset disposal requests"""
+    model = AssetDisposal
+    template_name = 'assets/disposal_list.html'
+    context_object_name = 'disposals'
+    paginate_by = 50
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        qs = AssetDisposal.objects.filter(organization=org).select_related(
+            'asset', 'requested_by', 'approved_by'
+        )
+        
+        # Filter by status
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        
+        # Search by asset tag or name
+        search = self.request.GET.get('search')
+        if search:
+            qs = qs.filter(
+                Q(asset__asset_tag__icontains=search) |
+                Q(asset__name__icontains=search)
+            )
+        
+        # Employees can see only their own disposal requests
+        user = self.request.user
+        if user.role == user.Role.EMPLOYEE:
+            qs = qs.filter(requested_by=user)
+        
+        return qs.order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_choices'] = AssetDisposal.Status.choices
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['search'] = self.request.GET.get('search', '')
+        return context
+
+
+class AssetDisposalCreateView(EmployeeRequiredMixin, CreateView):
+    """Create a new asset disposal request (employees only)"""
+    model = AssetDisposal
+    form_class = AssetDisposalForm
+    template_name = 'assets/disposal_form.html'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+    
+    def form_valid(self, form):
+        form.instance.organization = self.request.user.organization
+        form.instance.requested_by = self.request.user
+        messages.success(self.request, 'Asset disposal request submitted successfully')
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('disposal-detail', kwargs={'pk': self.object.pk})
+
+
+class AssetDisposalDetailView(LoginRequiredMixin, DetailView):
+    """View details of an asset disposal request"""
+    model = AssetDisposal
+    template_name = 'assets/disposal_detail.html'
+    context_object_name = 'disposal'
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        qs = AssetDisposal.objects.filter(organization=org).select_related(
+            'asset', 'requested_by', 'approved_by'
+        )
+        
+        # Employees can view only their own disposals
+        user = self.request.user
+        if user.role == user.Role.EMPLOYEE:
+            qs = qs.filter(requested_by=user)
+        
+        return qs
+
+
+class AssetDisposalManagerApproveView(LoginRequiredMixin, UpdateView):
+    """Manager approval of asset disposal request (step 1)"""
+    model = AssetDisposal
+    form_class = AssetDisposalManagerApprovalForm
+    template_name = 'assets/disposal_manager_approve.html'
+    
+    def test_func(self):
+        """Only managers/senior managers can approve disposals first"""
+        return self.request.user.role in [
+            self.request.user.Role.SENIOR_MANAGER,
+            self.request.user.Role.CHECKER
+        ]
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not self.test_func():
+            messages.error(request, 'You do not have permission to review disposal requests.')
+            return redirect('disposal-list')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        return AssetDisposal.objects.filter(organization=org, status=AssetDisposal.Status.PENDING)
+    
+    def form_valid(self, form):
+        form.instance.manager_approved_by = self.request.user
+        form.instance.manager_approved_at = datetime.now()
+        
+        if form.instance.status == AssetDisposal.Status.MANAGER_APPROVED:
+            messages.success(self.request, f'Asset disposal request approved by manager: {form.instance.asset.asset_tag}. Pending admin approval.')
+        elif form.instance.status == AssetDisposal.Status.REJECTED:
+            messages.warning(self.request, f'Asset disposal request rejected by manager: {form.instance.asset.asset_tag}')
+        
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('disposal-detail', kwargs={'pk': self.object.pk})
+
+
+class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
+    """Final admin approval of asset disposal request (step 2)"""
+    model = AssetDisposal
+    form_class = AssetDisposalApprovalForm
+    template_name = 'assets/disposal_approve.html'
+    
+    def test_func(self):
+        """Only admins can give final approval"""
+        return self.request.user.is_superuser or self.request.user.role == self.request.user.Role.ADMIN
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not self.test_func():
+            messages.error(request, 'You do not have permission to approve disposal requests.')
+            return redirect('disposal-list')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        org = self.request.user.organization
+        return AssetDisposal.objects.filter(organization=org, status=AssetDisposal.Status.MANAGER_APPROVED)
+    
+    def form_valid(self, form):
+        form.instance.approved_by = self.request.user
+        form.instance.approved_at = datetime.now()
+        
+        if form.instance.status == AssetDisposal.Status.APPROVED:
+            messages.success(self.request, f'Asset disposal request approved: {form.instance.asset.asset_tag}')
+        elif form.instance.status == AssetDisposal.Status.REJECTED:
+            messages.warning(self.request, f'Asset disposal request rejected: {form.instance.asset.asset_tag}')
+        
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('disposal-detail', kwargs={'pk': self.object.pk})
+
+
+# --- DEPRECIATION REPORT VIEWS ---
+class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
+    """Dedicated view for category-based depreciation report"""
+    model = Asset
+    template_name = 'assets/depreciation_report_category.html'
+    context_object_name = 'assets'
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = Asset.objects.filter(
+            organization=self.request.user.organization,
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
+        )
+
+        # Search filter
+        query = self.request.GET.get('q')
+        if query:
+            q = (
+                Q(name__icontains=query) |
+                Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
+                Q(asset_code__icontains=query) |
+                Q(serial_number__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+            queryset = queryset.filter(q)
+        
+        # Date range filters
+        depr_date_from = self.request.GET.get('depr_date_from')
+        depr_date_to = self.request.GET.get('depr_date_to')
+        
+        if depr_date_from:
+            try:
+                from datetime import datetime
+                date_from = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(purchase_date__gte=date_from)
+            except (ValueError, TypeError):
+                pass
+        if depr_date_to:
+            try:
+                from datetime import datetime
+                date_to = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(purchase_date__lte=date_to)
+            except (ValueError, TypeError):
+                pass
+        
+        # Dimension filters
+        depr_filters = {
+            'depr_category': 'category_id',
+            'depr_group': 'group_id',
+            'depr_department': 'department_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_location': 'location_id',
+        }
+        
+        for param, field in depr_filters.items():
+            val = self.request.GET.get(param)
+            if val:
+                queryset = queryset.filter(**{field: val})
+        
+        return queryset.order_by('-purchase_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        queryset = self.get_queryset()
+        
+        # Summary totals
+        from django.db.models import Sum, Count
+        from django.db.models.functions import Coalesce
+        
+        agg = queryset.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id')
+        )
+        
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        
+        SAMPLE_SIZE = 5000
+        if total_count > SAMPLE_SIZE:
+            sample_qs = queryset[:SAMPLE_SIZE]
+            sample_list = list(sample_qs)
+            avg_depreciation_ratio = (
+                sum(a.accumulated_depreciation for a in sample_list) / 
+                sum(a.purchase_price or Decimal('0') for a in sample_list)
+            ) if any(a.purchase_price for a in sample_list) else 0
+            
+            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
+            total_nbv = total_cost - total_acc_dep
+            context['is_estimate'] = True
+            context['sample_size'] = SAMPLE_SIZE
+        else:
+            all_visible = list(queryset)
+            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
+            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
+            context['is_estimate'] = False
+        
+        context['total_cost'] = total_cost
+        context['total_acc_dep'] = total_acc_dep
+        context['total_nbv'] = total_nbv
+        context['total_assets_report'] = total_count
+        
+        # Category grouping
+        grouped_data = queryset.values('category', 'category__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for group in grouped_data:
+            cat_id = group['category']
+            cat_qs = queryset.filter(category_id=cat_id)
+            cat_count = group['count']
+            
+            if cat_count > SAMPLE_SIZE:
+                sample = list(cat_qs[:SAMPLE_SIZE])
+                if sample and any(a.purchase_price for a in sample):
+                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
+                    total_cat_dep = (group['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
+                else:
+                    total_cat_dep = Decimal('0')
+            else:
+                cat_assets = list(cat_qs)
+                total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': cat_id,
+                'name': group['category__name'] or 'Uncategorized',
+                'total_cost': group['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_cat_dep,
+                'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
+                'count': cat_count,
+            })
+        
+        context['grouped_data'] = grouped_list
+        context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
+        
+        # Filter persistence
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context['query_params'] = query_params.urlencode()
+        
+        # Store filter values
+        context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
+        context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
+        context['depr_category'] = self.request.GET.get('depr_category', '')
+        context['depr_group'] = self.request.GET.get('depr_group', '')
+        context['depr_department'] = self.request.GET.get('depr_department', '')
+        context['depr_site'] = self.request.GET.get('depr_site', '')
+        context['depr_branch'] = self.request.GET.get('depr_branch', '')
+        context['depr_building'] = self.request.GET.get('depr_building', '')
+        context['depr_location'] = self.request.GET.get('depr_location', '')
+        context['search_query'] = self.request.GET.get('q', '')
+        
+        return context
+
+
+class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
+    """Dedicated view for department-based depreciation report"""
+    model = Asset
+    template_name = 'assets/depreciation_report_department.html'
+    context_object_name = 'assets'
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = Asset.objects.filter(
+            organization=self.request.user.organization,
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
+        )
+
+        # Search filter
+        query = self.request.GET.get('q')
+        if query:
+            q = (
+                Q(name__icontains=query) |
+                Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
+                Q(asset_code__icontains=query) |
+                Q(serial_number__icontains=query) |
+                Q(department__name__icontains=query)
+            )
+            queryset = queryset.filter(q)
+        
+        # Date range filters
+        depr_date_from = self.request.GET.get('depr_date_from')
+        depr_date_to = self.request.GET.get('depr_date_to')
+        
+        if depr_date_from:
+            queryset = queryset.filter(purchase_date__gte=depr_date_from)
+        if depr_date_to:
+            queryset = queryset.filter(purchase_date__lte=depr_date_to)
+        
+        # Dimension filters
+        depr_filters = {
+            'depr_category': 'category_id',
+            'depr_group': 'group_id',
+            'depr_department': 'department_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_location': 'location_id',
+        }
+        
+        for param, field in depr_filters.items():
+            val = self.request.GET.get(param)
+            if val:
+                queryset = queryset.filter(**{field: val})
+        
+        return queryset.order_by('-purchase_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        queryset = self.get_queryset()
+        
+        # Summary totals
+        from django.db.models import Sum, Count
+        from django.db.models.functions import Coalesce
+        
+        agg = queryset.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id')
+        )
+        
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        
+        SAMPLE_SIZE = 5000
+        if total_count > SAMPLE_SIZE:
+            sample_qs = queryset[:SAMPLE_SIZE]
+            sample_list = list(sample_qs)
+            avg_depreciation_ratio = (
+                sum(a.accumulated_depreciation for a in sample_list) / 
+                sum(a.purchase_price or Decimal('0') for a in sample_list)
+            ) if any(a.purchase_price for a in sample_list) else 0
+            
+            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
+            total_nbv = total_cost - total_acc_dep
+            context['is_estimate'] = True
+            context['sample_size'] = SAMPLE_SIZE
+        else:
+            all_visible = list(queryset)
+            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
+            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
+            context['is_estimate'] = False
+        
+        context['total_cost'] = total_cost
+        context['total_acc_dep'] = total_acc_dep
+        context['total_nbv'] = total_nbv
+        context['total_assets_report'] = total_count
+        
+        # Department grouping
+        grouped_data = queryset.values('department', 'department__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for department in grouped_data:
+            department_id = department['department']
+            department_qs = queryset.filter(department_id=department_id)
+            department_count = department['count']
+            
+            if department_count > SAMPLE_SIZE:
+                sample = list(department_qs[:SAMPLE_SIZE])
+                if sample and any(a.purchase_price for a in sample):
+                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
+                    total_department_dep = (department['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
+                else:
+                    total_department_dep = Decimal('0')
+            else:
+                department_assets = list(department_qs)
+                total_department_dep = sum(a.accumulated_depreciation for a in department_assets) if department_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': department_id,
+                'name': department['department__name'] or 'Uncategorized',
+                'total_cost': department['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_department_dep,
+                'total_nbv': (department['total_cost'] or Decimal('0')) - total_department_dep,
+                'count': department_count,
+            })
+        
+        context['grouped_data'] = grouped_list
+        context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
+        
+        # Filter persistence
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context['query_params'] = query_params.urlencode()
+        
+        # Store filter values
+        context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
+        context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
+        context['depr_category'] = self.request.GET.get('depr_category', '')
+        context['depr_group'] = self.request.GET.get('depr_group', '')
+        context['depr_department'] = self.request.GET.get('depr_department', '')
+        context['depr_site'] = self.request.GET.get('depr_site', '')
+        context['depr_branch'] = self.request.GET.get('depr_branch', '')
+        context['depr_building'] = self.request.GET.get('depr_building', '')
+        context['depr_location'] = self.request.GET.get('depr_location', '')
+        context['search_query'] = self.request.GET.get('q', '')
+        
+        return context
+
+class DepreciationReportLocationView(LoginRequiredMixin, ListView):
+    """Dedicated view for location-based depreciation report"""
+    model = Asset
+    template_name = 'assets/depreciation_report_location.html'
+    context_object_name = 'assets'
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = Asset.objects.filter(
+            organization=self.request.user.organization,
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
+        )
+
+        # Search filter
+        query = self.request.GET.get('q')
+        if query:
+            q = (
+                Q(name__icontains=query) |
+                Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
+                Q(asset_code__icontains=query) |
+                Q(serial_number__icontains=query) |
+                Q(location__name__icontains=query)
+            )
+            queryset = queryset.filter(q)
+        
+        # Date range filters
+        depr_date_from = self.request.GET.get('depr_date_from')
+        depr_date_to = self.request.GET.get('depr_date_to')
+        
+        if depr_date_from:
+            queryset = queryset.filter(purchase_date__gte=depr_date_from)
+        if depr_date_to:
+            queryset = queryset.filter(purchase_date__lte=depr_date_to)
+        
+        # Dimension filters
+        depr_filters = {
+            'depr_category': 'category_id',
+            'depr_group': 'group_id',
+            'depr_department': 'department_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_location': 'location_id',
+        }
+        
+        for param, field in depr_filters.items():
+            val = self.request.GET.get(param)
+            if val:
+                queryset = queryset.filter(**{field: val})
+        
+        return queryset.order_by('-purchase_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        queryset = self.get_queryset()
+        
+        # Summary totals
+        from django.db.models import Sum, Count
+        from django.db.models.functions import Coalesce
+        
+        agg = queryset.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id')
+        )
+        
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        
+        SAMPLE_SIZE = 5000
+        if total_count > SAMPLE_SIZE:
+            sample_qs = queryset[:SAMPLE_SIZE]
+            sample_list = list(sample_qs)
+            avg_depreciation_ratio = (
+                sum(a.accumulated_depreciation for a in sample_list) / 
+                sum(a.purchase_price or Decimal('0') for a in sample_list)
+            ) if any(a.purchase_price for a in sample_list) else 0
+            
+            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
+            total_nbv = total_cost - total_acc_dep
+            context['is_estimate'] = True
+            context['sample_size'] = SAMPLE_SIZE
+        else:
+            all_visible = list(queryset)
+            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
+            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
+            context['is_estimate'] = False
+        
+        context['total_cost'] = total_cost
+        context['total_acc_dep'] = total_acc_dep
+        context['total_nbv'] = total_nbv
+        context['total_assets_report'] = total_count
+        
+        # Location grouping
+        grouped_data = queryset.values('location', 'location__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for location in grouped_data:
+            location_id = location['location']
+            location_qs = queryset.filter(location_id=location_id)
+            location_count = location['count']
+            
+            if location_count > SAMPLE_SIZE:
+                sample = list(location_qs[:SAMPLE_SIZE])
+                if sample and any(a.purchase_price for a in sample):
+                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
+                    total_location_dep = (location['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
+                else:
+                    total_location_dep = Decimal('0')
+            else:
+                location_assets = list(location_qs)
+                total_location_dep = sum(a.accumulated_depreciation for a in location_assets) if location_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': location_id,
+                'name': location['location__name'] or 'Uncategorized',
+                'total_cost': location['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_location_dep,
+                'total_nbv': (location['total_cost'] or Decimal('0')) - total_location_dep,
+                'count': location_count,
+            })
+        
+        context['grouped_data'] = grouped_list
+        context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
+        
+        # Filter persistence
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context['query_params'] = query_params.urlencode()
+        
+        # Store filter values
+        context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
+        context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
+        context['depr_category'] = self.request.GET.get('depr_category', '')
+        context['depr_group'] = self.request.GET.get('depr_group', '')
+        context['depr_department'] = self.request.GET.get('depr_department', '')
+        context['depr_site'] = self.request.GET.get('depr_site', '')
+        context['depr_branch'] = self.request.GET.get('depr_branch', '')
+        context['depr_building'] = self.request.GET.get('depr_building', '')
+        context['depr_location'] = self.request.GET.get('depr_location', '')
+        context['search_query'] = self.request.GET.get('q', '')
+class DepreciationReportGroupView(LoginRequiredMixin, ListView):
+    """Dedicated view for group-based depreciation report"""
+    model = Asset
+    template_name = 'assets/depreciation_report_group.html'
+    context_object_name = 'assets'
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = Asset.objects.filter(
+            organization=self.request.user.organization,
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
+        )
+
+        # Search filter
+        query = self.request.GET.get('q')
+        if query:
+            q = (
+                Q(name__icontains=query) |
+                Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
+                Q(asset_code__icontains=query) |
+                Q(serial_number__icontains=query) |
+                Q(group__name__icontains=query)
+            )
+            queryset = queryset.filter(q)
+        
+        # Date range filters
+        depr_date_from = self.request.GET.get('depr_date_from')
+        depr_date_to = self.request.GET.get('depr_date_to')
+        
+        if depr_date_from:
+            queryset = queryset.filter(purchase_date__gte=depr_date_from)
+        if depr_date_to:
+            queryset = queryset.filter(purchase_date__lte=depr_date_to)
+        
+        # Dimension filters
+        depr_filters = {
+            'depr_category': 'category_id',
+            'depr_group': 'group_id',
+            'depr_department': 'department_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_location': 'location_id',
+        }
+        
+        for param, field in depr_filters.items():
+            val = self.request.GET.get(param)
+            if val:
+                queryset = queryset.filter(**{field: val})
+        
+        return queryset.order_by('-purchase_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        queryset = self.get_queryset()
+        
+        # Summary totals
+        from django.db.models import Sum, Count
+        from django.db.models.functions import Coalesce
+        
+        agg = queryset.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id')
+        )
+        
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        
+        SAMPLE_SIZE = 5000
+        if total_count > SAMPLE_SIZE:
+            sample_qs = queryset[:SAMPLE_SIZE]
+            sample_list = list(sample_qs)
+            avg_depreciation_ratio = (
+                sum(a.accumulated_depreciation for a in sample_list) / 
+                sum(a.purchase_price or Decimal('0') for a in sample_list)
+            ) if any(a.purchase_price for a in sample_list) else 0
+            
+            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
+            total_nbv = total_cost - total_acc_dep
+            context['is_estimate'] = True
+            context['sample_size'] = SAMPLE_SIZE
+        else:
+            all_visible = list(queryset)
+            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
+            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
+            context['is_estimate'] = False
+        
+        context['total_cost'] = total_cost
+        context['total_acc_dep'] = total_acc_dep
+        context['total_nbv'] = total_nbv
+        context['total_assets_report'] = total_count
+        
+        # Group grouping
+        grouped_data = queryset.values('group', 'group__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for group in grouped_data:
+            group_id = group['group']
+            group_qs = queryset.filter(group_id=group_id)
+            group_count = group['count']
+            
+            if group_count > SAMPLE_SIZE:
+                sample = list(group_qs[:SAMPLE_SIZE])
+                if sample and any(a.purchase_price for a in sample):
+                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
+                    total_group_dep = (group['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
+                else:
+                    total_group_dep = Decimal('0')
+            else:
+                group_assets = list(group_qs)
+                total_group_dep = sum(a.accumulated_depreciation for a in group_assets) if group_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': group_id,
+                'name': group['group__name'] or 'Uncategorized',
+                'total_cost': group['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_group_dep,
+                'total_nbv': (group['total_cost'] or Decimal('0')) - total_group_dep,
+                'count': group_count,
+            })
+        
+        context['grouped_data'] = grouped_list
+        context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
+        
+        # Filter persistence
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context['query_params'] = query_params.urlencode()
+        
+        # Store filter values
+        context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
+        context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
+        context['depr_category'] = self.request.GET.get('depr_category', '')
+        context['depr_group'] = self.request.GET.get('depr_group', '')
+        context['depr_department'] = self.request.GET.get('depr_department', '')
+        context['depr_site'] = self.request.GET.get('depr_site', '')
+        context['depr_branch'] = self.request.GET.get('depr_branch', '')
+        context['depr_building'] = self.request.GET.get('depr_building', '')
+        context['depr_location'] = self.request.GET.get('depr_location', '')
+        context['search_query'] = self.request.GET.get('q', '')
+        
+        return context

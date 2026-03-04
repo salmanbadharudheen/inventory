@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Asset Disposal Requests{% endblock %}
+
+{% block content %}
+<style>
+    .disposal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .disposal-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+    
+    .disposal-header h1 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 2.5rem;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        letter-spacing: -0.5px;
+    }
+    
+    .disposal-header h1 i {
+        font-size: 2.8rem;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+    }
+    
+    .filter-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1.75rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    
+    .filter-card form {
+        gap: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-group label {
+        display: block;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        color: #1f2937;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 0.8rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-group input:focus,
+    .filter-group select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+    
+    .disposal-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .disposal-table thead {
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .disposal-table thead th {
+        color: #374151;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding: 1.2rem;
+    }
+    
+    .disposal-table tbody tr {
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.2s ease;
+    }
+    
+    .disposal-table tbody tr:hover {
+        background-color: #fafbfc;
+    }
+    
+    .disposal-table td {
+        padding: 1.1rem 1.2rem;
+        vertical-align: middle;
+    }
+    
+    .asset-tag {
+        font-weight: 700;
+        color: #1f2937;
+        font-family: 'Courier New', monospace;
+        background: #f3f4f6;
+        padding: 0.4rem 0.7rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    
+    .status-badge {
+        padding: 0.6rem 1rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+    
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-completed {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    
+    .method-badge {
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+    
+    .btn-view {
+        background: #3b82f6;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+    
+    .btn-view:hover {
+        background: #2563eb;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .btn-create {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        border: none;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    
+    .btn-create:hover {
+        color: white;
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .empty-state {
+        padding: 3rem;
+        text-align: center;
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #d1d5db;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state-text {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="disposal-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-trash-alt"></i> Asset Disposal Requests</h1>
+                <p class="mb-0" style="opacity: 0.9; font-size: 0.95rem; margin-top: 0.5rem;">Manage asset disposal and retirement requests</p>
+            </div>
+            <a href="{% url 'disposal-create' %}" class="btn-create">
+                <i class="fas fa-plus-circle"></i> New Request
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-card">
+        <form method="get">
+            <div class="filter-group flex-grow-1">
+                <label for="status">Status</label>
+                <select name="status" id="status">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group flex-grow-1">
+                <label for="search">Search</label>
+                <input type="text" name="search" id="search" placeholder="Asset tag or name" value="{{ search }}">
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn" style="background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 0.75rem 1.5rem; font-weight: 500; cursor: pointer;">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <a href="{% url 'disposal-list' %}" class="btn" style="background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; padding: 0.75rem 1.5rem; font-weight: 500; text-decoration: none; cursor: pointer;">
+                    <i class="fas fa-redo"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Disposals Table -->
+    <div class="disposal-table">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>Asset Tag</th>
+                    <th>Asset Name</th>
+                    <th>Requested By</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Created Date</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disposal in disposals %}
+                <tr>
+                    <td><span class="asset-tag">{{ disposal.asset.asset_tag }}</span></td>
+                    <td>
+                        <strong style="color: #1f2937;">{{ disposal.asset.name }}</strong>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.875rem; color: #6b7280;">
+                            {{ disposal.requested_by.get_full_name|default:disposal.requested_by.username }}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="method-badge">{{ disposal.get_disposal_method_display }}</span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{% if disposal.status == 'PENDING' %}pending{% elif disposal.status == 'APPROVED' %}approved{% elif disposal.status == 'REJECTED' %}rejected{% else %}completed{% endif %}">
+                            {{ disposal.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="color: #6b7280; font-size: 0.875rem;">{{ disposal.created_at|date:"M d, Y" }}</td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'disposal-detail' disposal.pk %}" class="btn-view">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <p class="empty-state-text">
+                                <strong>No disposal requests found</strong><br>
+                                Start by creating a new disposal request or adjust your filters
+                            </p>
+                            <a href="{% url 'disposal-create' %}" class="btn-create">
+                                <i class="fas fa-plus-circle"></i> Create Request
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav style="margin-top: 2rem;">
+        <ul style="display: flex; justify-content: center; gap: 0.25rem; list-style: none; padding: 0;">
+            {% if page_obj.has_previous %}
+            <li><a href="?page=1" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #3b82f6;">First</a></li>
+            <li><a href="?page={{ page_obj.previous_page_number }}" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #3b82f6;">Previous</a></li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            <li>
+                {% if page_obj.number == num %}
+                <span style="padding: 0.5rem 0.75rem; border: 1px solid #3b82f6; background: #3b82f6; color: white; border-radius: 4px;">{{ num }}</span>
+                {% else %}
+                <a href="?page={{ num }}" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #3b82f6;">{{ num }}</a>
+                {% endif %}
+            </li>
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li><a href="?page={{ page_obj.next_page_number }}" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #3b82f6;">Next</a></li>
+            <li><a href="?page={{ page_obj.paginator.num_pages }}" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #3b82f6;">Last</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

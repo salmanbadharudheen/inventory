@@ -8,13 +8,18 @@
     <div class="premium-header">
         <!-- Top Row: Title and Actions -->
         <div class="header-row-main">
-            <h1 class="header-title">Assets</h1>
+            <div class="header-left">
+                <h1 class="header-title">Assets</h1>
+                <p class="header-subtitle">Manage and track all your inventory assets</p>
+            </div>
             <div class="header-actions">
                 <a href="{% url 'asset-export-excel' %}?{{ request.GET.urlencode }}" class="btn-icon-action" title="Export">
                     <i data-lucide="download"></i>
+                    <span class="btn-tooltip">Export</span>
                 </a>
                 <a href="{% url 'asset-import' %}" class="btn-icon-action" title="Import">
                     <i data-lucide="upload"></i>
+                    <span class="btn-tooltip">Import</span>
                 </a>
                 <a href="{% url 'asset-create' %}" class="btn-primary-action" title="Add Asset">
                     <i data-lucide="plus"></i> New Asset
@@ -24,98 +29,191 @@
 
         <!-- Filter Row -->
         <form method="get" id="filter-form" class="header-filters">
-            <div class="search-bar-header">
-                <i data-lucide="search"></i>
-                <input 
-                    type="text" 
-                    name="q" 
-                    placeholder="Search assets..." 
-                    value="{{ request.GET.q }}" 
-                    class="search-input-header"
-                >
+            <!-- Primary Search Bar -->
+            <div class="search-container">
+                <div class="search-bar-header">
+                    <i data-lucide="search"></i>
+                    <input 
+                        type="text" 
+                        name="q" 
+                        placeholder="Search by asset name, tag, or serial number..." 
+                        value="{{ request.GET.q }}" 
+                        class="search-input-header"
+                    >
+                    {% if request.GET.q %}
+                    <button type="button" class="btn-search-clear" onclick="document.querySelector('.search-input-header').value=''; document.getElementById('filter-form').submit();" title="Clear search">
+                        <i data-lucide="x"></i>
+                    </button>
+                    {% endif %}
+                </div>
             </div>
 
-            <div class="filters-group-inline">
-                <select name="status" class="filter-select-inline">
-                    <option value="">All Status</option>
-                    {% for code, label in statuses %}
-                    <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+            <!-- Main Filters Row -->
+            <div class="filters-section">
+                <div class="filters-main-row">
+                    <div class="filter-group">
+                        <label class="filter-label">Status</label>
+                        <select name="status" class="filter-select-inline">
+                            <option value="">All Status</option>
+                            {% for code, label in statuses %}
+                            <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <select name="group" class="filter-select-inline">
-                    <option value="">All Groups</option>
-                    {% for grp in groups %}
-                    <option value="{{ grp.id }}" {% if request.GET.group == grp.id|stringformat:"s" %}selected{% endif %}>{{ grp.name }}</option>
-                    {% endfor %}
-                </select>
+                    <div class="filter-group">
+                        <label class="filter-label">Category</label>
+                        <select name="category" class="filter-select-inline">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <select name="category" class="filter-select-inline">
-                    <option value="">All Category</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
-                    {% endfor %}
-                </select>
+                    <div class="filter-group">
+                        <label class="filter-label">Site</label>
+                        <select name="site" class="filter-select-inline">
+                            <option value="">All Sites</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>{{ site.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <select name="subcategory" class="filter-select-inline">
-                    <option value="">All Sub Category</option>
-                    {% for subcat in subcategories %}
-                    <option value="{{ subcat.id }}" {% if request.GET.subcategory == subcat.id|stringformat:"s" %}selected{% endif %}>{{ subcat.name }}</option>
-                    {% endfor %}
-                </select>
+                    <div class="filter-group">
+                        <label class="filter-label">Department</label>
+                        <select name="department" class="filter-select-inline">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <select name="site" class="filter-select-inline">
-                    <option value="">All Sites</option>
-                    {% for site in sites %}
-                    <option value="{{ site.id }}" {% if request.GET.site == site.id|stringformat:"s" %}selected{% endif %}>{{ site.name }}</option>
-                    {% endfor %}
-                </select>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn-filter-apply-main">
+                            <i data-lucide="filter"></i> Apply Filters
+                        </button>
+                        <button type="button" class="btn-more-filters" onclick="toggleAdvancedFilters()">
+                            <i data-lucide="sliders-horizontal"></i> More Options
+                        </button>
+                    </div>
+                </div>
 
-                <select name="building" class="filter-select-inline">
-                    <option value="">All Buildings</option>
-                    {% for bld in buildings %}
-                    <option value="{{ bld.id }}" {% if request.GET.building == bld.id|stringformat:"s" %}selected{% endif %}>{{ bld.name }}</option>
-                    {% endfor %}
-                </select>
+                <!-- Advanced Filters (Hidden by default) -->
+                <div id="advanced-filters-panel" class="advanced-filters-panel" style="display: none;">
+                    <div class="advanced-filters-header">
+                        <h4>Advanced Filters</h4>
+                        <button type="button" class="btn-close-advanced" onclick="toggleAdvancedFilters()" title="Close">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <div class="advanced-filters-content">
+                        <div class="advanced-filter-row">
+                            <div class="filter-group">
+                                <label class="filter-label">Group</label>
+                                <select name="group" class="filter-select-inline">
+                                    <option value="">All Groups</option>
+                                    {% for grp in groups %}
+                                    <option value="{{ grp.id }}" {% if request.GET.group == grp.id|stringformat:"s" %}selected{% endif %}>{{ grp.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                <select name="department" class="filter-select-inline">
-                    <option value="">All Departments</option>
-                    {% for dept in departments %}
-                    <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
-                    {% endfor %}
-                </select>
+                            <div class="filter-group">
+                                <label class="filter-label">Sub Category</label>
+                                <select name="subcategory" class="filter-select-inline">
+                                    <option value="">All Sub Categories</option>
+                                    {% for subcat in subcategories %}
+                                    <option value="{{ subcat.id }}" {% if request.GET.subcategory == subcat.id|stringformat:"s" %}selected{% endif %}>{{ subcat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                <button type="submit" class="btn-filter-apply-main">Apply</button>
+                            <div class="filter-group">
+                                <label class="filter-label">Building</label>
+                                <select name="building" class="filter-select-inline">
+                                    <option value="">All Buildings</option>
+                                    {% for bld in buildings %}
+                                    <option value="{{ bld.id }}" {% if request.GET.building == bld.id|stringformat:"s" %}selected{% endif %}>{{ bld.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                <button type="button" class="btn-more-filters" onclick="toggleAdvancedFilters()">
-                    <i data-lucide="filter"></i> More
-                </button>
-            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">Brand</label>
+                                <select name="brand" class="filter-select-inline">
+                                    <option value="">All Brands</option>
+                                    {% for brand in brands %}
+                                    <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>{{ brand.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-            <!-- Advanced Filters (Hidden by default) -->
-            <div id="advanced-filters-panel" class="advanced-filters-panel" style="display: none;">
-                <div class="advanced-filters-content">
-                    <select name="brand" class="filter-select-inline">
-                        <option value="">All Brands</option>
-                        {% for brand in brands %}
-                        <option value="{{ brand.id }}" {% if request.GET.brand == brand.id|stringformat:"s" %}selected{% endif %}>{{ brand.name }}</option>
-                        {% endfor %}
-                    </select>
+                            <div class="filter-group">
+                                <label class="filter-label">Sub Group</label>
+                                <select name="sub_group" class="filter-select-inline">
+                                    <option value="">All Sub Groups</option>
+                                    {% for subgrp in subgroups %}
+                                    <option value="{{ subgrp.id }}" {% if request.GET.sub_group == subgrp.id|stringformat:"s" %}selected{% endif %}>{{ subgrp.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                    <select name="date_range" class="filter-select-inline" onchange="applyQuickDateFilter(this)">
-                        <option value="">Date Range</option>
-                        <option value="this_year">This Year</option>
-                        <option value="last_year">Last Year</option>
-                        <option value="this_month">This Month</option>
-                        <option value="last_month">Last Month</option>
-                        <option value="last_30_days">Last 30 Days</option>
-                        <option value="last_90_days">Last 90 Days</option>
-                    </select>
+                            <div class="filter-group">
+                                <label class="filter-label">Location</label>
+                                <select name="location" class="filter-select-inline">
+                                    <option value="">All Locations</option>
+                                    {% for loc in locations %}
+                                    <option value="{{ loc.id }}" {% if request.GET.location == loc.id|stringformat:"s" %}selected{% endif %}>{{ loc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                    <input type="date" name="purchase_date_from" id="purchase_date_from" class="filter-select-inline" placeholder="From" value="{{ request.GET.purchase_date_from }}">
-                    <input type="date" name="purchase_date_to" id="purchase_date_to" class="filter-select-inline" placeholder="To" value="{{ request.GET.purchase_date_to }}">
+                            <div class="filter-group">
+                                <label class="filter-label">Sub Location</label>
+                                <select name="sub_location" class="filter-select-inline">
+                                    <option value="">All Sub Locations</option>
+                                    {% for subloc in sublocations %}
+                                    <option value="{{ subloc.id }}" {% if request.GET.sub_location == subloc.id|stringformat:"s" %}selected{% endif %}>{{ subloc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                    <a href="{% url 'asset-list' %}" class="btn-filter-clear">Clear All</a>
+                            <div class="filter-group">
+                                <label class="filter-label">Purchase Date</label>
+                                <select name="date_range" class="filter-select-inline" onchange="applyQuickDateFilter(this)">
+                                    <option value="">Custom</option>
+                                    <option value="this_year">This Year</option>
+                                    <option value="last_year">Last Year</option>
+                                    <option value="this_month">This Month</option>
+                                    <option value="last_month">Last Month</option>
+                                    <option value="last_30_days">Last 30 Days</option>
+                                    <option value="last_90_days">Last 90 Days</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label class="filter-label">From</label>
+                                <input type="date" name="purchase_date_from" id="purchase_date_from" class="filter-select-inline" value="{{ request.GET.purchase_date_from }}">
+                            </div>
+
+                            <div class="filter-group">
+                                <label class="filter-label">To</label>
+                                <input type="date" name="purchase_date_to" id="purchase_date_to" class="filter-select-inline" value="{{ request.GET.purchase_date_to }}">
+                            </div>
+                        </div>
+
+                        <div class="advanced-filters-footer">
+                            <a href="{% url 'asset-list' %}" class="btn-filter-clear">
+                                <i data-lucide="refresh-cw"></i> Reset All Filters
+                            </a>
+                            <button type="submit" class="btn-filter-apply-advanced">
+                                <i data-lucide="check"></i> Apply Filters
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
@@ -144,7 +242,10 @@
                                 <th class="th-serial">Serial #</th>
                                 <th class="th-category">Category</th>
                                 <th class="th-brand">Brand</th>
-                                <th class="th-location">Location</th>
+                                <th class="th-price">Purchase Price</th>
+                                <th class="th-group">Group</th>
+                                <th class="th-location">Site</th>
+                                <th class="th-sublocation">Location</th>
                                 <th class="th-department">Department</th>
                                 <th class="th-assigned">Assigned To</th>
                                 <th class="th-condition">Condition</th>
@@ -176,10 +277,23 @@
                                 <td class="td-brand">
                                     <span class="brand-text">{{ asset.brand.name|default:"-" }}</span>
                                 </td>
+                                <td class="td-price">
+                                    {% if asset.purchase_price %}
+                                    <span class="price-text">{{ asset.currency }} {{ asset.purchase_price|floatformat:0 }}</span>
+                                    {% else %}
+                                    <span class="no-price">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="td-group">
+                                    <span class="group-text">{{ asset.group.name|default:"-" }}</span>
+                                </td>
                                 <td class="td-location">
                                     <div class="location-info">
                                         <span class="location-site">{{ asset.site.name|default:"-" }}</span>
                                     </div>
+                                </td>
+                                <td class="td-sublocation">
+                                    <span class="sublocation-text">{{ asset.sub_location.name|default:"-" }}</span>
                                 </td>
                                 <td class="td-department">
                                     <span class="dept-text">{{ asset.department.name|default:"-" }}</span>
@@ -222,7 +336,7 @@
                                 </td>
                             </tr>
                             <tr id="detail-{{ asset.id }}" class="detail-row" style="display:none;">
-                                <td colspan="8">
+                                <td colspan="16">
                                     <div class="detail-content">
                         <div class="detail-left">
                             <div class="asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
@@ -336,38 +450,38 @@
                     </table>
 
             <!-- Pagination -->
-            {% if assets.has_other_pages %}
+            {% if is_paginated %}
             <div class="pagination-wrapper">
                 <div class="pagination-container">
-                    {% if assets.has_previous %}
+                    {% if page_obj.has_previous %}
                     <a href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="First Page">
                         <i data-lucide="chevrons-left"></i>
                     </a>
-                    <a href="?page={{ assets.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Previous Page">
+                    <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Previous Page">
                         <i data-lucide="chevron-left"></i>
                     </a>
                     {% endif %}
 
                     <div class="pagination-pages">
-                        {% for num in assets.paginator.page_range %}
-                            {% if assets.number == num %}
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
                             <span class="pagination-current">{{ num }}</span>
-                            {% elif num > assets.number|add:'-3' and num < assets.number|add:'3' %}
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                             <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-link">{{ num }}</a>
                             {% endif %}
                         {% endfor %}
                     </div>
 
-                    {% if assets.has_next %}
-                    <a href="?page={{ assets.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Next Page">
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Next Page">
                         <i data-lucide="chevron-right"></i>
                     </a>
-                    <a href="?page={{ assets.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Last Page">
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn" title="Last Page">
                         <i data-lucide="chevrons-right"></i>
                     </a>
                     {% endif %}
 
-                    <span class="pagination-info">Page {{ assets.number }} of {{ assets.paginator.num_pages }}</span>
+                    <span class="pagination-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
                 </div>
             </div>
             {% endif %}
@@ -377,52 +491,118 @@
 
 <style>
     /* ============================================
-       MODERN HEADER-BASED ASSET LIST DESIGN
+       MODERN PREMIUM ASSET LIST DESIGN
        ============================================ */
 
     .asset-container {
         display: flex;
         flex-direction: column;
         background: #f8fafc;
-        height: 100vh;
-        overflow: hidden;
+        min-height: 100vh;
+        overflow-y: auto;
     }
 
     /* Modern Header with Filters */
     .premium-header {
         background: white;
-        border-bottom: 1px solid #e2e8f0;
-        padding: 1rem 1.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 0.75rem 1rem;
         flex-shrink: 0;
         position: sticky;
         top: 0;
         z-index: 100;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
 
     .header-row-main {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         gap: 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .header-left {
+        flex: 1;
     }
 
     .header-title {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: #0f172a;
+        margin: 0 0 0.15rem 0;
+        letter-spacing: -0.3px;
+    }
+
+    .header-subtitle {
         margin: 0;
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 400;
     }
 
     .header-actions {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.4rem;
         align-items: center;
+        flex-shrink: 0;
     }
 
-    .btn-icon-action,
+    .btn-icon-action {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-icon-action:hover {
+        background: #e2e8f0;
+        color: #6366f1;
+        border-color: #6366f1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+
+    .btn-tooltip {
+        position: absolute;
+        bottom: -26px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 0.3rem 0.6rem;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s ease;
+        pointer-events: none;
+    }
+
+    .btn-icon-action:hover .btn-tooltip {
+        opacity: 1;
+        visibility: visible;
+        bottom: -30px;
+    }
+
     .btn-primary-action {
+        padding: 0.5rem 1.1rem;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -432,34 +612,17 @@
         cursor: pointer;
         transition: all 0.2s ease;
         text-decoration: none;
-        font-weight: 500;
-        font-size: 0.875rem;
-    }
-
-    .btn-icon-action {
-        width: 36px;
-        height: 36px;
-        background: #f1f5f9;
-        color: #64748b;
-        border: 1px solid #cbd5e1;
-    }
-
-    .btn-icon-action:hover {
-        background: #e2e8f0;
-        color: #334155;
-        border-color: #94a3b8;
-    }
-
-    .btn-primary-action {
-        padding: 0.5rem 1rem;
-        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        color: white;
-        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+        font-weight: 600;
+        font-size: 0.8rem;
     }
 
     .btn-primary-action:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-primary-action:active {
+        transform: translateY(0);
     }
 
     .btn-icon-action i,
@@ -471,125 +634,186 @@
     /* Filter Row */
     .header-filters {
         display: flex;
-        align-items: flex-end;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .search-container {
+        width: 100%;
     }
 
     .search-bar-header {
         position: relative;
-        flex: 1;
-        min-width: 240px;
+        width: 100%;
         display: flex;
         align-items: center;
     }
 
     .search-bar-header i {
         position: absolute;
-        left: 1rem;
-        width: 18px;
-        height: 18px;
+        left: 0.9rem;
+        width: 16px;
+        height: 16px;
         color: #6366f1;
         pointer-events: none;
     }
 
+    .btn-search-clear {
+        position: absolute;
+        right: 0.8rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #cbd5e1;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+    }
+
+    .btn-search-clear:hover {
+        color: #64748b;
+    }
+
+    .btn-search-clear i {
+        width: 14px;
+        height: 14px;
+    }
+
     .search-input-header {
         width: 100%;
-        padding: 0.65rem 1rem 0.65rem 2.8rem;
-        border: 2px solid #e2e8f0;
+        padding: 0.6rem 2.4rem 0.6rem 2.6rem;
+        border: 1.5px solid #e2e8f0;
         border-radius: 8px;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: #1e293b;
         background: white;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        font-weight: 400;
     }
 
     .search-input-header::placeholder {
         color: #cbd5e1;
-        font-weight: 500;
+        font-weight: 400;
     }
 
     .search-input-header:hover {
         border-color: #cbd5e1;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     }
 
     .search-input-header:focus {
         outline: none;
         border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 2px 8px rgba(99, 102, 241, 0.2);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), 0 4px 12px rgba(99, 102, 241, 0.2);
     }
 
-    /* Inline Filters */
-    .filters-group-inline {
+    /* Filters Section */
+    .filters-section {
         display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .filters-main-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr) auto;
+        gap: 0.75rem;
         align-items: flex-end;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .filter-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .filter-select-inline {
-        padding: 0.6rem 0.75rem;
+        padding: 0.5rem 0.75rem;
         border: 1.5px solid #cbd5e1;
         border-radius: 6px;
         background: white;
         color: #1e293b;
-        font-size: 0.875rem;
+        font-size: 0.8rem;
         cursor: pointer;
         transition: all 0.2s ease;
-        min-width: 130px;
+        font-weight: 500;
     }
 
     .filter-select-inline:hover {
         border-color: #94a3b8;
+        background: #f8fafc;
     }
 
     .filter-select-inline:focus {
         outline: none;
         border-color: #6366f1;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1), 0 2px 6px rgba(99, 102, 241, 0.15);
     }
 
-    /* More Filters Button */
+    /* Filter Actions */
+    .filter-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+    }
+
     .btn-filter-apply-main {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.4rem;
-        padding: 0.65rem 1.2rem;
+        padding: 0.5rem 1rem;
         background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 0.875rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         white-space: nowrap;
-        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        text-decoration: none;
     }
 
     .btn-filter-apply-main:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
     }
 
     .btn-filter-apply-main:active {
         transform: translateY(0);
     }
 
+    .btn-filter-apply-main i {
+        width: 14px;
+        height: 14px;
+    }
+
     .btn-more-filters {
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.65rem 0.95rem;
+        padding: 0.5rem 0.9rem;
         background: #f1f5f9;
         color: #64748b;
         border: 1.5px solid #cbd5e1;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 500;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.2s ease;
         white-space: nowrap;
@@ -599,6 +823,7 @@
         background: #e2e8f0;
         color: #334155;
         border-color: #94a3b8;
+        transform: translateY(-1px);
     }
 
     .btn-more-filters i {
@@ -608,58 +833,143 @@
 
     /* Advanced Filters Panel */
     .advanced-filters-panel {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 1rem;
-        margin-top: 0.75rem;
-        animation: slideDown 0.2s ease;
-        grid-column: 1 / -1;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.9rem;
+        animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
     }
 
     @keyframes slideDown {
         from {
             opacity: 0;
-            transform: translateY(-10px);
+            transform: translateY(-15px);
+            max-height: 0;
         }
         to {
             opacity: 1;
             transform: translateY(0);
+            max-height: 500px;
         }
+    }
+
+    .advanced-filters-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1.5px solid #e2e8f0;
+    }
+
+    .advanced-filters-header h4 {
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #1e293b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-close-advanced {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #94a3b8;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+    }
+
+    .btn-close-advanced:hover {
+        color: #64748b;
+    }
+
+    .btn-close-advanced i {
+        width: 14px;
+        height: 14px;
     }
 
     .advanced-filters-content {
         display: flex;
-        align-items: flex-end;
-        gap: 0.75rem;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .advanced-filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .advanced-filters-footer {
+        display: flex;
+        gap: 0.6rem;
+        padding-top: 0.75rem;
+        border-top: 1.5px solid #e2e8f0;
+        justify-content: flex-end;
         flex-wrap: wrap;
     }
 
-    .advanced-filters-content .filter-select-inline {
-        margin: 0;
-    }
-
     .btn-filter-clear {
-        padding: 0.65rem 1rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        background: #f1f5f9;
-        color: #64748b;
-        font-size: 0.875rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0.9rem;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 6px;
+        background: white;
+        color: #64748b;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
         white-space: nowrap;
     }
 
     .btn-filter-clear:hover {
-        background: #e2e8f0;
+        background: #f1f5f9;
         color: #334155;
         border-color: #94a3b8;
+    }
+
+    .btn-filter-clear i {
+        width: 14px;
+        height: 14px;
+    }
+
+    .btn-filter-apply-advanced {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-filter-apply-advanced:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-filter-apply-advanced i {
+        width: 14px;
+        height: 14px;
     }
 
     /* Main Content */
@@ -667,7 +977,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow-y: auto;
         padding: 1rem;
         gap: 1rem;
     }
@@ -678,7 +988,7 @@
         border-radius: 8px;
         border: 1px solid #e2e8f0;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         flex: 1;
@@ -751,7 +1061,10 @@
     .th-serial { width: 100px; }
     .th-category { width: 85px; }
     .th-brand { width: 80px; }
-    .th-location { width: 80px; }
+    .th-price { width: 110px; text-align: right; }
+    .th-group { width: 75px; }
+    .th-location { width: 85px; }
+    .th-sublocation { width: 85px; }
     .th-department { width: 85px; }
     .th-assigned { width: 95px; }
     .th-condition { width: 85px; }
@@ -815,6 +1128,27 @@
         font-weight: 500;
     }
 
+    .price-text {
+        font-size: 0.8rem;
+        color: #059669;
+        font-weight: 600;
+        text-align: right;
+        display: block;
+    }
+
+    .no-price {
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        text-align: right;
+        display: block;
+    }
+
+    .group-text {
+        font-size: 0.8rem;
+        color: #475569;
+        font-weight: 500;
+    }
+
     .dept-text {
         font-size: 0.8rem;
         color: #475569;
@@ -859,6 +1193,12 @@
     .location-sub {
         font-size: 0.7rem;
         color: #94a3b8;
+    }
+
+    .sublocation-text {
+        font-size: 0.8rem;
+        color: #475569;
+        font-weight: 500;
     }
 
     .assigned-user {
@@ -1064,7 +1404,7 @@
 
     .detail-right {
         overflow-y: auto;
-        max-height: 400px;
+        max-height: 600px;
         padding-right: 0.5rem;
     }
 
@@ -1193,51 +1533,101 @@
     }
 
     /* Responsive Design */
+    @media (max-width: 1400px) {
+        .filters-main-row {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
     @media (max-width: 1200px) {
-        .filter-select-inline {
-            min-width: 110px;
+        .premium-header {
+            padding: 1rem 1.5rem;
         }
 
-        .search-bar-header {
-            min-width: 180px;
+        .header-row-main {
+            margin-bottom: 1.2rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+        }
+
+        .filters-main-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .filter-actions {
+            grid-column: 1 / -1;
+        }
+
+        .search-input-header {
+            padding: 0.7rem 2.4rem 0.7rem 2.8rem;
+            font-size: 0.85rem;
+        }
+
+        .filter-select-inline {
+            padding: 0.65rem 0.9rem;
+            font-size: 0.8rem;
         }
     }
 
     @media (max-width: 1024px) {
         .premium-header {
-            padding: 0.75rem 1rem;
+            padding: 0.9rem 1.25rem;
         }
 
         .header-row-main {
-            margin-bottom: 0.75rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .header-left {
+            width: 100%;
         }
 
         .header-title {
-            font-size: 1.25rem;
+            font-size: 1.3rem;
         }
 
-        .filters-group-inline {
-            gap: 0.4rem;
+        .header-actions {
+            width: 100%;
+            justify-content: flex-end;
         }
 
-        .filter-select-inline {
-            min-width: 100px;
-            padding: 0.5rem 0.6rem;
+        .filters-main-row {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .search-input-header {
+            padding: 0.65rem 2.2rem 0.65rem 2.6rem;
             font-size: 0.8rem;
         }
 
-        .search-bar-header {
-            min-width: 150px;
+        .filter-select-inline {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.75rem;
         }
 
         .btn-filter-apply-main {
-            padding: 0.55rem 1rem;
+            padding: 0.6rem 1.2rem;
             font-size: 0.8rem;
         }
 
         .btn-more-filters {
-            padding: 0.55rem 0.7rem;
+            padding: 0.6rem 1rem;
             font-size: 0.8rem;
+        }
+
+        .advanced-filters-panel {
+            padding: 1rem;
+        }
+
+        .advanced-filter-row {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
         }
 
         .th-value { display: none; }
@@ -1256,86 +1646,115 @@
 
     @media (max-width: 768px) {
         .premium-header {
-            padding: 0.75rem 0.875rem;
+            padding: 0.8rem 1rem;
         }
 
         .header-row-main {
-            flex-wrap: wrap;
-            margin-bottom: 0.5rem;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
             gap: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .header-left {
+            flex: 1;
         }
 
         .header-title {
             font-size: 1.1rem;
-            flex: 1;
+            margin: 0;
+        }
+
+        .header-subtitle {
+            display: none;
         }
 
         .header-actions {
-            gap: 0.3rem;
-        }
-
-        .btn-icon-action,
-        .btn-primary-action {
-            width: 32px;
-            height: 32px;
-            padding: 0;
-            font-size: 0;
-        }
-
-        .btn-primary-action {
             width: auto;
-            padding: 0.5rem 0.8rem;
+            gap: 0.4rem;
+        }
+
+        .btn-icon-action {
+            width: 36px;
+            height: 36px;
+        }
+
+        .btn-primary-action {
+            padding: 0.55rem 1rem;
             font-size: 0.8rem;
         }
 
-        .header-filters {
+        .search-container {
             width: 100%;
+        }
+
+        .search-input-header {
+            padding: 0.6rem 2rem 0.6rem 2.4rem;
+            font-size: 0.8rem;
+        }
+
+        .filters-main-row {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+        }
+
+        .filter-actions {
+            grid-column: 1 / -1;
             gap: 0.5rem;
         }
 
-        .search-bar-header {
-            min-width: 100%;
-            flex: 1;
-        }
-
-        .filters-group-inline {
-            width: 100%;
-            gap: 0.4rem;
-        }
-
         .filter-select-inline {
-            min-width: 90px;
-            padding: 0.5rem 0.5rem;
+            padding: 0.55rem 0.7rem;
             font-size: 0.75rem;
+        }
+
+        .btn-filter-apply-main {
             flex: 1;
+            padding: 0.55rem 1rem;
+            font-size: 0.75rem;
         }
 
         .btn-more-filters {
-            padding: 0.5rem 0.7rem;
+            flex: 1;
+            padding: 0.55rem 0.9rem;
             font-size: 0.75rem;
-            flex: 0 0 auto;
         }
 
         .advanced-filters-panel {
-            padding: 0.75rem;
-            margin-top: 0.5rem;
+            padding: 0.9rem;
+            border-radius: 8px;
         }
 
-        .advanced-filters-content {
-            gap: 0.4rem;
+        .advanced-filters-header {
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
         }
 
-        .advanced-filters-content .filter-select-inline {
-            flex: 1;
-            min-width: 80px;
-            font-size: 0.75rem;
-            padding: 0.45rem 0.5rem;
+        .advanced-filters-header h4 {
+            font-size: 0.8rem;
+        }
+
+        .advanced-filter-row {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+        }
+
+        .advanced-filters-footer {
+            gap: 0.6rem;
+            padding-top: 0.8rem;
         }
 
         .btn-filter-clear {
-            padding: 0.5rem 0.8rem;
-            font-size: 0.75rem;
             flex: 1;
+            padding: 0.55rem 0.9rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-filter-apply-advanced {
+            flex: 1;
+            padding: 0.55rem 1rem;
+            font-size: 0.75rem;
         }
 
         .main-content {
@@ -1368,47 +1787,16 @@
         .table-header-title h3 {
             font-size: 0.85rem;
         }
-
-        .bulk-action-bar {
-            left: 0.5rem;
-            right: 0.5rem;
-            transform: none;
-            width: auto;
-            flex-direction: column;
-            gap: 0.5rem;
-            padding: 0.7rem 1rem;
-        }
-
-        .bulk-info {
-            border-right: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding-right: 0;
-            padding-bottom: 0.5rem;
-            width: 100%;
-            font-size: 0.8rem;
-        }
-
-        .bulk-controls {
-            width: 100%;
-            gap: 0.4rem;
-        }
-
-        .bulk-select {
-            flex: 1;
-            font-size: 0.75rem;
-        }
-
-        .btn-bulk-apply,
-        .btn-bulk-cancel {
-            flex: 1;
-            padding: 0.45rem 0.8rem;
-            font-size: 0.75rem;
-        }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 600px) {
         .premium-header {
-            padding: 0.6rem 0.75rem;
+            padding: 0.7rem 0.875rem;
+        }
+
+        .header-row-main {
+            margin-bottom: 0.6rem;
+            gap: 0.4rem;
         }
 
         .header-title {
@@ -1416,44 +1804,73 @@
         }
 
         .btn-icon-action {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
         }
 
         .btn-primary-action {
-            padding: 0.4rem 0.6rem;
-            font-size: 0.7rem;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.75rem;
             gap: 0.3rem;
         }
 
         .search-input-header {
-            font-size: 0.8rem;
-            padding: 0.5rem 0.6rem 0.5rem 2.2rem;
+            padding: 0.55rem 1.8rem 0.55rem 2.2rem;
+            font-size: 0.75rem;
         }
 
-        .filter-select-inline {
-            padding: 0.45rem 0.4rem;
-            font-size: 0.7rem;
-            min-width: 75px;
+        .search-bar-header i {
+            left: 0.9rem;
         }
 
-        .btn-more-filters {
-            padding: 0.45rem 0.6rem;
-            font-size: 0.7rem;
+        .filters-main-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
         }
 
-        .advanced-filters-content {
+        .filter-actions {
             flex-direction: column;
+            gap: 0.5rem;
         }
 
-        .advanced-filters-content .filter-select-inline,
-        .btn-filter-apply,
-        .btn-filter-clear {
+        .btn-filter-apply-main,
+        .btn-more-filters {
             width: 100%;
         }
 
-        .main-content {
-            padding: 0.5rem;
+        .advanced-filters-panel {
+            padding: 0.75rem;
+        }
+
+        .advanced-filters-header {
+            margin-bottom: 0.6rem;
+            padding-bottom: 0.6rem;
+        }
+
+        .advanced-filter-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+
+        .advanced-filters-footer {
+            gap: 0.5rem;
+            padding-top: 0.6rem;
+        }
+
+        .btn-filter-clear,
+        .btn-filter-apply-advanced {
+            width: 100%;
+            font-size: 0.7rem;
+        }
+
+        .filter-select-inline {
+            width: 100%;
+            padding: 0.5rem 0.6rem;
+            font-size: 0.7rem;
+        }
+
+        .filter-label {
+            font-size: 0.7rem;
         }
 
         .premium-table {
@@ -1461,12 +1878,12 @@
         }
 
         .premium-table thead th {
-            padding: 0.4rem 0.5rem;
+            padding: 0.35rem 0.45rem;
             font-size: 0.6rem;
         }
 
         .premium-table tbody td {
-            padding: 0.35rem 0.4rem;
+            padding: 0.35rem 0.45rem;
         }
 
         .action-btn {
@@ -1481,23 +1898,42 @@
 
         .th-status { display: none; }
         .td-status { display: none; }
+        .th-brand { display: none; }
+        .td-brand { display: none; }
+        .th-price { display: none; }
+        .td-price { display: none; }
     }
 </style>
 
 <script>
+    /* ================================================
+       FILTER AND SEARCH FUNCTIONALITY SCRIPTS
+       ================================================ */
+
+    // Toggle Advanced Filters Panel
     function toggleAdvancedFilters() {
         const panel = document.getElementById('advanced-filters-panel');
         if (!panel) return;
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        
+        const isHidden = panel.style.display === 'none';
+        if (isHidden) {
+            panel.style.display = 'block';
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            panel.style.display = 'none';
+        }
     }
 
+    // Expand/Collapse Detail Row
     function toggleDetails(id) {
         const row = document.getElementById('detail-' + id);
         if (!row) return;
-        row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+        const isHidden = row.style.display === 'none';
+        row.style.display = isHidden ? 'table-row' : 'none';
         lucide.createIcons();
     }
 
+    // Quick Date Filter
     function applyQuickDateFilter(selectElement) {
         const range = selectElement.value;
         const today = new Date();
@@ -1545,6 +1981,7 @@
         document.getElementById('purchase_date_to').value = formatDate(toDate);
     }
 
+    // Format Date to YYYY-MM-DD
     function formatDate(date) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -1552,7 +1989,7 @@
         return `${year}-${month}-${day}`;
     }
 
-    // Bulk Actions
+    // Bulk Actions Functionality
     const selectAll = document.getElementById('select-all');
     const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
     const bulkBar = document.getElementById('bulk-action-bar');
@@ -1561,11 +1998,15 @@
 
     function updateBulkBar() {
         const checkedCount = document.querySelectorAll('.asset-checkbox:checked').length;
-        if (checkedCount > 0) {
-            bulkBar.style.display = 'flex';
-            selectedCountSpan.textContent = checkedCount;
-        } else {
-            bulkBar.style.display = 'none';
+        if (bulkBar) {
+            if (checkedCount > 0) {
+                bulkBar.style.display = 'flex';
+                if (selectedCountSpan) {
+                    selectedCountSpan.textContent = checkedCount;
+                }
+            } else {
+                bulkBar.style.display = 'none';
+            }
         }
     }
 
@@ -1593,19 +2034,45 @@
         updateBulkBar();
     }
 
-    bulkForm.addEventListener('submit', function (e) {
-        const action = document.getElementById('bulk-action-select').value;
-        if (!action) {
-            alert('Please select an action to perform.');
-            e.preventDefault();
-            return;
-        }
-
-        if (action === 'delete') {
-            if (!confirm('Are you sure you want to delete the selected assets permanently? This cannot be undone.')) {
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function (e) {
+            const actionSelect = document.getElementById('bulk-action-select');
+            if (!actionSelect) return;
+            
+            const action = actionSelect.value;
+            if (!action) {
+                alert('Please select an action to perform.');
                 e.preventDefault();
+                return;
             }
-        }
+
+            if (action === 'delete') {
+                if (!confirm('Are you sure you want to delete the selected assets permanently? This cannot be undone.')) {
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+
+    // Initialize Lucide Icons on Page Load
+    document.addEventListener('DOMContentLoaded', function () {
+        lucide.createIcons();
     });
+
+    // Auto-apply filters when filter values change (optional: remove if not needed)
+    const filterForm = document.getElementById('filter-form');
+    if (filterForm) {
+        // You can enable auto-submit on select change if desired
+        // Uncomment the lines below if you want filters to apply automatically
+        /*
+        const selects = filterForm.querySelectorAll('select');
+        selects.forEach(select => {
+            select.addEventListener('change', function() {
+                // Optionally auto-submit the form
+                // filterForm.submit();
+            });
+        });
+        */
+    }
 </script>
 {% endblock %}

@@ -7,13 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Asset Management{% endblock %} | Inventory Pro</title>
 
-    <!-- Fonts -->
+    <!-- Fonts - Async loading to avoid render blocking -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 
-    <!-- Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Icons - Deferred loading -->
+    <script src="https://unpkg.com/lucide@latest" defer></script>
 
     <!-- Dynamic Styles -->
     <style>
@@ -235,61 +236,68 @@
 
         .top-bar {
             height: 64px;
-            background-color: var(--bg-card);
-            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(90deg, #FFFFFF 0%, #F9FAFB 100%);
+            border-bottom: 2px solid var(--border-color);
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             padding: 0 2rem;
-            box-shadow: var(--shadow-sm);
-            gap: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            gap: 2rem;
         }
 
         .top-bar-left {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            flex: 1;
+            gap: 1.25rem;
+            flex: 0 1 auto;
+            min-width: 0;
         }
 
         .page-title {
-            font-size: 1.125rem;
-            font-weight: 700;
+            font-size: 1.35rem;
+            font-weight: 800;
             color: var(--text-primary);
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .top-bar-nav {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            flex: 1;
-            justify-content: center;
-            margin: 0 2rem;
+            gap: 0.75rem;
+            margin-left: auto;
         }
 
         .top-bar-nav-item {
-            padding: 0.5rem 1rem;
+            padding: 0.65rem 1.2rem;
             color: var(--text-secondary);
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 0.95rem;
-            border-radius: var(--radius-md);
+            border-radius: 8px;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.65rem;
             white-space: nowrap;
+            border: 1px solid transparent;
         }
 
         .top-bar-nav-item:hover {
-            color: var(--text-primary);
-            background-color: var(--bg-light);
+            color: var(--primary);
+            background-color: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.2);
         }
 
         .top-bar-nav-item.active {
             color: var(--primary);
-            background-color: rgba(99, 102, 241, 0.1);
-            font-weight: 600;
+            background-color: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+            font-weight: 700;
+            box-shadow: inset 0 0 8px rgba(99, 102, 241, 0.2);
         }
 
         .top-bar-nav-item i {
@@ -300,21 +308,34 @@
         .user-menu {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.25rem;
+            flex-shrink: 0;
         }
 
         .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
             color: #fff;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            font-size: 0.9rem;
+            font-weight: 800;
+            font-size: 0.95rem;
             flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+            border: 3px solid #FFFFFF;
+            position: relative;
+        }
+
+        .user-avatar::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(79, 70, 229, 0.2) 100%);
+            pointer-events: none;
         }
 
         .content {
@@ -399,23 +420,30 @@
             background: none;
             border: none;
             cursor: pointer;
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
-            transition: background-color 0.2s ease;
+            padding: 0.5rem 0.85rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
 
         .user-dropdown-toggle:hover {
-            background-color: rgba(99, 102, 241, 0.1);
+            background-color: rgba(99, 102, 241, 0.08);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
         }
 
         .user-dropdown-toggle i {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             flex-shrink: 0;
+            stroke-width: 2;
+            transition: transform 0.2s ease;
+        }
+
+        .user-dropdown.open .user-dropdown-toggle i {
+            transform: rotate(180deg);
         }
 
         .user-name {
-            font-weight: 500;
+            font-weight: 600;
             color: var(--text-primary);
             font-size: 0.9rem;
         }
@@ -426,18 +454,31 @@
             right: 0;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            min-width: 180px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            min-width: 200px;
             z-index: 1000;
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
             overflow: hidden;
+            animation: dropdownSlideDown 0.2s ease;
+        }
+
+        @keyframes dropdownSlideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .dropdown-item {
-            display: block;
+            display: flex;
+            align-items: center;
             width: 100%;
-            padding: 0.75rem 1rem;
+            padding: 0.85rem 1.1rem;
             border: none;
             background: none;
             color: var(--text-primary);
@@ -445,22 +486,27 @@
             cursor: pointer;
             font-size: 0.9rem;
             font-weight: 500;
-            transition: background-color 0.15s ease;
+            transition: all 0.15s ease;
+            gap: 0.65rem;
         }
 
         .dropdown-item:hover {
-            background-color: var(--bg-body);
+            background-color: rgba(99, 102, 241, 0.08);
             color: var(--primary);
+            padding-left: 1.35rem;
         }
 
-        .dropdown-item:first-child {
-            border-top: none;
+        .dropdown-item i {
+            width: 17px;
+            height: 17px;
+            flex-shrink: 0;
+            stroke-width: 1.5;
         }
 
         .dropdown-divider {
             height: 1px;
             background-color: var(--border-color);
-            margin: 0.25rem 0;
+            margin: 0.4rem 0;
         }
 
         /* Mobile Responsive */
@@ -581,6 +627,16 @@
                     <i data-lucide="arrow-right-left"></i>
                     <span>Asset Transfers</span>
                 </a>
+                <a href="{% url 'disposal-list' %}" class="nav-item {% if 'disposals' in request.path %}active{% endif %}" data-label="Disposals">
+                    <i data-lucide="trash-2"></i>
+                    <span>Asset Disposal</span>
+                </a>
+                {% if user.is_superuser or user.role == 'ADMIN' %}
+                <a href="{% url 'approval-request-list' %}" class="nav-item {% if 'approval-requests' in request.path %}active{% endif %}" data-label="Requests">
+                    <i data-lucide="clipboard-check"></i>
+                    <span>Asset Requests</span>
+                </a>
+                {% endif %}
             </div>
 
             <!-- Asset Setup Section -->
@@ -590,9 +646,17 @@
                     <i data-lucide="layers"></i>
                     <span>Categories</span>
                 </a>
+                <a href="{% url 'subcategory-list' %}" class="nav-item {% if 'subcategories' in request.path %}active{% endif %}" data-label="Sub Categories">
+                    <i data-lucide="list"></i>
+                    <span>Sub Categories</span>
+                </a>
                 <a href="{% url 'group-list' %}" class="nav-item {% if 'groups' in request.path %}active{% endif %}" data-label="Groups">
                     <i data-lucide="folder"></i>
                     <span>Groups</span>
+                </a>
+                <a href="{% url 'subgroup-list' %}" class="nav-item {% if 'subgroups' in request.path %}active{% endif %}" data-label="Sub Groups">
+                    <i data-lucide="layers"></i>
+                    <span>Sub Groups</span>
                 </a>
                 <a href="{% url 'brand-list' %}" class="nav-item {% if 'brands' in request.path %}active{% endif %}" data-label="Brands">
                     <i data-lucide="tag"></i>
@@ -615,6 +679,10 @@
                     <i data-lucide="map-pin"></i>
                     <span>Sites</span>
                 </a>
+                <a href="{% url 'branch-list' %}" class="nav-item {% if 'branches' in request.path %}active{% endif %}" data-label="Branches">
+                    <i data-lucide="building-2"></i>
+                    <span>Branches</span>
+                </a>
                 <a href="{% url 'building-list' %}" class="nav-item {% if 'buildings' in request.path %}active{% endif %}" data-label="Buildings">
                     <i data-lucide="building"></i>
                     <span>Buildings</span>
@@ -622,6 +690,19 @@
                 <a href="{% url 'floor-list' %}" class="nav-item {% if 'floors' in request.path %}active{% endif %}" data-label="Floors">
                     <i data-lucide="layers"></i>
                     <span>Floors</span>
+                </a>
+                <a href="{% url 'room-list' %}" class="nav-item {% if 'rooms' in request.path %}active{% endif %}" data-label="Rooms">
+                    <i data-lucide="home"></i>
+                    <span>Rooms</span>
+                </a>
+                <a href="{% url 'location-list' %}" class="nav-item {% if 'locations' in request.path %}active{% endif %}" data-label="Locations">
+                    <i data-lucide="grid"></i>
+                    <span>Locations</span>
+                </a>
+                
+                <a href="{% url 'sublocation-list' %}" class="nav-item {% if 'sublocations' in request.path %}active{% endif %}" data-label="Sub Locations">
+                    <i data-lucide="clipboard"></i>
+                    <span>Sub Locations</span>
                 </a>
             </div>
 
@@ -707,13 +788,15 @@
 
                     <div class="user-dropdown-menu" id="userDropdownMenu" role="menu" aria-labelledby="userDropdownBtn" style="display:none;">
                         <a href="{% url 'user-list' %}" class="dropdown-item" role="menuitem">
-                            <i data-lucide="user" style="display:inline; width:16px; height:16px; margin-right:0.5rem;"></i> My Profile
+                            <i data-lucide="user"></i>
+                            <span>My Profile</span>
                         </a>
                         <div class="dropdown-divider"></div>
                         <form method="post" action="{% url 'logout' %}" style="margin:0;">
                             {% csrf_token %}
                             <button type="submit" class="dropdown-item" role="menuitem">
-                                <i data-lucide="log-out" style="display:inline; width:16px; height:16px; margin-right:0.5rem;"></i> Sign out
+                                <i data-lucide="log-out"></i>
+                                <span>Sign out</span>
                             </button>
                         </form>
                     </div>
@@ -790,25 +873,75 @@
             });
         }
 
-        // User dropdown
+        // Enhanced User Dropdown with keyboard support
         const userDropdownBtn = document.getElementById('userDropdownBtn');
         const userDropdownMenu = document.getElementById('userDropdownMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
         if (userDropdownBtn && userDropdownMenu) {
+            // Click to toggle
             userDropdownBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const open = userDropdownMenu.style.display === 'block';
-                userDropdownMenu.style.display = open ? 'none' : 'block';
-                userDropdownBtn.setAttribute('aria-expanded', (!open).toString());
+                const isOpen = userDropdownMenu.style.display === 'block';
+                userDropdownMenu.style.display = isOpen ? 'none' : 'block';
+                userDropdown.classList.toggle('open');
+                userDropdownBtn.setAttribute('aria-expanded', (!isOpen).toString());
             });
 
             // Close when clicking outside
             document.addEventListener('click', function(e) {
                 if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
                     userDropdownMenu.style.display = 'none';
+                    userDropdown.classList.remove('open');
                     userDropdownBtn.setAttribute('aria-expanded', 'false');
                 }
             });
+
+            // Keyboard support
+            userDropdownBtn.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    userDropdownMenu.style.display = 'none';
+                    userDropdown.classList.remove('open');
+                    userDropdownBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            // Close dropdown items
+            const dropdownItems = userDropdownMenu.querySelectorAll('.dropdown-item');
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    userDropdownMenu.style.display = 'none';
+                    userDropdown.classList.remove('open');
+                    userDropdownBtn.setAttribute('aria-expanded', 'false');
+                });
+            });
         }
+
+        // Scroll indicator for sidebar
+        const navMenu = document.querySelector('.nav-menu');
+        if (navMenu) {
+            navMenu.addEventListener('scroll', function() {
+                if (this.scrollTop > 0) {
+                    this.style.boxShadow = 'inset 0 8px 8px -8px rgba(0,0,0,0.1)';
+                } else {
+                    this.style.boxShadow = 'none';
+                }
+            });
+        }
+
+        // Smooth page transitions
+        document.querySelectorAll('a[href^="/"]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                // Allow normal navigation but could add transitions here
+                if (!this.target) {
+                    // Add visual feedback
+                    this.style.opacity = '0.8';
+                    setTimeout(() => {
+                        this.style.opacity = '1';
+                    }, 100);
+                }
+            });
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

@@ -3,113 +3,96 @@
 {% block page_title %}Asset Transfers{% endblock %}
 
 {% block content %}
-<div class="asset-container">
-    <!-- Header with Filters -->
-    <div class="premium-header">
-        <!-- Top Row: Title and Actions -->
-        <div class="header-row-main">
-            <h1 class="header-title">Asset Transfers</h1>
-            <div class="header-actions">
-                <a href="{% url 'transfer-create' %}" class="btn-primary-action" title="New Transfer">
+<div class="transfer-page">
+    <header class="transfer-header">
+        <div class="title-row">
+            <h1>Asset Transfers</h1>
+            <div class="actions">
+                <a href="{% url 'transfer-create' %}" class="btn btn-primary">
                     <i data-lucide="plus"></i> New Transfer
                 </a>
             </div>
         </div>
 
-        <!-- Filter Row -->
-        <form method="get" id="filter-form" class="header-filters">
-            <div class="search-bar-header">
-                <i data-lucide="search"></i>
-                <input 
-                    type="text" 
-                    name="search" 
-                    placeholder="Search transfers..." 
-                    value="{{ search }}" 
-                    class="search-input-header"
-                >
-            </div>
-
-            <div class="filters-group-inline">
-                <select name="status" class="filter-select-inline">
+        <form id="filter-form" method="get" class="filter-bar">
+            <div class="filter-left">
+                <div class="search">
+                    <i data-lucide="search"></i>
+                    <input type="text" name="search" placeholder="Search transfers, tags or names" value="{{ search }}">
+                </div>
+                <select name="status">
                     <option value="">All Status</option>
                     {% for code, label in status_choices %}
                     <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-
-                <select name="asset" class="filter-select-inline">
+                <select name="asset">
                     <option value="">All Assets</option>
                     {% for asset in assets %}
                     <option value="{{ asset.id }}" {% if asset_filter == asset.id|stringformat:"s" %}selected{% endif %}>{{ asset.asset_tag }} - {{ asset.name }}</option>
                     {% endfor %}
                 </select>
+            </div>
 
-                <input type="date" name="date_from" class="filter-select-inline" placeholder="From Date" value="{{ date_from }}">
-                <input type="date" name="date_to" class="filter-select-inline" placeholder="To Date" value="{{ date_to }}">
-
-                <button type="submit" class="btn-filter-apply-main">Apply</button>
+            <div class="filter-right">
+                <input type="date" name="date_from" value="{{ date_from }}" title="From">
+                <input type="date" name="date_to" value="{{ date_to }}" title="To">
+                <button type="submit" class="btn btn-secondary">Apply</button>
             </div>
         </form>
-    </div>
+    </header>
 
-    <!-- Content -->
-    <div class="card-container">
+    <main class="transfer-content">
         {% if transfers %}
-        <div class="table-container">
-            <table class="data-table">
+        <div class="transfer-table-wrap">
+            <table class="transfer-table">
                 <thead>
                     <tr>
-                        <th>Asset Tag</th>
-                        <th>Asset Name</th>
+                        <th>Tag</th>
+                        <th>Asset</th>
                         <th>From</th>
                         <th>To</th>
                         <th>Date</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for transfer in transfers %}
-                    <tr class="table-row-hover">
-                        <td class="font-weight-bold">{{ transfer.asset.asset_tag }}</td>
+                    <tr>
+                        <td class="mono">{{ transfer.asset.asset_tag }}</td>
                         <td>{{ transfer.asset.name }}</td>
-                        <td>
+                        <td class="muted">
                             {% if transfer.transferred_from_user %}
                                 {{ transfer.transferred_from_user.get_full_name }}
                             {% elif transfer.transferred_from_department %}
                                 {{ transfer.transferred_from_department.name }}
                             {% else %}
-                                <span class="text-muted">-</span>
+                                -
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="muted">
                             {% if transfer.transferred_to_user %}
                                 {{ transfer.transferred_to_user.get_full_name }}
                             {% elif transfer.transferred_to_department %}
                                 {{ transfer.transferred_to_department.name }}
                             {% else %}
-                                <span class="text-muted">-</span>
+                                -
                             {% endif %}
                         </td>
                         <td>{{ transfer.transfer_date|date:"d M Y" }}</td>
                         <td>
-                            <span class="badge badge-{{ transfer.status|lower }}">
-                                {{ transfer.get_status_display }}
-                            </span>
+                            {% with cls=transfer.status|lower %}
+                            <span class="pill pill-{{ cls|slugify }}">{{ transfer.get_status_display }}</span>
+                            {% endwith %}
                         </td>
-                        <td>
-                            <a href="{% url 'transfer-detail' transfer.id %}" class="btn-link-action" title="View">
-                                <i data-lucide="eye"></i>
-                            </a>
+                        <td class="actions-col">
+                            <a href="{% url 'transfer-detail' transfer.id %}" class="icon-btn" title="View"><i data-lucide="eye"></i></a>
                             {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
-                            <a href="{% url 'transfer-update' transfer.id %}" class="btn-link-action" title="Edit">
-                                <i data-lucide="edit"></i>
-                            </a>
+                            <a href="{% url 'transfer-update' transfer.id %}" class="icon-btn" title="Edit"><i data-lucide="edit"></i></a>
                             {% endif %}
                             {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
-                            <a href="{% url 'transfer-receive' transfer.id %}" class="btn-link-action" title="Receive">
-                                <i data-lucide="check"></i>
-                            </a>
+                            <a href="{% url 'transfer-receive' transfer.id %}" class="icon-btn" title="Receive"><i data-lucide="check"></i></a>
                             {% endif %}
                         </td>
                     </tr>
@@ -118,34 +101,67 @@
             </table>
         </div>
 
-        <!-- Pagination -->
         {% if is_paginated %}
-        <div class="pagination-container">
-            {% include 'includes/pagination.html' %}
-        </div>
+        <div class="pagination-wrap">{% include 'includes/pagination.html' %}</div>
         {% endif %}
+
         {% else %}
         <div class="empty-state">
-            <i data-lucide="inbox" class="empty-state-icon"></i>
+            <i data-lucide="inbox" class="empty-icon"></i>
             <h3>No transfers found</h3>
-            <p>Create a new asset transfer to get started.</p>
-            <a href="{% url 'transfer-create' %}" class="btn-primary-action">New Transfer</a>
+            <p>Create a new transfer to get started.</p>
+            <a href="{% url 'transfer-create' %}" class="btn btn-primary">New Transfer</a>
         </div>
         {% endif %}
-    </div>
+    </main>
 </div>
 
 <style>
-    .badge-pending { background-color: #ffc107; color: #000; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
-    .badge-in_transit { background-color: #17a2b8; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
-    .badge-received { background-color: #28a745; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
-    .badge-rejected { background-color: #dc3545; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
-    .badge-cancelled { background-color: #6c757d; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+/* Layout */
+.transfer-page { max-width: 1100px; margin: 18px auto; padding: 16px; }
+.transfer-header .title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.transfer-header h1 { margin:0; font-size:1.4rem; }
+.actions .btn { display:inline-flex; align-items:center; gap:8px; }
+
+.filter-bar { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.filter-left { display:flex; gap:8px; align-items:center; flex:1; min-width:220px; }
+.filter-right { display:flex; gap:8px; align-items:center; }
+.filter-bar input[type="date"], .filter-bar select, .filter-bar input[type="text"] { padding:8px 10px; border:1px solid #e1e4e8; border-radius:6px; }
+.filter-bar .search { display:flex; align-items:center; gap:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #e9ecef; }
+.filter-bar .search input { border:none; outline:none; min-width:200px; }
+
+/* Table */
+.transfer-table-wrap { background:#fff; border:1px solid #e9ecef; border-radius:8px; overflow:hidden; }
+.transfer-table { width:100%; border-collapse:collapse; }
+.transfer-table thead { background:#f8f9fa; }
+.transfer-table th, .transfer-table td { padding:12px 14px; text-align:left; border-bottom:1px solid #f1f3f5; }
+.transfer-table tbody tr:hover { background:#fbfbfd; }
+.transfer-table .mono { font-family:monospace; color:#2b2b2b; font-weight:600; }
+.muted { color:#6c757d; }
+
+.pill { display:inline-block; padding:6px 10px; border-radius:999px; font-size:0.85em; }
+.pill-pending { background:#fff3cd; color:#856404; }
+.pill-in_transit, .pill-in-transit { background:#d1ecf1; color:#0c5460; }
+.pill-received { background:#d4edda; color:#155724; }
+.pill-rejected { background:#f8d7da; color:#721c24; }
+.pill-cancelled { background:#e2e3e5; color:#6c757d; }
+
+.actions-col { width:120px; text-align:right; }
+.icon-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; color:#495057; margin-left:6px; }
+.icon-btn:hover { background:#f1f3f5; }
+
+.empty-state { text-align:center; padding:40px 20px; color:#6c757d; }
+.empty-icon { width:48px; height:48px; color:#c6c8cc; }
+
+/* Responsive */
+@media (max-width:800px) {
+    .filter-left { flex-basis:100%; }
+    .actions-col { width:80px; }
+    .transfer-table th:nth-child(2), .transfer-table td:nth-child(2) { display:none; }
+}
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        lucide.createIcons();
-    });
+    document.addEventListener('DOMContentLoaded', function() { lucide.createIcons(); });
 </script>
 {% endblock %}

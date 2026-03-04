@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Asset, Category, SubCategory, Vendor, Group, SubGroup, 
     Brand, Company, Supplier, Custodian, AssetRemarks,
-    AssetAttachment, AssetActivityLog, ApprovalRequest, ApprovalLog, AssetTransfer
+    AssetAttachment, AssetActivityLog, ApprovalRequest, ApprovalLog, AssetTransfer, AssetDisposal
 )
 
 @admin.register(Asset)
@@ -131,6 +131,31 @@ class AssetTransferAdmin(admin.ModelAdmin):
         }),
         ('Tracking', {
             'fields': ('created_by', 'received_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+@admin.register(AssetDisposal)
+class AssetDisposalAdmin(admin.ModelAdmin):
+    list_display = ['asset', 'requested_by', 'disposal_method', 'status', 'approved_by', 'created_at']
+    list_filter = ['status', 'disposal_method', 'created_at', 'organization']
+    search_fields = ['asset__asset_tag', 'asset__name', 'requested_by__username']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'approved_at']
+    fieldsets = (
+        ('Disposal Request', {
+            'fields': ('id', 'asset', 'requested_by', 'status')
+        }),
+        ('Details', {
+            'fields': ('disposal_method', 'reason', 'disposal_date', 'estimated_salvage_value')
+        }),
+        ('Approval', {
+            'fields': ('approved_by', 'approved_at', 'rejection_reason')
+        }),
+        ('Notes', {
+            'fields': ('notes',)
+        }),
+        ('Tracking', {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )

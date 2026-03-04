@@ -518,6 +518,16 @@ class Asset(TenantAwareModel):
             models.Index(fields=['organization']),
             models.Index(fields=['organization', 'category']),
             models.Index(fields=['organization', 'assigned_to']),
+            # Performance optimization indexes for 100k+ assets
+            models.Index(fields=['organization', 'is_deleted'], name='org_deleted_idx'),
+            models.Index(fields=['organization', 'status'], name='org_status_idx'),
+            models.Index(fields=['organization', 'purchase_date'], name='org_purchase_idx'),
+            models.Index(fields=['organization', 'site'], name='org_site_idx'),
+            models.Index(fields=['organization', 'department'], name='org_dept_idx'),
+            models.Index(fields=['created_at'], name='created_at_idx'),
+            # Composite indexes for common filter combinations
+            models.Index(fields=['organization', 'category', 'status'], name='org_cat_status_idx'),
+            models.Index(fields=['organization', 'site', 'building'], name='org_site_bldg_idx'),
         ]
 
 class AssetAttachment(TenantAwareModel):
@@ -591,7 +601,7 @@ class ApprovalRequest(TenantAwareModel):
     request_type = models.CharField(max_length=50, choices=RequestType.choices)
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.PENDING)
     
-    # Requester (Data Entry person)
+    # Requester (employee)
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -698,7 +708,15 @@ class AssetTransfer(TenantAwareModel):
         CANCELLED = 'CANCELLED', _('Cancelled')
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+
+    # Optional transfer reference number
+    transfer_no = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text="Optional transfer reference number"
+    )
+
     # Asset being transferred
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='transfers')
     
@@ -730,6 +748,57 @@ class AssetTransfer(TenantAwareModel):
         related_name='assets_transferred_from'
     )
     
+    # Detailed "from" location fields
+    transferred_from_region = models.ForeignKey(
+        'locations.Region',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_region'
+    )
+    transferred_from_site = models.ForeignKey(
+        'locations.Site',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_site'
+    )
+    transferred_from_building = models.ForeignKey(
+        'locations.Building',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_building'
+    )
+    transferred_from_floor = models.ForeignKey(
+        'locations.Floor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_floor'
+    )
+    transferred_from_room = models.ForeignKey(
+        'locations.Room',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_room'
+    )
+    transferred_from_company = models.ForeignKey(
+        Company,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_company'
+    )
+    transferred_from_custodian = models.ForeignKey(
+        Custodian,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_from_custodian'
+    )
+    
     # To whom/where
     transferred_to_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -752,6 +821,58 @@ class AssetTransfer(TenantAwareModel):
         blank=True,
         related_name='assets_transferred_to'
     )
+    # Detailed "to" location fields
+    transferred_to_region = models.ForeignKey(
+        'locations.Region',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_region'
+    )
+    transferred_to_site = models.ForeignKey(
+        'locations.Site',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_site'
+    )
+    transferred_to_building = models.ForeignKey(
+        'locations.Building',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_building'
+    )
+    transferred_to_floor = models.ForeignKey(
+        'locations.Floor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_floor'
+    )
+    transferred_to_room = models.ForeignKey(
+        'locations.Room',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_room'
+    )
+    transferred_to_company = models.ForeignKey(
+        Company,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_company'
+    )
+    transferred_to_custodian = models.ForeignKey(
+        Custodian,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets_transferred_to_custodian'
+    )
+    transfer_description = models.TextField(blank=True, help_text="Short description for the transfer request")
+    requester_name = models.CharField(max_length=255, blank=True, help_text="Name of the requester (free text)")
     
     # Status tracking
     status = models.CharField(
@@ -766,9 +887,21 @@ class AssetTransfer(TenantAwareModel):
         blank=True,
         help_text="Reason for transfer (e.g., Employee promotion, Department restructuring)"
     )
+    movement_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Specific reason for this movement"
+    )
     notes = models.TextField(blank=True, help_text="Additional notes or comments")
     
     # Approval tracking
+    request_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='transfers_requested'
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -808,3 +941,133 @@ class AssetTransfer(TenantAwareModel):
             self.transferred_to_department.name if self.transferred_to_department else "Unknown"
         )
         return f"From {from_info} to {to_info}"
+
+
+class AssetDisposal(TenantAwareModel):
+    """
+    Track asset disposal/retirement requests with two-step approval workflow.
+    Employees request disposal → Manager approves → Admin gives final approval
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', _('Pending Manager Approval')
+        MANAGER_APPROVED = 'MANAGER_APPROVED', _('Manager Approved, Awaiting Admin')
+        APPROVED = 'APPROVED', _('Admin Approved')
+        REJECTED = 'REJECTED', _('Rejected')
+        COMPLETED = 'COMPLETED', _('Disposal Completed')
+        CANCELLED = 'CANCELLED', _('Cancelled')
+
+    class DisposalMethod(models.TextChoices):
+        SCRAP = 'SCRAP', _('Scrap')
+        DONATE = 'DONATE', _('Donate')
+        SELL = 'SELL', _('Sell')
+        RECYCLE = 'RECYCLE', _('Recycle')
+        DISCARD = 'DISCARD', _('Discard')
+        OTHER = 'OTHER', _('Other')
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Asset being disposed
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='disposals')
+
+    # Requester (employee)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='disposal_requests'
+    )
+
+    # Disposal details
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING
+    )
+
+    disposal_method = models.CharField(
+        max_length=50,
+        choices=DisposalMethod.choices,
+        default=DisposalMethod.SCRAP,
+        help_text="Method of disposal"
+    )
+
+    reason = models.TextField(
+        blank=True,
+        help_text="Reason for disposal (e.g., End of life, Damaged, Obsolete)"
+    )
+
+    disposal_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Planned or actual disposal date"
+    )
+
+    estimated_salvage_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Estimated value if sold or donated"
+    )
+
+    # Manager approval (First step)
+    manager_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='disposals_manager_approved'
+    )
+
+    manager_approved_at = models.DateTimeField(null=True, blank=True)
+
+    manager_rejection_reason = models.TextField(
+        blank=True,
+        help_text="Reason for manager rejection"
+    )
+
+    # Final approval tracking (Admin - Second step)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='disposals_approved'
+    )
+
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    rejection_reason = models.TextField(
+        blank=True,
+        help_text="Reason for admin rejection"
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes or comments"
+    )
+
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Asset Disposal"
+        verbose_name_plural = "Asset Disposals"
+
+    def __str__(self):
+        return f"Disposal {self.asset.asset_tag} - {self.get_status_display()}"
+
+    @property
+    def is_pending(self):
+        return self.status == self.Status.PENDING
+
+    @property
+    def can_be_approved(self):
+        return self.status == self.Status.PENDING
+
+    @property
+    def can_be_rejected(self):
+        return self.status == self.Status.PENDING

@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+
+{% block page_title %}My Asset Requests{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <div class="content-header">
+        <h1 class="page-heading">Asset Approval Requests</h1>
+        <a href="{% url 'approval-request-create' %}" class="btn btn-primary">
+            + New Request
+        </a>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value" style="color: #f59e0b;">{{ pending_count }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Approved</div>
+            <div class="stat-value" style="color: #10b981;">{{ approved_count }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Rejected</div>
+            <div class="stat-value" style="color: #ef4444;">{{ rejected_count }}</div>
+        </div>
+    </div>
+
+    {% if approval_requests %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Asset Name</th>
+                    <th>Request Type</th>
+                    <th>Status</th>
+                    <th>Requested Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in approval_requests %}
+                <tr>
+                    <td class="asset-name">{{ request.data.asset_name }}</td>
+                    <td>{{ request.get_request_type_display }}</td>
+                    <td>
+                        <span class="status-badge status-{{ request.status|lower }}">
+                            {{ request.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="date">{{ request.created_at|date:"d M Y, H:i" }}</td>
+                    <td>
+                        <a href="{% url 'approval-request-detail' request.id %}" class="action-link">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1" class="page-link">First</a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="page-link">Previous</a>
+        {% endif %}
+        
+        <span class="page-info">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+        
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="page-link">Next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="page-link">Last</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>No Asset Requests</h3>
+        <p>You haven't made any asset requests yet.</p>
+        <a href="{% url 'approval-request-create' %}" class="btn btn-primary">Create New Request</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Compact & Standard Design */
+    .asset-container {
+        background: #f9fafb;
+        padding: 0;
+    }
+
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding: 12px 16px;
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .page-heading {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+        margin: 0;
+        padding: 12px 16px;
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .stat-card {
+        background: #f9fafb;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: #6b7280;
+        font-weight: 600;
+        margin-bottom: 4px;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
+    .table-wrapper {
+        background: white;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        margin: 12px 16px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .data-table thead {
+        background: #f9fafb;
+        border-bottom: 1.5px solid #e5e7eb;
+    }
+
+    .data-table th {
+        padding: 8px 12px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 11px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        color: #374151;
+    }
+
+    .data-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .asset-name {
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .date {
+        font-size: 12px;
+        color: #6b7280;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-checker_approved {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-approved {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-checker_rejected,
+    .status-senior_rejected,
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .action-link {
+        color: #6366f1;
+        text-decoration: none;
+        margin-right: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .action-link:hover {
+        color: #4f46e5;
+        text-decoration: underline;
+    }
+    
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 12px;
+        padding: 12px 16px;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+        margin: 12px 16px 0 16px;
+        border-radius: 6px;
+    }
+
+    .page-link {
+        padding: 6px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #6366f1;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .page-link:hover {
+        background: #f3f4f6;
+        border-color: #6366f1;
+    }
+
+    .page-info {
+        color: #6b7280;
+        font-size: 12px;
+        margin: 0 8px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        background: white;
+        border-radius: 6px;
+        margin: 12px 16px;
+    }
+
+    .empty-icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+
+    .empty-state h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0 0 6px 0;
+    }
+
+    .empty-state p {
+        color: #6b7280;
+        margin: 0 0 16px 0;
+        font-size: 13px;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px 14px;
+        font-weight: 600;
+        font-size: 12px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background-color: #6366f1;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #4f46e5;
+        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .data-table {
+            font-size: 12px;
+        }
+
+        .data-table th {
+            padding: 6px 10px;
+            font-size: 10px;
+        }
+
+        .data-table td {
+            padding: 6px 10px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .content-header {
+            padding: 10px 12px;
+        }
+
+        .page-heading {
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            padding: 10px 12px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+        }
+
+        .table-wrapper {
+            margin: 10px 12px;
+            border-radius: 4px;
+        }
+
+        .data-table th {
+            padding: 5px 8px;
+            font-size: 9px;
+        }
+
+        .data-table td {
+            padding: 5px 8px;
+            font-size: 11px;
+        }
+    }
+</style>
+
+{% endblock %}

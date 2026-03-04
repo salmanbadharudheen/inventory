@@ -1,5 +1,7 @@
 django==6.0.1
 djangorestframework
+djangorestframework-simplejwt
+drf-yasg
 gunicorn
 whitenoise
 dj-database-url

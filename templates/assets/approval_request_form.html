@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Request New Asset{% endblock %}
+
+{% block content %}
+<div class="asset-container">
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">Request a New Asset</h1>
+            <p class="form-subtitle">Submit a request to add a new asset to the inventory system</p>
+        </div>
+
+        <div class="card form-card">
+            <form method="post" id="asset-request-form" class="asset-form">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h3 class="form-section-title">Asset Details</h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">{{ form.asset_name.label }} <span class="text-danger">*</span></label>
+                            {{ form.asset_name }}
+                            {% if form.asset_name.errors %}<div class="form-error">{{ form.asset_name.errors }}</div>{% endif %}
+                            <small class="form-text">Name or description of the asset</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">{{ form.asset_category.label }} <span class="text-danger">*</span></label>
+                            {{ form.asset_category }}
+                            {% if form.asset_category.errors %}<div class="form-error">{{ form.asset_category.errors }}</div>{% endif %}
+                            <small class="form-text">Type or category of asset</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">{{ form.asset_quantity.label }} <span class="text-danger">*</span></label>
+                            {{ form.asset_quantity }}
+                            {% if form.asset_quantity.errors %}<div class="form-error">{{ form.asset_quantity.errors }}</div>{% endif %}
+                            <small class="form-text">How many units do you need?</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">{{ form.asset_cost.label }}</label>
+                            {{ form.asset_cost }}
+                            {% if form.asset_cost.errors %}<div class="form-error">{{ form.asset_cost.errors }}</div>{% endif %}
+                            <small class="form-text">Estimated cost per unit</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">{{ form.asset_department.label }}</label>
+                            {{ form.asset_department }}
+                            {% if form.asset_department.errors %}<div class="form-error">{{ form.asset_department.errors }}</div>{% endif %}
+                            <small class="form-text">Which department will this asset be assigned to?</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label class="form-label">{{ form.asset_description.label }}</label>
+                            {{ form.asset_description }}
+                            {% if form.asset_description.errors %}<div class="form-error">{{ form.asset_description.errors }}</div>{% endif %}
+                            <small class="form-text">Specifications, model, features, or any other relevant details</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="form-section-title">Request Details</h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">{{ form.requested_by.label }}</label>
+                            {{ form.requested_by }}
+                            {% if form.requested_by.errors %}<div class="form-error">{{ form.requested_by.errors }}</div>{% endif %}
+                            <small class="form-text">Who is requesting this asset?</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">{{ form.asset_department.label }}</label>
+                            {{ form.asset_department }}
+                            {% if form.asset_department.errors %}<div class="form-error">{{ form.asset_department.errors }}</div>{% endif %}
+                            <small class="form-text">Which department will this asset be assigned to?</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label class="form-label">{{ form.asset_reason.label }} <span class="text-danger">*</span></label>
+                            {{ form.asset_reason }}
+                            {% if form.asset_reason.errors %}<div class="form-error">{{ form.asset_reason.errors }}</div>{% endif %}
+                            <small class="form-text">Explain why this asset is needed and how it will be used</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label class="form-label">{{ form.request_type.label }} <span class="text-danger">*</span></label>
+                            {{ form.request_type }}
+                            {% if form.request_type.errors %}<div class="form-error">{{ form.request_type.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label class="form-label">{{ form.comments.label }}</label>
+                            {{ form.comments }}
+                            {% if form.comments.errors %}<div class="form-error">{{ form.comments.errors }}</div>{% endif %}
+                            <small class="form-text">Any additional comments or notes for the approvers</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Submit Request</button>
+                    <a href="{% url 'approval-request-list' %}" class="btn-default">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-card { max-width: 800px; margin: 20px auto; padding: 24px; }
+    .form-subtitle { margin-top: 6px; color: #6b7280; font-size: 14px; }
+    .form-section { margin-bottom: 24px; padding: 16px; background: #f9f9f9; border-radius: 6px; border-left: 4px solid #6366f1; }
+    .form-section-title { font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 16px 0; }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .form-row .form-group.full-width { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-label { font-weight: 600; margin-bottom: 6px; color: #374151; font-size: 14px; }
+    .form-card .form-control, .form-card select, .form-card input, .form-card textarea { padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px; font-family: inherit; }
+    .form-card .form-control:focus, .form-card select:focus, .form-card input:focus, .form-card textarea:focus { outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08); border-color: #6366f1; }
+    .form-error { color: #dc3545; font-size: 12px; margin-top: 4px; }
+    .form-text { color: #6c757d; font-size: 12px; margin-top: 4px; display: block; }
+    .text-danger { color: #dc3545; }
+    .form-actions { display: flex; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; text-decoration: none; gap: 8px; font-size: 14px; }
+    .btn-primary { background-color: #6366f1; color: white; }
+    .btn-primary:hover { background-color: #4f46e5; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .btn-default { background: #f3f4f6; color: #111827; padding: 10px 20px; border-radius: 6px; text-decoration: none; }
+    .btn-default:hover { background: #e5e7eb; }
+    @media (max-width: 640px) { 
+        .form-row { grid-template-columns: 1fr; }
+        .form-card { padding: 16px; }
+    }
+</style>
+
+{% endblock %}

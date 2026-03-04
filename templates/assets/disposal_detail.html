@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Disposal Request Details{% endblock %}
+
+{% block content %}
+<style>
+    .disposal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .disposal-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+    
+    .disposal-header h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+        z-index: 1;
+        letter-spacing: -0.5px;
+    }
+    
+    .disposal-header h1 i {
+        font-size: 2.5rem;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+    }
+    
+    .disposal-header .badge {
+        font-size: 0.95rem;
+        padding: 0.7rem 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 0.9rem;
+    }
+    
+    .step-circle.pending { background-color: #fbbf24; }
+    .step-circle.manager { background-color: #3b82f6; }
+    .step-circle.admin { background-color: #059669; }
+    .step-circle.complete { background-color: #6366f1; }
+    .step-circle.rejected { background-color: #ef4444; }
+    
+    .approval-card {
+        border-left: 4px solid #e5e7eb;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .approval-card.pending { border-left-color: #fbbf24; }
+    .approval-card.manager { border-left-color: #3b82f6; }
+    .approval-card.admin { border-left-color: #059669; }
+    .approval-card.rejected { border-left-color: #ef4444; }
+    
+    .asset-info-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.2rem;
+    }
+    
+    .info-item {
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s ease;
+    }
+    
+    .info-item:hover {
+        border-color: #d1d5db;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    
+    .info-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+    
+    .info-value {
+        font-size: 1.05rem;
+        color: #1f2937;
+        font-weight: 700;
+        margin-top: 0.4rem;
+    }
+    
+    .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        transition: all 0.2s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-bottom: 2px solid #e5e7eb;
+        padding: 1.25rem;
+    }
+    
+    .card-header h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: #1f2937;
+    }
+    
+    .card-header i {
+        color: #667eea;
+    }
+    
+    .timeline {
+        position: relative;
+        padding: 1rem 0;
+    }
+    
+    .timeline-item {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 50px;
+        height: 60px;
+        width: 2px;
+        background: #e5e7eb;
+    }
+    
+    .timeline-item:last-child::before {
+        display: none;
+    }
+    
+    .timeline-marker {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+        z-index: 1;
+        font-size: 1.1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .timeline-marker.pending { background: #fbbf24; }
+    .timeline-marker.approved { background: #059669; }
+    .timeline-marker.rejected { background: #ef4444; }
+    .timeline-marker.waiting { background: #9ca3af; }
+    
+    .timeline-content {
+        flex: 1;
+        padding-top: 0.3rem;
+    }
+    
+    .timeline-label {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.4rem;
+        font-size: 1rem;
+    }
+    
+    .timeline-detail {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin: 0.3rem 0;
+        line-height: 1.5;
+    }
+    
+    .action-button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .action-button-group .btn {
+        width: 100%;
+        padding: 0.9rem;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    
+    .action-button-group .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    
+    .badge-status {
+        display: inline-block;
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-status.pending { background: #fef3c7; color: #92400e; }
+    .badge-status.manager-approved { background: #dbeafe; color: #1e40af; }
+    .badge-status.approved { background: #d1fae5; color: #065f46; }
+    .badge-status.rejected { background: #fee2e2; color: #991b1b; }
+    
+    @media (max-width: 992px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .disposal-header {
+            padding: 2rem 1.5rem;
+        }
+        
+        .disposal-header h1 {
+            font-size: 1.6rem;
+        }
+    }
+</style>
+
+<div class="container mt-4">
+    <!-- Header with Status -->
+    <div class="disposal-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>
+                <i class="fas fa-trash-alt"></i>
+                Disposal Request #{{ disposal.id|truncatechars:13 }}
+            </h1>
+            <span class="badge
+                {% if disposal.status == 'PENDING' %}badge-warning
+                {% elif disposal.status == 'MANAGER_APPROVED' %}badge-info
+                {% elif disposal.status == 'APPROVED' %}badge-success
+                {% elif disposal.status == 'REJECTED' %}badge-danger
+                {% elif disposal.status == 'COMPLETED' %}badge-secondary
+                {% else %}badge-light{% endif %}"
+                style="font-size: 1rem; padding: 0.75rem 1.5rem;">
+                {{ disposal.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Asset Information Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light border-0">
+                    <h5 class="mb-0"><i class="fas fa-cube text-primary"></i> Asset Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Asset Tag</div>
+                            <div class="info-value">{{ disposal.asset.asset_tag }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Asset Name</div>
+                            <div class="info-value">{{ disposal.asset.name }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Category</div>
+                            <div class="info-value">{{ disposal.asset.category.name }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Current Status</div>
+                            <div class="info-value">
+                                <span class="badge badge-secondary">{{ disposal.asset.get_status_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% if disposal.asset.description %}
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                        <strong style="display: block; margin-bottom: 0.5rem;">Description</strong>
+                        <p style="margin: 0; color: #6b7280;">{{ disposal.asset.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Disposal Details Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light border-0">
+                    <h5 class="mb-0"><i class="fas fa-list text-primary"></i> Disposal Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Requested By</div>
+                            <div class="info-value" style="font-size: 1rem;">{{ disposal.requested_by.get_full_name|default:disposal.requested_by.username }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Requested On</div>
+                            <div class="info-value" style="font-size: 1rem;">{{ disposal.created_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Disposal Method</div>
+                            <div class="info-value">
+                                <span class="badge badge-info">{{ disposal.get_disposal_method_display }}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Planned Date</div>
+                            <div class="info-value" style="font-size: 1rem;">{{ disposal.disposal_date|date:"M d, Y"|default:"—" }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if disposal.estimated_salvage_value %}
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 6px; border-left: 3px solid #059669;">
+                        <div class="info-label">Estimated Salvage Value</div>
+                        <div style="font-size: 1.2rem; font-weight: 700; color: #059669; margin-top: 0.25rem;">
+                            AED {{ disposal.estimated_salvage_value|floatformat:2 }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if disposal.reason %}
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                        <strong style="display: block; margin-bottom: 0.5rem;">Reason for Disposal</strong>
+                        <p style="margin: 0; color: #6b7280;">{{ disposal.reason }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if disposal.notes %}
+                    <div style="margin-top: 1rem; padding: 1rem; background: #faf8ff; border-radius: 6px; border-left: 3px solid #8b5cf6;">
+                        <strong style="display: block; margin-bottom: 0.5rem;">Additional Notes</strong>
+                        <p style="margin: 0; color: #6b7280;">{{ disposal.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Approval Workflow Timeline -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light border-0">
+                    <h5 class="mb-0"><i class="fas fa-stream text-primary"></i> Approval Workflow</h5>
+                </div>
+                <div class="card-body pt-4">
+                    <div class="timeline">
+                        <!-- Step 1: Manager Review -->
+                        <div class="timeline-item">
+                            <div class="timeline-marker {% if disposal.status == 'PENDING' %}pending{% elif disposal.manager_approved_by %}approved{% elif disposal.status == 'REJECTED' %}rejected{% else %}waiting{% endif %}">
+                                {% if disposal.manager_approved_by %}✓{% elif disposal.status == 'REJECTED' %}✗{% elif disposal.status == 'PENDING' %}⏳{% else %}—{% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-label">Step 1 - Manager Review</div>
+                                {% if disposal.manager_approved_by %}
+                                    <div class="timeline-detail">✓ Approved</div>
+                                    <div class="timeline-detail">By: {{ disposal.manager_approved_by.get_full_name|default:disposal.manager_approved_by.username }}</div>
+                                    <div class="timeline-detail">Date: {{ disposal.manager_approved_at|date:"M d, Y H:i" }}</div>
+                                {% elif disposal.status == 'REJECTED' and disposal.manager_rejection_reason %}
+                                    <div class="timeline-detail">✗ Rejected</div>
+                                    <div class="timeline-detail" style="color: #ef4444; font-weight: 500;">{{ disposal.manager_rejection_reason }}</div>
+                                {% else %}
+                                    <div class="timeline-detail" style="color: #f59e0b;">Waiting for manager review...</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Admin Final Approval -->
+                        <div class="timeline-item">
+                            <div class="timeline-marker {% if disposal.approved_by and disposal.status == 'APPROVED' %}approved{% elif disposal.approved_by and disposal.status == 'REJECTED' %}rejected{% elif disposal.status == 'MANAGER_APPROVED' %}pending{% else %}waiting{% endif %}">
+                                {% if disposal.approved_by and disposal.status == 'APPROVED' %}✓{% elif disposal.approved_by and disposal.status == 'REJECTED' %}✗{% elif disposal.status == 'MANAGER_APPROVED' %}⏳{% else %}—{% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-label">Step 2 - Admin Final Approval</div>
+                                {% if disposal.approved_by and disposal.status == 'APPROVED' %}
+                                    <div class="timeline-detail">✓ Approved</div>
+                                    <div class="timeline-detail">By: {{ disposal.approved_by.get_full_name|default:disposal.approved_by.username }}</div>
+                                    <div class="timeline-detail">Date: {{ disposal.approved_at|date:"M d, Y H:i" }}</div>
+                                {% elif disposal.approved_by and disposal.status == 'REJECTED' %}
+                                    <div class="timeline-detail">✗ Rejected</div>
+                                    <div class="timeline-detail" style="color: #ef4444; font-weight: 500;">{{ disposal.rejection_reason }}</div>
+                                {% elif disposal.status == 'MANAGER_APPROVED' %}
+                                    <div class="timeline-detail" style="color: #3b82f6;">Waiting for admin approval...</div>
+                                {% else %}
+                                    <div class="timeline-detail">Not yet reviewed</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            {% if disposal.status == 'PENDING' and user.role in 'SENIOR_MANAGER,CHECKER' %}
+            <div class="card mb-4 shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-tasks"></i> Your Action Required</h6>
+                </div>
+                <div class="card-body">
+                    <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 1rem;">
+                        This request is awaiting your review. You can approve it to forward to the admin or reject it.
+                    </p>
+                    <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn btn-primary btn-block">
+                        <i class="fas fa-check-double"></i> Review & Decide
+                    </a>
+                </div>
+            </div>
+            {% elif disposal.status == 'MANAGER_APPROVED' and user.is_superuser or user.role == 'ADMIN' %}
+            <div class="card mb-4 shadow-sm border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-gavel"></i> Your Action Required</h6>
+                </div>
+                <div class="card-body">
+                    <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 1rem;">
+                        Manager has approved this request. Give your final approval or reject it.
+                    </p>
+                    <a href="{% url 'disposal-approve' disposal.pk %}" class="btn btn-success btn-block">
+                        <i class="fas fa-check"></i> Final Approval
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Request Summary Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light border-0">
+                    <h6 class="mb-0"><i class="fas fa-receipt text-primary"></i> Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div style="display: grid; gap: 1rem;">
+                        <div>
+                            <div class="info-label">Request Status</div>
+                            <div style="margin-top: 0.25rem;">
+                                <span class="badge-status {% if disposal.status == 'PENDING' %}pending{% elif disposal.status == 'MANAGER_APPROVED' %}manager-approved{% elif disposal.status == 'APPROVED' %}approved{% elif disposal.status == 'REJECTED' %}rejected{% endif %}">
+                                    {{ disposal.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="info-label">Asset</div>
+                            <div style="font-weight: 600; color: #1f2937; margin-top: 0.25rem;">
+                                {{ disposal.asset.asset_tag }}<br>
+                                <small style="color: #6b7280; font-weight: 400;">{{ disposal.asset.name|truncatewords:4 }}</small>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="info-label">Disposal Method</div>
+                            <div style="font-weight: 600; color: #1f2937; margin-top: 0.25rem;">
+                                {{ disposal.get_disposal_method_display }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="info-label">Requested Date</div>
+                            <div style="font-weight: 600; color: #1f2937; margin-top: 0.25rem;">
+                                {{ disposal.created_at|date:"M d, Y" }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="info-label">Last Updated</div>
+                            <div style="font-weight: 600; color: #1f2937; margin-top: 0.25rem;">
+                                {{ disposal.updated_at|date:"M d, Y H:i" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow Progress Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light border-0">
+                    <h6 class="mb-0"><i class="fas fa-chart-line text-primary"></i> Workflow Progress</h6>
+                </div>
+                <div class="card-body pt-3">
+                    <!-- Step 1 Progress -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600; font-size: 0.9rem;">Manager Review</span>
+                            {% if disposal.manager_approved_by %}
+                                <span style="color: #059669; font-weight: 600;">✓ Done</span>
+                            {% elif disposal.status == 'REJECTED' %}
+                                <span style="color: #ef4444; font-weight: 600;">✗ Rejected</span>
+                            {% else %}
+                                <span style="color: #f59e0b; font-weight: 600;">⏳ Pending</span>
+                            {% endif %}
+                        </div>
+                        <div style="width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden;">
+                            <div style="height: 100%; background: {% if disposal.manager_approved_by %}#059669{% elif disposal.status == 'REJECTED' %}#ef4444{% else %}#f59e0b{% endif %}; width: {% if disposal.manager_approved_by or disposal.status == 'REJECTED' %}100%{% else %}30%{% endif %};"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 Progress -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600; font-size: 0.9rem;">Admin Approval</span>
+                            {% if disposal.status == 'APPROVED' %}
+                                <span style="color: #059669; font-weight: 600;">✓ Done</span>
+                            {% elif disposal.approved_by and disposal.status == 'REJECTED' %}
+                                <span style="color: #ef4444; font-weight: 600;">✗ Rejected</span>
+                            {% elif disposal.status == 'MANAGER_APPROVED' %}
+                                <span style="color: #f59e0b; font-weight: 600;">⏳ Pending</span>
+                            {% else %}
+                                <span style="color: #6b7280; font-weight: 600;">— Waiting</span>
+                            {% endif %}
+                        </div>
+                        <div style="width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden;">
+                            <div style="height: 100%; background: {% if disposal.status == 'APPROVED' %}#059669{% elif disposal.approved_by and disposal.status == 'REJECTED' %}#ef4444{% elif disposal.status == 'MANAGER_APPROVED' %}#f59e0b{% else %}#d1d5db{% endif %}; width: {% if disposal.status == 'APPROVED' or disposal.approved_by %}100%{% elif disposal.status == 'MANAGER_APPROVED' %}50%{% else %}0%{% endif %};"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+        <a href="{% url 'disposal-list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Requests
+        </a>
+    </div>
+</div>
+{% endblock %}

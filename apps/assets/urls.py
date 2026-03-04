@@ -1,8 +1,8 @@
 from django.urls import path
 from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView, 
-    BulkAssetActionView, ExportAssetExcelView,
-    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_floors, get_rooms, lookup_asset,
+    BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
+    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
@@ -15,12 +15,25 @@ from .views import (
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
     AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView,
+    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
     ReportsListView, MastersListView
+)
+from .views_approval import (
+    AssetApprovalRequestCreateView,
+    ApprovalRequestListView,
+    ApprovalRequestDetailView,
+    ApprovalRequestApproveView,
+    ApprovalRequestRejectView,
+    ApprovalPendingListView,
 )
 
 urlpatterns = [
     # Reports
     path('reports/', ReportsListView.as_view(), name='reports-list'),
+    path('depreciation/category/', DepreciationReportCategoryView.as_view(), name='depreciation-category'),
+    path('depreciation/group/', DepreciationReportGroupView.as_view(), name='depreciation-group'),
+    path('depreciation/location/', DepreciationReportLocationView.as_view(), name='depreciation-location'),
+    path('depreciation/department/', DepreciationReportDepartmentView.as_view(), name='depreciation-department'),
     
     # Masters
     path('masters/', MastersListView.as_view(), name='masters-list'),
@@ -35,8 +48,10 @@ urlpatterns = [
     path('ajax/subcategories/', get_subcategories, name='get-subcategories'),
     path('ajax/departments/', get_departments, name='get-departments'),
     path('ajax/buildings/', get_buildings, name='get-buildings'),
+    path('ajax/buildings_by_site/', get_buildings_by_site, name='get-buildings-by-site'),
     path('ajax/floors/', get_floors, name='get-floors'),
     path('ajax/rooms/', get_rooms, name='get-rooms'),
+    path('ajax/locations/', get_locations, name='get-locations'),
     path('ajax/lookup/', lookup_asset, name='asset-lookup'),
     path('add/', AssetCreateView.as_view(), name='asset-create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset-detail'),
@@ -99,10 +114,25 @@ urlpatterns = [
     path('approvals/<uuid:pk>/approve/', ApprovalApproveView.as_view(), name='approval_approve'),
     path('approvals/new/', CreateApprovalRequestView.as_view(), name='approval_create'),
     
+    # Asset Approval Request (New Feature)
+    path('approval-requests/', ApprovalRequestListView.as_view(), name='approval-request-list'),
+    path('approval-requests/new/', AssetApprovalRequestCreateView.as_view(), name='approval-request-create'),
+    path('approval-requests/<uuid:pk>/', ApprovalRequestDetailView.as_view(), name='approval-request-detail'),
+    path('approval-requests/<uuid:pk>/approve/', ApprovalRequestApproveView.as_view(), name='approval-request-approve'),
+    path('approval-requests/<uuid:pk>/reject/', ApprovalRequestRejectView.as_view(), name='approval-request-reject'),
+    path('approval-requests/pending/', ApprovalPendingListView.as_view(), name='approval-pending-list'),
+    
     # Asset Transfer Workflow
     path('transfers/', AssetTransferListView.as_view(), name='transfer-list'),
     path('transfers/add/', AssetTransferCreateView.as_view(), name='transfer-create'),
     path('transfers/<uuid:pk>/', AssetTransferDetailView.as_view(), name='transfer-detail'),
     path('transfers/<uuid:pk>/edit/', AssetTransferUpdateView.as_view(), name='transfer-update'),
     path('transfers/<uuid:pk>/receive/', AssetTransferReceiveView.as_view(), name='transfer-receive'),
+    
+    # Asset Disposal Workflow (Two-step approval: Manager → Admin)
+    path('disposals/', AssetDisposalListView.as_view(), name='disposal-list'),
+    path('disposals/add/', AssetDisposalCreateView.as_view(), name='disposal-create'),
+    path('disposals/<uuid:pk>/', AssetDisposalDetailView.as_view(), name='disposal-detail'),
+    path('disposals/<uuid:pk>/manager-approve/', AssetDisposalManagerApproveView.as_view(), name='disposal-manager-approve'),
+    path('disposals/<uuid:pk>/approve/', AssetDisposalApproveView.as_view(), name='disposal-approve'),
 ]
