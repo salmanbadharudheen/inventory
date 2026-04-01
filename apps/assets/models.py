@@ -146,6 +146,13 @@ class Company(TenantAwareModel):
         verbose_name_plural = "Companies"
         unique_together = ('organization', 'name')
     
+    def save(self, *args, **kwargs):
+        if not self.code:
+            # Auto-generate 2-letter code from company name
+            alpha_chars = ''.join(c for c in self.name if c.isalpha()).upper()
+            self.code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return self.name
 
@@ -193,29 +200,64 @@ class AssetRemarks(TenantAwareModel):
     def __str__(self):
         return self.remark
 
-def generate_asset_tag(organization):
+def generate_asset_tag(organization, category, company=None):
     """
-    Generate sequential asset tag for an organization.
-    Format: AST-00001, AST-00002, etc.
-    """
-    # Inefficient but safe way to find max number due to string sorting issues
-    # "AST-00009" > "AST-00010" in string comparison
-    assets = Asset.objects.filter(organization=organization, asset_tag__startswith='AST-').values_list('asset_tag', flat=True)
+    Generate structured asset tag with format: CO-CAT-XXXX-YY
+    Where:
+    - CO: First 2 letters of company name (uppercase)
+    - CAT: Category code (3 letters)
+    - XXXX: Sequential hexadecimal counter (4 digits)
+    - YY: Year suffix (last 2 digits)
     
+    Example: SH-LAP-001A-26 (Shamal, Laptop, 26th asset, Year 2026)
+    """
+    from datetime import date
+    
+    # Get company code: first 2 letters from company name
+    if company and company.name:
+        # Extract only alphabetic characters from company name
+        alpha_chars = ''.join(c for c in company.name if c.isalpha()).upper()
+        company_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
+    else:
+        company_code = 'XX'  # Default if no company
+    
+    # Get category code (3 letters, already auto-generated)
+    category_code = category.code[:3].upper() if category.code else 'XXX'
+    
+    # Get year suffix (last 2 digits)
+    year_suffix = str(date.today().year)[-2:]
+    
+    # Build prefix: CO-CAT
+    prefix = f"{company_code}-{category_code}"
+    
+    # Find existing assets with this prefix and year
+    pattern = f"{prefix}-%-{year_suffix}"
+    assets = Asset.objects.filter(
+        organization=organization,
+        asset_tag__startswith=prefix,
+        asset_tag__endswith=f"-{year_suffix}"
+    ).values_list('asset_tag', flat=True)
+    
+    # Extract hex counters and find max
     max_num = 0
     for tag in assets:
         try:
-            # tag is "AST-xxxxx"
+            # tag format: CO-CAT-XXXX-YY
             parts = tag.split('-')
-            if len(parts) > 1:
-                num = int(parts[1])
+            if len(parts) == 4:
+                hex_counter = parts[2]  # XXXX part
+                num = int(hex_counter, 16)  # Convert hex to int
                 if num > max_num:
                     max_num = num
         except (ValueError, IndexError):
             continue
-            
-    new_number = max_num + 1
-    return f"AST-{new_number:05d}"
+    
+    # Increment and format as 4-digit hex (uppercase)
+    next_num = max_num + 1
+    hex_counter = f"{next_num:04X}"  # 4-digit uppercase hex
+    
+    # Build final asset tag: CO-CAT-XXXX-YY
+    return f"{prefix}-{hex_counter}-{year_suffix}"
 
 class Asset(TenantAwareModel):
     class Type(models.TextChoices):
@@ -346,6 +388,11 @@ class Asset(TenantAwareModel):
     insurance_file = models.FileField(upload_to='assets/insurance/', null=True, blank=True, verbose_name="Upload Insurance Contract")
     amc_file = models.FileField(upload_to='assets/amc/', null=True, blank=True, verbose_name="Upload AMC Contract")
 
+    # Barcode & QR Code Fields (auto-generated)
+    barcode_image = models.FileField(upload_to='assets/barcodes/', null=True, blank=True, editable=False, verbose_name="Barcode Image")
+    qr_code_image = models.FileField(upload_to='assets/qr_codes/', null=True, blank=True, editable=False, verbose_name="QR Code Image")
+    label_image = models.FileField(upload_to='assets/labels/', null=True, blank=True, editable=False, verbose_name="Combined Label")
+
     asset_remarks = models.ForeignKey(AssetRemarks, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
 
     # G) Status
@@ -430,6 +477,62 @@ class Asset(TenantAwareModel):
         val = self.purchase_price - self.accumulated_depreciation
         return val.quantize(Decimal('0.01'))
 
+    def get_value_at_date(self, target_date):
+        """Calculate asset value (NBV) at a specific date"""
+        if not self.purchase_price or not self.purchase_date or not self.useful_life_years:
+            return Decimal('0.00')
+        
+        # If target date is before purchase date, asset didn't exist yet
+        if target_date < self.purchase_date:
+            return Decimal('0.00')
+        
+        # Calculate years passed from purchase to target date
+        years_passed = (target_date - self.purchase_date).days / 365.25
+        if years_passed <= 0:
+            return self.purchase_price
+        
+        cost = float(self.purchase_price)
+        salvage = float(self.salvage_value)
+        life = float(self.useful_life_years)
+        
+        acc_dep = 0.0
+        
+        if self.depreciation_method == DepreciationMethod.STRAIGHT_LINE:
+            annual_dep = (cost - salvage) / life if life > 0 else 0
+            acc_dep = annual_dep * years_passed
+        
+        elif self.depreciation_method == DepreciationMethod.DOUBLE_DECLINING:
+            rate = 2.0 / life if life > 0 else 0
+            current_val = cost
+            full_years = int(years_passed)
+            remainder = years_passed - full_years
+            
+            for _ in range(full_years):
+                dep = current_val * rate
+                current_val -= dep
+            
+            dep = current_val * rate * remainder
+            current_val -= dep
+            acc_dep = cost - current_val
+        
+        elif self.depreciation_method == DepreciationMethod.UNITS_OF_PRODUCTION:
+            if self.expected_units and self.expected_units > 0:
+                rate_per_unit = (cost - salvage) / float(self.expected_units)
+                acc_dep = rate_per_unit * float(self.units_consumed)
+            else:
+                acc_dep = 0.0
+        
+        # Cap at depreciable amount
+        depreciable_amount = cost - salvage
+        if acc_dep > depreciable_amount:
+            acc_dep = depreciable_amount
+        
+        nbv = cost - acc_dep
+        if nbv < salvage:
+            nbv = salvage
+        
+        return Decimal(str(nbv)).quantize(Decimal('0.01'))
+
     def get_depreciation_schedule(self):
         if not self.purchase_price or not self.purchase_date or not self.useful_life_years:
             return []
@@ -489,6 +592,10 @@ class Asset(TenantAwareModel):
         return schedule
 
     def save(self, *args, **kwargs):
+        # Auto-generate asset tag if not provided
+        if not self.asset_tag:
+            self.asset_tag = generate_asset_tag(self.organization, self.category, self.company)
+        
         if self.category and self._state.adding:
             # inherit life/method/salvage/units
             if self.useful_life_years in (None, 0):
@@ -505,6 +612,14 @@ class Asset(TenantAwareModel):
                     self.expected_units = self.category.default_expected_units
 
         super().save(*args, **kwargs)
+        
+        # Generate barcode/QR code after asset is saved (so we have the asset_tag)
+        if self.asset_tag and not self.barcode_image:
+            try:
+                from .code_generators import generate_codes_for_asset
+                generate_codes_for_asset(self)
+            except Exception as e:
+                print(f"Warning: Failed to generate codes for asset {self.asset_tag}: {str(e)}")
 
     def __str__(self):
         return f"{self.name} ({self.asset_tag})"

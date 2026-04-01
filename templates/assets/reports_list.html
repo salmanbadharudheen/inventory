@@ -29,7 +29,42 @@
 
     /* Header Section */
     .reports-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
         margin-bottom: 0.5rem;
+    }
+
+    .reports-header-content {
+        min-width: 0;
+    }
+
+    .back-dashboard-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        border: 1px solid var(--border-color);
+        background: #fff;
+        color: var(--text-primary);
+        padding: 0.55rem 0.85rem;
+        border-radius: 0.6rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .back-dashboard-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .back-dashboard-btn i {
+        width: 16px;
+        height: 16px;
     }
 
     .reports-header h1 {
@@ -228,6 +263,15 @@
             font-size: 1.5rem;
         }
 
+        .reports-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .back-dashboard-btn {
+            width: fit-content;
+        }
+
         .reports-grid {
             grid-template-columns: 1fr;
         }
@@ -243,8 +287,14 @@
 <div class="reports-container">
     <!-- Header -->
     <div class="reports-header">
-        <h1>Reports</h1>
-        <p>Access available reports and analytics for your asset management system</p>
+        <div class="reports-header-content">
+            <h1>Reports</h1>
+            <p>Access available reports and analytics for your asset management system</p>
+        </div>
+        <a href="/" class="back-dashboard-btn">
+            <i data-lucide="arrow-left"></i>
+            Back to Dashboard
+        </a>
     </div>
 
     <!-- Statistics Section -->

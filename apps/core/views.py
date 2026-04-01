@@ -16,6 +16,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['last_updated'] = timezone.now()
         
+        # Determine if financial data should be shown - for CHECKER and above roles
+        user = self.request.user
+        from apps.users.models import User
+        show_financial = user.role in [User.Role.CHECKER, User.Role.SENIOR_MANAGER, User.Role.ADMIN] or user.is_superuser
+        context['show_financial'] = show_financial
+        
         # Filter by organization
         if self.request.user.is_authenticated and hasattr(self.request.user, 'organization'):
             org = self.request.user.organization

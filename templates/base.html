@@ -610,10 +610,13 @@
                     <i data-lucide="layout-dashboard"></i>
                     <span>Dashboard</span>
                 </a>
+                <!-- Reports - Visible for CHECKER, SENIOR_MANAGER, and ADMIN roles -->
+                {% if user.role == 'CHECKER' or user.role == 'SENIOR_MANAGER' or user.role == 'ADMIN' or user.is_superuser %}
                 <a href="{% url 'reports-list' %}" class="nav-item {% if 'reports' in request.path %}active{% endif %}" data-label="Reports">
                     <i data-lucide="file-text"></i>
                     <span>Reports</span>
                 </a>
+                {% endif %}
                 <a href="{% url 'asset-list' %}" class="nav-item {% if 'assets' in request.path and 'reports' not in request.path %}active{% endif %}" data-label="Inventory">
                     <i data-lucide="package"></i>
                     <span>Inventory</span>
@@ -631,7 +634,7 @@
                     <i data-lucide="trash-2"></i>
                     <span>Asset Disposal</span>
                 </a>
-                {% if user.is_superuser or user.role == 'ADMIN' %}
+                {% if user.is_superuser or user.role == 'ADMIN' or user.role == 'SENIOR_MANAGER' or user.role == 'CHECKER' %}
                 <a href="{% url 'approval-request-list' %}" class="nav-item {% if 'approval-requests' in request.path %}active{% endif %}" data-label="Requests">
                     <i data-lucide="clipboard-check"></i>
                     <span>Asset Requests</span>
@@ -763,10 +766,13 @@
 
             <!-- Top Bar Navigation -->
             <div class="top-bar-nav">
+                <!-- Reports - Visible for CHECKER, SENIOR_MANAGER, and ADMIN roles -->
+                {% if user.role == 'CHECKER' or user.role == 'SENIOR_MANAGER' or user.role == 'ADMIN' or user.is_superuser %}
                 <a href="{% url 'reports-list' %}" class="top-bar-nav-item {% if 'reports' in request.path %}active{% endif %}" title="Reports">
                     <i data-lucide="file-text"></i>
                     <span>Reports</span>
                 </a>
+                {% endif %}
                 <a href="{% url 'asset-list' %}" class="top-bar-nav-item {% if 'assets' in request.path and 'reports' not in request.path %}active{% endif %}" title="Inventory">
                     <i data-lucide="package"></i>
                     <span>Inventory</span>

@@ -1098,7 +1098,8 @@
         </div>
     </div>
 
-    <!-- Financial Stats - Reorganized with Total Assets First -->
+    <!-- Financial Stats - Hidden from EMPLOYEE role -->
+    {% if show_financial %}
     <div class="stats-grid">
         <!-- Total Assets - Moved to First Position -->
         <div class="stat-card info">
@@ -1155,6 +1156,24 @@
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- EMPLOYEE Dashboard - Only inventory count -->
+    <div class="stats-grid">
+        <div class="stat-card info">
+            <div class="stat-card-header">
+                <div class="stat-icon"><i data-lucide="package-check"></i></div>
+            </div>
+            <div class="stat-card-content">
+                <div class="stat-label">Total Assets in Inventory</div>
+                <div class="stat-value">{{ total_assets|intcomma }}</div>
+                <div class="stat-meta">
+                    <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                    <span>Active inventory items</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Charts -->
     <div class="charts-grid">

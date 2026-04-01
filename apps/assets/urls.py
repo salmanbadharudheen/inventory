@@ -3,6 +3,8 @@ from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView, 
     BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
+    ajax_create_category, ajax_create_subcategory,
+    generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
@@ -14,9 +16,9 @@ from .views import (
     CustodianListView, CustodianCreateView, CustodianUpdateView,
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
-    AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView,
+    AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferExportExcelView,
     AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
-    ReportsListView, MastersListView
+    ReportsListView, MastersListView, MastersExportExcelView
 )
 from .views_approval import (
     AssetApprovalRequestCreateView,
@@ -37,6 +39,7 @@ urlpatterns = [
     
     # Masters
     path('masters/', MastersListView.as_view(), name='masters-list'),
+    path('masters/export/excel/', MastersExportExcelView.as_view(), name='masters-export-excel'),
     
     # Assets
     path('', AssetListView.as_view(), name='asset-list'),
@@ -46,6 +49,8 @@ urlpatterns = [
     path('import/sample/csv/', download_sample_csv, name='asset-import-sample'),
     path('import/sample/excel/', download_sample_excel, name='asset-import-sample-excel'),
     path('ajax/subcategories/', get_subcategories, name='get-subcategories'),
+    path('ajax/category/create/', ajax_create_category, name='ajax-create-category'),
+    path('ajax/subcategory/create/', ajax_create_subcategory, name='ajax-create-subcategory'),
     path('ajax/departments/', get_departments, name='get-departments'),
     path('ajax/buildings/', get_buildings, name='get-buildings'),
     path('ajax/buildings_by_site/', get_buildings_by_site, name='get-buildings-by-site'),
@@ -56,6 +61,13 @@ urlpatterns = [
     path('add/', AssetCreateView.as_view(), name='asset-create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset-detail'),
     path('<uuid:pk>/edit/', AssetUpdateView.as_view(), name='asset-update'),
+    
+    # Barcode & QR Code endpoints
+    path('<uuid:pk>/codes/generate/', generate_asset_codes, name='generate-asset-codes'),
+    path('<uuid:pk>/barcode/download/', download_asset_barcode, name='download-asset-barcode'),
+    path('<uuid:pk>/qr/download/', download_asset_qr, name='download-asset-qr'),
+    path('<uuid:pk>/label/download/', download_asset_label, name='download-asset-label'),
+    path('barcodes/download/batch/', download_barcode_batch, name='download-barcode-batch'),
 
     # Configuration: Categories
     path('categories/', CategoryListView.as_view(), name='category-list'),
@@ -124,6 +136,7 @@ urlpatterns = [
     
     # Asset Transfer Workflow
     path('transfers/', AssetTransferListView.as_view(), name='transfer-list'),
+    path('transfers/export/excel/', AssetTransferExportExcelView.as_view(), name='transfer-export-excel'),
     path('transfers/add/', AssetTransferCreateView.as_view(), name='transfer-create'),
     path('transfers/<uuid:pk>/', AssetTransferDetailView.as_view(), name='transfer-detail'),
     path('transfers/<uuid:pk>/edit/', AssetTransferUpdateView.as_view(), name='transfer-update'),

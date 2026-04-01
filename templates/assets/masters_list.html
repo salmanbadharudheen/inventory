@@ -25,6 +25,14 @@
     }
 
     /* Header */
+    .masters-header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
     .masters-header-content h1 {
         font-size: 1.875rem;
         font-weight: 800;
@@ -36,6 +44,36 @@
         color: var(--text-secondary);
         font-size: 0.9rem;
         margin: 0;
+    }
+    
+    .export-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        background: #10B981;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        text-decoration: none;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+    
+    .export-btn:hover {
+        background: #059669;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .export-btn i {
+        width: 18px;
+        height: 18px;
     }
 
     /* Filter Form - Compact */
@@ -101,6 +139,7 @@
         padding: 0.5rem 0.75rem;
         flex: 1;
         min-width: 200px;
+        max-width: 400px;
     }
 
     .search-bar i {
@@ -139,6 +178,33 @@
     .clear-search:hover {
         color: var(--danger);
     }
+    
+    .search-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        padding: 0.5rem 0.875rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .search-btn:hover {
+        background: var(--primary-hover);
+    }
+    
+    .search-btn i {
+        width: 16px;
+        height: 16px;
+    }
 
     .filter-toggle {
         display: flex;
@@ -175,14 +241,15 @@
 
     /* Filters Panel */
     .filters-panel {
-        display: none;
+        display: none !important;
         padding: 0.75rem 1rem 1rem 1rem;
         border-top: 1px solid var(--border-color);
         background: var(--bg-light);
+        transition: all 0.3s ease;
     }
 
     .filters-panel.show {
-        display: block;
+        display: block !important;
     }
 
     .filters-grid {
@@ -533,6 +600,15 @@
         .masters-container {
             padding: 1rem;
         }
+        
+        .masters-header-content {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .export-btn {
+            width: 100%;
+        }
 
         .masters-header-content h1 {
             font-size: 1.5rem;
@@ -544,9 +620,22 @@
 
         .search-bar {
             min-width: 100%;
+            max-width: 100%;
+        }
+        
+        .search-btn {
+            width: 100%;
         }
 
         .filter-toggle {
+            width: 100%;
+        }
+        
+        .sort-control {
+            width: 100%;
+        }
+        
+        .sort-control select {
             width: 100%;
         }
 
@@ -584,12 +673,18 @@
 <div class="masters-container">
     <!-- Header -->
     <div class="masters-header-content">
-        <h1>Asset Master Data</h1>
-        <p>Complete inventory management with {{ total_assets }} total assets</p>
+        <div style="flex: 1;">
+            <h1>Asset Master Data</h1>
+            <p>Complete inventory management with {{ total_assets }} total assets</p>
+        </div>
+        <a href="{% url 'masters-export-excel' %}?{{ request.GET.urlencode }}" class="export-btn" title="Export to Excel">
+            <i data-lucide="download"></i>
+            Export to Excel
+        </a>
     </div>
 
     <!-- Search and Filters Section -->
-    <form method="get" class="filter-form" id="filterForm">
+    <form method="get" action="" class="filter-form" id="filterForm">
         <!-- Search Bar + Sort + Filter Toggle -->
         <div class="search-filters">
             <div class="search-bar {% if search_query %}active{% endif %}">
@@ -597,22 +692,27 @@
                 <input 
                     type="text" 
                     name="q" 
-                    placeholder="Search assets..." 
+                    placeholder="Search by asset tag, name, serial number, category..." 
                     value="{{ search_query }}"
                     autocomplete="off"
                 >
                 {% if search_query %}
-                <button type="button" class="clear-search" onclick="document.querySelector('input[name=q]').value=''; this.form.submit();" title="Clear search">
+                <button type="button" class="clear-search" onclick="clearSearch()" title="Clear search">
                     <i data-lucide="x"></i>
                 </button>
                 {% endif %}
             </div>
+            
+            <button type="submit" class="search-btn" title="Search">
+                <i data-lucide="search"></i>
+                Search
+            </button>
 
             <!-- Sort Control -->
             <div class="sort-control">
                 <label for="sortBy">Sort</label>
-                <select id="sortBy" name="sort_by" onchange="this.form.submit()">
-                    <option value="-created_at" {% if sort_by == '-created_at' %}selected{% endif %}>Recently Added</option>
+                <select id="sortBy" name="sort_by" onchange="submitForm()">
+                    <option value="-created_at" {% if sort_by == '-created_at' or not sort_by %}selected{% endif %}>Recently Added</option>
                     <option value="asset_tag" {% if sort_by == 'asset_tag' %}selected{% endif %}>Asset Tag (A-Z)</option>
                     <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
                     <option value="purchase_date" {% if sort_by == 'purchase_date' %}selected{% endif %}>Purchase Date (Oldest)</option>
@@ -639,7 +739,7 @@
             <div class="filters-grid">
                 <div class="filter-item">
                     <label>Category</label>
-                    <select name="category" onchange="this.form.submit()">
+                    <select name="category" onchange="submitForm()">
                         <option value="">All</option>
                         {% for category in categories %}
                         <option value="{{ category.id }}" {% if category.id|stringformat:"s" == category_filter %}selected{% endif %}>
@@ -651,7 +751,7 @@
 
                 <div class="filter-item">
                     <label>Sub Category</label>
-                    <select name="sub_category" onchange="this.form.submit()">
+                    <select name="sub_category" onchange="submitForm()">
                         <option value="">All</option>
                         {% for sub_cat in sub_categories %}
                         <option value="{{ sub_cat.id }}" {% if sub_cat.id|stringformat:"s" == sub_category_filter %}selected{% endif %}>
@@ -663,7 +763,7 @@
 
                 <div class="filter-item">
                     <label>Company</label>
-                    <select name="company" onchange="this.form.submit()">
+                    <select name="company" onchange="submitForm()">
                         <option value="">All</option>
                         {% for company in companies %}
                         <option value="{{ company.id }}" {% if company.id|stringformat:"s" == company_filter %}selected{% endif %}>
@@ -675,7 +775,7 @@
 
                 <div class="filter-item">
                     <label>Department</label>
-                    <select name="department" onchange="this.form.submit()">
+                    <select name="department" onchange="submitForm()">
                         <option value="">All</option>
                         {% for dept in departments %}
                         <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == department_filter %}selected{% endif %}>
@@ -687,7 +787,7 @@
 
                 <div class="filter-item">
                     <label>Brand</label>
-                    <select name="brand" onchange="this.form.submit()">
+                    <select name="brand" onchange="submitForm()">
                         <option value="">All</option>
                         {% for brand in brands %}
                         <option value="{{ brand.id }}" {% if brand.id|stringformat:"s" == brand_filter %}selected{% endif %}>
@@ -699,7 +799,7 @@
 
                 <div class="filter-item">
                     <label>Vendor</label>
-                    <select name="vendor" onchange="this.form.submit()">
+                    <select name="vendor" onchange="submitForm()">
                         <option value="">All</option>
                         {% for vendor in vendors %}
                         <option value="{{ vendor.id }}" {% if vendor.id|stringformat:"s" == vendor_filter %}selected{% endif %}>
@@ -711,7 +811,7 @@
 
                 <div class="filter-item">
                     <label>Supplier</label>
-                    <select name="supplier" onchange="this.form.submit()">
+                    <select name="supplier" onchange="submitForm()">
                         <option value="">All</option>
                         {% for supplier in suppliers %}
                         <option value="{{ supplier.id }}" {% if supplier.id|stringformat:"s" == supplier_filter %}selected{% endif %}>
@@ -723,7 +823,7 @@
 
                 <div class="filter-item">
                     <label>Group</label>
-                    <select name="group" onchange="this.form.submit()">
+                    <select name="group" onchange="submitForm()">
                         <option value="">All</option>
                         {% for group in groups %}
                         <option value="{{ group.id }}" {% if group.id|stringformat:"s" == group_filter %}selected{% endif %}>
@@ -735,7 +835,7 @@
 
                 <div class="filter-item">
                     <label>Sub Group</label>
-                    <select name="subgroup" onchange="this.form.submit()">
+                    <select name="subgroup" onchange="submitForm()">
                         <option value="">All</option>
                         {% for subgroup in subgroups %}
                         <option value="{{ subgroup.id }}" {% if subgroup.id|stringformat:"s" == subgroup_filter %}selected{% endif %}>
@@ -747,7 +847,7 @@
 
                 <div class="filter-item">
                     <label>Condition</label>
-                    <select name="condition" onchange="this.form.submit()">
+                    <select name="condition" onchange="submitForm()">
                         <option value="">All</option>
                         {% for value, label in condition_choices %}
                         <option value="{{ value }}" {% if value == condition_filter %}selected{% endif %}>
@@ -759,7 +859,7 @@
 
                 <div class="filter-item">
                     <label>Status</label>
-                    <select name="status" onchange="this.form.submit()">
+                    <select name="status" onchange="submitForm()">
                         <option value="">All</option>
                         {% for value, label in status_choices %}
                         <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>
@@ -771,7 +871,7 @@
 
                 <div class="filter-item">
                     <label>Custodian</label>
-                    <select name="custodian" onchange="this.form.submit()">
+                    <select name="custodian" onchange="submitForm()">
                         <option value="">All</option>
                         {% for custodian in custodians %}
                         <option value="{{ custodian.id }}" {% if custodian.id|stringformat:"s" == custodian_filter %}selected{% endif %}>
@@ -790,7 +890,7 @@
                             name="purchase_date_from" 
                             value="{{ purchase_date_from }}"
                             placeholder="From"
-                            onchange="this.form.submit()"
+                            onchange="submitForm()"
                             title="Purchase date from"
                         >
                         <span class="date-separator">to</span>
@@ -799,7 +899,7 @@
                             name="purchase_date_to" 
                             value="{{ purchase_date_to }}"
                             placeholder="To"
-                            onchange="this.form.submit()"
+                            onchange="submitForm()"
                             title="Purchase date to"
                         >
                     </div>
@@ -807,7 +907,7 @@
 
                 <!-- Clear All Button -->
                 <div class="filter-item filter-reset">
-                    <button type="button" class="btn-reset" onclick="document.location='?';" title="Clear all filters">
+                    <button type="button" class="btn-reset" onclick="clearFilters()" title="Clear all filters">
                         <i data-lucide="x"></i> Clear
                     </button>
                 </div>
@@ -928,7 +1028,7 @@
                         <td>{{ asset.salvage_value|default:"—" }}</td>
                         <td>{{ asset.get_depreciation_method_display|default:asset.depreciation_method|default:"—" }}</td>
                         <td>{{ asset.get_status_display|default:"—" }}</td>
-                        <td>{{ asset.remarks|truncatechars:15|default:"—" }}</td>
+                        <td>{% if asset.notes %}{{ asset.notes|truncatechars:15 }}{% elif asset.asset_remarks %}{{ asset.asset_remarks.name|truncatechars:15 }}{% else %}—{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -977,22 +1077,79 @@
 </div>
 
 <script>
-    lucide.createIcons();
-    
-    // Filter toggle functionality
-    const filterToggle = document.getElementById('filterToggle');
-    const filtersPanel = document.getElementById('filtersPanel');
-    
-    if (filterToggle && filtersPanel) {
-        filterToggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            filtersPanel.classList.toggle('show');
-        });
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Helper function to submit form
+        window.submitForm = function() {
+            const form = document.getElementById('filterForm');
+            if (form) {
+                form.submit();
+            }
+        };
+        
+        // Clear search functionality
+        window.clearSearch = function() {
+            const searchInput = document.querySelector('input[name="q"]');
+            if (searchInput) {
+                searchInput.value = '';
+                submitForm();
+            }
+        };
+        
+        // Clear all filters functionality
+        window.clearFilters = function() {
+            window.location.href = window.location.pathname;
+        };
+        
+        // Filter toggle functionality
+        const filterToggle = document.getElementById('filterToggle');
+        const filtersPanel = document.getElementById('filtersPanel');
+        
+        if (filterToggle && filtersPanel) {
+            console.log('Filter toggle and panel found'); // Debug
+            
+            filterToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Filter toggle clicked'); // Debug
+                filtersPanel.classList.toggle('show');
+                console.log('Panel classes:', filtersPanel.className); // Debug
+                
+                // Save state to localStorage
+                if (filtersPanel.classList.contains('show')) {
+                    localStorage.setItem('mastersFiltersOpen', 'true');
+                } else {
+                    localStorage.setItem('mastersFiltersOpen', 'false');
+                }
+            });
 
-        // Show filters by default if any filter is active
-        {% if category_filter or sub_category_filter or company_filter or department_filter or condition_filter or status_filter or brand_filter or vendor_filter or supplier_filter or group_filter or subgroup_filter or custodian_filter or purchase_date_from or purchase_date_to %}
-        filtersPanel.classList.add('show');
-        {% endif %}
-    }
+            // Show filters by default if any filter is active OR if previously opened
+            const wasOpen = localStorage.getItem('mastersFiltersOpen') === 'true';
+            const hasActiveFilters = {% if category_filter or sub_category_filter or company_filter or department_filter or condition_filter or status_filter or brand_filter or vendor_filter or supplier_filter or group_filter or subgroup_filter or custodian_filter or purchase_date_from or purchase_date_to %}true{% else %}false{% endif %};
+            
+            console.log('Was open:', wasOpen, 'Has active filters:', hasActiveFilters); // Debug
+            
+            if (hasActiveFilters || wasOpen) {
+                filtersPanel.classList.add('show');
+            }
+        } else {
+            console.error('Filter toggle or panel not found'); // Debug
+        }
+        
+        // Handle search input - submit on Enter key
+        const searchInput = document.querySelector('input[name="q"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitForm();
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}

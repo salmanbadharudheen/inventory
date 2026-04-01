@@ -606,7 +606,11 @@
                                 <i class="fas fa-cube"></i> {{ approval.get_request_type_display }}
                             </span>
                             <h3 class="approval-item-title">
-                                {{ approval.asset.asset_tag }} - {{ approval.asset.name|truncatewords:4 }}
+                                {% if approval.asset %}
+                                    {{ approval.asset.asset_tag }} - {{ approval.asset.name|truncatewords:4 }}
+                                {% else %}
+                                    {{ approval.data.asset_name|default:'Pending Asset Creation'|truncatewords:5 }}
+                                {% endif %}
                             </h3>
                             <div class="approval-item-meta">
                                 <span><i class="fas fa-cogs"></i> {{ approval.get_request_type_display }}</span>

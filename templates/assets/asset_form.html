@@ -263,6 +263,128 @@ Add New Asset
         });
     };
 
+    // Category Modal Functions
+    window.openCategoryModal = function() {
+      document.getElementById('categoryModal').style.display = 'flex';
+      document.getElementById('categoryName').value = '';
+      document.getElementById('categoryError').style.display = 'none';
+    };
+
+    window.closeCategoryModal = function() {
+      document.getElementById('categoryModal').style.display = 'none';
+    };
+
+    window.saveCategoryModal = function() {
+      const name = document.getElementById('categoryName').value.trim();
+      const usefulLife = document.getElementById('categoryUsefulLife').value || '5';
+      const depreciationMethod = document.getElementById('categoryDepreciationMethod').value || 'straight_line';
+      const errorDiv = document.getElementById('categoryError');
+      
+      if (!name) {
+        errorDiv.textContent = 'Category name is required';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('useful_life_years', usefulLife);
+      formData.append('depreciation_method', depreciationMethod);
+      formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+      fetch('/assets/ajax/category/create/', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Add new option to category select
+          const categorySelect = document.querySelector('select[name="category"]');
+          const option = document.createElement('option');
+          option.value = data.id;
+          option.textContent = data.name;
+          option.selected = true;
+          categorySelect.appendChild(option);
+          
+          // Trigger change event to update subcategories
+          categorySelect.dispatchEvent(new Event('change'));
+          
+          closeCategoryModal();
+        } else {
+          errorDiv.textContent = data.error || 'Failed to create category';
+          errorDiv.style.display = 'block';
+        }
+      })
+      .catch(error => {
+        errorDiv.textContent = 'Network error: ' + error.message;
+        errorDiv.style.display = 'block';
+      });
+    };
+
+    // Subcategory Modal Functions
+    window.openSubcategoryModal = function() {
+      const categorySelect = document.querySelector('select[name="category"]');
+      const categoryId = categorySelect.value;
+      
+      if (!categoryId) {
+        alert('Please select a category first');
+        return;
+      }
+      
+      document.getElementById('subcategoryModal').style.display = 'flex';
+      document.getElementById('subcategoryName').value = '';
+      document.getElementById('subcategoryError').style.display = 'none';
+      document.getElementById('subcategoryCategoryId').value = categoryId;
+    };
+
+    window.closeSubcategoryModal = function() {
+      document.getElementById('subcategoryModal').style.display = 'none';
+    };
+
+    window.saveSubcategoryModal = function() {
+      const name = document.getElementById('subcategoryName').value.trim();
+      const categoryId = document.getElementById('subcategoryCategoryId').value;
+      const errorDiv = document.getElementById('subcategoryError');
+      
+      if (!name) {
+        errorDiv.textContent = 'Subcategory name is required';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('category_id', categoryId);
+      formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+      fetch('/assets/ajax/subcategory/create/', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Add new option to subcategory select
+          const subcategorySelect = document.querySelector('select[name="sub_category"]');
+          const option = document.createElement('option');
+          option.value = data.id;
+          option.textContent = data.name;
+          option.selected = true;
+          subcategorySelect.appendChild(option);
+          
+          closeSubcategoryModal();
+        } else {
+          errorDiv.textContent = data.error || 'Failed to create subcategory';
+          errorDiv.style.display = 'block';
+        }
+      })
+      .catch(error => {
+        errorDiv.textContent = 'Network error: ' + error.message;
+        errorDiv.style.display = 'block';
+      });
+    };
+
   });
 </script>
 {% endblock %}
@@ -419,12 +541,22 @@ Add New Asset
 
         <div class="form-group">
           <label>Category *</label>
-          {{ form.category }}
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            {{ form.category }}
+            <button type="button" class="btn-add-inline" onclick="openCategoryModal()" title="Add new category">
+              <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
           <label>Sub Category</label>
-          {{ form.sub_category }}
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            {{ form.sub_category }}
+            <button type="button" class="btn-add-inline" onclick="openSubcategoryModal()" title="Add new subcategory">
+              <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -671,6 +803,61 @@ Add New Asset
   </form>
 </div>
 
+<!-- Category Modal -->
+<div id="categoryModal" class="modal-overlay" onclick="if(event.target === this) closeCategoryModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add New Category</h3>
+      <button type="button" class="modal-close" onclick="closeCategoryModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Category Name *</label>
+        <input type="text" id="categoryName" class="form-control" placeholder="e.g., Electronics" required>
+      </div>
+      <div class="form-group">
+        <label>Useful Life (Years)</label>
+        <input type="number" id="categoryUsefulLife" class="form-control" value="5" min="0">
+      </div>
+      <div class="form-group">
+        <label>Depreciation Method</label>
+        <select id="categoryDepreciationMethod" class="form-control">
+          <option value="straight_line">Straight Line</option>
+          <option value="declining_balance">Declining Balance</option>
+          <option value="units_of_production">Units of Production</option>
+        </select>
+      </div>
+      <div id="categoryError" class="error-message"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveCategoryModal()">Create Category</button>
+    </div>
+  </div>
+</div>
+
+<!-- Subcategory Modal -->
+<div id="subcategoryModal" class="modal-overlay" onclick="if(event.target === this) closeSubcategoryModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add New Subcategory</h3>
+      <button type="button" class="modal-close" onclick="closeSubcategoryModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="subcategoryCategoryId">
+      <div class="form-group">
+        <label>Subcategory Name *</label>
+        <input type="text" id="subcategoryName" class="form-control" placeholder="e.g., Laptops" required>
+      </div>
+      <div id="subcategoryError" class="error-message"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeSubcategoryModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveSubcategoryModal()">Create Subcategory</button>
+    </div>
+  </div>
+</div>
+
 <style>
   .form-group label {
     display: block;
@@ -693,6 +880,129 @@ Add New Asset
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+  }
+
+  /* Inline Add Button */
+  .btn-add-inline {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: white;
+    color: var(--primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .btn-add-inline:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  /* Modal Styles */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover {
+    background: #f1f5f9;
+    color: var(--text-primary);
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .error-message {
+    display: none;
+    padding: 0.75rem;
+    background: #fee2e2;
+    color: #991b1b;
+    border-radius: 6px;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-secondary {
+    padding: 0.625rem 1.25rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background: #f8fafc;
   }
 </style>
 {% endblock %}

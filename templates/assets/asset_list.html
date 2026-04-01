@@ -227,7 +227,7 @@
                 <div class="table-header-bar">
                     <div class="table-header-title">
                         <h3>Asset List</h3>
-                        <span class="asset-count">{{ assets|length }} Assets</span>
+                        <span class="asset-count">{{ assets|length }} Assets{% if page_obj.paginator.count %} of {{ page_obj.paginator.count }}{% endif %}</span>
                     </div>
                 </div>
                 <div class="table-container">
@@ -250,7 +250,7 @@
                                 <th class="th-assigned">Assigned To</th>
                                 <th class="th-condition">Condition</th>
                                 <th class="th-status">Status</th>
-                                <th class="th-value">Value</th>
+                                {% if user.role == 'CHECKER' or user.role == 'SENIOR_MANAGER' or user.role == 'ADMIN' or user.is_superuser %}<th class="th-value">Value</th>{% endif %}
                                 <th class="th-actions">Actions</th>
                             </tr>
                         </thead>
@@ -314,6 +314,7 @@
                                 <td class="td-status">
                                     <span class="badge-status status-{{ asset.status|lower }}">{{ asset.get_status_display }}</span>
                                 </td>
+                                {% if user.role == 'CHECKER' or user.role == 'SENIOR_MANAGER' or user.role == 'ADMIN' or user.is_superuser %}
                                 <td class="td-value">
                                     {% if asset.purchase_price %}
                                     <span class="value-display">{{ asset.currency }} {{ asset.current_value }}</span>
@@ -321,6 +322,7 @@
                                     <span class="no-value">-</span>
                                     {% endif %}
                                 </td>
+                                {% endif %}
                                 <td class="td-actions">
                                     <div class="action-buttons">
                                         <a href="{% url 'asset-detail' asset.pk %}" class="action-btn view-btn" title="View Details">
@@ -345,6 +347,7 @@
                                 <div class="asset-sub">{{ asset.asset_tag }} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
                             </div>
                             <div class="asset-stats">
+                                {% if user.role == 'CHECKER' or user.role == 'SENIOR_MANAGER' or user.role == 'ADMIN' or user.is_superuser %}
                                 <div>
                                     <div class="stat-label">NBV</div>
                                     <div class="stat-value">{% if asset.purchase_price %}{{ asset.currency }} {{ asset.current_value }}{% else %}-{% endif %}</div>
@@ -353,6 +356,7 @@
                                     <div class="stat-label">Accum. Dep.</div>
                                     <div class="stat-value">{{ asset.accumulated_depreciation }}</div>
                                 </div>
+                                {% endif %}
                                 <div>
                                     <div class="stat-label">Status</div>
                                     <div class="stat-badge">{{ asset.get_status_display }}</div>
@@ -1532,10 +1536,115 @@
         margin-left: 1rem;
     }
 
+    /* Financial Summary Section */
+    .financial-summary-section {
+        padding: 1rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 8px;
+        margin: 0 1rem 1rem 1rem;
+        animation: fadeInUp 0.4s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .summary-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .summary-card {
+        background: white;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        gap: 0.875rem;
+        align-items: flex-start;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        border-color: #cbd5e1;
+    }
+
+    .summary-card-highlight {
+        background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+        border-color: #c7d2fe;
+    }
+
+    .summary-card-highlight:hover {
+        border-color: #a5b4fc;
+    }
+
+    .summary-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+
+    .summary-icon i {
+        width: 24px;
+        height: 24px;
+        color: white;
+    }
+
+    .summary-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .summary-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .summary-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: -0.5px;
+        line-height: 1.2;
+    }
+
+    .summary-subtitle {
+        font-size: 0.7rem;
+        color: #94a3b8;
+        font-weight: 500;
+        margin-top: 0.15rem;
+    }
+
     /* Responsive Design */
     @media (max-width: 1400px) {
         .filters-main-row {
             grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .summary-cards-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 
@@ -1762,6 +1871,34 @@
             gap: 0.75rem;
         }
 
+        .financial-summary-section {
+            margin: 0 0.75rem 0.75rem 0.75rem;
+            padding: 0.875rem;
+        }
+
+        .summary-cards-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .summary-card {
+            padding: 0.875rem;
+        }
+
+        .summary-icon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .summary-icon i {
+            width: 20px;
+            height: 20px;
+        }
+
+        .summary-value {
+            font-size: 1.25rem;
+        }
+
         .th-location { display: none; }
         .td-location { display: none; }
         .th-category { display: none; }
@@ -1871,6 +2008,42 @@
 
         .filter-label {
             font-size: 0.7rem;
+        }
+
+        .financial-summary-section {
+            margin: 0 0.5rem 0.5rem 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .summary-cards-grid {
+            grid-template-columns: 1fr;
+            gap: 0.6rem;
+        }
+
+        .summary-card {
+            padding: 0.75rem;
+        }
+
+        .summary-icon {
+            width: 36px;
+            height: 36px;
+        }
+
+        .summary-icon i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .summary-value {
+            font-size: 1.1rem;
+        }
+
+        .summary-label {
+            font-size: 0.65rem;
+        }
+
+        .summary-subtitle {
+            font-size: 0.65rem;
         }
 
         .premium-table {

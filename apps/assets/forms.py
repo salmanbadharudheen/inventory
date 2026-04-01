@@ -1,8 +1,21 @@
+import os
+
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 from django.utils.translation import gettext_lazy as _
+
+
+MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB
+MAX_DOCUMENT_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+ALLOWED_DOCUMENT_EXTENSIONS = {
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+    '.jpg', '.jpeg', '.png', '.webp'
+}
 
 class AssetForm(forms.ModelForm):
     class Meta:
@@ -87,6 +100,42 @@ class AssetForm(forms.ModelForm):
             print("ERROR in AssetForm.__init__:")
             print(traceback.format_exc())
             raise
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        field_rules = {
+            'image': (ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_UPLOAD_BYTES),
+            'po_file': (ALLOWED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_UPLOAD_BYTES),
+            'invoice_file': (ALLOWED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_UPLOAD_BYTES),
+            'delivery_note_file': (ALLOWED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_UPLOAD_BYTES),
+            'insurance_file': (ALLOWED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_UPLOAD_BYTES),
+            'amc_file': (ALLOWED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_UPLOAD_BYTES),
+        }
+
+        for field_name, (allowed_extensions, max_bytes) in field_rules.items():
+            upload = cleaned_data.get(field_name)
+            if not upload:
+                continue
+
+            extension = os.path.splitext(upload.name)[1].lower()
+            if extension not in allowed_extensions:
+                raise ValidationError({
+                    field_name: _(
+                        f"Unsupported file type for {field_name.replace('_', ' ')}. "
+                        f"Allowed: {', '.join(sorted(allowed_extensions))}"
+                    )
+                })
+
+            if upload.size > max_bytes:
+                max_mb = max_bytes // (1024 * 1024)
+                raise ValidationError({
+                    field_name: _(
+                        f"{field_name.replace('_', ' ').title()} is too large. Maximum allowed size is {max_mb} MB."
+                    )
+                })
+
+        return cleaned_data
 
 class AssetAttachmentForm(forms.ModelForm):
     class Meta:

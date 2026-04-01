@@ -118,11 +118,13 @@
             <!-- 5. Financial & Procurement -->
             <div class="card detail-section">
                 <div class="section-header"><i data-lucide="dollar-sign"></i><h3>Financial & Procurement</h3></div>
+                {% if user.role == 'CHECKER' or user.role == 'SENIOR_MANAGER' or user.role == 'ADMIN' or user.is_superuser %}
                 <div class="financial-summary" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; padding: 1rem; background: #f8fafc; border-radius: 12px; margin-bottom: 1.5rem;">
                     <div style="text-align: center;"><span class="detail-label">Purchase Price</span><div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">{{ asset.currency }} {{ asset.purchase_price|default:"0.00" }}</div></div>
                     <div style="text-align: center;"><span class="detail-label">Current Value</span><div style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">{{ asset.currency }} {{ asset.current_value|default:"0.00" }}</div></div>
                     <div style="text-align: center;"><span class="detail-label">Accumulated Depr.</span><div style="font-size: 1.25rem; font-weight: 700; color: #ef4444;">{{ asset.currency }} {{ asset.accumulated_depreciation|default:"0.00" }}</div></div>
                 </div>
+                {% endif %}
                 <div class="detail-grid">
                     <div class="detail-item"><span class="detail-label">Purchase Date</span><span class="detail-value">{{ asset.purchase_date|date:"d M Y"|default:"-" }}</span></div>
                     <div class="detail-item"><span class="detail-label">Invoice Number</span><span class="detail-value">{{ asset.invoice_number|default:"-" }}</span></div>
@@ -164,16 +166,67 @@
 
         <!-- Right Side: QR, Files & Notes -->
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            <!-- QR Code Card -->
-            <div class="card" style="text-align: center; padding: 2rem;">
-                <div id="qr-container" style="background: white; width: 180px; height: 180px; margin: 0 auto; padding: 10px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i data-lucide="qr-code" style="width: 120px; height: 120px; color: #1e293b; opacity: 0.1;"></i>
+            <!-- Barcode & QR Code Card -->
+            <div class="card" style="padding: 1.5rem;">
+                <div style="margin-bottom: 1rem;">
+                    <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">Identification Codes</h3>
                 </div>
-                <div style="margin-top: 1.5rem;">
-                    <div style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">{{ asset.asset_tag }}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Scan for asset details</div>
+                
+                <!-- QR Code -->
+                <div style="text-align: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">QR CODE</div>
+                    <div id="qr-container" style="background: white; width: 140px; height: 140px; margin: 0 auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        {% if asset.qr_code_image %}
+                            <img src="{{ asset.qr_code_image.url }}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">
+                        {% else %}
+                            <i data-lucide="qr-code" style="width: 80px; height: 80px; color: #94a3b8; opacity: 0.3;"></i>
+                        {% endif %}
+                    </div>
+                    {% if asset.qr_code_image %}
+                    <a href="{% url 'download-asset-qr' asset.pk %}" class="btn" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+                        <i data-lucide="download" style="width: 14px;"></i> Download QR
+                    </a>
+                    {% endif %}
                 </div>
-                <button class="btn" style="margin-top: 1.5rem; width: 100%; border: 1px solid var(--border-color); background: white;"><i data-lucide="printer" style="width: 16px; margin-right: 0.5rem;"></i> Print Label</button>
+                
+                <!-- Barcode -->
+                <div style="text-align: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">BARCODE</div>
+                    <div id="barcode-container" style="background: white; width: 100%; max-width: 200px; height: 80px; margin: 0 auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        {% if asset.barcode_image %}
+                            <img src="{{ asset.barcode_image.url }}" alt="Barcode" style="width: 100%; height: 100%; object-fit: contain;">
+                        {% else %}
+                            <i data-lucide="barcode" style="width: 80px; height: 40px; color: #94a3b8; opacity: 0.3;"></i>
+                        {% endif %}
+                    </div>
+                    {% if asset.barcode_image %}
+                    <a href="{% url 'download-asset-barcode' asset.pk %}" class="btn" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+                        <i data-lucide="download" style="width: 14px;"></i> Download Barcode
+                    </a>
+                    {% endif %}
+                </div>
+                
+                <!-- Combined Label -->
+                <div style="text-align: center;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">PRINT LABEL</div>
+                    {% if asset.label_image %}
+                    <div id="label-container" style="background: white; width: 100%; max-width: 200px; height: 120px; margin: 0 auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <img src="{{ asset.label_image.url }}" alt="Label" style="width: 100%; height: 100%; object-fit: contain;">
+                    </div>
+                    <a href="{% url 'download-asset-label' asset.pk %}" class="btn btn-primary" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+                        <i data-lucide="printer" style="width: 14px;"></i> Print Label
+                    </a>
+                    {% else %}
+                    <button onclick="generateAssetCodes('{{ asset.pk }}')" class="btn btn-primary" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+                        <i data-lucide="plus" style="width: 14px;"></i> Generate Codes
+                    </button>
+                    {% endif %}
+                </div>
+                <div style="margin-top: 0.75rem; text-align: center;">
+                    <button onclick="refreshAssetCodes('{{ asset.pk }}')" class="btn" style="width: 100%; background: #f8fafc; border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.85rem; padding: 0.5rem;">
+                        <i data-lucide="refresh-cw" style="width: 14px;"></i> Regenerate
+                    </button>
+                </div>
             </div>
 
             <!-- Documents & Attachments -->
@@ -227,4 +280,55 @@
     .document-link i { width: 18px; color: var(--text-secondary); }
     .document-link:hover i { color: var(--primary); }
 </style>
+
+<script>
+function generateAssetCodes(assetId) {
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" style="width: 14px;"></i> Generating...';
+    
+    fetch(`/assets/${assetId}/codes/generate/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Reload page to show generated codes
+                setTimeout(() => location.reload(), 500);
+            } else {
+                alert('Error: ' + (data.error || 'Failed to generate codes'));
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="plus" style="width: 14px;"></i> Generate Codes';
+            }
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="plus" style="width: 14px;"></i> Generate Codes';
+        });
+}
+
+function refreshAssetCodes(assetId) {
+    if (!confirm('Regenerate barcode/QR/label for this asset?')) return;
+    
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" style="width: 14px;"></i> Regenerating...';
+    
+    fetch(`/assets/${assetId}/codes/generate/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                setTimeout(() => location.reload(), 500);
+            } else {
+                alert('Error: ' + (data.error || 'Failed to regenerate codes'));
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="refresh-cw" style="width: 14px;"></i> Regenerate';
+            }
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="refresh-cw" style="width: 14px;"></i> Regenerate';
+        });
+}
+</script>
 {% endblock %}

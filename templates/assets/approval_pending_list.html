@@ -4,84 +4,507 @@
 
 {% block content %}
 <div class="asset-container">
+    <!-- Header with Stats -->
     <div class="content-header">
         <div>
-            <h1 class="page-heading">Pending Approvals</h1>
-            <p class="page-subtext">{{ total_pending }} request(s) awaiting your approval</p>
+            <h1 class="page-heading">⏰ Pending Approvals</h1>
+            <p class="page-subtext">
+                {% if approval_stage == 'Checker' %}
+                    Review and approve asset requests (Step 1 of 2)
+                {% elif approval_stage == 'Senior Manager' %}
+                    Final approval queue (direct final for pending + post-checker final)
+                {% else %}
+                    Review and approve asset requests submitted by your team
+                {% endif %}
+            </p>
+        </div>
+        <div class="stats-container">
+            {% if approval_stage == 'All' %}
+                <div class="stats-badge stats-checker">
+                    <span class="stats-number">{{ checker_pending_count }}</span>
+                    <span class="stats-label">Checker Review</span>
+                </div>
+                <div class="stats-badge stats-senior">
+                    <span class="stats-number">{{ senior_pending_count }}</span>
+                    <span class="stats-label">Senior Manager</span>
+                </div>
+            {% else %}
+                <div class="stats-badge">
+                    <span class="stats-number">{{ total_pending }}</span>
+                    <span class="stats-label">Pending</span>
+                </div>
+            {% endif %}
         </div>
     </div>
 
     {% if pending_requests %}
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Asset Requests Pending Approval</h3>
+    <!-- Card Grid Layout -->
+    <div class="approval-grid">
+        {% for request in pending_requests %}
+        <div class="approval-card">
+            <div class="approval-card-header">
+                <div class="approval-card-title">
+                    <h3>{{ request.data.asset_name|default:"Unnamed Asset" }}</h3>
+                    <span class="request-id">ID: {{ request.id|truncatechars:10 }}</span>
+                </div>
+                <span class="status-badge status-{{ request.status|lower }}">
+                    {% if request.status == 'PENDING' %}
+                        {% if approval_stage == 'Senior Manager' or approval_stage == 'All' %}
+                            ⚡ Direct Final Approval Available
+                        {% else %}
+                            🔍 Step 1: Checker Review
+                        {% endif %}
+                    {% elif request.status == 'CHECKER_APPROVED' %}
+                        ⏳ Step 2: Senior Manager
+                    {% else %}
+                        {{ request.get_status_display }}
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="approval-card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-icon">📦</span>
+                        <div class="info-content">
+                            <span class="info-label">Category</span>
+                            <span class="info-value">{{ request.data.asset_category|default:"N/A" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-icon">👤</span>
+                        <div class="info-content">
+                            <span class="info-label">Requested By</span>
+                            <span class="info-value">{{ request.data.requested_by|default:request.requester.get_full_name }}</span>
+                        </div>
+                    </div>
+
+                    {% if request.data.asset_cost %}
+                    <div class="info-item">
+                        <span class="info-icon">💰</span>
+                        <div class="info-content">
+                            <span class="info-label">Estimated Cost</span>
+                            <span class="info-value">₹{{ request.data.asset_cost }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="info-item">
+                        <span class="info-icon">📅</span>
+                        <div class="info-content">
+                            <span class="info-label">Submitted</span>
+                            <span class="info-value">{{ request.created_at|date:"d M Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if request.data.asset_description %}
+                <div class="description-box">
+                    <p>{{ request.data.asset_description|truncatewords:20 }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="approval-card-footer">
+                <a href="{% url 'approval-request-detail' request.id %}" class="btn btn-review">
+                    <span>📋</span> Review Details
+                </a>
+                <div class="approval-progress">
+                    {% if request.status == 'PENDING' %}
+                        <span class="progress-step active">1</span>
+                        <span class="progress-line"></span>
+                        <span class="progress-step">2</span>
+                    {% elif request.status == 'CHECKER_APPROVED' %}
+                        <span class="progress-step completed">✓</span>
+                        <span class="progress-line"></span>
+                        <span class="progress-step active">2</span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Request ID</th>
-                    <th>Asset Name</th>
-                    <th>Category</th>
-                    <th>Requested By</th>
-                    <th>Submitted</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for request in pending_requests %}
-                <tr>
-                    <td>
-                        <a href="{% url 'approval-request-detail' request.id %}" style="color:#2563eb; text-decoration:none;">
-                            {{ request.id|truncatechars:13 }}
-                        </a>
-                    </td>
-                    <td>{{ request.data.asset_name }}</td>
-                    <td>{{ request.data.asset_category }}</td>
-                    <td>{{ request.data.requested_by|default:request.requester.get_full_name }}</td>
-                    <td>{{ request.created_at|date:"d M Y" }}</td>
-                    <td>
-                        <span class="status-badge status-{{ request.status|lower }}">
-                            {% if request.status == 'PENDING' %}
-                                Awaiting Checker
-                            {% elif request.status == 'CHECKER_APPROVED' %}
-                                Awaiting Senior Manager
-                            {% else %}
-                                {{ request.get_status_display }}
-                            {% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="{% url 'approval-request-detail' request.id %}" class="btn-link">Review</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {% endfor %}
     </div>
 
     {% if is_paginated %}
-    {% include 'includes/pagination.html' %}
+    <div style="margin-top: 32px;">
+        {% include 'includes/pagination.html' %}
+    </div>
     {% endif %}
 
     {% else %}
+    <!-- Empty State -->
     <div class="empty-state">
-        <div style="text-align:center; padding:48px 24px;">
-            <div style="font-size:48px; margin-bottom:16px;">✓</div>
-            <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:600;">No Pending Approvals</h3>
-            <p style="color:#6b7280; margin:0;">All requests have been reviewed. Great job!</p>
+        <div class="empty-state-content">
+            <div class="empty-state-icon">✅</div>
+            <h3>All Caught Up!</h3>
+            <p>There are no pending approvals at the moment.</p>
+            <p class="empty-state-subtext">New requests will appear here for your review.</p>
         </div>
     </div>
     {% endif %}
 </div>
 
 <style>
-    .data-table { width:100%; border-collapse:collapse; margin-top:16px; }
-    .data-table th { background:#f9f9f9; padding:12px; text-align:left; font-weight:600; border-bottom:2px solid #e5e7eb; }
-    .data-table td { padding:12px; border-bottom:1px solid #e5e7eb; }
-    .data-table tr:hover { background:#f9f9f9; }
-    .btn-link { color:#2563eb; text-decoration:none; font-weight:500; }
-    .btn-link:hover { text-decoration:underline; }
-    .empty-state { background:white; border-radius:8px; margin-top:24px; border:1px solid #e5e7eb; }
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    
+    .page-heading {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .page-subtext {
+        color: #6b7280;
+        font-size: 15px;
+        margin: 8px 0 0 0;
+    }
+    
+    .stats-badge {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 20px 32px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .stats-container {
+        display: flex;
+        gap: 16px;
+    }
+    
+    .stats-checker {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    
+    .stats-senior {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+    
+    .stats-number {
+        display: block;
+        font-size: 36px;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stats-label {
+        display: block;
+        font-size: 13px;
+        opacity: 0.9;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .approval-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .approval-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .approval-card:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        border-color: #3b82f6;
+    }
+    
+    .approval-card-header {
+        padding: 20px;
+        background: linear-gradient(to right, #f9fafb, #f3f4f6);
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .approval-card-title h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #1f2937;
+        line-height: 1.4;
+    }
+    
+    .request-id {
+        display: block;
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+        font-weight: 400;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde047;
+    }
+    
+    .status-checker_approved {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+    }
+    
+    .approval-card-body {
+        padding: 20px;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .info-icon {
+        font-size: 20px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    
+    .info-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+    
+    .info-label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-size: 14px;
+        color: #1f2937;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .description-box {
+        background: #f9fafb;
+        padding: 12px;
+        border-radius: 6px;
+        border-left: 3px solid #3b82f6;
+    }
+    
+    .description-box p {
+        margin: 0;
+        font-size: 13px;
+        color: #4b5563;
+        line-height: 1.6;
+    }
+    
+    .approval-card-footer {
+        padding: 16px 20px;
+        background: #fafafa;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .approval-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .progress-step {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        border: 2px solid #d1d5db;
+        background: white;
+        color: #9ca3af;
+    }
+    
+    .progress-step.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+    
+    .progress-step.completed {
+        background: #10b981;
+        color: white;
+        border-color: #10b981;
+    }
+    
+    .progress-line {
+        width: 40px;
+        height: 2px;
+        background: #e5e7eb;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 20px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        font-size: 14px;
+    }
+    
+    .btn-review {
+        background: #3b82f6;
+        color: white;
+        flex: 1;
+    }
+    
+    .btn-review:hover {
+        background: #2563eb;
+        transform: scale(1.02);
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .btn-quick {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-quick-approve {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .btn-quick-approve:hover {
+        background: #10b981;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    .btn-quick-reject {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .btn-quick-reject:hover {
+        background: #ef4444;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    .empty-state {
+        background: white;
+        border: 2px dashed #e5e7eb;
+        border-radius: 16px;
+        margin-top: 32px;
+    }
+    
+    .empty-state-content {
+        text-align: center;
+        padding: 64px 24px;
+    }
+    
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+    }
+    
+    .empty-state-content h3 {
+        margin: 0 0 8px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .empty-state-content p {
+        color: #6b7280;
+        margin: 8px 0;
+        font-size: 15px;
+    }
+    
+    .empty-state-subtext {
+        font-size: 13px !important;
+        color: #9ca3af !important;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .approval-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-badge {
+            width: 100%;
+        }
+        
+        .stats-container {
+            width: 100%;
+            flex-direction: column;
+        }
+    }
 </style>
 {% endblock %}

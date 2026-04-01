@@ -13,6 +13,7 @@
         </div>
         <h1 class="detail-title">Transfer: {{ transfer.asset.asset_tag }}</h1>
         <div class="header-actions">
+            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.is_superuser %}
             {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
             <a href="{% url 'transfer-update' transfer.id %}" class="btn-icon-action" title="Edit">
                 <i data-lucide="edit"></i>
@@ -22,6 +23,7 @@
             <a href="{% url 'transfer-receive' transfer.id %}" class="btn-primary-action" title="Receive Transfer">
                 <i data-lucide="check"></i> Receive
             </a>
+            {% endif %}
             {% endif %}
         </div>
     </div>

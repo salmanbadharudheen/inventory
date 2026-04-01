@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 import dj_database_url
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,10 +31,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-jida4imve8bi3ozoem83m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True # os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
-# CSRF Trusted Origins (for production)
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if os.environ.get('CSRF_TRUSTED_ORIGINS') else []
 # Behind Railway / reverse proxy
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
@@ -99,38 +100,32 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Database
+# Database — PostgreSQL only
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-# Use DATABASE_URL from environment if available (for production)
-# Otherwise use local PostgreSQL configuration (for development)
-USE_POSTGRES_LOCAL = os.environ.get("USE_POSTGRES_LOCAL") == "1"
+#
+# Production : set DATABASE_URL in environment
+# Local dev  : set individual DB_* variables in .env
 
 database_url = os.environ.get("DATABASE_URL")
 
 if database_url:
-    DATABASES = {"default": dj_database_url.config(default=database_url)}
-elif USE_POSTGRES_LOCAL:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": "inventory_db",
-            "USER": "inventory_user",
-            "PASSWORD": "1234",
-            "HOST": "127.0.0.1",
-            "PORT": "5432",
-        }
-    }
+    DATABASES = {"default": dj_database_url.config(default=database_url, conn_max_age=600)}
 else:
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "inventory_db"),
+            "USER": os.environ.get("DB_USER", "inventory_user"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
         }
     }
 
 
-ALLOWED_HOSTS = [
+# ALLOWED_HOSTS: reads from env var or falls back to safe defaults
+_allowed_hosts_env = os.environ.get('ALLOWED_HOSTS')
+ALLOWED_HOSTS = _allowed_hosts_env.split(',') if _allowed_hosts_env else [
     "web-production-62fee.up.railway.app",
     ".up.railway.app",
     "localhost",
@@ -138,8 +133,9 @@ ALLOWED_HOSTS = [
     "testserver",
 ]
 
-
-CSRF_TRUSTED_ORIGINS = [
+# CSRF Trusted Origins: reads from env var or falls back to safe defaults
+_csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS')
+CSRF_TRUSTED_ORIGINS = _csrf_origins_env.split(',') if _csrf_origins_env else [
     "https://web-production-62fee.up.railway.app",
     "https://*.up.railway.app",
 ]
@@ -186,6 +182,12 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Upload handling (helps keep requests predictable and prevents oversized uploads)
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MEMORY_SIZE', 5 * 1024 * 1024))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_SIZE', 20 * 1024 * 1024))
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 AUTH_USER_MODEL = 'users.User'
 

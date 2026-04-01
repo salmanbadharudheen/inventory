@@ -131,6 +131,10 @@
         margin-bottom: 2rem;
         padding-bottom: 1.5rem;
         border-bottom: 2px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
     }
 
     .depr-header h2 {
@@ -236,8 +240,9 @@
 
     .depr-filter-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(6, minmax(140px, 1fr)) auto auto;
         gap: 1rem;
+        align-items: end;
     }
 
     .form-group-depr {
@@ -288,10 +293,27 @@
     }
 
     .depr-button-group {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: 1rem;
+        display: contents;
     }
+
+    .depr-action-group {
+        display: flex;
+        align-items: end;
+        height: 100%;
+    }
+
+    .depr-export {
+        background: #fff;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .depr-export:hover { background: var(--bg-secondary); }
 
     .depr-btn {
         padding: 0.5rem 1.25rem;
@@ -339,6 +361,27 @@
         .depr-content-wrapper { margin-left: 0; padding: 1rem; }
         .depr-sidebar-wrapper { width: 100%; height: auto; position: relative; }
     }
+    /* Luxury polish */
+    .depr-content-wrapper {
+        background:
+            radial-gradient(1200px 480px at 100% -10%, rgba(198, 169, 107, 0.08), transparent 60%),
+            #f3f4f6;
+    }
+    .depr-header,
+    .depr-filter-section,
+    .depr-card,
+    .depr-table-container {
+        background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+        border-color: #e2e8f0;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    }
+    .depr-header h2 { letter-spacing: -0.25px; }
+    .depr-btn-primary {
+        background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+    }
+    .depr-btn-primary:hover { background: linear-gradient(135deg, #0b1220 0%, #111827 100%); }
+    .depr-table thead { background: #f8fafc; }
+    .depr-table tbody tr:hover { background: rgba(198, 169, 107, 0.08); }
 </style>
 {% endblock %}
 
@@ -413,6 +456,7 @@
         <div>
             <h2>Group Depreciation Breakdown</h2>
         </div>
+        <a href="{% url 'asset-export-excel' %}?view=depreciation&{{ request.GET.urlencode }}" class="depr-export">Export</a>
     </div>
 
     <!-- Filter Section -->
@@ -460,10 +504,13 @@
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-                <div class="depr-button-group">
-                    <button type="submit" class="depr-btn depr-btn-primary">Apply Filters</button>
-                    <a href="{% url 'depreciation-group' %}" class="depr-btn depr-btn-secondary" style="text-decoration: none; display: inline-block;">Clear All</a>
+
+                    <div class="depr-button-group depr-action-group">
+                        <button type="submit" class="depr-btn depr-btn-primary">Apply</button>
+                    </div>
+                    <div class="depr-button-group depr-action-group">
+                        <a href="{% url 'depreciation-group' %}" class="depr-btn depr-btn-secondary" style="text-decoration: none; display: inline-block;">Reset</a>
+                    </div>
                 </div>
             </div>
         </form>
@@ -508,6 +555,24 @@
                 {{ total_assets_report|default:"0" }}
             </span>
         </div>
+        {% if opening_date %}
+        <div class="depr-card">
+            <span class="stat-label">Opening Value ({{ depr_date_from }})</span>
+            <span class="stat-value" style="color:#3b82f6;">AED {{ total_opening_value|floatformat:2|intcomma }}</span>
+        </div>
+        {% endif %}
+        {% if closing_date %}
+        <div class="depr-card">
+            <span class="stat-label">Closing Value ({{ depr_date_to }})</span>
+            <span class="stat-value" style="color:#8b5cf6;">AED {{ total_closing_value|floatformat:2|intcomma }}</span>
+        </div>
+        {% endif %}
+        {% if opening_date and closing_date %}
+        <div class="depr-card">
+            <span class="stat-label">Period Depreciation</span>
+            <span class="stat-value" style="color:#ef4444;">-AED {{ period_depreciation|floatformat:2|intcomma }}</span>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Group Breakdown Table -->
@@ -559,6 +624,9 @@
                             <th>Group</th>
                             <th>Purchase Date</th>
                             <th class="depr-right">Cost</th>
+                            {% if opening_date %}<th class="depr-right">Opening</th>{% endif %}
+                            {% if closing_date %}<th class="depr-right">Closing</th>{% endif %}
+                            {% if opening_date and closing_date %}<th class="depr-right">Period Depr.</th>{% endif %}
                             <th class="depr-right">Acc. Depr.</th>
                             <th class="depr-right">NBV</th>
                         </tr>
@@ -572,6 +640,9 @@
                             <td>{{ asset.group.name|default:"—" }}</td>
                             <td>{{ asset.purchase_date|date:"d/m/Y"|default:"—" }}</td>
                             <td class="depr-right">AED {{ asset.purchase_price|floatformat:2|intcomma|default:"—" }}</td>
+                            {% if opening_date %}<td class="depr-right" style="color:#3b82f6;">AED {{ asset.opening_value|floatformat:2|intcomma }}</td>{% endif %}
+                            {% if closing_date %}<td class="depr-right" style="color:#8b5cf6;">AED {{ asset.closing_value|floatformat:2|intcomma }}</td>{% endif %}
+                            {% if opening_date and closing_date %}<td class="depr-right" style="color:#ef4444;">-AED {{ asset.period_depreciation|floatformat:2|intcomma }}</td>{% endif %}
                             <td class="depr-right" style="color:#dc2626;">-AED {{ asset.accumulated_depreciation|floatformat:2|intcomma }}</td>
                             <td class="depr-right" style="color:#22c55e; font-weight:700;">AED {{ asset.current_value|floatformat:2|intcomma }}</td>
                         </tr>

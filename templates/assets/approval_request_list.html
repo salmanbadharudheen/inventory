@@ -6,9 +6,11 @@
 <div class="asset-container">
     <div class="content-header">
         <h1 class="page-heading">Asset Approval Requests</h1>
+        {% if user.is_superuser or user.role == 'ADMIN' %}
         <a href="{% url 'approval-request-create' %}" class="btn btn-primary">
             + New Request
         </a>
+        {% endif %}
     </div>
 
     <div class="stats-grid">
