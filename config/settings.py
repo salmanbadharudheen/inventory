@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     
     # Third party
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_yasg',
@@ -70,6 +71,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -131,7 +133,14 @@ ALLOWED_HOSTS = _allowed_hosts_env.split(',') if _allowed_hosts_env else [
     "localhost",
     "127.0.0.1",
     "testserver",
+    "192.168.10.106",
+    "10.255.254.20",
 ]
+
+# CORS: allow mobile app during development
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if os.environ.get('CORS_ALLOWED_ORIGINS') else []
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in development
+CORS_ALLOW_CREDENTIALS = True
 
 # CSRF Trusted Origins: reads from env var or falls back to safe defaults
 _csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS')

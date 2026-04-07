@@ -11,3 +11,4 @@ openpyxl
 Pillow
 qrcode[pil]
 python-barcode
+django-cors-headers
