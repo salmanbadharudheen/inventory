@@ -1,0 +1,49 @@
+# Exclude Django backend (not needed for mobile build)
+apps/
+config/
+templates/
+fixtures/
+staticfiles/
+media/
+*.py
+*.pyc
+__pycache__/
+venv/
+db.sqlite3
+db.sqlite3-journal
+*.md
+*.txt
+*.sh
+*.bat
+Procfile
+runtime.txt
+railway.json
+postman_collection.json
+manage.py
+tags_output.txt
+disposal_model_addition.txt
+
+# Exclude Python virtual environment
+venv/
+env/
+.Python
+
+# Exclude build artifacts
+build/
+dist/
+
+# Exclude IDE files
+.vscode/
+.idea/
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude mobile build artifacts
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/dist/
+mobile/web-build/
