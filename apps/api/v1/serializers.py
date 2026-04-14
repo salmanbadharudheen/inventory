@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 from apps.users.models import User
 from apps.assets.models import Asset, Group, SubGroup, Category, SubCategory, Company, Supplier, Brand, Custodian, Vendor, AssetRemarks
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
@@ -63,6 +64,8 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
+        # Run Django's AUTH_PASSWORD_VALIDATORS against the password
+        validate_password(attrs['password'], user=User(**{k: v for k, v in attrs.items() if k not in ('password', 'password2')}))
         return attrs
     
     def create(self, validated_data):
@@ -86,6 +89,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password2']:
             raise serializers.ValidationError({"new_password": "New password fields didn't match."})
+        # Run Django's AUTH_PASSWORD_VALIDATORS against the new password
+        validate_password(attrs['new_password'], user=self.context['request'].user)
         return attrs
 
 

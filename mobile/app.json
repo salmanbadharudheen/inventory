@@ -23,7 +23,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.inventory.mobile"
+      "package": "com.inventory.mobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -38,6 +42,13 @@
           "cameraPermission": "Allow Inventory Manager to access your camera to scan QR codes and barcodes on assets."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "38b27e2b-0608-4bc3-9cba-f959d34ae9d9"
+      }
+    },
+    "owner": "salmanbadharudheen"
   }
 }
