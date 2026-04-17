@@ -598,7 +598,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                         'total_cost': group['total_cost'] or Decimal('0'),
                         'total_acc_dep': total_cat_dep,
                         'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
-                        'count': cat_count,
+                        'count': group['count'],
                     })
                 context['grouped_data'] = grouped_list
             
@@ -3387,7 +3387,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
                 'total_cost': group['total_cost'] or Decimal('0'),
                 'total_acc_dep': total_cat_dep,
                 'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
-                'count': cat_count,
+                'count': group['count'],
             })
         
         context['grouped_data'] = grouped_list
