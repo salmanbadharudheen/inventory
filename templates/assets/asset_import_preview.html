@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Import Preview - New Items Found{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+    <div class="card">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+            <div style="width: 40px; height: 40px; background: #FFF7ED; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="alert-triangle" style="width: 20px; height: 20px; color: #EA580C;"></i>
+            </div>
+            <div>
+                <h3 style="margin: 0;">New Items Found in Your File</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    Your file has <strong>{{ total_rows }} rows</strong>. The following items don't exist in the system yet.
+                </p>
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'asset-import' %}">
+            {% csrf_token %}
+            <input type="hidden" name="confirm_create" value="1">
+
+            <div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 2rem;">
+
+                {% if new_entities.categories %}
+                <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="categories" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="folder" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Categories ({{ new_entities.categories|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.categories %}
+                        <span style="background: white; border: 1px solid #FDE68A; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.subcategories %}
+                <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="subcategories" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="folder-tree" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Sub Categories ({{ new_entities.subcategories|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.subcategories %}
+                        <span style="background: white; border: 1px solid #BBF7D0; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.groups %}
+                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="groups" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="layers" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Groups ({{ new_entities.groups|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.groups %}
+                        <span style="background: white; border: 1px solid #BFDBFE; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.sub_groups %}
+                <div style="background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="sub_groups" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="git-branch" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Sub Groups ({{ new_entities.sub_groups|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.sub_groups %}
+                        <span style="background: white; border: 1px solid #DDD6FE; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.brands %}
+                <div style="background: #FDF2F8; border: 1px solid #FBCFE8; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="brands" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="tag" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Brands ({{ new_entities.brands|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.brands %}
+                        <span style="background: white; border: 1px solid #FBCFE8; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.regions %}
+                <div style="background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="regions" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="globe" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Regions ({{ new_entities.regions|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.regions %}
+                        <span style="background: white; border: 1px solid #FECDD3; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.sites %}
+                <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="sites" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="map-pin" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Sites ({{ new_entities.sites|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.sites %}
+                        <span style="background: white; border: 1px solid #A7F3D0; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.buildings %}
+                <div style="background: #FEF9C3; border: 1px solid #FDE047; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="buildings" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="building-2" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Buildings ({{ new_entities.buildings|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.buildings %}
+                        <span style="background: white; border: 1px solid #FDE047; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if new_entities.floors %}
+                <div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 1.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin-bottom: 0.75rem;">
+                        <input type="checkbox" name="create_entities" value="floors" checked
+                            style="width: 18px; height: 18px; accent-color: #2F5496;">
+                        <span style="font-weight: 600; font-size: 1rem;">
+                            <i data-lucide="layers" style="width: 16px; height: 16px; display: inline; vertical-align: -2px;"></i>
+                            Floors ({{ new_entities.floors|length }})
+                        </span>
+                    </label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
+                        {% for item in new_entities.floors %}
+                        <span style="background: white; border: 1px solid #BAE6FD; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
+                            {{ item }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div style="background: #F8FAFC; padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
+                <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+                    <i data-lucide="info" style="width: 14px; height: 14px; display: inline; vertical-align: -2px;"></i>
+                    Checked items will be automatically created in the system before importing. Uncheck any items you don't want to create — those rows will be skipped if the entity is required.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="check-circle"></i> Create & Import
+                </button>
+                <a href="{% url 'asset-import' %}" class="btn" style="background: var(--bg-body); display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="x"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@ from .models import (Asset, AssetAttachment, Category, SubCategory, Vendor, gene
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from .forms import (AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm,
                     GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm, AssetTransferForm, AssetTransferReceiveForm, AssetDisposalForm, AssetDisposalManagerApprovalForm, AssetDisposalApprovalForm)
-from django.db import transaction
+from django.db import transaction, models
 from apps.locations.models import (Branch, Building, Floor, Room, 
                                    Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
@@ -221,27 +221,79 @@ def download_sample_csv(request):
 
 def download_sample_excel(request):
     import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Assets"
 
-    # Header
+    # Style definitions
+    header_font = Font(name='Calibri', bold=True, size=11, color='FFFFFF')
+    header_fill = PatternFill(start_color='2F5496', end_color='2F5496', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    data_font = Font(name='Calibri', size=11)
+    data_alignment = Alignment(horizontal='left', vertical='center', wrap_text=False)
+    thin_border = Border(
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='D9D9D9'),
+        bottom=Side(style='thin', color='D9D9D9'),
+    )
+    alt_row_fill = PatternFill(start_color='F2F7FB', end_color='F2F7FB', fill_type='solid')
+
+    # Header row
     ws.append(ASSET_IMPORT_FIELDS)
 
-    # Sample Row
-    ws.append([
+    # Sample row
+    sample_data = [
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', 1, 'NON_METAL', 'SN123456', 
-        'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
-        'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
-        'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
-        '2nd Floor', 'Room 201', 'North Region', 'Main Site', 'Main Location', 'Sub 1', '2023-01-01', 
-        5000, 'AED', 'INV-001', '2023-01-01', 'PO-100', 
-        '2022-12-15', 'DO-100', '2022-12-28', 'GRN-100', '2023-01-01', '2026-01-01', 
-        '2023-01-02', '2023-01-10', '2023-01-01', '2024-01-01', 
-        '2023-01-01', '2024-01-01', '2023-06-01', '180', '1000', '5', '500', 
+        'C001', 'ERP-100', 1, 'NON_METAL', 'SN123456',
+        'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell',
+        'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp',
+        'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building',
+        '2nd Floor', 'Room 201', 'North Region', 'Main Site', 'Main Location', 'Sub 1', '2023-01-01',
+        5000, 'AED', 'INV-001', '2023-01-01', 'PO-100',
+        '2022-12-15', 'DO-100', '2022-12-28', 'GRN-100', '2023-01-01', '2026-01-01',
+        '2023-01-02', '2023-01-10', '2023-01-01', '2024-01-01',
+        '2023-01-01', '2024-01-01', '2023-06-01', '180', '1000', '5', '500',
         'STRAIGHT_LINE', 'Needs Setup', 'Initial deployment'
-    ])
+    ]
+    ws.append(sample_data)
+
+    # Apply header styles
+    for col_idx, header in enumerate(ASSET_IMPORT_FIELDS, 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+
+    # Apply data row styles
+    for col_idx in range(1, len(ASSET_IMPORT_FIELDS) + 1):
+        cell = ws.cell(row=2, column=col_idx)
+        cell.font = data_font
+        cell.alignment = data_alignment
+        cell.border = thin_border
+        cell.fill = alt_row_fill
+
+    # Auto-fit column widths based on content
+    for col_idx, header in enumerate(ASSET_IMPORT_FIELDS, 1):
+        col_letter = get_column_letter(col_idx)
+        header_len = len(str(header))
+        data_val = sample_data[col_idx - 1] if col_idx - 1 < len(sample_data) else ''
+        data_len = len(str(data_val))
+        optimal_width = max(header_len, data_len) + 4
+        optimal_width = min(optimal_width, 40)
+        optimal_width = max(optimal_width, 12)
+        ws.column_dimensions[col_letter].width = optimal_width
+
+    # Set row heights
+    ws.row_dimensions[1].height = 30
+    ws.row_dimensions[2].height = 22
+
+    # Freeze header row
+    ws.freeze_panes = 'A2'
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="sample_assets.xlsx"'
@@ -463,71 +515,46 @@ class AssetListView(LoginRequiredMixin, ListView):
             total_cost = agg['total_cost']
             total_count = agg['total_count']
             
-            # For large datasets, estimate depreciation from a sample
-            # This avoids loading millions of records
-            SAMPLE_SIZE = 5000  # Process only 5000 assets to calculate percentages
-            
             # Calculate opening and closing values
             total_opening_value = Decimal('0')
             total_closing_value = Decimal('0')
             
-            if total_count > SAMPLE_SIZE:
-                # For very large datasets, calculate on sample
-                sample_qs = queryset[:SAMPLE_SIZE]
-                sample_list = list(sample_qs)
+            # Calculate exact values by iterating all assets in batches
+            # This matches the dashboard calculation for consistency
+            BATCH_SIZE = 1000
+            
+            total_acc_dep = Decimal('0')
+            total_nbv = Decimal('0')
+            
+            if opening_date or closing_date:
+                # Need to calculate period-based values
+                for i in range(0, total_count, BATCH_SIZE):
+                    batch = list(queryset[i:i+BATCH_SIZE])
+                    for asset in batch:
+                        if opening_date:
+                            total_opening_value += asset.get_value_at_date(opening_date)
+                        else:
+                            total_opening_value += asset.current_value
+                        
+                        if closing_date:
+                            total_closing_value += asset.get_value_at_date(closing_date)
+                        else:
+                            total_closing_value += asset.current_value
+                        
+                        total_acc_dep += asset.accumulated_depreciation
                 
-                if opening_date:
-                    avg_opening_ratio = (
-                        sum(a.get_value_at_date(opening_date) for a in sample_list) / 
-                        sum(a.purchase_price or Decimal('0') for a in sample_list)
-                    ) if any(a.purchase_price for a in sample_list) else 1
-                    total_opening_value = total_cost * Decimal(str(avg_opening_ratio))
-                else:
-                    # If no opening date, use current values
-                    avg_depreciation_ratio = (
-                        sum(a.accumulated_depreciation for a in sample_list) / 
-                        sum(a.purchase_price or Decimal('0') for a in sample_list)
-                    ) if any(a.purchase_price for a in sample_list) else 0
-                    total_opening_value = total_cost * (Decimal('1') - Decimal(str(avg_depreciation_ratio)))
-                
-                if closing_date:
-                    avg_closing_ratio = (
-                        sum(a.get_value_at_date(closing_date) for a in sample_list) / 
-                        sum(a.purchase_price or Decimal('0') for a in sample_list)
-                    ) if any(a.purchase_price for a in sample_list) else 1
-                    total_closing_value = total_cost * Decimal(str(avg_closing_ratio))
-                else:
-                    # If no closing date, use current values
-                    avg_depreciation_ratio = (
-                        sum(a.accumulated_depreciation for a in sample_list) / 
-                        sum(a.purchase_price or Decimal('0') for a in sample_list)
-                    ) if any(a.purchase_price for a in sample_list) else 0
-                    total_closing_value = total_cost * (Decimal('1') - Decimal(str(avg_depreciation_ratio)))
-                
-                # Calculate accumulated depreciation
-                total_acc_dep = sum(a.accumulated_depreciation for a in sample_list) if sample_list else Decimal('0')
-                total_acc_dep = total_cost * (total_acc_dep / sum(a.purchase_price or Decimal('0') for a in sample_list if a.purchase_price)) if any(a.purchase_price for a in sample_list) else Decimal('0')
                 total_nbv = total_closing_value
-                
-                context['is_estimate'] = True
-                context['sample_size'] = SAMPLE_SIZE
             else:
-                # For small datasets, calculate exact values
-                all_visible = list(queryset)
+                # No date range - just compute current values
+                for i in range(0, total_count, BATCH_SIZE):
+                    batch = list(queryset[i:i+BATCH_SIZE])
+                    for asset in batch:
+                        cv = asset.current_value
+                        total_nbv += cv
+                        total_acc_dep += asset.accumulated_depreciation
                 
-                if opening_date:
-                    total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_visible) if all_visible else Decimal('0')
-                else:
-                    total_opening_value = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
-                
-                if closing_date:
-                    total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_visible) if all_visible else Decimal('0')
-                else:
-                    total_closing_value = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
-                
-                total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
-                total_nbv = total_closing_value
-                context['is_estimate'] = False
+                total_opening_value = total_nbv
+                total_closing_value = total_nbv
             
             # Calculate depreciation for the period
             period_depreciation = total_opening_value - total_closing_value
@@ -556,25 +583,14 @@ class AssetListView(LoginRequiredMixin, ListView):
                     total_cost=Sum('purchase_price')
                 ).order_by('-total_cost')[:100]  # Limit to top 100 categories
                 
-                # For grouped depreciation, estimate from database-level aggregations
+                # Calculate exact depreciation for each category
                 grouped_list = []
                 for group in grouped_data:
                     cat_id = group['category']
                     cat_qs = queryset.filter(category_id=cat_id)
-                    cat_count = group['count']
                     
-                    if cat_count > SAMPLE_SIZE:
-                        # Estimate for large categories
-                        sample = list(cat_qs[:SAMPLE_SIZE])
-                        if sample and any(a.purchase_price for a in sample):
-                            avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
-                            total_cat_dep = (group['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
-                        else:
-                            total_cat_dep = Decimal('0')
-                    else:
-                        # Exact for small categories
-                        cat_assets = list(cat_qs)
-                        total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+                    cat_assets = list(cat_qs)
+                    total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
                     
                     grouped_list.append({
                         'id': cat_id,
@@ -937,6 +953,12 @@ class AssetImportView(LoginRequiredMixin, FormView):
     form_class = AssetImportForm
     success_url = reverse_lazy('asset-list')
 
+    def post(self, request, *args, **kwargs):
+        # Handle the confirm step (no file upload, data is in session)
+        if 'confirm_create' in request.POST:
+            return self._handle_confirm_import(request)
+        return super().post(request, *args, **kwargs)
+
     def get_file_data(self, uploaded_file):
         """Extract data rows from CSV or Excel file efficiently."""
         data = []
@@ -948,7 +970,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 decoded_file = uploaded_file.read().decode('utf-8-sig')
                 io_string = io.StringIO(decoded_file)
                 reader = csv.DictReader(io_string)
-                data = list(reader)
+                raw_data = list(reader)
+                # Normalize headers to lowercase with underscores
+                for row in raw_data:
+                    data.append(self._normalize_row_keys(row))
             except Exception as e:
                 raise ValueError(f"Error reading CSV: {str(e)}")
         
@@ -958,9 +983,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 wb = openpyxl.load_workbook(uploaded_file, data_only=True, read_only=True)
                 sheet = wb.active
                 
-                # Get headers from the first row
+                # Get headers from the first row and normalize
                 rows_gen = sheet.iter_rows(values_only=True)
-                headers = [h for h in next(rows_gen) if h]
+                raw_headers = [h for h in next(rows_gen) if h]
+                headers = [self._normalize_header(h) for h in raw_headers]
                 
                 for row in rows_gen:
                     if any(row):  # Skip empty rows
@@ -972,6 +998,65 @@ class AssetImportView(LoginRequiredMixin, FormView):
         
         return data
 
+    # Header alias mapping: maps common variations to the expected field names
+    HEADER_ALIASES = {
+        'building name': 'building', 'bldg': 'building', 'bldg name': 'building',
+        'floor name': 'floor', 'floor no': 'floor', 'floor number': 'floor',
+        'room name': 'room', 'room no': 'room', 'room number': 'room',
+        'branch name': 'branch', 'site name': 'site', 'region name': 'region',
+        'location name': 'location', 'sub location': 'sub_location',
+        'sub location name': 'sub_location', 'sublocation': 'sub_location',
+        'sub category': 'sub_category', 'subcategory': 'sub_category',
+        'sub group': 'sub_group', 'subgroup': 'sub_group',
+        'department name': 'department', 'dept': 'department',
+        'brand name': 'brand', 'company name': 'company',
+        'supplier name': 'supplier', 'vendor name': 'vendor',
+        'asset name': 'name', 'asset description': 'description',
+        'asset tag': 'asset_tag', 'custom asset tag': 'custom_asset_tag',
+        'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
+        'asset code': 'asset_code', 'asset type': 'asset_type',
+        'label type': 'label_type', 'serial number': 'serial_number',
+        'serial no': 'serial_number', 'cost center': 'cost_center',
+        'employee number': 'employee_number', 'employee no': 'employee_number',
+        'employee id': 'employee_number', 'emp no': 'employee_number',
+        'purchase date': 'purchase_date', 'purchase price': 'purchase_price',
+        'invoice number': 'invoice_number', 'invoice no': 'invoice_number',
+        'invoice date': 'invoice_date', 'po number': 'po_number',
+        'po date': 'po_date', 'do number': 'do_number', 'do date': 'do_date',
+        'grn number': 'grn_number', 'grn no': 'grn_number',
+        'warranty start': 'warranty_start', 'warranty end': 'warranty_end',
+        'tagged date': 'tagged_date', 'short description': 'short_description',
+        'date placed in service': 'date_placed_in_service',
+        'insurance start date': 'insurance_start_date',
+        'insurance end date': 'insurance_end_date',
+        'maintenance start date': 'maintenance_start_date',
+        'maintenance end date': 'maintenance_end_date',
+        'next maintenance date': 'next_maintenance_date',
+        'maintenance frequency days': 'maintenance_frequency_days',
+        'maintenance frequency': 'maintenance_frequency_days',
+        'expected units': 'expected_units',
+        'useful life years': 'useful_life_years', 'useful life': 'useful_life_years',
+        'salvage value': 'salvage_value', 'depreciation method': 'depreciation_method',
+    }
+
+    def _normalize_header(self, header):
+        """Normalize a single header: lowercase, strip, replace spaces with underscores, apply aliases."""
+        if not header:
+            return ''
+        h = str(header).strip().lower()
+        # Check alias mapping first (before replacing spaces with underscores)
+        if h in self.HEADER_ALIASES:
+            return self.HEADER_ALIASES[h]
+        # Replace spaces with underscores for standard field matching
+        h = h.replace(' ', '_')
+        if h in self.HEADER_ALIASES:
+            return self.HEADER_ALIASES[h]
+        return h
+
+    def _normalize_row_keys(self, row):
+        """Normalize all keys in a row dict."""
+        return {self._normalize_header(k): v for k, v in row.items()}
+
     def parse_date(self, value):
         if not value:
             return None
@@ -980,12 +1065,92 @@ class AssetImportView(LoginRequiredMixin, FormView):
         val_str = str(value).strip()
         if not val_str or val_str.lower() in ('none', 'null', 'nan'):
             return None
-        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S'):
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S',
+                    '%d/%m/%Y %I:%M:%S %p', '%m/%d/%Y %I:%M:%S %p',
+                    '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S',
+                    '%Y-%m-%d %I:%M:%S %p', '%d-%m-%Y', '%d-%m-%Y %H:%M:%S',
+                    '%d-%m-%Y %I:%M:%S %p'):
             try:
                 return datetime.strptime(val_str, fmt).date()
             except (ValueError, TypeError):
                 continue
         return None
+
+    def _build_cache(self, model, field='name', org=None):
+        qs = model.objects.all()
+        if org and hasattr(model, 'organization'):
+            qs = qs.filter(organization=org)
+        cache = {}
+        for obj in qs:
+            val = getattr(obj, field)
+            if val:
+                cache[str(val).strip().lower()] = obj
+        return cache
+
+    def _detect_new_entities(self, rows, org):
+        """Scan rows and return sets of entity names that don't exist in the system."""
+        categories_by_code = self._build_cache(Category, 'code', org)
+        categories_by_name = self._build_cache(Category, 'name', org)
+        subcategories = self._build_cache(SubCategory, 'name', org)
+        groups = self._build_cache(Group, 'name', org)
+        subgroups = self._build_cache(SubGroup, 'name', org)
+        brands = self._build_cache(Brand, 'name', org)
+        regions = self._build_cache(Region, 'name', org)
+        sites = self._build_cache(Site, 'name', org)
+        buildings = self._build_cache(Building, 'name', org)
+        floors = self._build_cache(Floor, 'name', org)
+
+        new_entities = {
+            'categories': set(),
+            'subcategories': set(),
+            'groups': set(),
+            'sub_groups': set(),
+            'brands': set(),
+            'regions': set(),
+            'sites': set(),
+            'buildings': set(),
+            'floors': set(),
+        }
+
+        for row in rows:
+            cat_val = str(row.get('category') or '').strip()
+            if cat_val and not (categories_by_code.get(cat_val.lower()) or categories_by_name.get(cat_val.lower())):
+                new_entities['categories'].add(cat_val)
+
+            sub_val = str(row.get('sub_category') or '').strip()
+            if sub_val and not subcategories.get(sub_val.lower()):
+                new_entities['subcategories'].add(sub_val)
+
+            grp_val = str(row.get('group') or '').strip()
+            if grp_val and not groups.get(grp_val.lower()):
+                new_entities['groups'].add(grp_val)
+
+            sgrp_val = str(row.get('sub_group') or '').strip()
+            if sgrp_val and not subgroups.get(sgrp_val.lower()):
+                new_entities['sub_groups'].add(sgrp_val)
+
+            brand_val = str(row.get('brand') or '').strip()
+            if brand_val and not brands.get(brand_val.lower()):
+                new_entities['brands'].add(brand_val)
+
+            region_val = str(row.get('region') or '').strip()
+            if region_val and not regions.get(region_val.lower()):
+                new_entities['regions'].add(region_val)
+
+            site_val = str(row.get('site') or '').strip()
+            if site_val and not sites.get(site_val.lower()):
+                new_entities['sites'].add(site_val)
+
+            building_val = str(row.get('building') or '').strip()
+            if building_val and not buildings.get(building_val.lower()):
+                new_entities['buildings'].add(building_val)
+
+            floor_val = str(row.get('floor') or '').strip()
+            if floor_val and not floors.get(floor_val.lower()):
+                new_entities['floors'].add(floor_val)
+
+        # Filter out empty sets
+        return {k: sorted(v) for k, v in new_entities.items() if v}
 
     def form_valid(self, form):
         import_file = form.cleaned_data['import_file']
@@ -1001,13 +1166,154 @@ class AssetImportView(LoginRequiredMixin, FormView):
             messages.warning(self.request, "No data found in the file.")
             return self.form_invalid(form)
 
-        # --- PRE-FETCH MASTER DATA (CACHING) ---
+        # --- DETECT NEW ENTITIES ---
+        new_entities = self._detect_new_entities(rows, org)
+
+        if new_entities:
+            # Store file data in session for the confirmation step
+            serializable_rows = []
+            for row in rows:
+                serializable_row = {}
+                for k, v in row.items():
+                    if isinstance(v, (date, datetime)):
+                        serializable_row[k] = v.isoformat()
+                    elif v is None:
+                        serializable_row[k] = ''
+                    else:
+                        serializable_row[k] = str(v)
+                serializable_rows.append(serializable_row)
+
+            self.request.session['import_rows'] = serializable_rows
+            self.request.session['import_new_entities'] = new_entities
+
+            return render(self.request, 'assets/asset_import_preview.html', {
+                'new_entities': new_entities,
+                'total_rows': len(rows),
+            })
+
+        # No new entities, proceed with import directly
+        return self._process_import(rows, org)
+
+    def _handle_confirm_import(self, request):
+        """Handle the confirm step: auto-create entities, then import."""
+        org = request.user.organization
+        stored_rows = request.session.pop('import_rows', None)
+        stored_entities = request.session.pop('import_new_entities', None)
+
+        if not stored_rows:
+            messages.error(request, "Import session expired. Please upload the file again.")
+            return redirect('asset-import')
+
+        rows = stored_rows
+        new_entities = stored_entities or {}
+
+        # Auto-create selected new entities
+        selected = request.POST.getlist('create_entities')
+
+        if 'categories' in selected:
+            for name in new_entities.get('categories', []):
+                Category.objects.get_or_create(organization=org, name=name)
+
+        if 'subcategories' in selected:
+            for name in new_entities.get('subcategories', []):
+                parent_cat = None
+                for row in rows:
+                    if str(row.get('sub_category') or '').strip().lower() == name.lower():
+                        cat_val = str(row.get('category') or '').strip()
+                        if cat_val:
+                            parent_cat = Category.objects.filter(
+                                organization=org
+                            ).filter(
+                                models.Q(name__iexact=cat_val) | models.Q(code__iexact=cat_val)
+                            ).first()
+                        break
+                if parent_cat:
+                    SubCategory.objects.get_or_create(
+                        organization=org, category=parent_cat, name=name
+                    )
+
+        if 'groups' in selected:
+            for name in new_entities.get('groups', []):
+                Group.objects.get_or_create(organization=org, name=name)
+
+        if 'sub_groups' in selected:
+            for name in new_entities.get('sub_groups', []):
+                SubGroup.objects.get_or_create(organization=org, name=name)
+
+        if 'brands' in selected:
+            for name in new_entities.get('brands', []):
+                Brand.objects.get_or_create(organization=org, name=name)
+
+        if 'regions' in selected:
+            for name in new_entities.get('regions', []):
+                Region.objects.get_or_create(organization=org, name=name)
+
+        if 'sites' in selected:
+            for name in new_entities.get('sites', []):
+                # Link site to its region from the file row
+                parent_region = None
+                for row in rows:
+                    if str(row.get('site') or '').strip().lower() == name.lower():
+                        region_val = str(row.get('region') or '').strip()
+                        if region_val:
+                            parent_region = Region.objects.filter(
+                                organization=org, name__iexact=region_val
+                            ).first()
+                        break
+                if parent_region:
+                    Site.objects.get_or_create(
+                        region=parent_region, name=name,
+                        defaults={'organization': org}
+                    )
+
+        if 'buildings' in selected:
+            for name in new_entities.get('buildings', []):
+                # Link building to its branch from the file row
+                parent_branch = None
+                for row in rows:
+                    if str(row.get('building') or '').strip().lower() == name.lower():
+                        branch_val = str(row.get('branch') or '').strip()
+                        if branch_val:
+                            parent_branch = Branch.objects.filter(
+                                organization=org, name__iexact=branch_val
+                            ).first()
+                        break
+                if parent_branch:
+                    Building.objects.get_or_create(
+                        branch=parent_branch, name=name,
+                        defaults={'organization': org}
+                    )
+
+        if 'floors' in selected:
+            for name in new_entities.get('floors', []):
+                # Link floor to its building from the file row
+                parent_building = None
+                for row in rows:
+                    if str(row.get('floor') or '').strip().lower() == name.lower():
+                        building_val = str(row.get('building') or '').strip()
+                        if building_val:
+                            parent_building = Building.objects.filter(
+                                organization=org, name__iexact=building_val
+                            ).first()
+                        break
+                if parent_building:
+                    Floor.objects.get_or_create(
+                        building=parent_building, name=name,
+                        defaults={'organization': org}
+                    )
+
+        created_types = [t.replace('_', ' ').title() for t in selected]
+        if created_types:
+            messages.info(request, f"Auto-created: {', '.join(created_types)}")
+
+        return self._process_import(rows, org)
+
+    def _process_import(self, rows, org):
         def build_cache(model, field='name', org_relevant=True):
             qs = model.objects.all()
             if org_relevant and hasattr(model, 'organization'):
                 qs = qs.filter(organization=org)
             elif org_relevant and hasattr(model, 'category') and hasattr(model.category, 'organization'):
-                # For SubCategory if it didn't have direct org link (it does, but just in case)
                 qs = qs.filter(category__organization=org)
             
             cache = {}
@@ -1275,7 +1581,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 messages.error(self.request, err)
             if len(errors) > 15:
                 messages.error(self.request, f"...and {len(errors) - 15} more errors.")
-            return self.form_invalid(form)
+            return redirect('asset-import')
 
         # --- BULK SAVE ---
         try:
@@ -1285,7 +1591,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 messages.success(self.request, f"Successfully imported {len(assets_to_create)} assets.")
         except Exception as e:
             messages.error(self.request, f"Database error during bulk save: {str(e)}")
-            return self.form_invalid(form)
+            return redirect('asset-import')
 
         return redirect(self.success_url)
 
@@ -3024,24 +3330,15 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         total_cost = agg['total_cost']
         total_count = agg['total_count']
         
-        SAMPLE_SIZE = 5000
-        if total_count > SAMPLE_SIZE:
-            sample_qs = queryset[:SAMPLE_SIZE]
-            sample_list = list(sample_qs)
-            avg_depreciation_ratio = (
-                sum(a.accumulated_depreciation for a in sample_list) / 
-                sum(a.purchase_price or Decimal('0') for a in sample_list)
-            ) if any(a.purchase_price for a in sample_list) else 0
-            
-            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
-            total_nbv = total_cost - total_acc_dep
-            context['is_estimate'] = True
-            context['sample_size'] = SAMPLE_SIZE
-        else:
-            all_visible = list(queryset)
-            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
-            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
-            context['is_estimate'] = False
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -3050,77 +3347,21 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
 
         opening_date = getattr(self, '_opening_date', None)
         closing_date = getattr(self, '_closing_date', None)
-        all_for_period = list(queryset)
 
-        if opening_date:
-            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
+        if opening_date or closing_date:
+            all_for_period = list(queryset)
+            if opening_date:
+                total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
+            else:
+                total_opening_value = total_nbv
+
+            if closing_date:
+                total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
+            else:
+                total_closing_value = total_nbv
         else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        if closing_date:
-            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        context['total_opening_value'] = total_opening_value
-        context['total_closing_value'] = total_closing_value
-        context['period_depreciation'] = total_opening_value - total_closing_value
-        context['opening_date'] = opening_date
-        context['closing_date'] = closing_date
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-        all_for_period = list(queryset)
-
-        if opening_date:
-            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        if closing_date:
-            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        context['total_opening_value'] = total_opening_value
-        context['total_closing_value'] = total_closing_value
-        context['period_depreciation'] = total_opening_value - total_closing_value
-        context['opening_date'] = opening_date
-        context['closing_date'] = closing_date
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-        all_for_period = list(queryset)
-
-        if opening_date:
-            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        if closing_date:
-            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        context['total_opening_value'] = total_opening_value
-        context['total_closing_value'] = total_closing_value
-        context['period_depreciation'] = total_opening_value - total_closing_value
-        context['opening_date'] = opening_date
-        context['closing_date'] = closing_date
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-
-        all_for_period = list(queryset)
-        if opening_date:
-            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
-
-        if closing_date:
-            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
-        else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
 
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
@@ -3137,19 +3378,8 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         grouped_list = []
         for group in grouped_data:
             cat_id = group['category']
-            cat_qs = queryset.filter(category_id=cat_id)
-            cat_count = group['count']
-            
-            if cat_count > SAMPLE_SIZE:
-                sample = list(cat_qs[:SAMPLE_SIZE])
-                if sample and any(a.purchase_price for a in sample):
-                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
-                    total_cat_dep = (group['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
-                else:
-                    total_cat_dep = Decimal('0')
-            else:
-                cat_assets = list(cat_qs)
-                total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+            cat_assets = list(queryset.filter(category_id=cat_id))
+            total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
             
             grouped_list.append({
                 'id': cat_id,
@@ -3287,24 +3517,15 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         total_cost = agg['total_cost']
         total_count = agg['total_count']
         
-        SAMPLE_SIZE = 5000
-        if total_count > SAMPLE_SIZE:
-            sample_qs = queryset[:SAMPLE_SIZE]
-            sample_list = list(sample_qs)
-            avg_depreciation_ratio = (
-                sum(a.accumulated_depreciation for a in sample_list) / 
-                sum(a.purchase_price or Decimal('0') for a in sample_list)
-            ) if any(a.purchase_price for a in sample_list) else 0
-            
-            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
-            total_nbv = total_cost - total_acc_dep
-            context['is_estimate'] = True
-            context['sample_size'] = SAMPLE_SIZE
-        else:
-            all_visible = list(queryset)
-            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
-            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
-            context['is_estimate'] = False
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -3318,12 +3539,12 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         if opening_date:
             total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
         else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_opening_value = total_nbv
 
         if closing_date:
             total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
         else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_closing_value = total_nbv
 
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
@@ -3340,19 +3561,8 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         grouped_list = []
         for department in grouped_data:
             department_id = department['department']
-            department_qs = queryset.filter(department_id=department_id)
-            department_count = department['count']
-            
-            if department_count > SAMPLE_SIZE:
-                sample = list(department_qs[:SAMPLE_SIZE])
-                if sample and any(a.purchase_price for a in sample):
-                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
-                    total_department_dep = (department['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
-                else:
-                    total_department_dep = Decimal('0')
-            else:
-                department_assets = list(department_qs)
-                total_department_dep = sum(a.accumulated_depreciation for a in department_assets) if department_assets else Decimal('0')
+            department_assets = list(queryset.filter(department_id=department_id))
+            total_department_dep = sum(a.accumulated_depreciation for a in department_assets) if department_assets else Decimal('0')
             
             grouped_list.append({
                 'id': department_id,
@@ -3360,7 +3570,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
                 'total_cost': department['total_cost'] or Decimal('0'),
                 'total_acc_dep': total_department_dep,
                 'total_nbv': (department['total_cost'] or Decimal('0')) - total_department_dep,
-                'count': department_count,
+                'count': department['count'],
             })
         
         context['grouped_data'] = grouped_list
@@ -3488,24 +3698,15 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         total_cost = agg['total_cost']
         total_count = agg['total_count']
         
-        SAMPLE_SIZE = 5000
-        if total_count > SAMPLE_SIZE:
-            sample_qs = queryset[:SAMPLE_SIZE]
-            sample_list = list(sample_qs)
-            avg_depreciation_ratio = (
-                sum(a.accumulated_depreciation for a in sample_list) / 
-                sum(a.purchase_price or Decimal('0') for a in sample_list)
-            ) if any(a.purchase_price for a in sample_list) else 0
-            
-            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
-            total_nbv = total_cost - total_acc_dep
-            context['is_estimate'] = True
-            context['sample_size'] = SAMPLE_SIZE
-        else:
-            all_visible = list(queryset)
-            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
-            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
-            context['is_estimate'] = False
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -3519,12 +3720,12 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         if opening_date:
             total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
         else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_opening_value = total_nbv
 
         if closing_date:
             total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
         else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_closing_value = total_nbv
 
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
@@ -3541,19 +3742,8 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         grouped_list = []
         for location in grouped_data:
             location_id = location['location']
-            location_qs = queryset.filter(location_id=location_id)
-            location_count = location['count']
-            
-            if location_count > SAMPLE_SIZE:
-                sample = list(location_qs[:SAMPLE_SIZE])
-                if sample and any(a.purchase_price for a in sample):
-                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
-                    total_location_dep = (location['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
-                else:
-                    total_location_dep = Decimal('0')
-            else:
-                location_assets = list(location_qs)
-                total_location_dep = sum(a.accumulated_depreciation for a in location_assets) if location_assets else Decimal('0')
+            location_assets = list(queryset.filter(location_id=location_id))
+            total_location_dep = sum(a.accumulated_depreciation for a in location_assets) if location_assets else Decimal('0')
             
             grouped_list.append({
                 'id': location_id,
@@ -3561,7 +3751,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
                 'total_cost': location['total_cost'] or Decimal('0'),
                 'total_acc_dep': total_location_dep,
                 'total_nbv': (location['total_cost'] or Decimal('0')) - total_location_dep,
-                'count': location_count,
+                'count': location['count'],
             })
         
         context['grouped_data'] = grouped_list
@@ -3689,24 +3879,15 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         total_cost = agg['total_cost']
         total_count = agg['total_count']
         
-        SAMPLE_SIZE = 5000
-        if total_count > SAMPLE_SIZE:
-            sample_qs = queryset[:SAMPLE_SIZE]
-            sample_list = list(sample_qs)
-            avg_depreciation_ratio = (
-                sum(a.accumulated_depreciation for a in sample_list) / 
-                sum(a.purchase_price or Decimal('0') for a in sample_list)
-            ) if any(a.purchase_price for a in sample_list) else 0
-            
-            total_acc_dep = total_cost * Decimal(str(avg_depreciation_ratio))
-            total_nbv = total_cost - total_acc_dep
-            context['is_estimate'] = True
-            context['sample_size'] = SAMPLE_SIZE
-        else:
-            all_visible = list(queryset)
-            total_acc_dep = sum(a.accumulated_depreciation for a in all_visible) if all_visible else Decimal('0')
-            total_nbv = sum(a.current_value for a in all_visible) if all_visible else Decimal('0')
-            context['is_estimate'] = False
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -3720,12 +3901,12 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         if opening_date:
             total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
         else:
-            total_opening_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_opening_value = total_nbv
 
         if closing_date:
             total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
         else:
-            total_closing_value = sum(a.current_value for a in all_for_period) if all_for_period else Decimal('0')
+            total_closing_value = total_nbv
 
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
@@ -3742,19 +3923,8 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         grouped_list = []
         for group in grouped_data:
             group_id = group['group']
-            group_qs = queryset.filter(group_id=group_id)
-            group_count = group['count']
-            
-            if group_count > SAMPLE_SIZE:
-                sample = list(group_qs[:SAMPLE_SIZE])
-                if sample and any(a.purchase_price for a in sample):
-                    avg_dep = sum(a.accumulated_depreciation for a in sample) / sum(a.purchase_price or Decimal('0') for a in sample if a.purchase_price)
-                    total_group_dep = (group['total_cost'] or Decimal('0')) * Decimal(str(avg_dep))
-                else:
-                    total_group_dep = Decimal('0')
-            else:
-                group_assets = list(group_qs)
-                total_group_dep = sum(a.accumulated_depreciation for a in group_assets) if group_assets else Decimal('0')
+            group_assets = list(queryset.filter(group_id=group_id))
+            total_group_dep = sum(a.accumulated_depreciation for a in group_assets) if group_assets else Decimal('0')
             
             grouped_list.append({
                 'id': group_id,
@@ -3762,7 +3932,7 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
                 'total_cost': group['total_cost'] or Decimal('0'),
                 'total_acc_dep': total_group_dep,
                 'total_nbv': (group['total_cost'] or Decimal('0')) - total_group_dep,
-                'count': group_count,
+                'count': group['count'],
             })
         
         context['grouped_data'] = grouped_list

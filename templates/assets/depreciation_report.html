@@ -970,11 +970,7 @@
         <div class="depr-card">
             <span class="stat-label">Opening Value ({{ depr_date_from }})</span>
             <span class="stat-value" style="color:#3b82f6;">
-                {% if total_opening_value %}
-                    AED {{ total_opening_value|floatformat:2|intcomma }}
-                {% else %}
-                    AED 0.00
-                {% endif %}
+                AED {{ total_opening_value|floatformat:2|intcomma }}
             </span>
         </div>
         {% endif %}
@@ -983,11 +979,7 @@
         <div class="depr-card">
             <span class="stat-label">Closing Value ({{ depr_date_to }})</span>
             <span class="stat-value" style="color:#8b5cf6;">
-                {% if total_closing_value %}
-                    AED {{ total_closing_value|floatformat:2|intcomma }}
-                {% else %}
-                    AED 0.00
-                {% endif %}
+                AED {{ total_closing_value|floatformat:2|intcomma }}
             </span>
         </div>
         {% endif %}
@@ -996,11 +988,7 @@
         <div class="depr-card">
             <span class="stat-label">Period Depreciation</span>
             <span class="stat-value" style="color:#ef4444;">
-                {% if period_depreciation %}
-                    -AED {{ period_depreciation|floatformat:2|intcomma }}
-                {% else %}
-                    -AED 0.00
-                {% endif %}
+                -AED {{ period_depreciation|floatformat:2|intcomma }}
             </span>
         </div>
         {% endif %}
@@ -1008,21 +996,13 @@
         <div class="depr-card">
             <span class="stat-label">Accumulated Depreciation</span>
             <span class="stat-value" style="color:#dc2626;">
-                {% if total_acc_dep %}
-                    -AED {{ total_acc_dep|floatformat:2|intcomma }}
-                {% else %}
-                    -AED 0.00
-                {% endif %}
+                -AED {{ total_acc_dep|floatformat:2|intcomma }}
             </span>
         </div>
         <div class="depr-card">
             <span class="stat-label">Net Book Value (NBV)</span>
             <span class="stat-value" style="color:#22c55e;">
-                {% if total_nbv %}
-                    AED {{ total_nbv|floatformat:2|intcomma }}
-                {% else %}
-                    AED 0.00
-                {% endif %}
+                AED {{ total_nbv|floatformat:2|intcomma }}
             </span>
         </div>
     </div>
