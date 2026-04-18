@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, memo } from "react";
 import {
   View,
   Text,
@@ -333,7 +333,7 @@ export default function AssetDetailScreen() {
 
 /* ─── Sub-components ─── */
 
-function InfoRow({
+const InfoRow = memo(function InfoRow({
   label,
   value,
   muted,
@@ -353,7 +353,7 @@ function InfoRow({
       </Text>
     </View>
   );
-}
+});
 
 function formatDate(iso: string): string {
   if (!iso) return "—";

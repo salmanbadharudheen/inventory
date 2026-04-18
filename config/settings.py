@@ -135,6 +135,7 @@ ALLOWED_HOSTS = _allowed_hosts_env.split(',') if _allowed_hosts_env else [
     "testserver",
     "192.168.10.106",
     "10.255.254.20",
+    "10.229.8.230",
 ]
 
 # CORS: allow mobile app during development

@@ -182,7 +182,7 @@ export default function AddAssetScreen() {
   }, [buildingId]);
 
   /* ── build payload ── */
-  const buildPayload = useCallback((): AssetCreatePayload => {
+  const buildPayload = (): AssetCreatePayload => {
     const p: AssetCreatePayload = {
       name: name.trim(),
       category: categoryId!,
@@ -212,13 +212,7 @@ export default function AddAssetScreen() {
     if (poNumber.trim()) p.po_number = poNumber.trim();
     if (notes.trim()) p.notes = notes.trim();
     return p;
-  }, [
-    name, categoryId, condition, assetType, description, shortDesc,
-    serialNumber, quantity, brandText, modelText, subCategoryId,
-    groupId, subGroupId, companyId, departmentId, regionId,
-    siteId, buildingId, floorId, purchaseDate, purchasePrice,
-    currency, invoiceNumber, poNumber, notes,
-  ]);
+  };
 
   /* ── submit ── */
   const handleSubmit = async () => {

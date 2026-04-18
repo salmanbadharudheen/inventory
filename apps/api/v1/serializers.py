@@ -158,8 +158,38 @@ class FloorLookupSerializer(_MiniSerializer):
 # Asset serializers
 # ─────────────────────────────────────────────
 
+class AssetListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for list views – NO depreciation computation."""
+    category_name = serializers.CharField(source='category.name', read_only=True, default='')
+    company_name = serializers.CharField(source='company.name', read_only=True, default='')
+    site_name = serializers.CharField(source='site.name', read_only=True, default='')
+    building_name = serializers.CharField(source='building.name', read_only=True, default='')
+    department_name = serializers.CharField(source='department.name', read_only=True, default='')
+    assigned_to_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Asset
+        fields = [
+            'id', 'name', 'asset_tag', 'custom_asset_tag', 'serial_number',
+            'category', 'category_name',
+            'company', 'company_name',
+            'department', 'department_name',
+            'site', 'site_name', 'building', 'building_name',
+            'assigned_to', 'assigned_to_name',
+            'status', 'condition', 'asset_type',
+            'purchase_date', 'purchase_price', 'currency',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_assigned_to_name(self, obj):
+        if obj.assigned_to:
+            return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip() or obj.assigned_to.username
+        return ''
+
+
 class AssetReadSerializer(serializers.ModelSerializer):
-    """Serializer returned after creation and for list/detail views."""
+    """Full serializer for detail / create response views."""
     category_name = serializers.CharField(source='category.name', read_only=True, default='')
     group_name = serializers.CharField(source='group.name', read_only=True, default='')
     company_name = serializers.CharField(source='company.name', read_only=True, default='')

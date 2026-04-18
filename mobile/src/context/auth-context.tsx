@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "../types/api";
 import * as authApi from "../services/auth-api";
 
@@ -33,26 +33,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const signIn = async (username: string, password: string) => {
+  const signIn = useCallback(async (username: string, password: string) => {
     const data = await authApi.login(username, password);
     setUser(data.user);
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await authApi.logout();
     setUser(null);
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      signIn,
+      signOut,
+    }),
+    [user, isLoading, signIn, signOut]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        signIn,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -27,6 +27,30 @@ export async function clearTokens() {
 
 /** -------- authenticated fetch wrapper -------- */
 
+const DEFAULT_TIMEOUT = 30_000; // 30 seconds
+
+// Mutex for token refresh — prevents concurrent 401s from triggering multiple refreshes
+let refreshPromise: Promise<string | null> | null = null;
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = DEFAULT_TIMEOUT,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out. Please check your connection and try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function authFetch(
   path: string,
   options: RequestInit = {}
@@ -42,14 +66,17 @@ async function authFetch(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  let res = await fetch(`${API.BASE_URL}${path}`, { ...options, headers });
+  let res = await fetchWithTimeout(`${API.BASE_URL}${path}`, { ...options, headers });
 
-  // If 401 try refreshing the token once
+  // If 401 try refreshing the token once (with mutex to avoid concurrent refreshes)
   if (res.status === 401) {
-    const refreshed = await refreshAccessToken();
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null; });
+    }
+    const refreshed = await refreshPromise;
     if (refreshed) {
       headers["Authorization"] = `Bearer ${refreshed}`;
-      res = await fetch(`${API.BASE_URL}${path}`, { ...options, headers });
+      res = await fetchWithTimeout(`${API.BASE_URL}${path}`, { ...options, headers });
     }
   }
 
@@ -62,7 +89,7 @@ export async function login(
   username: string,
   password: string
 ): Promise<LoginResponse> {
-  const res = await fetch(`${API.BASE_URL}${API.AUTH.LOGIN}`, {
+  const res = await fetchWithTimeout(`${API.BASE_URL}${API.AUTH.LOGIN}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
@@ -98,7 +125,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   const refresh = await getRefreshToken();
   if (!refresh) return null;
 
-  const res = await fetch(`${API.BASE_URL}${API.AUTH.TOKEN_REFRESH}`, {
+  const res = await fetchWithTimeout(`${API.BASE_URL}${API.AUTH.TOKEN_REFRESH}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),

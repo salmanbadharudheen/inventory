@@ -266,7 +266,7 @@ inventory/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Production Setup                      │
+│                    Production Setup                     │
 └─────────────────────────────────────────────────────────┘
 
 ┌──────────────┐
@@ -372,7 +372,7 @@ Phase 3 (FUTURE) 📋
 └─────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────┐
-│  2. Automated Testing                       │
+│  2. Automated Testing                       │+
 │     • test_api_login.py                     │
 │     • Python unittest                       │
 │     • pytest (future)                       │
@@ -390,7 +390,7 @@ Phase 3 (FUTURE) 📋
 
 ## Summary Stats
 
-```
+``` 
 📊 Project Statistics (Phase 1)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -398,7 +398,7 @@ Phase 3 (FUTURE) 📋
 ✅ API Endpoints:          8
 ✅ Serializers:            4
 ✅ Views:                  6
-✅ Documentation:          5
+✅ Documentation:          5 
 ✅ Test Files:             2
 
 📦 Dependencies Added:     2
