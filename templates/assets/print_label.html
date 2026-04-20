@@ -196,44 +196,157 @@
         }
 
         /* ═══════════════════════════════════════════════════
-           PRINT — exact 2 in × 1 in sticker sheet
+           PRINT — exact 2 in × 1 in sticker
         ═══════════════════════════════════════════════════ */
         @media print {
-            @page { margin: 3mm; }
+            @page {
+                size: 2in 1in;
+                margin: 0;
+            }
+            html, body {
+                width: 2in; height: 1in;
+                margin: 0; padding: 0;
+                background: #fff;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
             .toolbar { display: none !important; }
             .batch-bar { display: none !important; }
-            body { background: #fff; padding: 0; margin: 0; }
             .label-grid {
-                display: flex; flex-wrap: wrap; gap: 2mm;
-                padding: 0; justify-content: flex-start;
+                display: block;
+                padding: 0; margin: 0;
+                gap: 0;
             }
             .label {
-                width: 2in !important; height: 1in !important;
-                border: 0.3pt solid #aaa; border-radius: 0.5mm;
-                box-shadow: none; overflow: hidden;
+                width: 2in !important;
+                height: 1in !important;
+                max-width: 2in !important;
+                max-height: 1in !important;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                page-break-after: always;
+                break-after: page;
             }
-            /* ── Classic print ── */
-            .label-classic .lbl-accent { height: 2.5pt; }
-            .label-classic .lbl-header { padding: 1px 5px; font-size: 4.5pt; }
-            .label-classic .lbl-header .tag-num { font-size: 4pt; }
-            .label-classic .lbl-qr img { width: 0.68in; height: 0.68in; padding: 1px; }
-            .label-classic .lbl-right img { height: 0.38in; }
-            .label-classic .lbl-right .lbl-tag { font-size: 5pt; }
-            /* ── Compact print ── */
-            .label-compact .lbl-qr img { width: 0.72in; height: 0.72in; }
-            .label-compact .lbl-tag { font-size: 6.5pt; }
-            .label-compact .lbl-company { font-size: 4pt; }
-            /* ── Standard print ── */
-            .label-detailed .lbl-header { padding: 1.5px 5px; }
-            .label-detailed .lbl-header .company { font-size: 4.5pt; }
-            .label-detailed .lbl-header .tag { font-size: 3.5pt; }
-            .label-detailed .lbl-qr img { width: 0.64in; height: 0.64in; padding: 1px; }
-            .label-detailed .lbl-right img { height: 0.36in; }
-            .label-detailed .lbl-right .lbl-tag { font-size: 5pt; }
-            /* ── Barcode Only print ── */
-            .label-barcode-only .lbl-company { font-size: 4pt; }
-            .label-barcode-only .lbl-barcode-img img { height: 0.56in; width: 92%; }
-            .label-barcode-only .lbl-tag { font-size: 6pt; }
+            .label:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            /* ── CLASSIC print ─────────────────────────── */
+            .label-classic .lbl-accent {
+                height: 2.5pt;
+            }
+            .label-classic .lbl-header {
+                padding: 1pt 5pt;
+                font-size: 6pt;
+                line-height: 1.2;
+            }
+            .label-classic .lbl-header .tag-num {
+                font-size: 5.5pt;
+            }
+            .label-classic .lbl-body {
+                padding: 2pt 5pt;
+                gap: 8pt;
+                flex: 1;
+            }
+            .label-classic .lbl-qr img {
+                width: 0.72in;
+                height: 0.72in;
+                padding: 1pt;
+                border: 0.3pt solid #ccc;
+            }
+            .label-classic .lbl-right {
+                gap: 4pt;
+            }
+            .label-classic .lbl-right img {
+                height: 0.36in;
+                width: 100%;
+                object-fit: contain;
+            }
+            .label-classic .lbl-right .lbl-tag {
+                font-size: 7pt;
+                letter-spacing: 0.05em;
+            }
+
+            /* ── COMPACT print ─────────────────────────── */
+            .label-compact {
+                padding: 3pt 6pt !important;
+                gap: 0 !important;
+            }
+            .label-compact .lbl-qr img {
+                width: 0.78in;
+                height: 0.78in;
+                padding: 1pt;
+            }
+            .label-compact .lbl-divider {
+                height: 0.55in;
+                margin: 0 10pt;
+            }
+            .label-compact .lbl-tag {
+                font-size: 8.5pt;
+            }
+            .label-compact .lbl-company {
+                font-size: 5.5pt;
+            }
+
+            /* ── STANDARD (DETAILED) print ─────────────── */
+            .label-detailed .lbl-header {
+                padding: 1.5pt 5pt;
+            }
+            .label-detailed .lbl-header .company {
+                font-size: 6pt;
+            }
+            .label-detailed .lbl-header .tag {
+                font-size: 5pt;
+            }
+            .label-detailed .lbl-body {
+                padding: 2pt 5pt;
+                gap: 8pt;
+                flex: 1;
+            }
+            .label-detailed .lbl-qr img {
+                width: 0.68in;
+                height: 0.68in;
+                padding: 1pt;
+                border: 0.3pt solid #ccc;
+            }
+            .label-detailed .lbl-right {
+                gap: 4pt;
+            }
+            .label-detailed .lbl-right img {
+                height: 0.34in;
+                width: 100%;
+                object-fit: contain;
+            }
+            .label-detailed .lbl-right .lbl-tag {
+                font-size: 7pt;
+                letter-spacing: 0.05em;
+            }
+
+            /* ── BARCODE ONLY print ────────────────────── */
+            .label-barcode-only {
+                padding: 2pt 5pt !important;
+                gap: 1pt !important;
+            }
+            .label-barcode-only .lbl-company {
+                font-size: 5.5pt;
+            }
+            .label-barcode-only .lbl-barcode-img {
+                flex: 1;
+            }
+            .label-barcode-only .lbl-barcode-img img {
+                height: 0.58in;
+                width: 1.8in;
+                object-fit: contain;
+            }
+            .label-barcode-only .lbl-tag {
+                font-size: 8pt;
+                letter-spacing: 0.06em;
+            }
         }
     </style>
 </head>
