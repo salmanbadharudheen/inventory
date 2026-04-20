@@ -424,6 +424,16 @@ class Asset(TenantAwareModel):
     
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_assets')
 
+    # Cached depreciation values (updated on save and via management command)
+    cached_accumulated_depreciation = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0, editable=False,
+        verbose_name="Cached Accumulated Depreciation",
+    )
+    cached_nbv = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0, editable=False,
+        verbose_name="Cached Net Book Value",
+    )
+
     @property
     def accumulated_depreciation(self):
         if not self.purchase_price or not self.purchase_date or not self.useful_life_years:
@@ -612,6 +622,12 @@ class Asset(TenantAwareModel):
                 
         return schedule
 
+    def update_depreciation_cache(self):
+        """Recompute and store cached depreciation values."""
+        acc_dep = self.accumulated_depreciation
+        self.cached_accumulated_depreciation = acc_dep
+        self.cached_nbv = (self.purchase_price or Decimal('0')) - acc_dep
+
     def save(self, *args, **kwargs):
         # Auto-generate asset tag if not provided
         if not self.asset_tag:
@@ -631,6 +647,9 @@ class Asset(TenantAwareModel):
             if self.depreciation_method == DepreciationMethod.UNITS_OF_PRODUCTION:
                 if not self.expected_units:
                     self.expected_units = self.category.default_expected_units
+
+        # Update cached depreciation before saving
+        self.update_depreciation_cache()
 
         super().save(*args, **kwargs)
         

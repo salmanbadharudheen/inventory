@@ -3662,6 +3662,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             'salvage_value', 'depreciation_method', 'expected_units',
             'units_consumed', 'category_id', 'category__name',
             'organization_id', 'is_deleted', 'status',
+            'cached_accumulated_depreciation', 'cached_nbv',
         )
 
         # Search filter
@@ -3717,72 +3718,55 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         org = self.request.user.organization
-
-        # ── Single-pass computation over all matching assets ──
-        # Use DB aggregation for total cost & count (fast)
         qs = self.get_queryset()
+
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
-
-        agg = qs.aggregate(
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-        )
-        total_cost = agg['total_cost']
-        total_count = agg['total_count']
 
         opening_date = getattr(self, '_opening_date', None)
         closing_date = getattr(self, '_closing_date', None)
 
-        # ── Load all assets ONCE, compute everything in one loop ──
-        all_assets = qs.iterator(chunk_size=2000)
+        # ── Fast path: DB-level aggregation using cached fields ──
+        agg = qs.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id'),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        )
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        total_acc_dep = agg['total_acc_dep']
+        total_nbv = agg['total_nbv']
 
-        total_acc_dep = Decimal('0')
-        total_nbv = Decimal('0')
-        total_opening_value = Decimal('0')
-        total_closing_value = Decimal('0')
+        # Category grouping via DB aggregation
+        grouped_qs = qs.values('category', 'category__name').annotate(
+            count=Count('id'),
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        ).order_by('-total_cost')[:100]
 
-        # Category buckets: {cat_id: {name, total_cost, total_acc_dep, count}}
-        cat_buckets = {}
-
-        for asset in all_assets:
-            acc_dep = asset.accumulated_depreciation
-            nbv = asset.purchase_price - acc_dep
-
-            total_acc_dep += acc_dep
-            total_nbv += nbv
-
-            if opening_date:
-                total_opening_value += asset.get_value_at_date(opening_date)
-            else:
-                total_opening_value += nbv
-
-            if closing_date:
-                total_closing_value += asset.get_value_at_date(closing_date)
-            else:
-                total_closing_value += nbv
-
-            # Accumulate into category bucket
-            cat_id = asset.category_id
-            if cat_id not in cat_buckets:
-                cat_buckets[cat_id] = {
-                    'id': cat_id,
-                    'name': asset.category.name if asset.category_id and asset.category else 'Uncategorized',
-                    'total_cost': Decimal('0'),
-                    'total_acc_dep': Decimal('0'),
-                    'count': 0,
-                }
-            bucket = cat_buckets[cat_id]
-            bucket['total_cost'] += asset.purchase_price or Decimal('0')
-            bucket['total_acc_dep'] += acc_dep
-            bucket['count'] += 1
-
-        # Build grouped list sorted by total_cost desc
         grouped_list = []
-        for bucket in cat_buckets.values():
-            bucket['total_nbv'] = bucket['total_cost'] - bucket['total_acc_dep']
-            grouped_list.append(bucket)
-        grouped_list.sort(key=lambda x: x['total_cost'], reverse=True)
+        for g in grouped_qs:
+            grouped_list.append({
+                'id': g['category'],
+                'name': g['category__name'] or 'Uncategorized',
+                'total_cost': g['total_cost'],
+                'total_acc_dep': g['total_acc_dep'],
+                'total_nbv': g['total_nbv'],
+                'count': g['count'],
+            })
+
+        # ── Period values: only iterate if date range specified ──
+        if opening_date or closing_date:
+            total_opening_value = Decimal('0')
+            total_closing_value = Decimal('0')
+            for asset in qs.iterator(chunk_size=2000):
+                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+        else:
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
 
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -3793,7 +3777,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
-        context['grouped_data'] = grouped_list[:100]
+        context['grouped_data'] = grouped_list
 
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -3856,6 +3840,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             'salvage_value', 'depreciation_method', 'expected_units',
             'units_consumed', 'department_id', 'department__name',
             'organization_id', 'is_deleted', 'status',
+            'cached_accumulated_depreciation', 'cached_nbv',
         )
 
         query = self.request.GET.get('q')
@@ -3913,51 +3898,50 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
 
-        agg = qs.aggregate(
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-        )
-        total_cost = agg['total_cost']
-        total_count = agg['total_count']
-
         opening_date = getattr(self, '_opening_date', None)
         closing_date = getattr(self, '_closing_date', None)
 
-        # Single-pass over all assets
-        all_assets = qs.iterator(chunk_size=2000)
-        total_acc_dep = Decimal('0')
-        total_nbv = Decimal('0')
-        total_opening_value = Decimal('0')
-        total_closing_value = Decimal('0')
-        dept_buckets = {}
+        # ── Fast path: DB-level aggregation using cached fields ──
+        agg = qs.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id'),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        )
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        total_acc_dep = agg['total_acc_dep']
+        total_nbv = agg['total_nbv']
 
-        for asset in all_assets:
-            acc_dep = asset.accumulated_depreciation
-            nbv = asset.purchase_price - acc_dep
-            total_acc_dep += acc_dep
-            total_nbv += nbv
-            total_opening_value += asset.get_value_at_date(opening_date) if opening_date else nbv
-            total_closing_value += asset.get_value_at_date(closing_date) if closing_date else nbv
-
-            dept_id = asset.department_id
-            if dept_id not in dept_buckets:
-                dept_buckets[dept_id] = {
-                    'id': dept_id,
-                    'name': asset.department.name if asset.department_id and asset.department else 'Uncategorized',
-                    'total_cost': Decimal('0'),
-                    'total_acc_dep': Decimal('0'),
-                    'count': 0,
-                }
-            bucket = dept_buckets[dept_id]
-            bucket['total_cost'] += asset.purchase_price or Decimal('0')
-            bucket['total_acc_dep'] += acc_dep
-            bucket['count'] += 1
+        # Department grouping via DB aggregation
+        grouped_qs = qs.values('department', 'department__name').annotate(
+            count=Count('id'),
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        ).order_by('-total_cost')[:100]
 
         grouped_list = []
-        for bucket in dept_buckets.values():
-            bucket['total_nbv'] = bucket['total_cost'] - bucket['total_acc_dep']
-            grouped_list.append(bucket)
-        grouped_list.sort(key=lambda x: x['total_cost'], reverse=True)
+        for g in grouped_qs:
+            grouped_list.append({
+                'id': g['department'],
+                'name': g['department__name'] or 'Uncategorized',
+                'total_cost': g['total_cost'],
+                'total_acc_dep': g['total_acc_dep'],
+                'total_nbv': g['total_nbv'],
+                'count': g['count'],
+            })
+
+        # ── Period values: only iterate if date range specified ──
+        if opening_date or closing_date:
+            total_opening_value = Decimal('0')
+            total_closing_value = Decimal('0')
+            for asset in qs.iterator(chunk_size=2000):
+                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+        else:
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
 
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -3968,7 +3952,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
-        context['grouped_data'] = grouped_list[:100]
+        context['grouped_data'] = grouped_list
 
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -4027,6 +4011,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             'salvage_value', 'depreciation_method', 'expected_units',
             'units_consumed', 'location_id', 'location__name',
             'organization_id', 'is_deleted', 'status',
+            'cached_accumulated_depreciation', 'cached_nbv',
         )
 
         query = self.request.GET.get('q')
@@ -4084,51 +4069,50 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
 
-        agg = qs.aggregate(
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-        )
-        total_cost = agg['total_cost']
-        total_count = agg['total_count']
-
         opening_date = getattr(self, '_opening_date', None)
         closing_date = getattr(self, '_closing_date', None)
 
-        # Single-pass over all assets
-        all_assets = qs.iterator(chunk_size=2000)
-        total_acc_dep = Decimal('0')
-        total_nbv = Decimal('0')
-        total_opening_value = Decimal('0')
-        total_closing_value = Decimal('0')
-        loc_buckets = {}
+        # ── Fast path: DB-level aggregation using cached fields ──
+        agg = qs.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id'),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        )
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        total_acc_dep = agg['total_acc_dep']
+        total_nbv = agg['total_nbv']
 
-        for asset in all_assets:
-            acc_dep = asset.accumulated_depreciation
-            nbv = asset.purchase_price - acc_dep
-            total_acc_dep += acc_dep
-            total_nbv += nbv
-            total_opening_value += asset.get_value_at_date(opening_date) if opening_date else nbv
-            total_closing_value += asset.get_value_at_date(closing_date) if closing_date else nbv
-
-            loc_id = asset.location_id
-            if loc_id not in loc_buckets:
-                loc_buckets[loc_id] = {
-                    'id': loc_id,
-                    'name': asset.location.name if asset.location_id and asset.location else 'Uncategorized',
-                    'total_cost': Decimal('0'),
-                    'total_acc_dep': Decimal('0'),
-                    'count': 0,
-                }
-            bucket = loc_buckets[loc_id]
-            bucket['total_cost'] += asset.purchase_price or Decimal('0')
-            bucket['total_acc_dep'] += acc_dep
-            bucket['count'] += 1
+        # Location grouping via DB aggregation
+        grouped_qs = qs.values('location', 'location__name').annotate(
+            count=Count('id'),
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        ).order_by('-total_cost')[:100]
 
         grouped_list = []
-        for bucket in loc_buckets.values():
-            bucket['total_nbv'] = bucket['total_cost'] - bucket['total_acc_dep']
-            grouped_list.append(bucket)
-        grouped_list.sort(key=lambda x: x['total_cost'], reverse=True)
+        for g in grouped_qs:
+            grouped_list.append({
+                'id': g['location'],
+                'name': g['location__name'] or 'Uncategorized',
+                'total_cost': g['total_cost'],
+                'total_acc_dep': g['total_acc_dep'],
+                'total_nbv': g['total_nbv'],
+                'count': g['count'],
+            })
+
+        # ── Period values: only iterate if date range specified ──
+        if opening_date or closing_date:
+            total_opening_value = Decimal('0')
+            total_closing_value = Decimal('0')
+            for asset in qs.iterator(chunk_size=2000):
+                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+        else:
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
 
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -4139,7 +4123,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
-        context['grouped_data'] = grouped_list[:100]
+        context['grouped_data'] = grouped_list
 
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -4198,6 +4182,7 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             'salvage_value', 'depreciation_method', 'expected_units',
             'units_consumed', 'group_id', 'group__name',
             'organization_id', 'is_deleted', 'status',
+            'cached_accumulated_depreciation', 'cached_nbv',
         )
 
         query = self.request.GET.get('q')
@@ -4255,51 +4240,50 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
 
-        agg = qs.aggregate(
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-        )
-        total_cost = agg['total_cost']
-        total_count = agg['total_count']
-
         opening_date = getattr(self, '_opening_date', None)
         closing_date = getattr(self, '_closing_date', None)
 
-        # Single-pass over all assets
-        all_assets = qs.iterator(chunk_size=2000)
-        total_acc_dep = Decimal('0')
-        total_nbv = Decimal('0')
-        total_opening_value = Decimal('0')
-        total_closing_value = Decimal('0')
-        grp_buckets = {}
+        # ── Fast path: DB-level aggregation using cached fields ──
+        agg = qs.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id'),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        )
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        total_acc_dep = agg['total_acc_dep']
+        total_nbv = agg['total_nbv']
 
-        for asset in all_assets:
-            acc_dep = asset.accumulated_depreciation
-            nbv = asset.purchase_price - acc_dep
-            total_acc_dep += acc_dep
-            total_nbv += nbv
-            total_opening_value += asset.get_value_at_date(opening_date) if opening_date else nbv
-            total_closing_value += asset.get_value_at_date(closing_date) if closing_date else nbv
-
-            grp_id = asset.group_id
-            if grp_id not in grp_buckets:
-                grp_buckets[grp_id] = {
-                    'id': grp_id,
-                    'name': asset.group.name if asset.group_id and asset.group else 'Uncategorized',
-                    'total_cost': Decimal('0'),
-                    'total_acc_dep': Decimal('0'),
-                    'count': 0,
-                }
-            bucket = grp_buckets[grp_id]
-            bucket['total_cost'] += asset.purchase_price or Decimal('0')
-            bucket['total_acc_dep'] += acc_dep
-            bucket['count'] += 1
+        # Group grouping via DB aggregation
+        grouped_qs = qs.values('group', 'group__name').annotate(
+            count=Count('id'),
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        ).order_by('-total_cost')[:100]
 
         grouped_list = []
-        for bucket in grp_buckets.values():
-            bucket['total_nbv'] = bucket['total_cost'] - bucket['total_acc_dep']
-            grouped_list.append(bucket)
-        grouped_list.sort(key=lambda x: x['total_cost'], reverse=True)
+        for g in grouped_qs:
+            grouped_list.append({
+                'id': g['group'],
+                'name': g['group__name'] or 'Uncategorized',
+                'total_cost': g['total_cost'],
+                'total_acc_dep': g['total_acc_dep'],
+                'total_nbv': g['total_nbv'],
+                'count': g['count'],
+            })
+
+        # ── Period values: only iterate if date range specified ──
+        if opening_date or closing_date:
+            total_opening_value = Decimal('0')
+            total_closing_value = Decimal('0')
+            for asset in qs.iterator(chunk_size=2000):
+                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+        else:
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
 
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -4310,7 +4294,7 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
-        context['grouped_data'] = grouped_list[:100]
+        context['grouped_data'] = grouped_list
 
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
