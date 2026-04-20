@@ -1,0 +1,524 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Asset Tag Settings – {{ org.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .settings-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .settings-title-group { flex: 1; }
+    .settings-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+    .settings-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+    .settings-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 2rem;
+        max-width: 720px;
+    }
+    .settings-section {
+        margin-bottom: 2rem;
+    }
+    .settings-section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .form-row {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+    }
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        margin-bottom: 0.4rem;
+    }
+    .form-group .help-text {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+    }
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: var(--bg-card);
+        color: var(--text-primary);
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.65rem 0;
+    }
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--primary);
+        cursor: pointer;
+    }
+    .checkbox-group label {
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        margin: 0;
+    }
+    .checkbox-group .help-text {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+    /* Preview */
+    .tag-preview-box {
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf8 100%);
+        border: 2px dashed var(--primary);
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    .tag-preview-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+    }
+    .tag-preview-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        font-family: 'Courier New', monospace;
+        color: var(--primary);
+        letter-spacing: 2px;
+    }
+    .tag-preview-note {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+    }
+    /* Buttons */
+    .btn-bar {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 1px solid var(--primary);
+    }
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+    .btn-secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover {
+        background: var(--bg-body);
+        border-color: var(--primary);
+    }
+    .info-banner {
+        background: #fffbeb;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.8rem;
+        color: #92400e;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .info-banner svg { flex-shrink: 0; margin-top: 2px; }
+    @media (max-width: 768px) {
+        .form-row { flex-direction: column; gap: 0; }
+        .settings-card { padding: 1.25rem; }
+    }
+    .design-option:has(input:checked) {
+        border-color: var(--primary) !important;
+        background: #f0f4ff !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+
+    /* ── Design option cards ──────────────────── */
+    .design-option {
+        display: flex; gap: 0.75rem; padding: 0.85rem 1rem;
+        border: 2px solid var(--border-color); border-radius: 10px;
+        cursor: pointer; transition: all 0.2s; background: var(--bg-card);
+    }
+    .design-option input[type="radio"] {
+        accent-color: var(--primary); margin-top: 2px; flex-shrink: 0;
+    }
+    .design-option-title {
+        font-weight: 600; font-size: 0.875rem; color: var(--text-primary); margin-bottom: 0.15rem;
+    }
+    .design-option-desc {
+        font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.75rem;
+    }
+
+    /* ── Shared preview frame (2:1 = 2in × 1in) ── */
+    .label-preview {
+        background: #fff; border: 1.5px solid #d4d4d8; border-radius: 4px;
+        overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif;
+        width: 260px; height: 130px;
+        display: flex; flex-direction: column;
+    }
+    .lp-tag-text {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.62rem; font-weight: 700; color: #111827;
+        letter-spacing: 0.05em;
+    }
+    .lp-qr-box { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* Fake barcode lines */
+    .lp-barcode-lines {
+        display: flex; align-items: flex-end; gap: 1.5px; height: 20px; justify-content: center;
+    }
+    .lp-barcode-lines span {
+        display: inline-block; width: 2px; background: #111827; border-radius: 0.5px;
+    }
+    .lp-barcode-lines span:nth-child(odd)  { height: 100%; }
+    .lp-barcode-lines span:nth-child(even) { height: 70%; }
+    .lp-barcode-lines span:nth-child(3n)   { width: 3px; }
+    .lp-barcode-lines span:nth-child(5n)   { height: 85%; }
+
+    /* ── Classic ──────────────────────────────── */
+    .lp-classic .lp-accent { height: 3px; background: #2563eb; flex-shrink: 0; }
+    .lp-classic .lp-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 2px 8px; font-size: 0.52rem; color: #374151;
+        border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+    }
+    .lp-classic .lp-header .org-name { font-weight: 700; }
+    .lp-classic .lp-header .tag-num {
+        font-family: 'Consolas', monospace; font-size: 0.48rem; color: #6b7280;
+    }
+    .lp-classic .lp-body {
+        flex: 1; display: flex; align-items: center; padding: 4px 8px; gap: 10px;
+    }
+    .lp-classic .lp-right {
+        flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+
+    /* ── Compact ──────────────────────────────── */
+    .lp-compact {
+        flex-direction: row; align-items: center;
+        padding: 8px 12px; gap: 0;
+    }
+    .lp-compact .lp-divider {
+        width: 1.5px; height: 55%; background: #d4d4d8;
+        margin: 0 12px; flex-shrink: 0; border-radius: 1px;
+    }
+    .lp-compact .lp-text { display: flex; flex-direction: column; gap: 3px; }
+
+    /* ── Standard ─────────────────────────────── */
+    .lp-det-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 3px 8px; background: #111827; color: #fff; font-size: 0.52rem; font-weight: 700;
+        flex-shrink: 0;
+    }
+    .lp-det-body {
+        flex: 1; display: flex; padding: 4px 8px; gap: 10px; align-items: center; min-height: 0;
+    }
+    .lp-det-right {
+        flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+
+    /* ── Barcode Only ─────────────────────────── */
+    .lp-barcode-only {
+        align-items: center; justify-content: center; text-align: center;
+        padding: 5px 14px; gap: 2px;
+    }
+    .lp-barcode-only .lp-org {
+        font-size: 0.48rem; color: #6b7280; font-weight: 600;
+        letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
+    }
+    .lp-barcode-only .lp-bc-area {
+        flex: 1; display: flex; align-items: center; justify-content: center;
+    }
+</style>
+
+<div class="settings-header">
+    <div class="settings-title-group">
+        <div class="settings-title">Asset Tag Settings</div>
+        <div class="settings-subtitle">Customize how asset tags are generated for <strong>{{ org.name }}</strong></div>
+    </div>
+    <a href="{% url 'admin-orgs' %}" class="btn btn-secondary">
+        <svg data-lucide="arrow-left" style="width:16px;height:16px;"></svg>
+        Back to Organizations
+    </a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="info-banner" style="{% if message.tags == 'success' %}background:#ecfdf5;border-color:#34d399;color:#065f46;{% endif %}">
+    <svg data-lucide="{% if message.tags == 'success' %}check-circle{% else %}info{% endif %}" style="width:16px;height:16px;"></svg>
+    {{ message }}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="settings-card">
+    <!-- Live Preview -->
+    <div class="tag-preview-box">
+        <div class="tag-preview-label">Sample Asset Tag Preview</div>
+        <div class="tag-preview-value" id="tagPreview">{{ tag_preview }}</div>
+        <div class="tag-preview-note">Using sample: Company=SH, Category=LAP, Sequence=1</div>
+    </div>
+
+    <div class="info-banner">
+        <svg data-lucide="alert-triangle" style="width:16px;height:16px;"></svg>
+        <span>Changes only affect <strong>newly created</strong> assets. Existing asset tags will not be modified.</span>
+    </div>
+
+    <form method="post" id="tagSettingsForm">
+        {% csrf_token %}
+
+        <div class="settings-section">
+            <div class="settings-section-title">Tag Structure</div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="tag_prefix">Fixed Prefix</label>
+                    <input type="text" id="tag_prefix" name="tag_prefix" value="{{ org.tag_prefix }}" maxlength="20" placeholder="e.g. AST, INV (leave blank to use company code)">
+                    <div class="help-text">Overrides company code when set. Leave blank to derive from asset's company name.</div>
+                </div>
+                <div class="form-group">
+                    <label for="tag_separator">Separator</label>
+                    <input type="text" id="tag_separator" name="tag_separator" value="{{ org.tag_separator }}" maxlength="5" placeholder="-">
+                    <div class="help-text">Character between segments (default: -)</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="tag_sequence_format">Sequence Format</label>
+                    <select id="tag_sequence_format" name="tag_sequence_format">
+                        {% for value, label in sequence_choices %}
+                        <option value="{{ value }}" {% if org.tag_sequence_format == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="help-text">Number format for the auto-incrementing counter.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-title">Included Segments</div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="tag_include_company" name="tag_include_company" {% if org.tag_include_company %}checked{% endif %}>
+                <div>
+                    <label for="tag_include_company">Company Code</label>
+                    <div class="help-text">First 2 letters of the company name (e.g. SH for Shamal). Ignored if Fixed Prefix is set.</div>
+                </div>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="tag_include_category" name="tag_include_category" {% if org.tag_include_category %}checked{% endif %}>
+                <div>
+                    <label for="tag_include_category">Category Code</label>
+                    <div class="help-text">3-letter category code (e.g. LAP for Laptops).</div>
+                </div>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="tag_include_year" name="tag_include_year" {% if org.tag_include_year %}checked{% endif %}>
+                <div>
+                    <label for="tag_include_year">Year Suffix</label>
+                    <div class="help-text">2-digit year at the end (e.g. 26 for 2026).</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-title">Label / Sticker Design</div>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Choose the default label layout used when printing asset stickers. You can also switch designs on the print page itself.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 1.25rem;">
+
+                <!-- ── CLASSIC ─────────────────────────────── -->
+                <label class="design-option" for="lbl_CLASSIC">
+                    <input type="radio" id="lbl_CLASSIC" name="label_template" value="CLASSIC" {% if org.label_template == 'CLASSIC' %}checked{% endif %}>
+                    <div style="flex:1;">
+                        <div class="design-option-title">Classic – Blue accent bar</div>
+                        <div class="design-option-desc">Blue top accent, org name &amp; tag in header, QR left, barcode right.</div>
+                        <!-- Preview mockup -->
+                        <div class="label-preview lp-classic">
+                            <div class="lp-accent"></div>
+                            <div class="lp-header">
+                                <span class="org-name">{{ org.name }}</span>
+                                <span class="tag-num">{{ tag_preview }}</span>
+                            
+                            <div class="lp-header">
+                                <span class="org-name">{{ org.name }}</span>
+                                <span class="tag-num">{{ tag_preview }}</span>
+                            </div>
+                            <div class="lp-body">
+                                <div class="lp-qr-box"><svg viewBox="0 0 40 40" width="52" height="52"><rect x="2" y="2" width="10" height="10" fill="#111"/><rect x="14" y="2" width="4" height="4" fill="#111"/><rect x="28" y="2" width="10" height="10" fill="#111"/><rect x="2" y="14" width="4" height="4" fill="#111"/><rect x="10" y="14" width="4" height="4" fill="#111"/><rect x="18" y="14" width="4" height="4" fill="#111"/><rect x="26" y="14" width="4" height="4" fill="#111"/><rect x="34" y="14" width="4" height="4" fill="#111"/><rect x="2" y="28" width="10" height="10" fill="#111"/><rect x="18" y="22" width="4" height="4" fill="#111"/><rect x="26" y="22" width="4" height="4" fill="#111"/><rect x="22" y="28" width="4" height="4" fill="#111"/><rect x="30" y="28" width="4" height="4" fill="#111"/><rect x="34" y="34" width="4" height="4" fill="#111"/></svg></div>
+                                <div class="lp-right">
+                                    <div class="lp-barcode-lines"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                                    <div class="lp-tag-text">{{ tag_preview }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+
+                <!-- ── COMPACT ─────────────────────────────── -->
+                <label class="design-option" for="lbl_COMinimal: QR code, vertical divider, tag &amp; org name.</div>
+                        <div class="label-preview lp-compact">
+                            <div class="lp-qr-box"><svg viewBox="0 0 40 40" width="56" height="56"><rect x="2" y="2" width="10" height="10" fill="#111"/><rect x="14" y="2" width="4" height="4" fill="#111"/><rect x="28" y="2" width="10" height="10" fill="#111"/><rect x="2" y="14" width="4" height="4" fill="#111"/><rect x="10" y="14" width="4" height="4" fill="#111"/><rect x="18" y="14" width="4" height="4" fill="#111"/><rect x="26" y="14" width="4" height="4" fill="#111"/><rect x="34" y="14" width="4" height="4" fill="#111"/><rect x="2" y="28" width="10" height="10" fill="#111"/><rect x="18" y="22" width="4" height="4" fill="#111"/><rect x="26" y="22" width="4" height="4" fill="#111"/><rect x="22" y="28" width="4" height="4" fill="#111"/><rect x="30" y="28" width="4" height="4" fill="#111"/><rect x="34" y="34" width="4" height="4" fill="#111"/></svg></div>
+                            <div class="lp-divider"></div>
+                            <div class="lp-text">
+                                <div class="lp-tag-text" style="font-size:0.7rem;">{{ tag_preview }}</div>
+                                <div style="font-size:0.5rem; color:#6b7280; font-weight:500
+                            <div class="lp-qr-box"><svg viewBox="0 0 40 40" width="56" height="56"><rect x="2" y="2" width="10" height="10" fill="#111"/><rect x="14" y="2" width="4" height="4" fill="#111"/><rect x="28" y="2" width="10" height="10" fill="#111"/><rect x="2" y="14" width="4" height="4" fill="#111"/><rect x="10" y="14" width="4" height="4" fill="#111"/><rect x="18" y="14" width="4" height="4" fill="#111"/><rect x="26" y="14" width="4" height="4" fill="#111"/><rect x="34" y="14" width="4" height="4" fill="#111"/><rect x="2" y="28" width="10" height="10" fill="#111"/><rect x="18" y="22" width="4" height="4" fill="#111"/><rect x="26" y="22" width="4" height="4" fill="#111"/><rect x="22" y="28" width="4" height="4" fill="#111"/><rect x="30" y="28" width="4" height="4" fill="#111"/><rect x="34" y="34" width="4" height="4" fill="#111"/></svg></div>
+                            <div class="lp-divider"></div>
+                            <div class="lp-text">
+                                <div class="lp-tag-text" style="font-size:0.7rem;">{{ tag_preview }}</div>
+                                <div style="font-size:0.5rem; color:#6b7280; font-weight:500;">{{ org.name }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+</div>
+                        <div class="design-option-desc">Dark header with org name &amp; tag, QR left, barcode right.</div>
+                        <div class="label-preview lp-detailed">
+                            <div class="lp-det-header">
+                                <span>{{ org.name }}</span>
+                                <span style="font-family:'Consolas',monospace; opacity:0.8; font-size:0.46rem;">{{ tag_preview }}</span>
+                            </div>
+                            <div class="lp-det-body">
+                                <div class="lp-qr-box" style="padding:0;"><svg viewBox="0 0 40 40" width="48" height="48"><rect x="2" y="2" width="10" height="10" fill="#111"/><rect x="14" y="2" width="4" height="4" fill="#111"/><rect x="28" y="2" width="10" height="10" fill="#111"/><rect x="2" y="14" width="4" height="4" fill="#111"/><rect x="10" y="14" width="4" height="4" fill="#111"/><rect x="18" y="14" width="4" height="4" fill="#111"/><rect x="26" y="14" width="4" height="4" fill="#111"/><rect x="34" y="14" width="4" height="4" fill="#111"/><rect x="2" y="28" width="10" height="10" fill="#111"/><rect x="18" y="22" width="4" height="4" fill="#111"/><rect x="26" y="22" width="4" height="4" fill="#111"/><rect x="22" y="28" width="4" height="4" fill="#111"/><rect x="30" y="28" width="4" height="4" fill="#111"/><rect x="34" y="34" width="4" height="4" fill="#111"/></svg></div>
+                                <div class="lp-det-right">
+                                    <div class="lp-barcode-lines" style="height:20city:0.8; font-size:0.46rem;">{{ tag_preview }}</span>
+                            </div>
+                            <div class="lp-det-body">
+                                <div class="lp-qr-box" style="padding:0;"><svg viewBox="0 0 40 40" width="48" height="48"><rect x="2" y="2" width="10" height="10" fill="#111"/><rect x="14" y="2" width="4" height="4" fill="#111"/><rect x="28" y="2" width="10" height="10" fill="#111"/><rect x="2" y="14" width="4" height="4" fill="#111"/><rect x="10" y="14" width="4" height="4" fill="#111"/><rect x="18" y="14" width="4" height="4" fill="#111"/><rect x="26" y="14" width="4" height="4" fill="#111"/><rect x="34" y="14" width="4" height="4" fill="#111"/><rect x="2" y="28" width="10" height="10" fill="#111"/><rect x="18" y="22" width="4" height="4" fill="#111"/><rect x="26" y="22" width="4" height="4" fill="#111"/><rect x="22" y="28" width="4" height="4" fill="#111"/><rect x="30" y="28" width="4" height="4" fill="#111"/><rect x="34" y="34" width="4" height="4" fill="#111"/></svg></div>
+                                <div class="lp-det-right">
+                                    <div class="lp-barcode-lines" style="height:20px;"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                                    <div class="lp-tag-text" style="margin-top:3px;">{{ tag_preview }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+Centered strip</div>
+                        <div class="design-option-desc">Large barcode centered with tag number. Clean and scannable.</div>
+                        <div class="label-preview lp-barcode-only">
+                            <div class="lp-org">{{ org.name }}</div>
+                            <div class="lp-bc-area">
+                                <div class="lp-barcode-lines" style="height:38px;"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                            </div>
+                            <div class="lp-tag-text" style="font-size:0.68rem; letter-spacing:0.08em;">{{ tag_preview }}<div class="lp-bc-area">
+                                <div class="lp-barcode-lines" style="height:38px;"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                            </div>
+                            <div class="lp-tag-text" style="font-size:0.68rem; letter-spacing:0.08em;">{{ tag_preview }}</div>
+                        </div>
+                    </div>
+                </label>
+
+            </div>
+        </div>
+
+        <div class="btn-bar">
+            <button type="submit" class="btn btn-primary">
+                <svg data-lucide="save" style="width:16px;height:16px;"></svg>
+                Save Settings
+            </button>
+            <a href="{% url 'admin-orgs' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    lucide.createIcons();
+
+    // Live preview
+    const form = document.getElementById('tagSettingsForm');
+    const previewEl = document.getElementById('tagPreview');
+    const orgPk = '{{ org.pk }}';
+    let debounceTimer;
+
+    function updatePreview() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const params = new URLSearchParams({
+                tag_prefix: document.getElementById('tag_prefix').value,
+                tag_separator: document.getElementById('tag_separator').value || '-',
+                tag_include_company: document.getElementById('tag_include_company').checked ? '1' : '0',
+                tag_include_category: document.getElementById('tag_include_category').checked ? '1' : '0',
+                tag_include_year: document.getElementById('tag_include_year').checked ? '1' : '0',
+                tag_sequence_format: document.getElementById('tag_sequence_format').value,
+            });
+            fetch(`/users/admin/organizations/${orgPk}/tag-preview/?${params}`)
+                .then(r => r.json())
+                .then(data => { previewEl.textContent = data.preview; })
+                .catch(() => {});
+        }, 250);
+    }
+
+    // Attach listeners
+    ['tag_prefix', 'tag_separator', 'tag_sequence_format'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updatePreview);
+    });
+    ['tag_include_company', 'tag_include_category', 'tag_include_year'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updatePreview);
+    });
+</script>
+{% endblock %}

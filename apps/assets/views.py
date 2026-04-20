@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.contrib import messages
 import csv
 import io
@@ -97,8 +97,7 @@ def lookup_asset(request):
     elif asset_tag:
         # Search by asset tag
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=asset_tag) | 
-            Q(custom_asset_tag__iexact=asset_tag),
+            Q(asset_tag__iexact=asset_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -110,7 +109,6 @@ def lookup_asset(request):
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
             Q(asset_tag__iexact=query) | 
-            Q(custom_asset_tag__iexact=query) |
             Q(asset_code__iexact=query),
             organization=org
         ).select_related(
@@ -181,7 +179,7 @@ def lookup_asset(request):
     return JsonResponse({'asset': current, 'departments': departments, 'locations': locations, 'users': users})
 
 ASSET_IMPORT_FIELDS = [
-    'name', 'description', 'short_description', 'asset_tag', 'custom_asset_tag', 
+    'name', 'description', 'short_description',
     'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
     'category', 'sub_category', 'asset_type', 'group', 'sub_group', 'brand', 
     'model', 'condition', 'status', 'department', 'cost_center', 'company', 
@@ -328,7 +326,6 @@ class AssetListView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(erp_asset_number__icontains=query) |
                 Q(serial_number__icontains=query) |
@@ -665,10 +662,18 @@ class BulkAssetActionView(LoginRequiredMixin, View):
 
 class ExportAssetExcelView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
         # We reuse the logic from AssetListView to respect current filters
         view = AssetListView()
         view.request = request
-        queryset = view.get_queryset()
+        queryset = view.get_queryset().select_related(
+            'category', 'sub_category', 'group', 'sub_group', 'brand_new',
+            'company', 'supplier', 'custodian', 'department', 'assigned_to',
+            'branch', 'building', 'floor', 'room', 'region', 'site',
+            'location', 'sub_location', 'vendor', 'asset_remarks', 'parent'
+        )
 
         is_depreciation_view = request.GET.get('view') == 'depreciation'
 
@@ -676,10 +681,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
         closing_date = None
 
         if is_depreciation_view:
-            # Match depreciation report behavior: only assets with value
             queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
 
-            # Apply depreciation dimension filters from report pages
             depr_filters = {
                 'depr_category': 'category_id',
                 'depr_group': 'group_id',
@@ -710,18 +713,50 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 except (ValueError, TypeError):
                     closing_date = None
 
-            # Keep only assets existing up to closing date
             if closing_date:
                 queryset = queryset.filter(Q(purchase_date__lte=closing_date) | Q(purchase_date__isnull=True))
-        
+
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Depreciation Export" if is_depreciation_view else "Assets Export"
+
+        # ── Styles ──
+        title_font = Font(size=14, bold=True, color="1F4E79")
+        meta_label_font = Font(bold=True, size=10, color="1F4E79")
+        meta_value_font = Font(size=10)
+        header_font = Font(bold=True, color="FFFFFF", size=10)
+        header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        even_fill = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin', color='B0B0B0'),
+            right=Side(style='thin', color='B0B0B0'),
+            top=Side(style='thin', color='B0B0B0'),
+            bottom=Side(style='thin', color='B0B0B0'),
+        )
+        currency_format = '#,##0.00'
+        date_format = 'YYYY-MM-DD'
 
         if is_depreciation_view:
+            ws.title = "Depreciation Export"
+
+            # ── Title block ──
+            current_row = 1
+            ws.merge_cells('A1:G1')
+            cell = ws.cell(row=1, column=1, value="DEPRECIATION REPORT EXPORT")
+            cell.font = title_font
+            cell.alignment = Alignment(horizontal='left', vertical='center')
+            current_row = 2
+
+            ws.cell(row=current_row, column=1, value="Export Date:").font = meta_label_font
+            ws.cell(row=current_row, column=2, value=datetime.now().strftime("%Y-%m-%d %H:%M")).font = meta_value_font
+            current_row += 1
+            ws.cell(row=current_row, column=1, value="Total Records:").font = meta_label_font
+            ws.cell(row=current_row, column=2, value=queryset.count()).font = meta_value_font
+            current_row += 2
+
             headers = [
-                'Asset Tag', 'Name', 'Category', 'Status',
-                'Purchase Date', 'Purchase Price', 'Currency'
+                'Asset Tag', 'Asset Code', 'Name', 'Category', 'Status',
+                'Purchase Date', 'Purchase Price', 'Currency',
             ]
             if opening_date:
                 headers.append(f'Opening Value ({opening_date.strftime("%Y-%m-%d")})')
@@ -730,62 +765,230 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             if opening_date and closing_date:
                 headers.append('Period Depreciation')
             headers.extend(['Accumulated Depreciation', 'Current NBV'])
-        else:
-            headers = [
-                'Asset Tag', 'Name', 'Category', 'Status',
-                'Site', 'Building', 'Room', 'Condition',
-                'Purchase Price', 'Currency', 'Purchase Date'
-            ]
 
-        ws.append(headers)
-        
-        for asset in queryset:
-            if is_depreciation_view:
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=current_row, column=col_num, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = thin_border
+            current_row += 1
+
+            data_start = current_row
+            for asset in queryset:
                 opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
                 closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
-
-                # If opening date is provided and asset has no opening value, skip it
                 if opening_date and opening_value <= 0:
                     continue
 
                 row = [
                     asset.asset_tag,
+                    asset.asset_code or '',
                     asset.name,
                     asset.category.name if asset.category else '',
                     asset.get_status_display(),
-                    asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else '',
+                    asset.purchase_date,
                     float(asset.purchase_price) if asset.purchase_price else 0,
                     asset.currency,
                 ]
-
                 if opening_date:
                     row.append(float(opening_value))
                 if closing_date:
                     row.append(float(closing_value))
                 if opening_date and closing_date:
                     row.append(float(opening_value - closing_value))
+                row.extend([float(asset.accumulated_depreciation), float(asset.current_value)])
 
-                row.extend([
+                for col_num, value in enumerate(row, 1):
+                    cell = ws.cell(row=current_row, column=col_num, value=value)
+                    cell.border = thin_border
+                    if isinstance(value, float):
+                        cell.number_format = currency_format
+                if (current_row - data_start) % 2 == 0:
+                    for col_num in range(1, len(row) + 1):
+                        ws.cell(row=current_row, column=col_num).fill = even_fill
+                current_row += 1
+
+        else:
+            ws.title = "Assets Export"
+
+            # ── Title block ──
+            current_row = 1
+            ws.merge_cells('A1:H1')
+            cell = ws.cell(row=1, column=1, value="ASSET INVENTORY EXPORT")
+            cell.font = title_font
+            cell.alignment = Alignment(horizontal='left', vertical='center')
+            current_row = 2
+
+            ws.cell(row=current_row, column=1, value="Export Date:").font = meta_label_font
+            ws.cell(row=current_row, column=2, value=datetime.now().strftime("%Y-%m-%d %H:%M")).font = meta_value_font
+            current_row += 1
+            ws.cell(row=current_row, column=1, value="Total Records:").font = meta_label_font
+            ws.cell(row=current_row, column=2, value=queryset.count()).font = meta_value_font
+            current_row += 1
+
+            # Show active filters
+            filters_applied = []
+            q = request.GET.get('q', '').strip()
+            if q:
+                filters_applied.append(f"Search: {q}")
+            for param, label in [('status', 'Status'), ('category', 'Category'), ('site', 'Site'),
+                                 ('building', 'Building'), ('brand', 'Brand'), ('department', 'Department'),
+                                 ('subcategory', 'Sub Category'), ('group', 'Group')]:
+                val = request.GET.get(param, '').strip()
+                if val:
+                    filters_applied.append(f"{label}: {val}")
+            if filters_applied:
+                current_row += 1
+                ws.cell(row=current_row, column=1, value="Applied Filters:").font = meta_label_font
+                current_row += 1
+                for ft in filters_applied:
+                    ws.cell(row=current_row, column=1, value=f"  • {ft}").font = meta_value_font
+                    current_row += 1
+
+            current_row += 1  # blank row before data
+
+            # ── ALL column headers ──
+            headers = [
+                # Identification
+                'Asset Tag', 'Asset Code', 'ERP Asset Number', 'Name', 'Short Description', 'Description',
+                'Serial Number', 'Quantity', 'Label Type', 'Asset Type',
+                # Classification
+                'Category', 'Sub Category', 'Group', 'Sub Group', 'Brand', 'Model', 'Condition',
+                # Ownership
+                'Company', 'Department', 'Assigned To', 'Custodian', 'Employee Number',
+                'Cost Center', 'Supplier', 'Vendor',
+                # Location
+                'Region', 'Site', 'Branch', 'Building', 'Floor', 'Room',
+                'Location', 'Sub Location',
+                # Financial
+                'Purchase Date', 'Purchase Price', 'Currency', 'Invoice Number', 'Invoice Date',
+                'PO Number', 'PO Date', 'DO Number', 'DO Date', 'GRN Number',
+                'Warranty Start', 'Warranty End',
+                # Depreciation
+                'Depreciation Method', 'Useful Life (Years)', 'Salvage Value',
+                'Accumulated Depreciation', 'Current NBV',
+                # Dates
+                'Date Placed in Service', 'Tagged Date',
+                'Insurance Start', 'Insurance End',
+                'Maintenance Start', 'Maintenance End',
+                'Maintenance Frequency (Days)', 'Next Maintenance Date',
+                # Other
+                'Status', 'Parent Asset', 'Remarks / Notes',
+                'Created At',
+            ]
+
+            header_row_num = current_row
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=current_row, column=col_num, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = thin_border
+            current_row += 1
+
+            # Freeze the header row so it stays visible while scrolling
+            ws.freeze_panes = ws.cell(row=current_row, column=1)
+
+            # ── Data rows ──
+            data_start = current_row
+            for asset in queryset:
+                row_data = [
+                    # Identification
+                    asset.asset_tag or '',
+                    asset.asset_code or '',
+                    asset.erp_asset_number or '',
+                    asset.name or '',
+                    asset.short_description or '',
+                    asset.description or '',
+                    asset.serial_number or '',
+                    asset.quantity,
+                    asset.get_label_type_display() if asset.label_type else '',
+                    asset.get_asset_type_display() if asset.asset_type else '',
+                    # Classification
+                    asset.category.name if asset.category else '',
+                    asset.sub_category.name if asset.sub_category else '',
+                    asset.group.name if asset.group else '',
+                    asset.sub_group.name if asset.sub_group else '',
+                    asset.brand_new.name if asset.brand_new else (asset.brand or ''),
+                    asset.model or '',
+                    asset.get_condition_display() if asset.condition else '',
+                    # Ownership
+                    asset.company.name if asset.company else '',
+                    asset.department.name if asset.department else '',
+                    asset.assigned_to.get_full_name() if asset.assigned_to else '',
+                    (asset.custodian.user.get_full_name() if asset.custodian and asset.custodian.user
+                     else (asset.custodian.employee_id if asset.custodian else '')),
+                    asset.employee_number or '',
+                    asset.cost_center or '',
+                    asset.supplier.name if asset.supplier else '',
+                    asset.vendor.name if asset.vendor else '',
+                    # Location
+                    asset.region.name if asset.region else '',
+                    asset.site.name if asset.site else '',
+                    asset.branch.name if asset.branch else '',
+                    asset.building.name if asset.building else '',
+                    asset.floor.name if asset.floor else '',
+                    asset.room.name if asset.room else '',
+                    asset.location.name if asset.location else '',
+                    asset.sub_location.name if asset.sub_location else '',
+                    # Financial
+                    asset.purchase_date,
+                    float(asset.purchase_price) if asset.purchase_price else '',
+                    asset.currency or '',
+                    asset.invoice_number or '',
+                    asset.invoice_date,
+                    asset.po_number or '',
+                    asset.po_date,
+                    asset.do_number or '',
+                    asset.do_date,
+                    asset.grn_number or '',
+                    asset.warranty_start,
+                    asset.warranty_end,
+                    # Depreciation
+                    asset.get_depreciation_method_display() if asset.depreciation_method else '',
+                    asset.useful_life_years or '',
+                    float(asset.salvage_value) if asset.salvage_value else '',
                     float(asset.accumulated_depreciation),
                     float(asset.current_value),
-                ])
+                    # Dates
+                    asset.date_placed_in_service,
+                    asset.tagged_date,
+                    asset.insurance_start_date,
+                    asset.insurance_end_date,
+                    asset.maintenance_start_date,
+                    asset.maintenance_end_date,
+                    asset.maintenance_frequency_days or '',
+                    asset.next_maintenance_date,
+                    # Other
+                    asset.get_status_display() if asset.status else '',
+                    str(asset.parent) if asset.parent else '',
+                    asset.notes or (asset.asset_remarks.name if asset.asset_remarks else ''),
+                    asset.created_at.strftime('%Y-%m-%d %H:%M') if asset.created_at else '',
+                ]
 
-                ws.append(row)
-            else:
-                ws.append([
-                    asset.asset_tag,
-                    asset.name,
-                    asset.category.name if asset.category else '',
-                    asset.get_status_display(),
-                    asset.site.name if asset.site else '',
-                    asset.building.name if asset.building else '',
-                    str(asset.room) if asset.room else '',
-                    asset.get_condition_display(),
-                    float(asset.purchase_price) if asset.purchase_price else 0,
-                    asset.currency,
-                    asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else ''
-                ])
-            
+                is_even = (current_row - data_start) % 2 == 0
+                for col_num, value in enumerate(row_data, 1):
+                    cell = ws.cell(row=current_row, column=col_num, value=value)
+                    cell.border = thin_border
+                    if isinstance(value, float):
+                        cell.number_format = currency_format
+                    if is_even:
+                        cell.fill = even_fill
+                current_row += 1
+
+        # ── Auto-adjust column widths ──
+        for col_idx in range(1, ws.max_column + 1):
+            max_length = 0
+            for row_idx in range(1, ws.max_row + 1):
+                cell_value = ws.cell(row=row_idx, column=col_idx).value
+                if cell_value is not None:
+                    cell_length = len(str(cell_value))
+                    if cell_length > max_length:
+                        max_length = cell_length
+            adjusted_width = min(max_length + 3, 40) if max_length > 0 else 12
+            ws.column_dimensions[get_column_letter(col_idx)].width = adjusted_width
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
@@ -1012,7 +1215,6 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'brand name': 'brand', 'company name': 'company',
         'supplier name': 'supplier', 'vendor name': 'vendor',
         'asset name': 'name', 'asset description': 'description',
-        'asset tag': 'asset_tag', 'custom asset tag': 'custom_asset_tag',
         'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
         'asset code': 'asset_code', 'asset type': 'asset_type',
         'label type': 'label_type', 'serial number': 'serial_number',
@@ -1362,27 +1564,74 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         errors = []
         assets_to_create = []
+        seen_asset_codes = set()
 
-        # --- SEQUENTIAL ASSET TAG GENERATION ---
-        # Robustly find the next serial number
-        start_tag_num = 0
-        tag_prefix = "AST-"
-        # Optimized: only fetch tags that match the expected format
-        existing_tags = Asset.objects.filter(
-            organization=org, 
-            asset_tag__startswith=tag_prefix
-        ).values_list('asset_tag', flat=True)
-        
-        for tag in existing_tags:
-            try:
-                # Expecting AST-XXXXX
-                suffix = tag[len(tag_prefix):]
-                num = int(suffix)
-                if num > start_tag_num: start_tag_num = num
-            except (ValueError, IndexError, TypeError):
-                continue
-        
-        current_tag_num = start_tag_num + 1
+        # --- PROPER ASSET TAG GENERATION (CO-CAT-XXXX-YY) ---
+        # Track counters per prefix so bulk rows auto-increment without DB round-trips
+        from datetime import date as _date
+        _year_suffix = str(_date.today().year)[-2:]
+        _tag_counters = {}  # key: "CO-CAT", value: next hex counter (int)
+
+        def _bulk_generate_tag(organization, category, company):
+            """Generate tag with in-memory counter tracking, respecting org config."""
+            sep = getattr(organization, 'tag_separator', '-') or '-'
+            include_company = getattr(organization, 'tag_include_company', True)
+            include_category = getattr(organization, 'tag_include_category', True)
+            include_year = getattr(organization, 'tag_include_year', True)
+            seq_fmt = getattr(organization, 'tag_sequence_format', 'HEX4') or 'HEX4'
+            fixed_prefix = (getattr(organization, 'tag_prefix', '') or '').strip().upper()
+
+            prefix_parts = []
+            if fixed_prefix:
+                prefix_parts.append(fixed_prefix)
+            elif include_company:
+                if company and company.name:
+                    alpha = ''.join(c for c in company.name if c.isalpha()).upper()
+                    co = alpha[:2] if len(alpha) >= 2 else alpha.ljust(2, 'X')[:2]
+                else:
+                    co = 'XX'
+                prefix_parts.append(co)
+            if include_category:
+                cat_code = category.code[:3].upper() if category.code else 'XXX'
+                prefix_parts.append(cat_code)
+
+            prefix = sep.join(prefix_parts)
+            total_parts = len(prefix_parts) + 1 + (1 if include_year else 0)
+            seq_index = len(prefix_parts)
+
+            if prefix not in _tag_counters:
+                qs = Asset.objects.filter(
+                    organization=organization,
+                    asset_tag__startswith=prefix,
+                )
+                if include_year:
+                    qs = qs.filter(asset_tag__endswith=f"{sep}{_year_suffix}")
+                existing = qs.values_list('asset_tag', flat=True)
+                max_num = 0
+                for tag in existing:
+                    try:
+                        parts = tag.split(sep)
+                        if len(parts) == total_parts:
+                            cstr = parts[seq_index]
+                            num = int(cstr, 16) if seq_fmt.startswith('HEX') else int(cstr)
+                            if num > max_num:
+                                max_num = num
+                    except (ValueError, IndexError):
+                        continue
+                _tag_counters[prefix] = max_num + 1
+
+            next_num = _tag_counters[prefix]
+            _tag_counters[prefix] = next_num + 1
+
+            fmt_map = {
+                'HEX4': lambda n: f"{n:04X}", 'HEX6': lambda n: f"{n:06X}",
+                'NUM4': lambda n: f"{n:04d}", 'NUM5': lambda n: f"{n:05d}", 'NUM6': lambda n: f"{n:06d}",
+            }
+            counter = fmt_map.get(seq_fmt, fmt_map['HEX4'])(next_num)
+            all_parts = prefix_parts + [counter]
+            if include_year:
+                all_parts.append(_year_suffix)
+            return sep.join(all_parts)
 
         for row_idx, row in enumerate(rows, start=2):
             try:
@@ -1396,10 +1645,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 if not category:
                     raise ValueError(f"Category '{cat_val}' not found.")
 
-                asset_tag = str(row.get('asset_tag') or '').strip()
-                if not asset_tag:
-                    asset_tag = f"AST-{current_tag_num:05d}"
-                    current_tag_num += 1
+                company = get_from_cache(companies, row.get('company'))
+                asset_tag = _bulk_generate_tag(org, category, company)
 
                 # 2. Enums / Choices
                 def get_choice(val, choices_model, default):
@@ -1492,6 +1739,19 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     try: return int(float(str(val)))
                     except: return default
 
+                # Validate asset_code (required + unique)
+                asset_code_val = str(row.get('asset_code') or '').strip()
+                if not asset_code_val:
+                    errors.append(f"Row {row_idx}: asset_code is required.")
+                    continue
+                if asset_code_val in seen_asset_codes:
+                    errors.append(f"Row {row_idx}: Duplicate asset_code '{asset_code_val}' in file.")
+                    continue
+                seen_asset_codes.add(asset_code_val)
+                if Asset.objects.filter(organization=org, asset_code=asset_code_val).exists():
+                    errors.append(f"Row {row_idx}: asset_code '{asset_code_val}' already exists.")
+                    continue
+
                 # Create Asset Instance (in memory)
                 asset = Asset(
                     organization=org,
@@ -1500,8 +1760,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     description=str(row.get('description') or ''),
                     short_description=str(row.get('short_description') or ''),
                     asset_tag=asset_tag,
-                    custom_asset_tag=row.get('custom_asset_tag'),
-                    asset_code=row.get('asset_code'),
+                    asset_code=asset_code_val,
                     erp_asset_number=row.get('erp_asset_number'),
                     quantity=parse_int(row.get('quantity'), 1),
                     label_type=label_type,
@@ -1588,7 +1847,26 @@ class AssetImportView(LoginRequiredMixin, FormView):
             with transaction.atomic():
                 # Process in batches of 1000 for stability
                 Asset.objects.bulk_create(assets_to_create, batch_size=1000)
-                messages.success(self.request, f"Successfully imported {len(assets_to_create)} assets.")
+
+            # Generate QR codes and barcodes for all imported assets
+            from .code_generators import generate_codes_for_asset
+            generated_count = 0
+            for asset in assets_to_create:
+                try:
+                    # Refresh from DB to get the pk assigned by bulk_create
+                    db_asset = Asset.objects.get(
+                        organization=org, asset_tag=asset.asset_tag
+                    )
+                    generate_codes_for_asset(db_asset)
+                    generated_count += 1
+                except Exception:
+                    pass  # Non-critical: asset created but code generation failed
+
+            messages.success(
+                self.request,
+                f"Successfully imported {len(assets_to_create)} assets. "
+                f"QR/Barcode generated for {generated_count} assets."
+            )
         except Exception as e:
             messages.error(self.request, f"Database error during bulk save: {str(e)}")
             return redirect('asset-import')
@@ -1649,7 +1927,9 @@ class CategoryListView(LoginRequiredMixin, ListView):
     context_object_name = 'categories'
 
     def get_queryset(self):
-        return Category.objects.filter(organization=self.request.user.organization)
+        return Category.objects.filter(
+            organization=self.request.user.organization
+        ).annotate(asset_count=Count('asset'))
 
 class CategoryCreateView(LoginRequiredMixin, CreateView):
     model = Category
@@ -3118,6 +3398,76 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         return context
 
 
+class AssetDisposalExportExcelView(AssetDisposalListView):
+    """Export filtered asset disposals to Excel."""
+
+    def get(self, request, *args, **kwargs):
+        disposals = self.get_queryset()
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Asset Disposals"
+
+        headers = [
+            'Asset Tag', 'Asset Name', 'Requested By', 'Disposal Method',
+            'Reason', 'Status', 'Disposal Date', 'Estimated Salvage Value',
+            'Manager Approved By', 'Manager Approved At',
+            'Admin Approved By', 'Admin Approved At', 'Notes', 'Created Date'
+        ]
+        ws.append(headers)
+
+        for cell in ws[1]:
+            cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            cell.fill = openpyxl.styles.PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+
+        for disposal in disposals:
+            requested_by = '-'
+            if disposal.requested_by:
+                requested_by = disposal.requested_by.get_full_name() or disposal.requested_by.username
+
+            manager_approved_by = '-'
+            if disposal.manager_approved_by:
+                manager_approved_by = disposal.manager_approved_by.get_full_name() or disposal.manager_approved_by.username
+
+            admin_approved_by = '-'
+            if disposal.approved_by:
+                admin_approved_by = disposal.approved_by.get_full_name() or disposal.approved_by.username
+
+            ws.append([
+                disposal.asset.asset_tag if disposal.asset else '',
+                disposal.asset.name if disposal.asset else '',
+                requested_by,
+                disposal.get_disposal_method_display(),
+                disposal.reason or '',
+                disposal.get_status_display(),
+                disposal.disposal_date.strftime('%Y-%m-%d') if disposal.disposal_date else '',
+                str(disposal.estimated_salvage_value) if disposal.estimated_salvage_value else '',
+                manager_approved_by,
+                disposal.manager_approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.manager_approved_at else '',
+                admin_approved_by,
+                disposal.approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.approved_at else '',
+                disposal.notes or '',
+                disposal.created_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.created_at else '',
+            ])
+
+        for col_idx in range(1, ws.max_column + 1):
+            max_length = 0
+            col_letter = openpyxl.utils.get_column_letter(col_idx)
+            for row_idx in range(1, ws.max_row + 1):
+                cell_value = ws.cell(row=row_idx, column=col_idx).value
+                if cell_value is None:
+                    continue
+                max_length = max(max_length, len(str(cell_value)))
+            ws.column_dimensions[col_letter].width = min(max_length + 2, 45) if max_length else 12
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="asset_disposals_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+        wb.save(response)
+        return response
+
+
 class AssetDisposalCreateView(EmployeeRequiredMixin, CreateView):
     """Create a new asset disposal request (employees only)"""
     model = AssetDisposal
@@ -3266,7 +3616,6 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(category__name__icontains=query)
@@ -3454,7 +3803,6 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(department__name__icontains=query)
@@ -3635,7 +3983,6 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(location__name__icontains=query)
@@ -3816,7 +4163,6 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(group__name__icontains=query)
@@ -4170,3 +4516,134 @@ def download_barcode_batch(request):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def print_asset_label(request, pk):
+    """Render a browser-printable label page for a single asset."""
+    asset = get_object_or_404(Asset, id=pk, organization=request.user.organization)
+    org = request.user.organization
+    design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
+    designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
+    return render(request, 'assets/print_label.html', {
+        'assets': [asset],
+        'design': design,
+        'designs': designs,
+        'org': org,
+    })
+
+
+@login_required
+def label_print_center(request):
+    """Dedicated page for bulk label printing with design selection and filters."""
+    org = request.user.organization
+    all_assets = Asset.objects.filter(
+        organization=org
+    ).order_by('asset_tag').values_list('asset_tag', flat=True)
+    # Build lightweight asset list for dropdowns
+    asset_tags = [{'asset_tag': tag} for tag in all_assets]
+    categories = Category.objects.filter(organization=org).order_by('name')
+    branches = Branch.objects.filter(organization=org).order_by('name')
+
+    return render(request, 'assets/label_print_center.html', {
+        'org': org,
+        'all_assets': asset_tags,
+        'categories': categories,
+        'branches': branches,
+    })
+
+
+@login_required
+def print_asset_labels_bulk(request):
+    """Render a browser-printable label page for multiple assets.
+    
+    Supports multiple selection modes:
+    - ids: comma-separated asset UUIDs
+    - tag_from + tag_to: tag range (inclusive)
+    - category / branch: filter by category or branch
+    - specific_tags: comma/newline-separated tags
+    """
+    org = request.user.organization
+    design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
+    designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
+
+    assets = Asset.objects.none()
+
+    # Mode 1: By IDs (existing behavior)
+    asset_ids = request.GET.get('ids', '').split(',')
+    asset_ids = [aid.strip() for aid in asset_ids if aid.strip()]
+
+    if asset_ids:
+        assets = Asset.objects.filter(id__in=asset_ids, organization=org)
+
+    # Mode 2: By tag range
+    elif request.GET.get('tag_from') and request.GET.get('tag_to'):
+        tag_from = request.GET['tag_from'].strip()
+        tag_to = request.GET['tag_to'].strip()
+        assets = Asset.objects.filter(
+            organization=org,
+            asset_tag__gte=tag_from,
+            asset_tag__lte=tag_to,
+        ).order_by('asset_tag')
+
+    # Mode 3: By category/branch filters
+    elif request.GET.get('category') or request.GET.get('branch'):
+        qs = Asset.objects.filter(organization=org)
+        if request.GET.get('category'):
+            qs = qs.filter(category_id=request.GET['category'])
+        if request.GET.get('branch'):
+            qs = qs.filter(branch_id=request.GET['branch'])
+        assets = qs.order_by('asset_tag')
+
+    # Mode 4: Specific tags
+    elif request.GET.get('specific_tags'):
+        raw_tags = request.GET['specific_tags']
+        # Split by comma or newline
+        tags = [t.strip() for t in raw_tags.replace('\n', ',').split(',') if t.strip()]
+        assets = Asset.objects.filter(organization=org, asset_tag__in=tags).order_by('asset_tag')
+
+    if not assets.exists():
+        return render(request, 'assets/print_label.html', {
+            'assets': [],
+            'design': design,
+            'designs': designs,
+            'org': org,
+        })
+
+    # Batch pagination - max 1000 labels per page
+    BATCH_SIZE = 1000
+    total_count = assets.count()
+    batch = int(request.GET.get('batch', 1))
+    total_batches = (total_count + BATCH_SIZE - 1) // BATCH_SIZE  # ceil division
+    offset = (batch - 1) * BATCH_SIZE
+    assets_batch = assets[offset:offset + BATCH_SIZE]
+
+    assets_batch = assets_batch.select_related('category', 'location', 'company')
+
+    # Auto-generate missing barcode/QR codes before printing
+    from .code_generators import generate_codes_for_asset
+    for asset in assets_batch:
+        if asset.asset_tag and (not asset.barcode_image or not asset.qr_code_image):
+            try:
+                generate_codes_for_asset(asset)
+            except Exception:
+                pass
+
+    # Build next/prev batch URLs
+    remaining = total_count - (offset + BATCH_SIZE)
+    if remaining < 0:
+        remaining = 0
+
+    return render(request, 'assets/print_label.html', {
+        'assets': assets_batch,
+        'design': design,
+        'designs': designs,
+        'org': org,
+        'batch': batch,
+        'total_batches': total_batches,
+        'total_count': total_count,
+        'batch_size': BATCH_SIZE,
+        'remaining': remaining,
+        'batch_start': offset + 1,
+        'batch_end': min(offset + BATCH_SIZE, total_count),
+    })

@@ -173,7 +173,6 @@ export interface AssetDetail {
   id: string;
   name: string;
   asset_tag: string;
-  custom_asset_tag: string;
   asset_code: string;
   erp_asset_number: string;
   description: string;

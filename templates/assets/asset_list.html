@@ -239,6 +239,7 @@
                                 </th>
                                 <th class="th-name">Asset Name</th>
                                 <th class="th-tag">Asset Tag</th>
+                                <th class="th-code">Asset Code</th>
                                 <th class="th-serial">Serial #</th>
                                 <th class="th-category">Category</th>
                                 <th class="th-brand">Brand</th>
@@ -267,6 +268,9 @@
                                 </td>
                                 <td class="td-tag">
                                     <span class="tag-badge">{{ asset.asset_tag }}</span>
+                                </td>
+                                <td class="td-code">
+                                    <span class="code-text">{{ asset.asset_code|default:"-" }}</span>
                                 </td>
                                 <td class="td-serial">
                                     <span class="serial-text">{{ asset.serial_number|default:"-" }}</span>
@@ -338,7 +342,7 @@
                                 </td>
                             </tr>
                             <tr id="detail-{{ asset.id }}" class="detail-row" style="display:none;">
-                                <td colspan="16">
+                                <td colspan="17">
                                     <div class="detail-content">
                         <div class="detail-left">
                             <div class="asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
@@ -371,7 +375,6 @@
                                         <h4>Identification</h4>
                                         <div class="kv-grid">
                                             <div class="kv"><span class="label">Asset Tag</span><span class="value">{{ asset.asset_tag }}</span></div>
-                                            <div class="kv"><span class="label">Custom Tag</span><span class="value">{{ asset.custom_asset_tag|default:'-' }}</span></div>
                                             <div class="kv"><span class="label">Asset Code</span><span class="value">{{ asset.asset_code|default:'-' }}</span></div>
                                             <div class="kv"><span class="label">ERP #</span><span class="value">{{ asset.erp_asset_number|default:'-' }}</span></div>
                                             <div class="kv"><span class="label">Serial #</span><span class="value">{{ asset.serial_number|default:'-' }}</span></div>
@@ -491,6 +494,23 @@
             {% endif %}
             </div>
         </form>
+
+<!-- Floating Bulk Action Bar -->
+<div id="bulk-action-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:200; background:#1e293b; color:#fff; padding:0.75rem 1.5rem; box-shadow:0 -4px 16px rgba(0,0,0,0.15); align-items:center; gap:1rem; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:1rem;">
+        <span style="font-size:0.9rem;"><strong id="selected-count">0</strong> asset(s) selected</span>
+        <button type="button" onclick="deselectAll()" style="background:transparent; border:1px solid #475569; color:#cbd5e1; padding:0.35rem 0.85rem; border-radius:6px; font-size:0.8rem; cursor:pointer;">Deselect All</button>
+    </div>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+        <select id="bulk-action-select" style="padding:0.4rem 0.6rem; border-radius:6px; border:1px solid #475569; background:#334155; color:#fff; font-size:0.82rem;">
+            <option value="">Choose action…</option>
+            <option value="delete">Delete Selected</option>
+        </select>
+        <button type="submit" form="bulk-action-form" style="background:#ef4444; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer;">Apply</button>
+        <button type="button" onclick="printSelectedLabels()" style="background:#2563eb; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">🖨 Print Labels</button>
+    </div>
+</div>
+
 </div>
 
 <style>
@@ -1062,6 +1082,7 @@
     .th-check { width: 40px; text-align: center; }
     .th-name { min-width: 140px; }
     .th-tag { width: 90px; }
+    .th-code { width: 90px; }
     .th-serial { width: 100px; }
     .th-category { width: 85px; }
     .th-brand { width: 80px; }
@@ -2225,6 +2246,12 @@
                 }
             }
         });
+    }
+
+    function printSelectedLabels() {
+        const ids = Array.from(document.querySelectorAll('.asset-checkbox:checked')).map(cb => cb.value);
+        if (!ids.length) { alert('No assets selected.'); return; }
+        window.open('{% url "print-asset-labels-bulk" %}?ids=' + ids.join(','), '_blank');
     }
 
     // Initialize Lucide Icons on Page Load

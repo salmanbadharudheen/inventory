@@ -32,6 +32,14 @@ from .serializers import (
     BranchLookupSerializer,
     DepartmentLookupSerializer,
 )
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+from apps.assets.models import AssetTransfer
+
+try:
+    from weasyprint import HTML as WeasyprintHTML
+except (ImportError, OSError):
+    WeasyprintHTML = None
 
 
 class LoginAPIView(APIView):
@@ -689,7 +697,7 @@ class AssetLookupByTagAPIView(APIView):
             organization=org,
             is_deleted=False,
         ).filter(
-            Q(asset_tag__iexact=tag) | Q(custom_asset_tag__iexact=tag)
+            Q(asset_tag__iexact=tag)
         ).select_related(
             'category', 'sub_category', 'group', 'sub_group',
             'company', 'department', 'site', 'building',
@@ -758,7 +766,7 @@ class AssetListAPIView(APIView):
         qs = Asset.objects.filter(organization=org, is_deleted=False).select_related(
             'category', 'company', 'department', 'site', 'building', 'assigned_to',
         ).only(
-            'id', 'name', 'asset_tag', 'custom_asset_tag', 'serial_number',
+            'id', 'name', 'asset_tag', 'serial_number',
             'status', 'condition', 'asset_type',
             'purchase_date', 'purchase_price', 'currency', 'created_at',
             'category__id', 'category__name',
@@ -970,3 +978,38 @@ class DepartmentListAPIView(APIView):
         if b:
             qs = qs.filter(branch_id=b)
         return Response(DepartmentLookupSerializer(qs, many=True).data)
+
+
+class AssetTransferExportPDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Filter transfers as needed (e.g., by org, user, date)
+        transfers = AssetTransfer.objects.all().select_related('asset', 'transferred_from_user', 'transferred_to_user', 'transferred_from_department', 'transferred_to_department', 'transferred_from_location', 'transferred_to_location')
+        data = []
+        for t in transfers:
+            data.append({
+                'transfer_no': t.transfer_no or '',
+                'asset_tag': t.asset.asset_tag if t.asset else '',
+                'asset_name': getattr(t.asset, 'name', ''),
+                'from_info': f"{getattr(t.transferred_from_user, 'username', '')} / {getattr(t.transferred_from_department, 'name', '')} / {getattr(t.transferred_from_location, 'name', '')}",
+                'to_info': f"{getattr(t.transferred_to_user, 'username', '')} / {getattr(t.transferred_to_department, 'name', '')} / {getattr(t.transferred_to_location, 'name', '')}",
+                'transfer_date': t.transfer_date.strftime('%Y-%m-%d %H:%M'),
+                'status': t.get_status_display(),
+                'transfer_reason': t.transfer_reason,
+                'notes': t.notes,
+            })
+        html_string = render_to_string('asset_transfer_export.html', {
+            'transfers': data,
+            'generated_on': timezone.now().strftime('%Y-%m-%d %H:%M'),
+            'organization': getattr(request.user, 'organization', ''),
+        })
+        if WeasyprintHTML is None:
+            return Response(
+                {'error': 'PDF generation is not available. WeasyPrint requires GTK3 libraries to be installed on the system.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        pdf_file = WeasyprintHTML(string=html_string).write_pdf()
+        response = HttpResponse(pdf_file, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="asset_transfers.pdf"'
+        return response

@@ -175,9 +175,6 @@ export default function AssetDetailScreen() {
             ) : null}
           </View>
 
-          {a.custom_asset_tag ? (
-            <InfoRow label="Custom Tag" value={a.custom_asset_tag} />
-          ) : null}
           {a.asset_code ? <InfoRow label="Asset Code" value={a.asset_code} /> : null}
           {a.erp_asset_number ? (
             <InfoRow label="ERP Number" value={a.erp_asset_number} />

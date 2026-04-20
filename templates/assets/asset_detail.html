@@ -46,7 +46,6 @@
                 <div class="detail-grid">
                     <div class="detail-item"><span class="detail-label">Asset Name</span><span class="detail-value">{{ asset.name }}</span></div>
                     <div class="detail-item"><span class="detail-label">Asset ID (System)</span><span class="detail-value">{{ asset.asset_tag }}</span></div>
-                    <div class="detail-item"><span class="detail-label">Asset Tag (Manual)</span><span class="detail-value">{{ asset.custom_asset_tag|default:"-" }}</span></div>
                     <div class="detail-item"><span class="detail-label">Asset Code</span><span class="detail-value">{{ asset.asset_code|default:"-" }}</span></div>
                     <div class="detail-item"><span class="detail-label">ERP Asset Number</span><span class="detail-value">{{ asset.erp_asset_number|default:"-" }}</span></div>
                     <div class="detail-item"><span class="detail-label">Serial Number</span><span class="detail-value">{{ asset.serial_number|default:"-" }}</span></div>
@@ -213,9 +212,14 @@
                     <div id="label-container" style="background: white; width: 100%; max-width: 200px; height: 120px; margin: 0 auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <img src="{{ asset.label_image.url }}" alt="Label" style="width: 100%; height: 100%; object-fit: contain;">
                     </div>
-                    <a href="{% url 'download-asset-label' asset.pk %}" class="btn btn-primary" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
-                        <i data-lucide="printer" style="width: 14px;"></i> Print Label
-                    </a>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                        <a href="{% url 'download-asset-label' asset.pk %}" class="btn" style="flex: 1; font-size: 0.85rem; padding: 0.5rem;">
+                            <i data-lucide="download" style="width: 14px;"></i> Download
+                        </a>
+                        <a href="{% url 'print-asset-label' asset.pk %}" target="_blank" class="btn btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.5rem;">
+                            <i data-lucide="printer" style="width: 14px;"></i> Print
+                        </a>
+                    </div>
                     {% else %}
                     <button onclick="generateAssetCodes('{{ asset.pk }}')" class="btn btn-primary" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
                         <i data-lucide="plus" style="width: 14px;"></i> Generate Codes

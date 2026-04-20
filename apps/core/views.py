@@ -26,6 +26,15 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if self.request.user.is_authenticated and hasattr(self.request.user, 'organization'):
             org = self.request.user.organization
             
+            if not org:
+                # User has no organization assigned
+                context['total_assets'] = 0
+                context['total_value'] = Decimal('0')
+                context['total_nbv'] = Decimal('0')
+                context['total_depreciation'] = Decimal('0')
+                context['no_organization'] = True
+                return context
+
             # Try to get cached dashboard data (cache for 5 minutes)
             cache_key = f'dashboard_data_{org.id}'
             cached_data = cache.get(cache_key)

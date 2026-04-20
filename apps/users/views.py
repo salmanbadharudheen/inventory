@@ -1,9 +1,9 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Count, Q
-from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
-from django.views.generic import CreateView, ListView, TemplateView, DetailView
-from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy, reverse
+from django.views.generic import CreateView, ListView, TemplateView, DetailView, UpdateView
+from django.http import Http404, JsonResponse
 from django.contrib import messages
 from .models import User
 from .forms import AdminCreationForm, UserCreationForm
@@ -217,3 +217,59 @@ class AdminUserDetailView(AdminRequiredMixin, DetailView):
             assigned_to=user_obj
         ).select_related('category', 'organization')[:10]
         return context
+
+
+class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        messages.error(self.request, "Only superusers can access this page.")
+        return super().handle_no_permission()
+
+
+class OrgAssetTagSettingsView(SuperuserRequiredMixin, DetailView):
+    """Organization asset tag configuration – superuser only."""
+    model = Organization
+    template_name = 'users/org_tag_settings.html'
+    context_object_name = 'org'
+
+    def post(self, request, *args, **kwargs):
+        org = self.get_object()
+        org.tag_prefix = request.POST.get('tag_prefix', '').strip()[:20]
+        org.tag_separator = request.POST.get('tag_separator', '-').strip()[:5] or '-'
+        org.tag_include_company = request.POST.get('tag_include_company') == 'on'
+        org.tag_include_category = request.POST.get('tag_include_category') == 'on'
+        org.tag_include_year = request.POST.get('tag_include_year') == 'on'
+        seq = request.POST.get('tag_sequence_format', 'HEX4')
+        if seq in dict(Organization.SequenceFormat.choices):
+            org.tag_sequence_format = seq
+        lbl = request.POST.get('label_template', 'CLASSIC')
+        if lbl in dict(Organization.LabelTemplate.choices):
+            org.label_template = lbl
+        org.save()
+        messages.success(request, f"Asset tag settings for '{org.name}' saved successfully.")
+        return redirect(reverse('org-tag-settings', kwargs={'pk': org.pk}))
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['sequence_choices'] = Organization.SequenceFormat.choices
+        ctx['label_choices'] = Organization.LabelTemplate.choices
+        ctx['tag_preview'] = self.get_object().get_tag_preview()
+        return ctx
+
+
+class OrgTagPreviewAPI(SuperuserRequiredMixin, DetailView):
+    """Return a live tag preview as JSON – called via fetch()."""
+    model = Organization
+
+    def get(self, request, *args, **kwargs):
+        org = self.get_object()
+        # Temporarily apply params from query string for preview
+        org.tag_prefix = request.GET.get('tag_prefix', org.tag_prefix or '')
+        org.tag_separator = request.GET.get('tag_separator', org.tag_separator or '-') or '-'
+        org.tag_include_company = request.GET.get('tag_include_company', '1') == '1'
+        org.tag_include_category = request.GET.get('tag_include_category', '1') == '1'
+        org.tag_include_year = request.GET.get('tag_include_year', '1') == '1'
+        org.tag_sequence_format = request.GET.get('tag_sequence_format', org.tag_sequence_format or 'HEX4')
+        return JsonResponse({'preview': org.get_tag_preview()})

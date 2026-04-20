@@ -1,344 +1,183 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends 'base.html' %}
 
-{% block title %}Approve Disposal Request{% endblock %}
+{% block page_title %}Admin Approval - Disposal{% endblock %}
 
 {% block content %}
-<style>
-    .approval-header {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-    }
-    
-    .approval-header h1 {
-        margin: 0;
-        font-weight: 700;
-        font-size: 2rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .approval-container {
-        max-width: 900px;
-        margin: 0 auto;
-    }
-    
-    .asset-summary {
-        background: linear-gradient(135deg, #f0fdf4 0%, #f0fdf4 100%);
-        border: 2px solid #10b981;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    
-    .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-    }
-    
-    .summary-item label {
-        display: block;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #047857;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.25rem;
-    }
-    
-    .summary-item strong {
-        display: block;
-        font-size: 1rem;
-        color: #065f46;
-    }
-    
-    .approval-form {
-        background: white;
-        border-radius: 8px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.07);
-        border: 1px solid #e5e7eb;
-    }
-    
-    .form-section {
-        margin-bottom: 2rem;
-    }
-    
-    .form-section-title {
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #f3f4f6;
-    }
-    
-    .form-group-wrapper {
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-group-wrapper label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        color: #1f2937;
-        font-size: 0.95rem;
-    }
-    
-    .form-group-wrapper input,
-    .form-group-wrapper select,
-    .form-group-wrapper textarea {
-        width: 100%;
-        padding: 0.75rem;
-        border: 2px solid #e5e7eb;
-        border-radius: 6px;
-        font-size: 0.95rem;
-        font-family: inherit;
-        transition: all 0.2s;
-    }
-    
-    .form-group-wrapper input:focus,
-    .form-group-wrapper select:focus,
-    .form-group-wrapper textarea:focus {
-        outline: none;
-        border-color: #059669;
-        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
-    }
-    
-    .form-group-wrapper textarea {
-        resize: vertical;
-        min-height: 120px;
-    }
-    
-    .form-help-text {
-        font-size: 0.85rem;
-        color: #6b7280;
-        margin-top: 0.5rem;
-    }
-    
-    .form-error {
-        color: #dc2626;
-        font-size: 0.875rem;
-        margin-top: 0.5rem;
-    }
-    
-    .admin-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: #dbeafe;
-        color: #0c4a6e;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .decision-buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .decision-option {
-        position: relative;
-    }
-    
-    .decision-option input[type="radio"] {
-        display: none;
-    }
-    
-    .decision-label {
-        display: block;
-        padding: 1rem;
-        border: 2px solid #e5e7eb;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: center;
-        font-weight: 600;
-    }
-    
-    .decision-option input[type="radio"]:checked + .decision-label {
-        border-color: #059669;
-        background: #f0fdf4;
-        color: #059669;
-    }
-    
-    .decision-option.reject input[type="radio"]:checked + .decision-label {
-        border-color: #dc2626;
-        background: #fef2f2;
-        color: #dc2626;
-    }
-    
-    .button-group {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-    
-    .btn-approve {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        color: white;
-        padding: 1rem 2rem;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex: 1;
-    }
-    
-    .btn-approve:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px rgba(5, 150, 105, 0.3);
-    }
-    
-    .btn-cancel {
-        background: white;
-        color: #6b7280;
-        padding: 1rem 2rem;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        text-decoration: none;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .btn-cancel:hover {
-        background: #f9fafb;
-        border-color: #9ca3af;
-    }
-</style>
+<div class="approve-container">
+    <!-- Header -->
+    <div class="approve-header">
+        <a href="{% url 'disposal-detail' form.instance.pk %}" class="btn-back-link">
+            <i data-lucide="arrow-left"></i> Back to Detail
+        </a>
+        <h1>Admin Approval</h1>
+        <span class="step-badge step-green"><i data-lucide="shield-check"></i> Step 2 of 2</span>
+    </div>
 
-<div class="approval-header">
-    <h1><i class="fas fa-clipboard-check"></i> Approve Disposal Request</h1>
-    <p style="opacity: 0.9; margin-top: 0.5rem; margin-bottom: 0;">Review and make a final decision on this disposal request</p>
-</div>
-
-<div class="approval-container">
     <!-- Asset Summary -->
-    <div class="asset-summary">
+    <div class="summary-card">
         <div class="summary-grid">
             <div class="summary-item">
-                <label>Asset Tag</label>
-                <strong style="font-family: 'Courier New', monospace;">{{ form.instance.asset.asset_tag }}</strong>
+                <span class="s-label">Asset Tag</span>
+                <span class="s-value mono">{{ form.instance.asset.asset_tag }}</span>
             </div>
             <div class="summary-item">
-                <label>Asset Name</label>
-                <strong>{{ form.instance.asset.name }}</strong>
+                <span class="s-label">Asset Name</span>
+                <span class="s-value">{{ form.instance.asset.name }}</span>
             </div>
             <div class="summary-item">
-                <label>Requested By</label>
-                <strong>{{ form.instance.requested_by.get_full_name|default:form.instance.requested_by.username }}</strong>
+                <span class="s-label">Requested By</span>
+                <span class="s-value">{{ form.instance.requested_by.get_full_name|default:form.instance.requested_by.username }}</span>
             </div>
             <div class="summary-item">
-                <label>Disposal Method</label>
-                <strong>{{ form.instance.get_disposal_method_display }}</strong>
+                <span class="s-label">Disposal Method</span>
+                <span class="s-value">{{ form.instance.get_disposal_method_display }}</span>
             </div>
             <div class="summary-item">
-                <label>Request Date</label>
-                <strong>{{ form.instance.created_at|date:"M d, Y H:i" }}</strong>
+                <span class="s-label">Requested On</span>
+                <span class="s-value">{{ form.instance.created_at|date:"d M Y H:i" }}</span>
             </div>
             <div class="summary-item">
-                <label>Reason</label>
-                <strong style="white-space: pre-wrap;">{{ form.instance.reason|default:"Not provided" }}</strong>
+                <span class="s-label">Reason</span>
+                <span class="s-value">{{ form.instance.reason|default:"Not provided" }}</span>
             </div>
         </div>
     </div>
 
-    <!-- Approval Form -->
-    <div class="approval-form">
-        <div class="admin-badge">
-            <i class="fas fa-shield-alt"></i> Admin Approval Required
+    <!-- Manager Approval Info -->
+    {% if form.instance.manager_approved_by %}
+    <div class="manager-info">
+        <i data-lucide="check-circle"></i>
+        <div>
+            <strong>Manager Approved</strong>
+            <span>by {{ form.instance.manager_approved_by.get_full_name|default:form.instance.manager_approved_by.username }} on {{ form.instance.manager_approved_at|date:"d M Y H:i" }}</span>
         </div>
+    </div>
+    {% endif %}
 
+    <!-- Decision Form -->
+    <div class="form-card">
         <form method="post">
             {% csrf_token %}
-            
+
             {% if form.non_field_errors %}
-            <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem; color: #991b1b;">
-                <strong>Error:</strong>
-                {% for error in form.non_field_errors %}
-                <p>{{ error }}</p>
-                {% endfor %}
+            <div class="form-alert">
+                <i data-lucide="alert-circle"></i>
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
             </div>
             {% endif %}
 
-            <!-- Decision Section -->
-            <div class="form-section">
-                <h3 class="form-section-title"><i class="fas fa-gavel"></i> Your Decision</h3>
-                
-                <div class="decision-buttons">
-                    <div class="decision-option">
-                        <input type="radio" id="approve" name="status" value="APPROVED" required>
-                        <label for="approve" class="decision-label">
-                            <i class="fas fa-check-circle" style="font-size: 1.5rem;"></i>
-                            <span>Approve Request</span>
-                        </label>
-                    </div>
-                    <div class="decision-option reject">
-                        <input type="radio" id="reject" name="status" value="REJECTED" required>
-                        <label for="reject" class="decision-label">
-                            <i class="fas fa-times-circle" style="font-size: 1.5rem;"></i>
-                            <span>Reject Request</span>
-                        </label>
-                    </div>
+            <div class="section">
+                <h2 class="section-title">Your Decision</h2>
+                <div class="decision-grid">
+                    <label class="decision-option approve-opt">
+                        <input type="radio" name="status" value="APPROVED" required>
+                        <div class="decision-box">
+                            <i data-lucide="check-circle"></i>
+                            <span>Approve</span>
+                        </div>
+                    </label>
+                    <label class="decision-option reject-opt">
+                        <input type="radio" name="status" value="REJECTED" required>
+                        <div class="decision-box">
+                            <i data-lucide="x-circle"></i>
+                            <span>Reject</span>
+                        </div>
+                    </label>
                 </div>
-                
-                {% if form.status.errors %}
-                <div class="form-error">{{ form.status.errors.0 }}</div>
-                {% endif %}
+                {% if form.status.errors %}<span class="field-error">{{ form.status.errors.0 }}</span>{% endif %}
             </div>
 
-            <!-- Rejection Reason -->
-            <div class="form-section">
-                <h3 class="form-section-title"><i class="fas fa-comment-dots"></i> Comments</h3>
-                
-                <div class="form-group-wrapper">
+            <div class="section">
+                <h2 class="section-title">Comments</h2>
+
+                <div class="field-group">
                     <label for="{{ form.rejection_reason.id_for_label }}">Rejection Reason</label>
                     {{ form.rejection_reason }}
-                    <p class="form-help-text">Required if rejecting. Explain why this request cannot be approved.</p>
-                    {% if form.rejection_reason.errors %}
-                    <div class="form-error">{{ form.rejection_reason.errors.0 }}</div>
-                    {% endif %}
+                    {% if form.rejection_reason.errors %}<span class="field-error">{{ form.rejection_reason.errors.0 }}</span>{% endif %}
+                    <span class="field-hint">Required if rejecting</span>
                 </div>
 
-                <div class="form-group-wrapper">
+                <div class="field-group">
                     <label for="{{ form.notes.id_for_label }}">Approval Notes</label>
                     {{ form.notes }}
-                    <p class="form-help-text">Optional additional comments or instructions for the requester</p>
-                    {% if form.notes.errors %}
-                    <div class="form-error">{{ form.notes.errors.0 }}</div>
-                    {% endif %}
+                    {% if form.notes.errors %}<span class="field-error">{{ form.notes.errors.0 }}</span>{% endif %}
+                    <span class="field-hint">Optional comments or instructions for the requester</span>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="button-group">
-                <button type="submit" class="btn-approve">
-                    <i class="fas fa-check"></i> Submit Decision
+            <div class="form-actions">
+                <button type="submit" class="btn btn-green">
+                    <i data-lucide="check"></i> Submit Decision
                 </button>
-                <a href="{% url 'disposal-detail' form.instance.pk %}" class="btn-cancel">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
+                <a href="{% url 'disposal-detail' form.instance.pk %}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+
+<style>
+.approve-container { max-width:780px; margin:18px auto; padding:16px; }
+
+/* Header */
+.approve-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+.btn-back-link { color:#4f46e5; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:500; }
+.btn-back-link:hover { text-decoration:underline; }
+.btn-back-link i, .btn-back-link svg { width:16px; height:16px; }
+.approve-header h1 { font-size:1.3rem; font-weight:700; color:#111827; margin:0; flex:1; }
+.step-badge { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:999px; font-size:0.78rem; font-weight:600; }
+.step-badge i, .step-badge svg { width:14px; height:14px; }
+.step-green { background:#d1fae5; color:#065f46; }
+
+/* Manager Info */
+.manager-info { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; margin-bottom:18px; }
+.manager-info i, .manager-info svg { width:18px; height:18px; color:#16a34a; flex-shrink:0; }
+.manager-info strong { display:block; font-size:0.85rem; color:#166534; }
+.manager-info span { font-size:0.8rem; color:#4b5563; }
+
+/* Summary */
+.summary-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:18px; margin-bottom:18px; }
+.summary-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; }
+.summary-item { display:flex; flex-direction:column; gap:2px; }
+.s-label { font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; }
+.s-value { font-size:0.875rem; color:#1e293b; font-weight:500; }
+.mono { font-family:'SFMono-Regular',Consolas,monospace; font-weight:600; }
+
+/* Form Card */
+.form-card { background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:24px; }
+
+.form-alert { display:flex; align-items:flex-start; gap:8px; padding:12px 14px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; color:#991b1b; margin-bottom:18px; font-size:0.875rem; }
+.form-alert i, .form-alert svg { width:16px; height:16px; flex-shrink:0; margin-top:2px; }
+.form-alert p { margin:0; }
+
+.section { margin-bottom:24px; }
+.section-title { font-size:0.85rem; font-weight:600; color:#374151; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid #f1f3f5; }
+
+/* Decision */
+.decision-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.decision-option input[type="radio"] { display:none; }
+.decision-box { display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px; border:2px solid #e5e7eb; border-radius:8px; cursor:pointer; transition:all 0.15s; font-weight:600; font-size:0.85rem; color:#6b7280; }
+.decision-box i, .decision-box svg { width:22px; height:22px; }
+.approve-opt input:checked ~ .decision-box { border-color:#059669; background:#f0fdf4; color:#059669; }
+.reject-opt input:checked ~ .decision-box { border-color:#ef4444; background:#fef2f2; color:#ef4444; }
+
+/* Fields */
+.field-group { margin-bottom:16px; }
+.field-group label { display:block; font-size:0.8rem; font-weight:600; color:#374151; margin-bottom:6px; }
+.field-group input, .field-group select, .field-group textarea { width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.875rem; font-family:inherit; transition:border-color 0.15s; }
+.field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline:none; border-color:#059669; box-shadow:0 0 0 3px rgba(5,150,105,0.08); }
+.field-group textarea { resize:vertical; min-height:90px; }
+.field-hint { display:block; font-size:0.75rem; color:#9ca3af; margin-top:4px; }
+.field-error { display:block; font-size:0.75rem; color:#ef4444; margin-top:4px; }
+
+/* Actions */
+.form-actions { display:flex; gap:10px; padding-top:18px; border-top:1px solid #f1f3f5; }
+.btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:6px; font-size:0.875rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; transition:all 0.15s; }
+.btn i, .btn svg { width:16px; height:16px; }
+.btn-green { background:#059669; color:#fff; }
+.btn-green:hover { background:#047857; color:#fff; }
+.btn-secondary { background:#fff; color:#374151; border:1px solid #d1d5db; }
+.btn-secondary:hover { background:#f9fafb; }
+</style>
+
+<script>document.addEventListener('DOMContentLoaded', function() { lucide.createIcons(); });</script>
 {% endblock %}

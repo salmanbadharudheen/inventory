@@ -16,6 +16,7 @@
             <tr>
                 <th style="padding:1rem;">Name</th>
                 <th style="padding:1rem;">Code</th>
+                <th style="padding:1rem;">Total Assets</th>
                 <th style="padding:1rem;">Useful Life (Years)</th>
                 <th style="padding:1rem;">Depreciation Method</th>
                 <th style="padding:1rem;">Default Salvage Value</th>
@@ -28,6 +29,7 @@
             <tr style="border-bottom:1px solid var(--border-color);">
                 <td style="padding:1rem; font-weight: 500;">{{ category.name }}</td>
                 <td style="padding:1rem;">{{ category.code }}</td>
+                <td style="padding:1rem;"><span style="background:#EFF6FF; color:#2563EB; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.85rem; font-weight:600;">{{ category.asset_count }}</span></td>
                 <td style="padding:1rem;">{{ category.useful_life_years }}</td>
                 <td style="padding:1rem;">{{ category.get_depreciation_method_display }}</td>
                 <td style="padding:1rem;">{{ category.default_salvage_value }}</td>
@@ -40,7 +42,7 @@
 
             {% empty %}
             <tr>
-                <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
                     No categories found.
                 </td>
             </tr>

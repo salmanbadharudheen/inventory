@@ -640,6 +640,10 @@
                     <span>Asset Requests</span>
                 </a>
                 {% endif %}
+                <a href="{% url 'label-print-center' %}" class="nav-item {% if 'labels' in request.path %}active{% endif %}" data-label="Print Labels">
+                    <i data-lucide="printer"></i>
+                    <span>Print Labels</span>
+                </a>
             </div>
 
             <!-- Asset Setup Section -->

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Asset Labels</title>
+    <style>
+        /* ── Reset ─────────────────────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f6; color: #1e293b; }
+
+        /* ── Toolbar (hidden on print) ─────────────────────── */
+        .toolbar {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: #fff; border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+        }
+        .toolbar label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+        .toolbar select {
+            padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1;
+            border-radius: 6px; font-size: 0.85rem; background: #fff;
+        }
+        .toolbar .btn {
+            padding: 0.5rem 1.2rem; border: none; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 0.4rem;
+        }
+        .btn-print { background: #2563eb; color: #fff; }
+        .btn-print:hover { background: #1d4ed8; }
+        .btn-back { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1 !important; }
+        .btn-back:hover { background: #e2e8f0; }
+        .toolbar .count { margin-left: auto; font-size: 0.85rem; color: #64748b; }
+        .toolbar .size-hint { font-size: 0.75rem; color: #94a3b8; }
+
+        /* ── Label Grid ────────────────────────────────────── */
+        .label-grid {
+            display: flex; flex-wrap: wrap; gap: 1.25rem;
+            padding: 1.5rem; justify-content: center;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           STICKER:  2 in × 1 in
+           Screen preview = 384 × 192 px  (2× for clarity)
+        ───────────────────────────────────────────────────── */
+        :root {
+            --sticker-w: 384px;
+            --sticker-h: 192px;
+        }
+
+        /* ── Shared label base ─────────────────────────────── */
+        .label {
+            width: var(--sticker-w); height: var(--sticker-h);
+            background: #fff; border: 1.5px solid #d4d4d8;
+            border-radius: 4px; overflow: hidden;
+            display: flex; flex-direction: column;
+            page-break-inside: avoid; break-inside: avoid;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .label img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+        }
+        .label .lbl-qr img {
+            image-rendering: pixelated;  /* QR must stay pixel-sharp */
+        }
+        .label .lbl-right img,
+        .label .lbl-barcode-img img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;  /* Barcode lines stay sharp */
+        }
+
+        /* ═══════════════════════════════════════════════════
+           DESIGN 1 — CLASSIC
+           Accent bar top · Org left · QR left · Barcode+Tag right
+        ═══════════════════════════════════════════════════ */
+        .label-classic .lbl-accent {
+            height: 4px; background: #2563eb; flex-shrink: 0;
+        }
+        .label-classic .lbl-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 2px 10px;
+            font-size: 0.6rem; color: #374151; flex-shrink: 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .label-classic .lbl-header .org-name {
+            font-weight: 700; letter-spacing: 0.02em;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .label-classic .lbl-header .tag-num {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-weight: 600; font-size: 0.58rem; color: #6b7280; flex-shrink: 0;
+        }
+        .label-classic .lbl-body {
+            flex: 1; display: flex; align-items: center;
+            padding: 6px 12px; gap: 14px;
+        }
+        .label-classic .lbl-qr { flex: 0 0 auto; }
+        .label-classic .lbl-qr img {
+            width: 120px; height: 120px;
+            border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
+            background: #fff;
+        }
+        .label-classic .lbl-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+        .label-classic .lbl-right img { width: 100%; height: 70px; object-fit: contain; }
+        .label-classic .lbl-right .lbl-tag {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.72rem; font-weight: 700; color: #111827; letter-spacing: 0.06em;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           DESIGN 2 — COMPACT
+           Minimal · QR left · Tag + Org right · Divider line
+        ═══════════════════════════════════════════════════ */
+        .label-compact {
+            flex-direction: row; align-items: center;
+            padding: 8px 14px; gap: 0;
+        }
+        .label-compact .lbl-qr { flex: 0 0 auto; }
+        .label-compact .lbl-qr img {
+            width: 130px; height: 130px; padding: 2px;
+        }
+        .label-compact .lbl-divider {
+            width: 1.5px; height: 60%; background: #d4d4d8;
+            margin: 0 14px; flex-shrink: 0; border-radius: 1px;
+        }
+        .label-compact .lbl-text {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .label-compact .lbl-tag {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.82rem; font-weight: 700; color: #111827;
+            letter-spacing: 0.05em; line-height: 1;
+        }
+        .label-compact .lbl-company {
+            font-size: 0.58rem; color: #6b7280; font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           DESIGN 3 — STANDARD
+           Dark header bar · QR left · Barcode+Tag right
+        ═══════════════════════════════════════════════════ */
+        .label-detailed .lbl-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 3px 10px; background: #111827; color: #fff; flex-shrink: 0;
+        }
+        .label-detailed .lbl-header .company {
+            font-weight: 700; font-size: 0.6rem; letter-spacing: 0.03em;
+        }
+        .label-detailed .lbl-header .tag {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.54rem; opacity: 0.8;
+        }
+        .label-detailed .lbl-body {
+            flex: 1; display: flex; align-items: center;
+            padding: 6px 12px; gap: 14px;
+        }
+        .label-detailed .lbl-qr { flex: 0 0 auto; }
+        .label-detailed .lbl-qr img {
+            width: 115px; height: 115px;
+            border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
+            background: #fff;
+        }
+        .label-detailed .lbl-right {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+        }
+        .label-detailed .lbl-right img { width: 100%; height: 65px; object-fit: contain; }
+        .label-detailed .lbl-right .lbl-tag {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.7rem; font-weight: 700; color: #111827; letter-spacing: 0.06em;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           DESIGN 4 — BARCODE ONLY
+           Org top · Large barcode center · Tag bottom
+        ═══════════════════════════════════════════════════ */
+        .label-barcode-only {
+            align-items: center; justify-content: center; text-align: center;
+            padding: 6px 12px; gap: 2px;
+        }
+        .label-barcode-only .lbl-company {
+            font-size: 0.56rem; color: #6b7280; font-weight: 600;
+            letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
+        }
+        .label-barcode-only .lbl-barcode-img { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .label-barcode-only .lbl-barcode-img img {
+            width: 92%; height: 100px; object-fit: contain;
+        }
+        .label-barcode-only .lbl-tag {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem; font-weight: 700; color: #111827;
+            letter-spacing: 0.08em; flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           PRINT — exact 2 in × 1 in sticker sheet
+        ═══════════════════════════════════════════════════ */
+        @media print {
+            @page { margin: 3mm; }
+            .toolbar { display: none !important; }
+            .batch-bar { display: none !important; }
+            body { background: #fff; padding: 0; margin: 0; }
+            .label-grid {
+                display: flex; flex-wrap: wrap; gap: 2mm;
+                padding: 0; justify-content: flex-start;
+            }
+            .label {
+                width: 2in !important; height: 1in !important;
+                border: 0.3pt solid #aaa; border-radius: 0.5mm;
+                box-shadow: none; overflow: hidden;
+            }
+            /* ── Classic print ── */
+            .label-classic .lbl-accent { height: 2.5pt; }
+            .label-classic .lbl-header { padding: 1px 5px; font-size: 4.5pt; }
+            .label-classic .lbl-header .tag-num { font-size: 4pt; }
+            .label-classic .lbl-qr img { width: 0.68in; height: 0.68in; padding: 1px; }
+            .label-classic .lbl-right img { height: 0.38in; }
+            .label-classic .lbl-right .lbl-tag { font-size: 5pt; }
+            /* ── Compact print ── */
+            .label-compact .lbl-qr img { width: 0.72in; height: 0.72in; }
+            .label-compact .lbl-tag { font-size: 6.5pt; }
+            .label-compact .lbl-company { font-size: 4pt; }
+            /* ── Standard print ── */
+            .label-detailed .lbl-header { padding: 1.5px 5px; }
+            .label-detailed .lbl-header .company { font-size: 4.5pt; }
+            .label-detailed .lbl-header .tag { font-size: 3.5pt; }
+            .label-detailed .lbl-qr img { width: 0.64in; height: 0.64in; padding: 1px; }
+            .label-detailed .lbl-right img { height: 0.36in; }
+            .label-detailed .lbl-right .lbl-tag { font-size: 5pt; }
+            /* ── Barcode Only print ── */
+            .label-barcode-only .lbl-company { font-size: 4pt; }
+            .label-barcode-only .lbl-barcode-img img { height: 0.56in; width: 92%; }
+            .label-barcode-only .lbl-tag { font-size: 6pt; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Toolbar ───────────────────────────────────────── -->
+<div class="toolbar">
+    <button class="btn btn-back" onclick="window.history.back();">← Back</button>
+    <label for="design-picker">Design:</label>
+    <select id="design-picker" onchange="switchDesign(this.value)">
+        {% for value, label in designs %}
+        <option value="{{ value }}" {% if value == design %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <span class="count">{{ assets|length }} label{{ assets|length|pluralize }}</span>
+    <span class="size-hint">Sticker: 2″ × 1″</span>
+    <button class="btn btn-print" onclick="window.print();">🖨 Print</button>
+</div>
+
+{% if total_batches and total_batches > 1 %}
+<!-- ── Batch Info Bar ──────────────────────────────────── -->
+<div class="batch-bar" style="
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    padding:10px 20px; background:#fffbeb; border:1px solid #fbbf24; border-radius:8px;
+    margin:8px 15px; font-size:0.85rem; gap:8px;
+">
+    <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.75rem;">
+            Batch {{ batch }} of {{ total_batches }}
+        </span>
+        <span style="color:#92400e;">
+            Showing <strong>{{ batch_start }}–{{ batch_end }}</strong> of <strong>{{ total_count }}</strong> labels
+        </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+        {% if remaining > 0 %}
+        <span style="color:#b45309;font-weight:500;">{{ remaining }} remaining</span>
+        {% endif %}
+        {% if batch > 1 %}
+        <a href="?{{ request.GET.urlencode }}&batch={{ batch|add:'-1' }}" 
+           onclick="this.href=updateBatchParam({{ batch|add:'-1' }}); return true;"
+           style="padding:5px 12px;background:#fff;border:1px solid #d97706;border-radius:6px;color:#d97706;text-decoration:none;font-weight:600;font-size:0.8rem;">
+            ← Previous
+        </a>
+        {% endif %}
+        {% if batch < total_batches %}
+        <a href="?{{ request.GET.urlencode }}&batch={{ batch|add:'1' }}"
+           onclick="this.href=updateBatchParam({{ batch|add:'1' }}); return true;"
+           style="padding:5px 12px;background:#d97706;border:none;border-radius:6px;color:#fff;text-decoration:none;font-weight:600;font-size:0.8rem;">
+            Next Batch →
+        </a>
+        {% endif %}
+    </div>
+</div>
+<script>
+function updateBatchParam(batchNum) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('batch', batchNum);
+    return url.toString();
+}
+</script>
+{% endif %}
+
+<!-- ── Label Grid ────────────────────────────────────── -->
+<div class="label-grid" id="label-grid">
+    {% for asset in assets %}
+
+    {# ── CLASSIC ─────────────────────────────────── #}
+    <div class="label label-classic" data-design="CLASSIC" {% if design != 'CLASSIC' %}style="display:none"{% endif %}>
+        <div class="lbl-accent"></div>
+        <div class="lbl-header">
+            <span class="org-name">{{ org.name }}</span>
+            <span class="tag-num">{{ asset.asset_tag }}</span>
+        </div>
+        <div class="lbl-body">
+            <div class="lbl-qr">
+                {% if asset.qr_code_image %}
+                <img src="{{ asset.qr_code_image.url }}" alt="QR">
+                {% endif %}
+            </div>
+            <div class="lbl-right">
+                {% if asset.barcode_image %}
+                <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+                {% endif %}
+                <div class="lbl-tag">{{ asset.asset_tag }}</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── COMPACT ─────────────────────────────────── #}
+    <div class="label label-compact" data-design="COMPACT" {% if design != 'COMPACT' %}style="display:none"{% endif %}>
+        <div class="lbl-qr">
+            {% if asset.qr_code_image %}
+            <img src="{{ asset.qr_code_image.url }}" alt="QR">
+            {% endif %}
+        </div>
+        <div class="lbl-divider"></div>
+        <div class="lbl-text">
+            <div class="lbl-tag">{{ asset.asset_tag }}</div>
+            <div class="lbl-company">{{ org.name }}</div>
+        </div>
+    </div>
+
+    {# ── STANDARD ────────────────────────────────── #}
+    <div class="label label-detailed" data-design="DETAILED" {% if design != 'DETAILED' %}style="display:none"{% endif %}>
+        <div class="lbl-header">
+            <span class="company">{{ org.name }}</span>
+            <span class="tag">{{ asset.asset_tag }}</span>
+        </div>
+        <div class="lbl-body">
+            <div class="lbl-qr">
+                {% if asset.qr_code_image %}
+                <img src="{{ asset.qr_code_image.url }}" alt="QR">
+                {% endif %}
+            </div>
+            <div class="lbl-right">
+                {% if asset.barcode_image %}
+                <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+                {% endif %}
+                <div class="lbl-tag">{{ asset.asset_tag }}</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── BARCODE ONLY ────────────────────────────── #}
+    <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
+        <div class="lbl-company">{{ org.name }}</div>
+        <div class="lbl-barcode-img">
+            {% if asset.barcode_image %}
+            <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+            {% endif %}
+        </div>
+        <div class="lbl-tag">{{ asset.asset_tag }}</div>
+    </div>
+
+    {% endfor %}
+</div>
+
+<script>
+function switchDesign(value) {
+    document.querySelectorAll('.label').forEach(function(el) {
+        el.style.display = el.dataset.design === value ? '' : 'none';
+    });
+    // Update URL without reload
+    var url = new URL(window.location);
+    url.searchParams.set('design', value);
+    window.history.replaceState({}, '', url);
+}
+</script>
+</body>
+</html>

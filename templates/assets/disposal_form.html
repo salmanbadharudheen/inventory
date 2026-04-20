@@ -1,275 +1,88 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends 'base.html' %}
 
-{% block title %}Create Asset Disposal Request{% endblock %}
+{% block page_title %}New Disposal Request{% endblock %}
 
 {% block content %}
-<style>
-    .disposal-form-wrapper {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    .disposal-form-header {
-        color: white;
-        text-align: center;
-    }
-    
-    .disposal-form-header h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-    
-    .disposal-form-header p {
-        opacity: 0.9;
-        margin: 0;
-    }
-    
-    .form-card {
-        background: white;
-        border-radius: 8px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.07);
-        border: 1px solid #e5e7eb;
-    }
-    
-    .form-group-wrapper {
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-group-wrapper label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        color: #1f2937;
-        font-size: 0.95rem;
-    }
-    
-    .form-group-wrapper input,
-    .form-group-wrapper select,
-    .form-group-wrapper textarea {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 0.95rem;
-        font-family: inherit;
-        transition: all 0.2s;
-    }
-    
-    .form-group-wrapper input:focus,
-    .form-group-wrapper select:focus,
-    .form-group-wrapper textarea:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .form-group-wrapper textarea {
-        resize: vertical;
-        min-height: 100px;
-    }
-    
-    .form-help-text {
-        font-size: 0.85rem;
-        color: #6b7280;
-        margin-top: 0.5rem;
-    }
-    
-    .form-error {
-        color: #dc2626;
-        font-size: 0.875rem;
-        margin-top: 0.5rem;
-    }
-    
-    .form-row-double {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-    }
-    
-    .info-card {
-        background: #fffbeb;
-        border: 1px solid #fcd34d;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-top: 2rem;
-    }
-    
-    .info-card h6 {
-        color: #92400e;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .info-card ul {
-        margin: 0;
-        padding-left: 1.5rem;
-        color: #78350f;
-    }
-    
-    .info-card li {
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-    }
-    
-    .info-card strong {
-        color: #92400e;
-    }
-    
-    .button-group {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-    
-    .btn-submit {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.875rem 2rem;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .btn-submit:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .btn-cancel {
-        background: white;
-        color: #6b7280;
-        padding: 0.875rem 2rem;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        text-decoration: none;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .btn-cancel:hover {
-        background: #f9fafb;
-        border-color: #9ca3af;
-        color: #374151;
-    }
-    
-    @media (max-width: 768px) {
-        .form-row-double {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
-<div class="disposal-form-wrapper">
-    <div class="container">
-        <div class="disposal-form-header">
-            <h1><i class="fas fa-trash-alt"></i> Request Asset Disposal</h1>
-            <p>Submit a disposal request for assets that are no longer needed</p>
-        </div>
+<div class="form-container">
+    <!-- Header -->
+    <div class="form-header">
+        <a href="{% url 'disposal-list' %}" class="btn-back-link">
+            <i data-lucide="arrow-left"></i> Back to Disposals
+        </a>
+        <h1>Request Asset Disposal</h1>
+        <p class="form-subtitle">Submit a disposal request for assets that are no longer needed</p>
     </div>
-</div>
 
-<div class="container">
-    <div class="row">
-        <div class="col-lg-8">
+    <div class="form-grid">
+        <!-- Form Column -->
+        <div class="form-main">
             <div class="form-card">
                 <form method="post">
                     {% csrf_token %}
-                    
+
                     {% if form.non_field_errors %}
-                    <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem; color: #991b1b;">
-                        <strong>Error:</strong>
+                    <div class="form-alert">
+                        <i data-lucide="alert-circle"></i>
                         {% for error in form.non_field_errors %}
                         <p>{{ error }}</p>
                         {% endfor %}
                     </div>
                     {% endif %}
 
-                    <div class="form-group-wrapper">
-                        <label for="{{ form.asset.id_for_label }}">Asset to Dispose <span style="color: #dc2626;">*</span></label>
+                    <div class="field-group">
+                        <label for="{{ form.asset.id_for_label }}">Asset to Dispose <span class="req">*</span></label>
                         {{ form.asset }}
-                        {% if form.asset.errors %}
-                        <div class="form-error">{{ form.asset.errors.0 }}</div>
-                        {% endif %}
-                        <p class="form-help-text">Select the asset you want to dispose</p>
+                        {% if form.asset.errors %}<span class="field-error">{{ form.asset.errors.0 }}</span>{% endif %}
+                        <span class="field-hint">Select the asset you want to dispose</span>
                     </div>
 
-                    <div class="form-row-double">
-                        <div class="form-group-wrapper">
+                    <div class="field-row">
+                        <div class="field-group">
                             <label for="{{ form.disposal_method.id_for_label }}">Disposal Method</label>
                             {{ form.disposal_method }}
-                            {% if form.disposal_method.errors %}
-                            <div class="form-error">{{ form.disposal_method.errors.0 }}</div>
-                            {% endif %}
+                            {% if form.disposal_method.errors %}<span class="field-error">{{ form.disposal_method.errors.0 }}</span>{% endif %}
                         </div>
-
-                        <div class="form-group-wrapper">
-                            <label for="{{ form.disposal_date.id_for_label }}">Planned Disposal Date</label>
+                        <div class="field-group">
+                            <label for="{{ form.disposal_date.id_for_label }}">Planned Date</label>
                             {{ form.disposal_date }}
-                            {% if form.disposal_date.errors %}
-                            <div class="form-error">{{ form.disposal_date.errors.0 }}</div>
-                            {% endif %}
+                            {% if form.disposal_date.errors %}<span class="field-error">{{ form.disposal_date.errors.0 }}</span>{% endif %}
                         </div>
                     </div>
 
-                    <div class="form-group-wrapper">
+                    <div class="field-group">
                         <label for="{{ form.reason.id_for_label }}">Reason for Disposal</label>
                         {{ form.reason }}
-                        <p class="form-help-text">Explain why this asset needs to be disposed (e.g., End of life, Damaged, Obsolete)</p>
-                        {% if form.reason.errors %}
-                        <div class="form-error">{{ form.reason.errors.0 }}</div>
-                        {% endif %}
+                        {% if form.reason.errors %}<span class="field-error">{{ form.reason.errors.0 }}</span>{% endif %}
+                        <span class="field-hint">Explain why this asset needs to be disposed (e.g., End of life, Damaged, Obsolete)</span>
                     </div>
 
-                    <div class="form-group-wrapper">
+                    <div class="field-group">
                         <label for="{{ form.estimated_salvage_value.id_for_label }}">Estimated Salvage Value</label>
                         {{ form.estimated_salvage_value }}
-                        <p class="form-help-text">If applicable, estimate the value if sold or donated</p>
-                        {% if form.estimated_salvage_value.errors %}
-                        <div class="form-error">{{ form.estimated_salvage_value.errors.0 }}</div>
-                        {% endif %}
+                        {% if form.estimated_salvage_value.errors %}<span class="field-error">{{ form.estimated_salvage_value.errors.0 }}</span>{% endif %}
+                        <span class="field-hint">If applicable, estimate the value if sold or donated</span>
                     </div>
 
-                    <div class="form-group-wrapper">
+                    <div class="field-group">
                         <label for="{{ form.notes.id_for_label }}">Additional Notes</label>
                         {{ form.notes }}
-                        {% if form.notes.errors %}
-                        <div class="form-error">{{ form.notes.errors.0 }}</div>
-                        {% endif %}
+                        {% if form.notes.errors %}<span class="field-error">{{ form.notes.errors.0 }}</span>{% endif %}
                     </div>
 
-                    <div class="button-group">
-                        <button type="submit" class="btn-submit">
-                            <i class="fas fa-paper-plane"></i> Submit Request
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="send"></i> Submit Request
                         </button>
-                        <a href="{% url 'disposal-list' %}" class="btn-cancel">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
+                        <a href="{% url 'disposal-list' %}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <div class="info-card">
-                <h6><i class="fas fa-info-circle"></i> Disposal Methods</h6>
+        <!-- Sidebar -->
+        <div class="form-sidebar">
+            <div class="sidebar-card sidebar-amber">
+                <h3><i data-lucide="info"></i> Disposal Methods</h3>
                 <ul>
                     <li><strong>Scrap:</strong> Discard as scrap metal/material</li>
                     <li><strong>Donate:</strong> Donate to charity or organization</li>
@@ -279,13 +92,67 @@
                 </ul>
             </div>
 
-            <div class="info-card" style="background: #f0f9ff; border-color: #bfdbfe;">
-                <h6 style="color: #0c4a6e;"><i class="fas fa-check-circle"></i> Approval Process</h6>
-                <p style="color: #164e63; font-size: 0.9rem; margin: 0;">
-                    Your disposal request will be reviewed and approved by an administrator. You'll be notified once a decision is made.
-                </p>
+            <div class="sidebar-card sidebar-blue">
+                <h3><i data-lucide="shield-check"></i> Approval Process</h3>
+                <p>Your disposal request will go through a two-step approval: first by your manager, then by an admin. You'll be notified once a decision is made.</p>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Layout */
+.form-container { max-width:1100px; margin:18px auto; padding:16px; }
+.form-header { margin-bottom:20px; }
+.form-header h1 { font-size:1.4rem; font-weight:700; color:#111827; margin:8px 0 4px; }
+.form-subtitle { color:#6b7280; font-size:0.9rem; margin:0; }
+.btn-back-link { color:#4f46e5; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:500; }
+.btn-back-link:hover { text-decoration:underline; }
+.btn-back-link i, .btn-back-link svg { width:16px; height:16px; }
+
+.form-grid { display:grid; grid-template-columns:1fr 320px; gap:20px; }
+@media (max-width:900px) { .form-grid { grid-template-columns:1fr; } }
+
+/* Form Card */
+.form-card { background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:24px; }
+
+.form-alert { display:flex; align-items:flex-start; gap:8px; padding:12px 14px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; color:#991b1b; margin-bottom:18px; font-size:0.875rem; }
+.form-alert i, .form-alert svg { width:16px; height:16px; margin-top:2px; flex-shrink:0; }
+.form-alert p { margin:0; }
+
+.field-group { margin-bottom:18px; }
+.field-group label { display:block; font-size:0.8rem; font-weight:600; color:#374151; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px; }
+.field-group .req { color:#ef4444; }
+.field-group input, .field-group select, .field-group textarea { width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.875rem; font-family:inherit; transition:border-color 0.15s; background:#fff; }
+.field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.08); }
+.field-group textarea { resize:vertical; min-height:90px; }
+.field-hint { display:block; font-size:0.78rem; color:#9ca3af; margin-top:4px; }
+.field-error { display:block; font-size:0.78rem; color:#ef4444; margin-top:4px; }
+
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:600px) { .field-row { grid-template-columns:1fr; } }
+
+.form-actions { display:flex; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid #f1f3f5; }
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:6px; font-size:0.875rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; transition:all 0.15s; }
+.btn i, .btn svg { width:16px; height:16px; }
+.btn-primary { background:#4f46e5; color:#fff; }
+.btn-primary:hover { background:#4338ca; color:#fff; }
+.btn-secondary { background:#fff; color:#374151; border:1px solid #d1d5db; }
+.btn-secondary:hover { background:#f9fafb; }
+
+/* Sidebar */
+.sidebar-card { border-radius:8px; padding:16px; margin-bottom:14px; border:1px solid transparent; }
+.sidebar-card h3 { font-size:0.85rem; font-weight:600; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+.sidebar-card h3 i, .sidebar-card h3 svg { width:16px; height:16px; }
+.sidebar-card ul { margin:0; padding-left:18px; font-size:0.8rem; line-height:1.7; }
+.sidebar-card p { margin:0; font-size:0.8rem; line-height:1.6; }
+.sidebar-amber { background:#fffbeb; border-color:#fcd34d; color:#78350f; }
+.sidebar-amber h3 { color:#92400e; }
+.sidebar-blue { background:#eff6ff; border-color:#bfdbfe; color:#1e3a5f; }
+.sidebar-blue h3 { color:#1e40af; }
+</style>
+
+<script>document.addEventListener('DOMContentLoaded', function() { lucide.createIcons(); });</script>
 {% endblock %}

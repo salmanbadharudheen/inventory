@@ -170,7 +170,7 @@ class AssetListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
         fields = [
-            'id', 'name', 'asset_tag', 'custom_asset_tag', 'serial_number',
+            'id', 'name', 'asset_tag', 'serial_number',
             'category', 'category_name',
             'company', 'company_name',
             'department', 'department_name',
@@ -204,7 +204,7 @@ class AssetReadSerializer(serializers.ModelSerializer):
         model = Asset
         fields = [
             'id', 'name', 'description', 'short_description',
-            'asset_tag', 'custom_asset_tag', 'asset_code', 'erp_asset_number',
+            'asset_tag', 'asset_code', 'erp_asset_number',
             'serial_number', 'quantity', 'label_type',
             # classification
             'category', 'category_name', 'sub_category',
@@ -259,7 +259,7 @@ class AssetCreateSerializer(serializers.ModelSerializer):
         fields = [
             # identification
             'name', 'description', 'short_description',
-            'custom_asset_tag', 'asset_code', 'erp_asset_number',
+            'asset_code', 'erp_asset_number',
             'serial_number', 'quantity', 'label_type',
             # classification
             'category', 'sub_category', 'group', 'sub_group',
@@ -289,4 +289,16 @@ class AssetCreateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'name': {'required': True},
             'category': {'required': True},
+            'asset_code': {'required': True},
         }
+
+    def validate_asset_code(self, value):
+        if not value:
+            raise serializers.ValidationError('Asset Code is required.')
+        org = self.context['request'].user.organization
+        qs = Asset.objects.filter(organization=org, asset_code=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+                raise serializers.ValidationError('An asset with this Asset Code already exists.')
+        return value

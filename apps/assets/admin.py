@@ -9,7 +9,7 @@ from .models import (
 class AssetAdmin(admin.ModelAdmin):
     list_display = ['asset_tag', 'name', 'category', 'status', 'department', 'organization']
     list_filter = ['status', 'category', 'organization', 'created_at']
-    search_fields = ['asset_tag', 'name', 'custom_asset_tag']
+    search_fields = ['asset_tag', 'name', 'asset_code']
     readonly_fields = ['id', 'created_at', 'updated_at']
 
 @admin.register(Category)

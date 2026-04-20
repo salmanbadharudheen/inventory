@@ -38,7 +38,6 @@ class AssetForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 3}),
             'useful_life_years': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
             'quantity': forms.NumberInput(attrs={'min': '1', 'value': '1'}),
-            'custom_asset_tag': forms.TextInput(attrs={'placeholder': 'e.g. TAG-123'}),
             'asset_code': forms.TextInput(attrs={'placeholder': 'e.g. CODE-456'}),
             'description': forms.Textarea(attrs={'rows': 3}),
             'short_description': forms.TextInput(attrs={'placeholder': 'Brief summary'}),
@@ -103,6 +102,18 @@ class AssetForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+
+        # Validate asset_code uniqueness per organization
+        asset_code = cleaned_data.get('asset_code')
+        if asset_code:
+            qs = Asset.objects.filter(
+                organization=self.request.user.organization,
+                asset_code=asset_code,
+            )
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError({'asset_code': _('An asset with this Asset Code already exists.')})
 
         field_rules = {
             'image': (ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_UPLOAD_BYTES),

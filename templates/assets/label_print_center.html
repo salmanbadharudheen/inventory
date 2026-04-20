@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Label Print Center{% endblock %}
+
+{% block content %}
+<style>
+    .print-center { max-width: 900px; margin: 0 auto; }
+    .print-center h2 { margin-bottom: 0.5rem; }
+    .print-center .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .print-section {
+        background: #fff; border: 1px solid var(--border-color);
+        border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .print-section h3 {
+        font-size: 1rem; font-weight: 600; margin-bottom: 1rem;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .print-section h3 i { width: 20px; height: 20px; color: #2563eb; }
+
+    .form-row { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 180px; }
+    .form-group label { font-size: 0.8rem; font-weight: 600; color: #475569; }
+    .form-group input, .form-group select {
+        padding: 0.55rem 0.75rem; border: 1px solid #cbd5e1;
+        border-radius: 8px; font-size: 0.88rem; background: #fff;
+        transition: border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus {
+        outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+    }
+
+    .design-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-top: 0.75rem; }
+    .design-card {
+        border: 2px solid #e5e7eb; border-radius: 10px; padding: 1rem;
+        cursor: pointer; text-align: center; transition: all 0.15s;
+        position: relative;
+    }
+    .design-card:hover { border-color: #93c5fd; background: #f8fafc; }
+    .design-card.selected { border-color: #2563eb; background: #eff6ff; }
+    .design-card.selected::after {
+        content: '✓'; position: absolute; top: 8px; right: 10px;
+        background: #2563eb; color: #fff; width: 20px; height: 20px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 0.7rem; font-weight: 700;
+    }
+    .design-card .design-name { font-size: 0.82rem; font-weight: 600; color: #1e293b; margin-top: 0.5rem; }
+    .design-card .design-desc { font-size: 0.7rem; color: #6b7280; margin-top: 0.25rem; }
+    .design-card .design-icon { font-size: 1.5rem; }
+
+    .btn-generate {
+        padding: 0.7rem 2rem; background: #2563eb; color: #fff;
+        border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
+        transition: background 0.15s;
+    }
+    .btn-generate:hover { background: #1d4ed8; }
+    .btn-generate:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    .actions-row { display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; }
+    .preview-count { font-size: 0.85rem; color: #64748b; }
+
+    .or-divider {
+        display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0;
+        color: #94a3b8; font-size: 0.78rem; font-weight: 600;
+    }
+    .or-divider::before, .or-divider::after {
+        content: ''; flex: 1; height: 1px; background: #e5e7eb;
+    }
+
+    .range-hint { font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; }
+    .tag-list-area { margin-top: 0.75rem; }
+    .tag-list-area textarea {
+        width: 100%; min-height: 80px; padding: 0.6rem; border: 1px solid #cbd5e1;
+        border-radius: 8px; font-size: 0.85rem; font-family: 'Consolas', monospace;
+        resize: vertical;
+    }
+</style>
+
+<div class="print-center">
+    <h2>Label Print Center</h2>
+    <p class="subtitle">Generate and print asset labels in bulk. Select a design and choose assets by range or category.</p>
+
+    <form method="GET" action="{% url 'print-asset-labels-bulk' %}" id="print-form" target="_blank">
+
+        <!-- Design Selection -->
+        <div class="print-section">
+            <h3><i data-lucide="palette"></i> Choose Label Design</h3>
+            <div class="design-cards">
+                <div class="design-card {% if org.label_template == 'CLASSIC' %}selected{% endif %}" data-design="CLASSIC" onclick="selectDesign(this)">
+                    <div class="design-icon">🏷️</div>
+                    <div class="design-name">Classic</div>
+                    <div class="design-desc">QR left, Barcode right, blue accent</div>
+                </div>
+                <div class="design-card {% if org.label_template == 'COMPACT' %}selected{% endif %}" data-design="COMPACT" onclick="selectDesign(this)">
+                    <div class="design-icon">📎</div>
+                    <div class="design-name">Compact</div>
+                    <div class="design-desc">QR + Tag only, minimal</div>
+                </div>
+                <div class="design-card {% if org.label_template == 'DETAILED' %}selected{% endif %}" data-design="DETAILED" onclick="selectDesign(this)">
+                    <div class="design-icon">📋</div>
+                    <div class="design-name">Standard</div>
+                    <div class="design-desc">Dark header, QR + Barcode</div>
+                </div>
+                <div class="design-card {% if org.label_template == 'BARCODE_ONLY' %}selected{% endif %}" data-design="BARCODE_ONLY" onclick="selectDesign(this)">
+                    <div class="design-icon">📊</div>
+                    <div class="design-name">Barcode Only</div>
+                    <div class="design-desc">Large barcode, centered</div>
+                </div>
+            </div>
+            <input type="hidden" name="design" id="design-input" value="{{ org.label_template }}">
+        </div>
+
+        <!-- Asset Selection -->
+        <div class="print-section">
+            <h3><i data-lucide="filter"></i> Select Assets</h3>
+
+            <!-- Option 1: By Tag Range -->
+            <p style="font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Option 1: By Asset Tag Range</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="tag-from">From Tag</label>
+                    <select id="tag-from" name="tag_from">
+                        <option value="">-- Select start tag --</option>
+                        {% for asset in all_assets %}
+                        <option value="{{ asset.asset_tag }}">{{ asset.asset_tag }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tag-to">To Tag</label>
+                    <select id="tag-to" name="tag_to">
+                        <option value="">-- Select end tag --</option>
+                        {% for asset in all_assets %}
+                        <option value="{{ asset.asset_tag }}">{{ asset.asset_tag }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <p class="range-hint">All assets with tags between the selected range (inclusive) will be printed.</p>
+
+            <div class="or-divider">OR</div>
+
+            <!-- Option 2: By Category -->
+            <p style="font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Option 2: By Category</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="category-filter">Category</label>
+                    <select id="category-filter" name="category">
+                        <option value="">-- All Categories --</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="location-filter">Branch</label>
+                    <select id="location-filter" name="branch">
+                        <option value="">-- All Branches --</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}">{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="or-divider">OR</div>
+
+            <!-- Option 3: Specific Tags -->
+            <p style="font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Option 3: Specific Asset Tags</p>
+            <div class="tag-list-area">
+                <textarea id="specific-tags" name="specific_tags" placeholder="Enter asset tags separated by commas or new lines&#10;e.g. SH-ELE-0001-26, SH-ELE-0002-26"></textarea>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-row">
+            <button type="submit" class="btn-generate" id="btn-print">
+                <i data-lucide="printer"></i> Generate & Print Labels
+            </button>
+            <span class="preview-count" id="preview-count"></span>
+        </div>
+
+    </form>
+</div>
+
+<script>
+function selectDesign(card) {
+    document.querySelectorAll('.design-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('design-input').value = card.dataset.design;
+}
+
+// Form submission - build the correct URL
+document.getElementById('print-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const design = document.getElementById('design-input').value;
+    const tagFrom = document.getElementById('tag-from').value;
+    const tagTo = document.getElementById('tag-to').value;
+    const category = document.getElementById('category-filter').value;
+    const branch = document.getElementById('location-filter').value;
+    const specificTags = document.getElementById('specific-tags').value.trim();
+
+    let params = new URLSearchParams();
+    params.set('design', design);
+
+    if (tagFrom && tagTo) {
+        params.set('tag_from', tagFrom);
+        params.set('tag_to', tagTo);
+    } else if (category || branch) {
+        if (category) params.set('category', category);
+        if (branch) params.set('branch', branch);
+    } else if (specificTags) {
+        params.set('specific_tags', specificTags);
+    } else {
+        alert('Please select at least one filter option (tag range, category, or specific tags).');
+        return;
+    }
+
+    window.open("{% url 'print-asset-labels-bulk' %}?" + params.toString(), '_blank');
+});
+</script>
+{% endblock %}

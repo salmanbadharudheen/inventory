@@ -5,6 +5,7 @@ from .views import (
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
+    print_asset_label, print_asset_labels_bulk, label_print_center,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
@@ -17,7 +18,7 @@ from .views import (
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
     AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferExportExcelView,
-    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
+    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView, AssetDisposalExportExcelView,
     ReportsListView, MastersListView, MastersExportExcelView
 )
 from .views_approval import (
@@ -67,6 +68,9 @@ urlpatterns = [
     path('<uuid:pk>/barcode/download/', download_asset_barcode, name='download-asset-barcode'),
     path('<uuid:pk>/qr/download/', download_asset_qr, name='download-asset-qr'),
     path('<uuid:pk>/label/download/', download_asset_label, name='download-asset-label'),
+    path('<uuid:pk>/label/print/', print_asset_label, name='print-asset-label'),
+    path('labels/print/', print_asset_labels_bulk, name='print-asset-labels-bulk'),
+    path('labels/', label_print_center, name='label-print-center'),
     path('barcodes/download/batch/', download_barcode_batch, name='download-barcode-batch'),
 
     # Configuration: Categories
@@ -144,6 +148,7 @@ urlpatterns = [
     
     # Asset Disposal Workflow (Two-step approval: Manager → Admin)
     path('disposals/', AssetDisposalListView.as_view(), name='disposal-list'),
+    path('disposals/export/excel/', AssetDisposalExportExcelView.as_view(), name='disposal-export-excel'),
     path('disposals/add/', AssetDisposalCreateView.as_view(), name='disposal-create'),
     path('disposals/<uuid:pk>/', AssetDisposalDetailView.as_view(), name='disposal-detail'),
     path('disposals/<uuid:pk>/manager-approve/', AssetDisposalManagerApproveView.as_view(), name='disposal-manager-approve'),

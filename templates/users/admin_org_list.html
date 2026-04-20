@@ -442,10 +442,12 @@
                 <svg data-lucide="eye"></svg>
                 Details
             </a>
-            <a href="#" class="org-action" title="Edit Organization">
-                <svg data-lucide="edit"></svg>
-                Edit
+            {% if user.is_superuser %}
+            <a href="{% url 'org-tag-settings' pk=org.pk %}" class="org-action" title="Asset Tag Settings">
+                <svg data-lucide="settings"></svg>
+                Tag Settings
             </a>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

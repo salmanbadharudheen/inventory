@@ -23,7 +23,6 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(category__name__icontains=query)
