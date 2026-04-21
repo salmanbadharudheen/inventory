@@ -2479,8 +2479,15 @@ class ReportsListView(LoginRequiredMixin, View):
         # Define available reports
         reports = []
         
-        # Only show Depreciation Reports to non-EMPLOYEE users
-        if user.role != user.Role.EMPLOYEE:
+        # Only show Depreciation Reports to non-EMPLOYEE users (or superusers)
+        if user.role != user.Role.EMPLOYEE or user.is_superuser:
+            reports.append({
+                'name': 'Depreciation Report',
+                'description': 'Full asset-level depreciation schedule showing cost, accumulated depreciation, net book value and remaining life for every asset.',
+                'icon': 'file-text',
+                'url': reverse('depreciation-report'),
+                'color': 'warning'
+            })
             reports.append({
                 'name': 'Depreciation by Category',
                 'description': 'View asset depreciation grouped by category with book value, accumulated depreciation, and remaining life.',
@@ -3640,6 +3647,168 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
 
 
 # --- DEPRECIATION REPORT VIEWS ---
+class DepreciationReportView(LoginRequiredMixin, ListView):
+    """Comprehensive depreciation report — all assets with individual depreciation details"""
+    model = Asset
+    template_name = 'assets/depreciation_report_all.html'
+    context_object_name = 'assets'
+    paginate_by = 50
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_authenticated and user.role == user.Role.EMPLOYEE and not user.is_superuser:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if hasattr(self, '_cached_queryset'):
+            return self._cached_queryset
+
+        queryset = Asset.objects.filter(
+            organization=self.request.user.organization,
+            is_deleted=False,
+            purchase_price__isnull=False,
+            purchase_price__gt=0,
+        ).select_related('category', 'department', 'location', 'group').only(
+            'id', 'name', 'asset_tag', 'asset_code', 'serial_number',
+            'purchase_price', 'purchase_date', 'useful_life_years',
+            'salvage_value', 'depreciation_method', 'expected_units',
+            'units_consumed', 'status',
+            'category_id', 'category__name',
+            'department_id', 'department__name',
+            'location_id', 'location__name',
+            'group_id', 'group__name',
+            'organization_id', 'is_deleted',
+            'cached_accumulated_depreciation', 'cached_nbv',
+        )
+
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query) |
+                Q(asset_tag__icontains=query) |
+                Q(asset_code__icontains=query) |
+                Q(serial_number__icontains=query) |
+                Q(category__name__icontains=query) |
+                Q(department__name__icontains=query)
+            )
+
+        self._opening_date = None
+        self._closing_date = None
+        depr_date_from = self.request.GET.get('depr_date_from')
+        depr_date_to = self.request.GET.get('depr_date_to')
+
+        if depr_date_from:
+            try:
+                self._opening_date = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                pass
+
+        if depr_date_to:
+            try:
+                self._closing_date = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                pass
+
+        if self._closing_date:
+            queryset = queryset.filter(Q(purchase_date__lte=self._closing_date) | Q(purchase_date__isnull=True))
+
+        depr_filters = {
+            'depr_category': 'category_id',
+            'depr_group': 'group_id',
+            'depr_department': 'department_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_location': 'location_id',
+        }
+        for param, field in depr_filters.items():
+            val = self.request.GET.get(param)
+            if val:
+                queryset = queryset.filter(**{field: val})
+
+        self._cached_queryset = queryset.order_by('-purchase_date')
+        return self._cached_queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        qs = self.get_queryset()
+
+        from django.db.models import Sum, Count
+        from django.db.models.functions import Coalesce
+
+        opening_date = getattr(self, '_opening_date', None)
+        closing_date = getattr(self, '_closing_date', None)
+
+        agg = qs.aggregate(
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_count=Count('id'),
+            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
+            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+        )
+        total_cost = agg['total_cost']
+        total_count = agg['total_count']
+        total_acc_dep = agg['total_acc_dep']
+        total_nbv = agg['total_nbv']
+
+        if opening_date or closing_date:
+            total_opening_value = Decimal('0')
+            total_closing_value = Decimal('0')
+            for asset in qs.iterator(chunk_size=2000):
+                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
+        else:
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
+
+        context['total_cost'] = total_cost
+        context['total_acc_dep'] = total_acc_dep
+        context['total_nbv'] = total_nbv
+        context['total_assets_report'] = total_count
+        context['total_opening_value'] = total_opening_value
+        context['total_closing_value'] = total_closing_value
+        context['period_depreciation'] = total_opening_value - total_closing_value
+        context['opening_date'] = opening_date
+        context['closing_date'] = closing_date
+
+        context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
+
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            del query_params['page']
+        context['query_params'] = query_params.urlencode()
+
+        context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
+        context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
+        context['depr_category'] = self.request.GET.get('depr_category', '')
+        context['depr_group'] = self.request.GET.get('depr_group', '')
+        context['depr_department'] = self.request.GET.get('depr_department', '')
+        context['depr_site'] = self.request.GET.get('depr_site', '')
+        context['depr_branch'] = self.request.GET.get('depr_branch', '')
+        context['depr_building'] = self.request.GET.get('depr_building', '')
+        context['depr_location'] = self.request.GET.get('depr_location', '')
+        context['search_query'] = self.request.GET.get('q', '')
+
+        if context.get('page_obj'):
+            enriched_assets = []
+            for asset in context['page_obj'].object_list:
+                asset.opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
+                asset.closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
+                asset.period_depreciation = asset.opening_value - asset.closing_value
+                enriched_assets.append(asset)
+            context['assets'] = enriched_assets
+
+        return context
+
+
 class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
     """Dedicated view for category-based depreciation report"""
     model = Asset

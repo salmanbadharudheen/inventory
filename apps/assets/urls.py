@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView, 
-    BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
+    BulkAssetActionView, ExportAssetExcelView, DepreciationReportView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
@@ -33,6 +33,7 @@ from .views_approval import (
 urlpatterns = [
     # Reports
     path('reports/', ReportsListView.as_view(), name='reports-list'),
+    path('reports/depreciation/', DepreciationReportView.as_view(), name='depreciation-report'),
     path('depreciation/category/', DepreciationReportCategoryView.as_view(), name='depreciation-category'),
     path('depreciation/group/', DepreciationReportGroupView.as_view(), name='depreciation-group'),
     path('depreciation/location/', DepreciationReportLocationView.as_view(), name='depreciation-location'),
