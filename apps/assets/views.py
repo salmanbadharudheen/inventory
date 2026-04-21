@@ -3745,6 +3745,22 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         total_acc_dep = agg['total_acc_dep']
         total_nbv = agg['total_nbv']
 
+        # Backfill cache if empty (bulk-imported assets or first-time setup)
+        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
+            to_update = []
+            total_acc_dep = Decimal('0')
+            total_nbv = Decimal('0')
+            for asset in qs.iterator(chunk_size=500):
+                acc_dep = asset.accumulated_depreciation
+                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
+                asset.cached_accumulated_depreciation = acc_dep
+                asset.cached_nbv = nbv
+                total_acc_dep += acc_dep
+                total_nbv += nbv
+                to_update.append(asset)
+            if to_update:
+                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
+
         # Category grouping via DB aggregation
         grouped_qs = qs.values('category', 'category__name').annotate(
             count=Count('id'),
@@ -3920,6 +3936,22 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         total_acc_dep = agg['total_acc_dep']
         total_nbv = agg['total_nbv']
 
+        # Backfill cache if empty (bulk-imported assets or first-time setup)
+        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
+            to_update = []
+            total_acc_dep = Decimal('0')
+            total_nbv = Decimal('0')
+            for asset in qs.iterator(chunk_size=500):
+                acc_dep = asset.accumulated_depreciation
+                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
+                asset.cached_accumulated_depreciation = acc_dep
+                asset.cached_nbv = nbv
+                total_acc_dep += acc_dep
+                total_nbv += nbv
+                to_update.append(asset)
+            if to_update:
+                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
+
         # Department grouping via DB aggregation
         grouped_qs = qs.values('department', 'department__name').annotate(
             count=Count('id'),
@@ -4091,6 +4123,22 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         total_acc_dep = agg['total_acc_dep']
         total_nbv = agg['total_nbv']
 
+        # Backfill cache if empty (bulk-imported assets or first-time setup)
+        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
+            to_update = []
+            total_acc_dep = Decimal('0')
+            total_nbv = Decimal('0')
+            for asset in qs.iterator(chunk_size=500):
+                acc_dep = asset.accumulated_depreciation
+                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
+                asset.cached_accumulated_depreciation = acc_dep
+                asset.cached_nbv = nbv
+                total_acc_dep += acc_dep
+                total_nbv += nbv
+                to_update.append(asset)
+            if to_update:
+                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
+
         # Location grouping via DB aggregation
         grouped_qs = qs.values('location', 'location__name').annotate(
             count=Count('id'),
@@ -4261,6 +4309,22 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         total_count = agg['total_count']
         total_acc_dep = agg['total_acc_dep']
         total_nbv = agg['total_nbv']
+
+        # Backfill cache if empty (bulk-imported assets or first-time setup)
+        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
+            to_update = []
+            total_acc_dep = Decimal('0')
+            total_nbv = Decimal('0')
+            for asset in qs.iterator(chunk_size=500):
+                acc_dep = asset.accumulated_depreciation
+                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
+                asset.cached_accumulated_depreciation = acc_dep
+                asset.cached_nbv = nbv
+                total_acc_dep += acc_dep
+                total_nbv += nbv
+                to_update.append(asset)
+            if to_update:
+                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
 
         # Group grouping via DB aggregation
         grouped_qs = qs.values('group', 'group__name').annotate(
