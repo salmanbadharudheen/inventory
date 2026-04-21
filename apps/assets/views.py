@@ -305,9 +305,14 @@ class AssetListView(LoginRequiredMixin, ListView):
     context_object_name = 'assets'
     paginate_by = 25
 
+    def get(self, request, *args, **kwargs):
+        if request.GET.get('view') == 'depreciation':
+            from django.shortcuts import redirect
+            from django.urls import reverse
+            return redirect(reverse('depreciation-report'))
+        return super().get(request, *args, **kwargs)
+
     def get_template_names(self):
-        if self.request.GET.get('view') == 'depreciation':
-            return ['assets/depreciation_report.html']
         return ['assets/asset_list.html']
 
     def get_queryset(self):
