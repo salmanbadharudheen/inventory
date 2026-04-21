@@ -645,7 +645,8 @@
                         {% for asset in assets %}
                         <tr>
                             <td>
-                                <a href="{% url 'asset-detail' asset.id %}" style="color:var(--primary); text-decoration:none; font-weight:600;">{{ asset.asset_tag|default:asset.name }}</a>
+                                <a href="{% url 'asset-detail' asset.id %}" style="color:var(--primary); text-decoration:none; font-weight:600;">{{ asset.name }}</a>
+                                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:0.1rem;">{{ asset.asset_tag }}{% if asset.asset_code %} • {{ asset.asset_code }}{% endif %}</div>
                             </td>
                             <td>{{ asset.group.name|default:"—" }}</td>
                             <td>{{ asset.purchase_date|date:"d/m/Y"|default:"—" }}</td>

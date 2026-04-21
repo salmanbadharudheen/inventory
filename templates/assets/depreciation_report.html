@@ -1043,7 +1043,7 @@
                         </td>
                         <td>
                             <a href="{% url 'asset-detail' asset.pk %}" class="depr-asset-name">{{ asset.name }}</a>
-                            <span class="depr-asset-tag">{{ asset.asset_tag }} • {{ asset.category.name }}</span>
+                            <span class="depr-asset-tag">{{ asset.asset_tag }}{% if asset.asset_code %} • {{ asset.asset_code }}{% endif %} • {{ asset.category.name }}</span>
                         </td>
                         <td style="font-size: 0.85rem; color: var(--text-secondary);">{{ asset.get_depreciation_method_display }}</td>
                         <td style="text-align: center; font-weight:600;">{{ asset.useful_life_years }}Y</td>
@@ -1063,7 +1063,7 @@
                                     <div class="depr-asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
                                     <div class="depr-asset-main">
                                         <div class="depr-asset-name-detail">{{ asset.name }}</div>
-                                        <div class="depr-asset-sub">{{ asset.asset_tag }} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
+                                        <div class="depr-asset-sub">{{ asset.asset_tag }}{% if asset.asset_code %} • {{ asset.asset_code }}{% endif %} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
                                     </div>
                                 </div>
                                 <div class="depr-detail-right">
@@ -1072,6 +1072,7 @@
                                             <h4>Identification</h4>
                                             <div class="depr-kv-grid">
                                                 <div class="depr-kv"><span class="label">Asset Tag</span><span class="value">{{ asset.asset_tag }}</span></div>
+                                                <div class="depr-kv"><span class="label">Asset Code</span><span class="value">{{ asset.asset_code|default:'-' }}</span></div>
                                                 <div class="depr-kv"><span class="label">Serial #</span><span class="value">{{ asset.serial_number|default:'-' }}</span></div>
                                                 <div class="depr-kv"><span class="label">Category</span><span class="value">{{ asset.category.name }}</span></div>
                                                 <div class="depr-kv"><span class="label">Location</span><span class="value">{{ asset.site.name|default:'-' }}</span></div>
