@@ -78,6 +78,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.users.middleware.OrganizationActiveSessionMiddleware",
+    "apps.users.middleware.SuperuserOrganizationPortalMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.gzip.GZipMiddleware",  # Compress responses
 ]
@@ -135,7 +137,6 @@ ALLOWED_HOSTS = _allowed_hosts_env.split(',') if _allowed_hosts_env else [
     "testserver",
     "192.168.10.106",
     "10.255.254.20",
-    "10.229.8.230",
 ]
 
 # CORS: allow mobile app during development
@@ -203,6 +204,10 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 AUTH_USER_MODEL = 'users.User'
+
+AUTHENTICATION_BACKENDS = [
+    'apps.users.backends.OrganizationAwareModelBackend',
+]
 
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'

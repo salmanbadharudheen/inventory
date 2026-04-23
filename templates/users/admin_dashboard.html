@@ -183,6 +183,238 @@
         border-color: var(--primary);
     }
 
+    .owner-shell {
+        --owner-text: #dbe7ff;
+        --owner-muted: #93a6c8;
+        --owner-line: rgba(125, 211, 252, 0.22);
+        display: grid;
+        gap: 1rem;
+    }
+
+    .owner-hero {
+        border-radius: 18px;
+        padding: 1.4rem;
+        border: 1px solid var(--owner-line);
+        background:
+            radial-gradient(900px 300px at 100% -30%, rgba(59, 130, 246, 0.22), transparent),
+            radial-gradient(800px 280px at -10% -50%, rgba(14, 165, 233, 0.25), transparent),
+            linear-gradient(165deg, #020617 0%, #0f172a 60%, #1e293b 100%);
+        box-shadow: 0 24px 40px -30px rgba(2, 132, 199, 0.95);
+        color: var(--owner-text);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .owner-hero::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(transparent 96%, rgba(255, 255, 255, 0.03) 96%);
+        background-size: 100% 14px;
+    }
+
+    .owner-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(148, 163, 184, 0.38);
+        background: rgba(15, 23, 42, 0.5);
+        color: #cddcff;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        padding: 0.26rem 0.62rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .owner-title {
+        margin: 0;
+        font-size: clamp(1.55rem, 2.2vw, 2.2rem);
+        line-height: 1.12;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .owner-subtitle {
+        margin: 0.55rem 0 1rem;
+        max-width: 62ch;
+        color: var(--owner-muted);
+        font-size: 0.92rem;
+    }
+
+    .owner-actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .owner-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.62rem 0.92rem;
+        border-radius: 10px;
+        font-size: 0.83rem;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .owner-btn.primary {
+        color: #ffffff;
+        background: linear-gradient(145deg, #22d3ee 0%, #0ea5e9 55%, #0284c7 100%);
+        box-shadow: 0 16px 24px -20px rgba(34, 211, 238, 0.95);
+    }
+
+    .owner-btn.primary:hover {
+        transform: translateY(-1px);
+    }
+
+    .owner-btn.ghost {
+        color: #e2e8f0;
+        background: rgba(148, 163, 184, 0.12);
+        border-color: rgba(148, 163, 184, 0.35);
+    }
+
+    .owner-btn.ghost:hover {
+        border-color: rgba(148, 163, 184, 0.8);
+    }
+
+    .owner-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 1rem;
+    }
+
+    .owner-card {
+        border-radius: 14px;
+        border: 1px solid var(--owner-line);
+        background: linear-gradient(160deg, #0b1224 0%, #101a31 55%, #172554 100%);
+        padding: 1rem;
+        color: var(--owner-text);
+        box-shadow: 0 16px 28px -26px rgba(2, 132, 199, 0.95);
+    }
+
+    .owner-card-title {
+        font-size: 0.86rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9fb2d8;
+        font-weight: 700;
+        margin-bottom: 0.65rem;
+    }
+
+    .owner-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+    }
+
+    .owner-metric {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.55);
+        border-radius: 10px;
+        padding: 0.68rem;
+    }
+
+    .owner-metric-label {
+        color: #9fb2d8;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+    }
+
+    .owner-metric-value {
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin-top: 0.35rem;
+        color: #e0f2fe;
+    }
+
+    .owner-list {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .owner-list-item {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.45);
+        border-radius: 10px;
+        padding: 0.72rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+    }
+
+    .owner-list-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #e2e8f0;
+    }
+
+    .owner-list-sub {
+        font-size: 0.75rem;
+        color: #93a6c8;
+        margin-top: 0.2rem;
+    }
+
+    .owner-list-link {
+        color: #67e8f9;
+        text-decoration: none;
+        border: 1px solid rgba(103, 232, 249, 0.45);
+        background: rgba(8, 47, 73, 0.5);
+        border-radius: 8px;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .owner-list-link:hover {
+        border-color: rgba(103, 232, 249, 0.9);
+    }
+
+    .owner-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-radius: 999px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.66rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .owner-status-pill.active {
+        background: rgba(34, 197, 94, 0.2);
+        color: #86efac;
+        border: 1px solid rgba(34, 197, 94, 0.45);
+    }
+
+    .owner-status-pill.inactive {
+        background: rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.45);
+    }
+
+    @media (max-width: 900px) {
+        .owner-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .owner-metric-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     @media (max-width: 768px) {
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -199,6 +431,84 @@
     }
 </style>
 
+{% if user.is_superuser %}
+<div class="owner-shell">
+    <section class="owner-hero">
+        <span class="owner-kicker">
+            <svg data-lucide="shield-check" style="width:13px;height:13px;"></svg>
+            Owner Command Center
+        </span>
+        <h1 class="owner-title">Future Ops Dashboard</h1>
+        <p class="owner-subtitle">Control tenant lifecycle, enforce organization status, and jump into each client environment from one high-signal interface.</p>
+        <div class="owner-actions">
+            <a href="{% url 'admin-orgs' %}" class="owner-btn primary">
+                <svg data-lucide="building-2" style="width:15px;height:15px;"></svg>
+                Manage Organizations
+            </a>
+            <a href="{% url 'admin-org-create' %}" class="owner-btn ghost">
+                <svg data-lucide="plus" style="width:15px;height:15px;"></svg>
+                New Organization
+            </a>
+        </div>
+    </section>
+
+    <section class="owner-grid">
+        <article class="owner-card">
+            <div class="owner-card-title">Network Metrics</div>
+            <div class="owner-metric-grid">
+                <div class="owner-metric">
+                    <div class="owner-metric-label">Total Organizations</div>
+                    <div class="owner-metric-value">{{ total_orgs }}</div>
+                </div>
+                <div class="owner-metric">
+                    <div class="owner-metric-label">Active</div>
+                    <div class="owner-metric-value">{{ active_orgs }}</div>
+                </div>
+                <div class="owner-metric">
+                    <div class="owner-metric-label">Inactive</div>
+                    <div class="owner-metric-value">{{ inactive_orgs }}</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="owner-card">
+            <div class="owner-card-title">Control Actions</div>
+            <div class="owner-actions" style="margin-top:0;">
+                <a href="{% url 'admin-orgs' %}" class="owner-btn ghost">
+                    <svg data-lucide="power" style="width:15px;height:15px;"></svg>
+                    Toggle Org Status
+                </a>
+                <a href="{% url 'admin-orgs' %}" class="owner-btn ghost">
+                    <svg data-lucide="user-cog" style="width:15px;height:15px;"></svg>
+                    Assign Org Admin
+                </a>
+            </div>
+        </article>
+    </section>
+
+    {% if organizations %}
+    <section class="owner-card">
+        <div class="owner-card-title">Recent Organizations</div>
+        <div class="owner-list">
+            {% for org in organizations %}
+            <div class="owner-list-item">
+                <div>
+                    <div class="owner-list-name">{{ org.name }}</div>
+                    <div class="owner-list-sub">{{ org.slug }} · Created {{ org.created_at|date:"M d, Y" }}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.45rem;">
+                    <span class="owner-status-pill {% if org.is_active %}active{% else %}inactive{% endif %}">
+                        {% if org.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                    <a href="{% url 'admin-org-dashboard' pk=org.id %}" class="owner-list-link">Open</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% else %}
 <div class="admin-header">
     <div class="admin-title">Admin Dashboard</div>
     <div class="admin-subtitle">System overview and management</div>
@@ -206,6 +516,15 @@
 
 <!-- Statistics Cards -->
 <div class="stats-grid">
+    {% if user.is_superuser %}
+    <div class="stat-card">
+        <div class="stat-icon orgs">
+            <svg data-lucide="building-2"></svg>
+        </div>
+        <div class="stat-number">{{ total_orgs }}</div>
+        <div class="stat-label">Organizations</div>
+    </div>
+    {% else %}
     <div class="stat-card">
         <div class="stat-icon users">
             <svg data-lucide="users"></svg>
@@ -237,6 +556,7 @@
         <div class="stat-number">{{ admin_users }}</div>
         <div class="stat-label">Admin Users</div>
     </div>
+    {% endif %}
 </div>
 
 <!-- Quick Actions -->
@@ -246,6 +566,16 @@
         Quick Actions
     </div>
     <div class="quick-actions">
+        {% if user.is_superuser %}
+        <a href="{% url 'admin-orgs' %}" class="action-link">
+            <svg data-lucide="building-2" style="width: 16px; height: 16px;"></svg>
+            Manage Organizations
+        </a>
+        <a href="{% url 'admin-org-create' %}" class="action-link">
+            <svg data-lucide="plus" style="width: 16px; height: 16px;"></svg>
+            New Organization
+        </a>
+        {% else %}
         <a href="{% url 'admin-users' %}" class="action-link">
             <svg data-lucide="users" style="width: 16px; height: 16px;"></svg>
             Manage Users
@@ -254,10 +584,17 @@
             <svg data-lucide="building-2" style="width: 16px; height: 16px;"></svg>
             Manage Organizations
         </a>
+        {% if user.is_superuser %}
+        <a href="{% url 'admin-org-create' %}" class="action-link">
+            <svg data-lucide="plus" style="width: 16px; height: 16px;"></svg>
+            New Organization
+        </a>
+        {% endif %}
         <a href="{% url 'user-add' %}" class="action-link">
             <svg data-lucide="user-plus" style="width: 16px; height: 16px;"></svg>
             Add Admin
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -305,9 +642,12 @@
     </div>
 </div>
 {% endif %}
+{% endif %}
 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 </script>
 {% endblock %}

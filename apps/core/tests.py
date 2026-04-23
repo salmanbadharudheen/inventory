@@ -1,6 +1,10 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.urls import reverse
+
+from apps.core.models import Organization
 
 User = get_user_model()
 
@@ -45,3 +49,26 @@ class LogoutTest(TestCase):
         if response.status_code == 200:
             self.assertContains(response, 'Login')
             self.assertNotContains(response, 'Logout')
+
+
+class CreateOrganizationCommandTest(TestCase):
+    def test_creates_organization_from_name(self):
+        call_command('create_organization', 'Northwind Trading')
+
+        organization = Organization.objects.get(name='Northwind Trading')
+        self.assertEqual(organization.slug, 'northwind-trading')
+
+    def test_assigns_existing_user_when_requested(self):
+        user = User.objects.create_user(username='orgadmin', password='password123')
+
+        call_command('create_organization', 'Contoso Ops', admin_username='orgadmin')
+
+        user.refresh_from_db()
+        self.assertIsNotNone(user.organization)
+        self.assertEqual(user.organization.name, 'Contoso Ops')
+
+    def test_rejects_duplicate_slug(self):
+        Organization.objects.create(name='Existing Org', slug='existing-org')
+
+        with self.assertRaises(CommandError):
+            call_command('create_organization', 'Existing Org')

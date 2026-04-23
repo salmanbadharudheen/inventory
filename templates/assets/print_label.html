@@ -196,44 +196,76 @@
         }
 
         /* ═══════════════════════════════════════════════════
-           PRINT — exact 2 in × 1 in sticker
+           PRINT — exact 2 in × 1 in  |  sticker printer
+           Each label = one sticker feed (page-break-after)
         ═══════════════════════════════════════════════════ */
         @media print {
             @page {
-                size: 2in 1in;
+                size: 2in 1in;   /* label roll page = one sticker */
                 margin: 0;
             }
+
+            /* ── Force colour & zero gaps ─────────────── */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
             html, body {
-                width: 2in; height: 1in;
-                margin: 0; padding: 0;
-                background: #fff;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                /* DO NOT fix width/height here — that clips labels 2+ */
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
             }
-            .toolbar { display: none !important; }
+
+            .toolbar  { display: none !important; }
             .batch-bar { display: none !important; }
+
             .label-grid {
-                display: block;
-                padding: 0; margin: 0;
-                gap: 0;
+                display: block !important;
+                padding: 0 !important;
+                margin:  0 !important;
             }
+
+            /* One sticker = one page feed */
             .label {
-                width: 2in !important;
+                width:  2in !important;
                 height: 1in !important;
-                max-width: 2in !important;
+                max-width:  2in !important;
                 max-height: 1in !important;
-                border: none;
-                border-radius: 0;
-                box-shadow: none;
-                overflow: hidden;
-                margin: 0;
-                padding: 0;
-                page-break-after: always;
-                break-after: page;
+                border:        none !important;
+                border-radius: 0    !important;
+                box-shadow:    none !important;
+                overflow:  hidden !important;
+                margin:  0 !important;
+                padding: 0 !important;
+                /* advance the sticker roll after every label */
+                page-break-after:  always !important;
+                break-after: page  !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: flex !important;
             }
             .label:last-child {
-                page-break-after: auto;
-                break-after: auto;
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+            /* Hidden design variants must not leave blank feeds */
+            .label[style*="display:none"],
+            .label[style*="display: none"] {
+                display: none !important;
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            /* ── Sharp image rendering ─────────────────── */
+            .label img {
+                image-rendering: -webkit-optimize-contrast !important;
+                image-rendering: crisp-edges !important;
+            }
+            .label .lbl-qr img {
+                image-rendering: pixelated !important; /* QR stays pixel-perfect */
             }
 
             /* ── CLASSIC print ─────────────────────────── */
@@ -263,9 +295,9 @@
                 gap: 4pt;
             }
             .label-classic .lbl-right img {
-                height: 0.36in;
+                height: 0.38in;
                 width: 100%;
-                object-fit: contain;
+                object-fit: fill; /* stretch barcode to full width — better scan */
             }
             .label-classic .lbl-right .lbl-tag {
                 font-size: 7pt;
@@ -318,9 +350,9 @@
                 gap: 4pt;
             }
             .label-detailed .lbl-right img {
-                height: 0.34in;
+                height: 0.36in;
                 width: 100%;
-                object-fit: contain;
+                object-fit: fill;
             }
             .label-detailed .lbl-right .lbl-tag {
                 font-size: 7pt;
@@ -339,9 +371,9 @@
                 flex: 1;
             }
             .label-barcode-only .lbl-barcode-img img {
-                height: 0.58in;
-                width: 1.8in;
-                object-fit: contain;
+                height: 0.6in;
+                width: 1.85in;
+                object-fit: fill; /* fill full width for best scan quality */
             }
             .label-barcode-only .lbl-tag {
                 font-size: 8pt;
@@ -361,9 +393,11 @@
         <option value="{{ value }}" {% if value == design %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
-    <span class="count">{{ assets|length }} label{{ assets|length|pluralize }}</span>
-    <span class="size-hint">Sticker: 2″ × 1″</span>
-    <button class="btn btn-print" onclick="window.print();">🖨 Print</button>
+    <span class="count" id="lbl-count">{{ assets|length }} sticker{{ assets|length|pluralize }}</span>
+    <span class="size-hint">📏 2″ × 1″ · prints one-by-one</span>
+    <span id="load-status" style="font-size:0.78rem; color:#f59e0b; font-weight:600;">⏳ Loading images…</span>
+    <button class="btn btn-print" id="btn-print-all" onclick="window.print();" disabled
+        style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
 </div>
 
 {% if total_batches and total_batches > 1 %}
@@ -486,15 +520,44 @@ function updateBatchParam(batchNum) {
 </div>
 
 <script>
+/* ── Design Switcher ─────────────────────────────────── */
 function switchDesign(value) {
     document.querySelectorAll('.label').forEach(function(el) {
         el.style.display = el.dataset.design === value ? '' : 'none';
     });
-    // Update URL without reload
     var url = new URL(window.location);
     url.searchParams.set('design', value);
     window.history.replaceState({}, '', url);
 }
+
+/* ── Wait for all images, then enable Print ─────────── */
+(function() {
+    var imgs = Array.from(document.querySelectorAll('.label img'));
+    var status = document.getElementById('load-status');
+    var btn    = document.getElementById('btn-print-all');
+
+    function ready() {
+        if (status) { status.textContent = '✅ Ready to print'; status.style.color = '#16a34a'; }
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+        // Auto-open print dialog if ?autoprint=1 is in the URL
+        if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
+            setTimeout(function() { window.print(); }, 300);
+        }
+    }
+
+    if (imgs.length === 0) { ready(); return; }
+
+    var total = imgs.length, loaded = 0;
+    imgs.forEach(function(img) {
+        function tick() {
+            loaded++;
+            if (status) status.textContent = '⏳ ' + loaded + ' / ' + total + ' loaded…';
+            if (loaded >= total) ready();
+        }
+        if (img.complete) { tick(); }
+        else { img.addEventListener('load', tick); img.addEventListener('error', tick); }
+    });
+})();
 </script>
 </body>
 </html>

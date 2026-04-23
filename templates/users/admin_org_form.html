@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}{% if form.instance.pk %}Edit Organization{% else %}Create Organization{% endif %}{% endblock %}
+
+{% block content %}
+<div style="max-width: 720px;">
+    <div class="card">
+        <h2 style="margin-bottom: 0.25rem;">{% if form.instance.pk %}Edit Organization{% else %}Create Organization{% endif %}</h2>
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">
+            {% if form.instance.pk %}
+            Update client organization identity details.
+            {% else %}
+            Create a client organization and assign its admin user in one step.
+            {% endif %}
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div style="margin-bottom: 1rem;">
+                <label for="{{ field.id_for_label }}" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">
+                    {{ field.label }}{% if field.field.required %}<span style="color:#DC2626;">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.help_text %}<small style="color: var(--text-secondary);">{{ field.help_text }}</small>{% endif %}
+                {% if field.errors %}
+                <div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ field.errors }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            {% if form.non_field_errors %}
+            <div style="color:#DC2626; font-size:0.9rem; margin-bottom: 1rem;">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div style="display:flex; gap:0.75rem; margin-top: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="save"></i>
+                    {% if form.instance.pk %}Save Changes{% else %}Create Organization & Admin{% endif %}
+                </button>
+                <a href="{% url 'admin-orgs' %}" class="btn" style="background: var(--bg-body);">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

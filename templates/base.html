@@ -640,10 +640,6 @@
                     <span>Asset Requests</span>
                 </a>
                 {% endif %}
-                <a href="{% url 'label-print-center' %}" class="nav-item {% if 'labels' in request.path %}active{% endif %}" data-label="Print Labels">
-                    <i data-lucide="printer"></i>
-                    <span>Print Labels</span>
-                </a>
             </div>
 
             <!-- Asset Setup Section -->
@@ -790,11 +786,19 @@
             <div class="user-menu">
                 {% if user.is_authenticated %}
                 <div class="user-dropdown" id="userDropdown">
-                    <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="User menu">
-                        <div class="user-avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
-                        <span class="user-name">{{ user.first_name|default:user.username }}</span>
+                    {% if user.is_superuser and request.session.superuser_org_mode and user.organization %}
+                    <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="Viewing as {{ user.organization.name }}">
+                        <div class="user-avatar" title="{{ user.organization.name }}" style="background: linear-gradient(135deg, #10b981, #059669);">{{ user.organization.name|slice:":1"|upper }}</div>
+                        <span class="user-name">{{ user.organization.name }}</span>
                         <i data-lucide="chevron-down"></i>
                     </button>
+                    {% else %}
+                    <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="User menu">
+                        <div class="user-avatar" title="{{ user.username }}">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</div>
+                        <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    {% endif %}
 
                     <div class="user-dropdown-menu" id="userDropdownMenu" role="menu" aria-labelledby="userDropdownBtn" style="display:none;">
                         <a href="{% url 'user-list' %}" class="dropdown-item" role="menuitem">

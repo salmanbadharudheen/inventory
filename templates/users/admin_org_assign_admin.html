@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Assign Organization Admin{% endblock %}
+
+{% block content %}
+<div style="max-width: 760px; display: grid; gap: 1rem;">
+    <div class="card">
+        <h2 style="margin-bottom: 0.25rem;">Assign Admin</h2>
+        <p style="margin-bottom: 1rem; color: var(--text-secondary);">Organization: <strong>{{ org.name }}</strong> ({{ org.slug }})</p>
+
+        <form method="post" id="assignAdminForm">
+            {% csrf_token %}
+            
+            <!-- Mode Selection -->
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-body); border-radius: 0.5rem;">
+                <label style="display:block; margin-bottom:0.75rem; font-weight:600;">How would you like to add an admin?</label>
+                <div style="display: grid; gap: 0.75rem;">
+                    {% for value, label in form.mode.field.choices %}
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="radio" name="mode" value="{{ value }}" id="id_mode_{{ value }}" 
+                               {% if form.mode.value == value %}checked{% elif forloop.first %}checked{% endif %} 
+                               onchange="toggleAdminFields()">
+                        <label for="id_mode_{{ value }}" style="margin: 0; cursor: pointer;">{{ label }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if form.mode.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.5rem;">{{ form.mode.errors }}</div>{% endif %}
+            </div>
+
+            <!-- Existing User Section -->
+            <div id="existingUserSection" style="margin-bottom: 1rem;">
+                <div style="margin-bottom: 1rem;">
+                    <label for="{{ form.user.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.user.label }}</label>
+                    {{ form.user }}
+                    {% if form.user.help_text %}<small style="color: var(--text-secondary);">{{ form.user.help_text }}</small>{% endif %}
+                    {% if form.user.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.user.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- New Admin User Section -->
+            <div id="newAdminSection" style="display: none; border: 1px solid var(--border); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                <h4 style="margin-bottom: 1rem;">New Admin User Details</h4>
+                
+                <div style="display: grid; gap: 0.5rem; margin-bottom: 1rem;">
+                    <!-- Username -->
+                    <div>
+                        <label for="{{ form.new_username.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.new_username.label }}</label>
+                        {{ form.new_username }}
+                        {% if form.new_username.help_text %}<small style="color: var(--text-secondary);">{{ form.new_username.help_text }}</small>{% endif %}
+                        {% if form.new_username.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.new_username.errors }}</div>{% endif %}
+                    </div>
+                    
+                    <!-- Email -->
+                    <div>
+                        <label for="{{ form.new_email.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.new_email.label }}</label>
+                        {{ form.new_email }}
+                        {% if form.new_email.help_text %}<small style="color: var(--text-secondary);">{{ form.new_email.help_text }}</small>{% endif %}
+                        {% if form.new_email.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.new_email.errors }}</div>{% endif %}
+                    </div>
+                    
+                    <!-- First and Last Name -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div>
+                            <label for="{{ form.new_first_name.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.new_first_name.label }}</label>
+                            {{ form.new_first_name }}
+                            {% if form.new_first_name.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.new_first_name.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.new_last_name.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.new_last_name.label }}</label>
+                            {{ form.new_last_name }}
+                            {% if form.new_last_name.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.new_last_name.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Password -->
+                    <div>
+                        <label for="{{ form.new_password.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.new_password.label }}</label>
+                        {{ form.new_password }}
+                        {% if form.new_password.help_text %}<small style="color: var(--text-secondary);">{{ form.new_password.help_text }}</small>{% endif %}
+                        {% if form.new_password.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.new_password.errors }}</div>{% endif %}
+                    </div>
+                    
+                    <!-- Confirm Password -->
+                    <div>
+                        <label for="{{ form.new_confirm_password.id_for_label }}" style="display:block; margin-bottom:0.35rem; font-weight:600;">{{ form.new_confirm_password.label }}</label>
+                        {{ form.new_confirm_password }}
+                        {% if form.new_confirm_password.errors %}<div style="color:#DC2626; font-size:0.875rem; margin-top:0.25rem;">{{ form.new_confirm_password.errors }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Non-field errors -->
+            {% if form.non_field_errors %}
+            <div style="background: #FEE2E2; border: 1px solid #FECACA; color: #DC2626; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <!-- Submit Buttons -->
+            <div style="display:flex; gap:0.75rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <i data-lucide="user-cog"></i>
+                    <span id="submitBtnText">Assign As Admin</span>
+                </button>
+                <a href="{% url 'admin-org-dashboard' pk=org.id %}" class="btn" style="background: var(--bg-body);">Back to Dashboard</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Current Admins Section -->
+    <div class="card">
+        <h3 style="margin-bottom: 0.75rem;">Current Organization Admins</h3>
+        {% if current_admins %}
+        <div style="display: grid; gap: 0.5rem;">
+            {% for item in current_admins %}
+            <div style="padding: 0.75rem; background: var(--bg-body); border-radius: 0.375rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>{{ item.username }}</strong>
+                    {% if item.email %}<br><small style="color: var(--text-secondary);">{{ item.email }}</small>{% endif %}
+                </div>
+                <small style="color: var(--text-secondary);">{{ item.date_joined|date:'M d, Y' }}</small>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">No admins assigned yet. Add one using the form above.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleAdminFields() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const existingSection = document.getElementById('existingUserSection');
+    const newAdminSection = document.getElementById('newAdminSection');
+    const submitBtnText = document.getElementById('submitBtnText');
+    
+    if (mode === 'existing') {
+        existingSection.style.display = 'block';
+        newAdminSection.style.display = 'none';
+        submitBtnText.textContent = 'Assign As Admin';
+        document.getElementById('id_user').required = true;
+        document.getElementById('id_new_username').required = false;
+        document.getElementById('id_new_email').required = false;
+        document.getElementById('id_new_password').required = false;
+    } else {
+        existingSection.style.display = 'none';
+        newAdminSection.style.display = 'block';
+        submitBtnText.textContent = 'Create & Assign Admin';
+        document.getElementById('id_user').required = false;
+        document.getElementById('id_new_username').required = true;
+        document.getElementById('id_new_email').required = true;
+        document.getElementById('id_new_password').required = true;
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', toggleAdminFields);
+</script>
+{% endblock %}

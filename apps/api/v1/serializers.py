@@ -29,6 +29,11 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         
         if username and password:
+            existing_user = User.objects.filter(username=username).select_related('organization').first()
+            if existing_user and existing_user.check_password(password):
+                if not existing_user.is_superuser and existing_user.organization and not existing_user.organization.is_active:
+                    raise serializers.ValidationError('Your organization is inactive. Please contact the system owner.')
+
             user = authenticate(username=username, password=password)
             
             if not user:

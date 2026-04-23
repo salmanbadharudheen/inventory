@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Delete Organization{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px;">
+    <div class="card">
+        <h2 style="margin-bottom: 0.5rem; color: #B91C1C;">Delete Organization</h2>
+        <p style="margin-bottom: 1rem;">You are about to delete <strong>{{ object.name }}</strong> ({{ object.slug }}).</p>
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">Delete is allowed only when there are no users and no assets in this organization.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div style="display:flex; gap:0.75rem;">
+                <button type="submit" class="btn" style="background:#DC2626; color:#fff; border:1px solid #DC2626;">
+                    <i data-lucide="trash-2"></i>
+                    Delete Organization
+                </button>
+                <a href="{% url 'admin-orgs' %}" class="btn" style="background: var(--bg-body);">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

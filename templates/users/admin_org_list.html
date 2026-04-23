@@ -5,375 +5,684 @@
 
 {% block content %}
 <style>
-    .admin-header {
-        display: flex;
-        justify-content: space-between;
+    body {
+        background: #101827 !important;
+    }
+
+    .main-wrapper {
+        background:
+            radial-gradient(820px 320px at 8% -8%, rgba(59, 130, 246, 0.16), transparent 64%),
+            radial-gradient(760px 360px at 92% -12%, rgba(56, 189, 248, 0.12), transparent 66%),
+            linear-gradient(180deg, #111827 0%, #162238 52%, #1e293b 100%);
+        min-height: 100vh;
+    }
+
+    .content {
+        background: transparent !important;
+        position: relative;
+    }
+
+    .content::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.010) 1px, transparent 1px);
+        background-size: 56px 56px;
+        opacity: 0.14;
+        z-index: 0;
+    }
+
+    .org-shell {
+        position: relative;
+        z-index: 1;
+    }
+
+    .org-shell {
+        --ink: #f1f6ff;
+        --muted: #b5c4dd;
+        --panel: #1a2742;
+        --line: rgba(148, 163, 184, 0.35);
+        --accent: #22d3ee;
+        --accent-2: #38bdf8;
+        display: grid;
+        gap: 1.45rem;
+        max-width: 1520px;
+        margin: 0 auto;
+    }
+
+    .org-shell > * {
+        animation: fadeUp 0.35s ease both;
+    }
+
+    .org-shell > *:nth-child(2) {
+        animation-delay: 0.04s;
+    }
+
+    .org-shell > *:nth-child(3) {
+        animation-delay: 0.08s;
+    }
+
+    .org-shell > *:nth-child(4) {
+        animation-delay: 0.12s;
+    }
+
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .owner-hero {
+        position: relative;
+        border-radius: 18px;
+        overflow: hidden;
+        color: #f1f5f9;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        box-shadow: 0 20px 40px -26px rgba(2, 132, 199, 0.6);
+        background:
+            linear-gradient(115deg, rgba(34, 197, 94, 0.07) 0%, rgba(34, 197, 94, 0) 35%),
+            linear-gradient(245deg, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 30%),
+            linear-gradient(160deg, #12325a 0%, #1a2742 52%, #243756 100%);
+        padding: 1.9rem;
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 1.5rem;
+        align-items: end;
+    }
+
+    .owner-hero::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(transparent 95%, rgba(255, 255, 255, 0.04) 95%);
+        background-size: 100% 16px;
+        pointer-events: none;
+    }
+
+    .hero-kicker {
+        display: inline-flex;
         align-items: center;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .admin-title-group {
-        flex: 1;
-    }
-
-    .admin-title {
-        font-size: 1.75rem;
+        gap: 0.4rem;
+        padding: 0.28rem 0.65rem;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.2);
+        border: 1px solid rgba(148, 163, 184, 0.42);
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
         font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.8rem;
     }
 
-    .admin-subtitle {
-        color: var(--text-secondary);
-        font-size: 0.875rem;
+    .hero-title {
+        font-size: clamp(2rem, 2.8vw, 2.8rem);
+        margin: 0;
+        line-height: 1.12;
+        font-weight: 800;
+        letter-spacing: -0.02em;
     }
 
-    .admin-actions {
+    .hero-subtitle {
+        margin: 0.5rem 0 0;
+        color: #dbe5f4;
+        font-size: 1.03rem;
+        max-width: 64ch;
+    }
+
+    .hero-actions {
         display: flex;
-        gap: 0.75rem;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.65rem;
         flex-wrap: wrap;
+        z-index: 1;
     }
 
     .btn {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 0.5rem;
-        padding: 0.75rem 1.25rem;
-        border-radius: 6px;
-        font-weight: 500;
-        font-size: 0.875rem;
+        padding: 0.78rem 1.2rem;
+        border-radius: 10px;
+        font-size: 0.92rem;
+        font-weight: 700;
         text-decoration: none;
-        border: none;
+        border: 1px solid transparent;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     }
 
     .btn-primary {
-        background: var(--primary);
-        color: white;
-        border: 1px solid var(--primary);
+        background: linear-gradient(145deg, #38bdf8 0%, #0284c7 100%);
+        color: #ffffff;
+        box-shadow: 0 10px 22px -18px rgba(56, 189, 248, 0.95);
     }
 
     .btn-primary:hover {
-        background: var(--primary-hover);
-        border-color: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px -16px rgba(56, 189, 248, 0.92);
     }
 
-    .btn-secondary {
-        background: transparent;
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
+    .btn-ghost {
+        color: #f1f5f9;
+        background: rgba(226, 232, 240, 0.12);
+        border-color: rgba(226, 232, 240, 0.45);
     }
 
-    .btn-secondary:hover {
-        background: var(--bg-body);
-        border-color: var(--primary);
+    .btn-ghost:hover {
+        transform: translateY(-1px);
+        border-color: rgba(148, 163, 184, 0.7);
     }
 
-    .search-box {
+    .kpi-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .kpi-card {
+        background: linear-gradient(155deg, #1a2742 0%, #243756 100%);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem 1.15rem;
         display: flex;
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
+        align-items: center;
+        gap: 0.9rem;
+        box-shadow: 0 16px 24px -22px rgba(2, 132, 199, 0.95);
     }
 
-    .search-box input {
-        flex: 1;
-        max-width: 400px;
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 0.875rem;
-        background: var(--bg-card);
-        color: var(--text-primary);
+    .kpi-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        color: #9ae6ff;
+        background: linear-gradient(145deg, #082f49 0%, #0c4a6e 100%);
+        border: 1px solid rgba(125, 211, 252, 0.35);
     }
 
-    .search-box input::placeholder {
-        color: var(--text-secondary);
+    .kpi-value {
+        font-size: 1.28rem;
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1;
     }
 
-    .search-box input:focus {
+    .kpi-label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+        margin-top: 0.22rem;
+    }
+
+    .search-panel {
+        background: linear-gradient(155deg, #1a2742 0%, #243756 100%);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1.15rem;
+        box-shadow: 0 16px 24px -22px rgba(2, 132, 199, 0.95);
+    }
+
+    .search-form {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 0.65rem;
+    }
+
+    .search-form input {
+        width: 100%;
+        padding: 0.9rem 1rem;
+        border-radius: 9px;
+        border: 1px solid rgba(191, 219, 254, 0.45);
+        background: rgba(15, 23, 42, 0.55);
+        color: var(--ink);
+        font-size: 0.98rem;
+    }
+
+    .search-form input::placeholder {
+        color: #c7d2e7;
+    }
+
+    .search-form input:focus {
         outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        border-color: #22d3ee;
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+    }
+
+    .btn-muted {
+        background: rgba(226, 232, 240, 0.14);
+        color: #f1f5f9;
+        border-color: rgba(226, 232, 240, 0.42);
+    }
+
+    .btn-muted:hover {
+        border-color: rgba(148, 163, 184, 0.75);
     }
 
     .org-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
+        grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+        gap: 1.2rem;
     }
 
     .org-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        padding: 1.5rem;
-        transition: all 0.3s ease;
+        background: linear-gradient(160deg, #1a2742 0%, #243756 58%, #2f4a73 100%);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 20px 28px -24px rgba(2, 132, 199, 0.95);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .org-card::after {
+        content: '';
+        position: absolute;
+        inset: auto -120px -120px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(34, 211, 238, 0.16) 0%, transparent 68%);
+        pointer-events: none;
+    }
+
+    .org-card::before {
+        content: '';
+        position: absolute;
+        inset: 0 auto auto 0;
+        height: 3px;
+        width: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
     }
 
     .org-card:hover {
-        box-shadow: var(--shadow-md);
         transform: translateY(-2px);
-        border-color: var(--primary);
+        box-shadow: 0 22px 30px -22px rgba(34, 211, 238, 0.9);
+        border-color: rgba(125, 211, 252, 0.6);
     }
 
-    .org-header {
+    .org-head {
         display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.85rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .org-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
     }
 
     .org-icon {
         width: 48px;
         height: 48px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
+        border-radius: 11px;
+        background: linear-gradient(145deg, #082f49, #0c4a6e);
+        border: 1px solid rgba(125, 211, 252, 0.4);
+        display: grid;
+        place-items: center;
+        color: #a5f3fc;
         flex-shrink: 0;
     }
 
-    .org-icon svg {
-        width: 24px;
-        height: 24px;
-    }
-
-    .org-info {
-        flex: 1;
-    }
-
     .org-name {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 0.25rem;
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.16rem;
         line-height: 1.2;
+        font-weight: 700;
+        max-width: 24ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .org-slug {
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        font-family: 'Courier New', monospace;
+        display: inline-flex;
+        margin-top: 0.3rem;
+        padding: 0.18rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        background: rgba(15, 23, 42, 0.45);
+        border: 1px solid rgba(191, 219, 254, 0.38);
+        color: #dbe7ff;
+        font-family: Consolas, 'Courier New', monospace;
+    }
+
+    .org-index {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #67e8f9;
+        background: rgba(8, 47, 73, 0.55);
+        border: 1px solid rgba(103, 232, 249, 0.35);
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        white-space: nowrap;
+    }
+
+    .org-head-right {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .org-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-radius: 999px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        border: 1px solid;
+    }
+
+    .org-status.active {
+        color: #86efac;
+        background: rgba(34, 197, 94, 0.2);
+        border-color: rgba(34, 197, 94, 0.45);
+    }
+
+    .org-status.inactive {
+        color: #fca5a5;
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.45);
     }
 
     .org-stats {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        padding: 1rem 0;
-        border-top: 1px solid var(--border-color);
-        border-bottom: 1px solid var(--border-color);
-        margin: 1rem 0;
+        gap: 0.75rem;
+        margin-bottom: 0.95rem;
     }
 
     .org-stat {
+        border: 1px solid rgba(191, 219, 254, 0.3);
+        border-radius: 11px;
+        padding: 0.82rem;
+        background: rgba(15, 23, 42, 0.38);
+    }
+
+    .org-stat-top {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-    }
-
-    .org-stat-icon {
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-        background-color: var(--bg-body);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--primary);
-        flex-shrink: 0;
-    }
-
-    .org-stat-icon svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .org-stat-value {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: #cdd9ef;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
     }
 
     .org-stat-number {
-        font-weight: 700;
-        font-size: 1rem;
-        color: var(--text-primary);
-    }
-
-    .org-stat-label {
-        font-size: 0.7rem;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+        font-size: 1.28rem;
+        font-weight: 800;
+        margin-top: 0.35rem;
+        color: #e2e8f0;
     }
 
     .org-meta {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        margin-bottom: 1rem;
-    }
-
-    .org-meta-item {
-        display: flex;
         align-items: center;
         gap: 0.5rem;
-    }
-
-    .org-meta-item svg {
-        width: 14px;
-        height: 14px;
-        color: var(--primary);
-    }
-
-    .org-meta-label {
-        font-weight: 500;
-        color: var(--text-primary);
+        color: #c7d2e7;
+        font-size: 0.93rem;
+        margin-bottom: 1rem;
+        border-top: 1px dashed rgba(191, 219, 254, 0.28);
+        padding-top: 0.65rem;
     }
 
     .org-actions {
-        display: flex;
-        gap: 0.5rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.62rem;
+    }
+
+    .org-action.primary,
+    .org-action-btn.primary {
+        border-color: rgba(34, 211, 238, 0.6);
+        background: linear-gradient(145deg, rgba(8, 47, 73, 0.75), rgba(12, 74, 110, 0.72));
+        color: #a5f3fc;
+        box-shadow: 0 12px 18px -16px rgba(34, 211, 238, 0.8);
+    }
+
+    .org-action.soft,
+    .org-action-btn.soft {
+        border-color: rgba(191, 219, 254, 0.35);
+        background: rgba(15, 23, 42, 0.36);
+        color: #f1f5f9;
     }
 
     .org-action {
-        flex: 1;
-        padding: 0.5rem;
-        text-align: center;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-decoration: none;
-        color: var(--primary);
-        transition: all 0.2s ease;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.25rem;
+        gap: 0.35rem;
+        padding: 0.7rem 0.7rem;
+        border-radius: 10px;
+        border: 1px solid rgba(191, 219, 254, 0.32);
+        text-decoration: none;
+        color: #f1f5f9;
+        background: rgba(15, 23, 42, 0.38);
+        font-size: 0.83rem;
+        font-weight: 700;
+        transition: all 0.15s ease;
+    }
+
+    .org-action-btn {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.7rem 0.7rem;
+        border-radius: 10px;
+        border: 1px solid rgba(191, 219, 254, 0.32);
+        color: #f1f5f9;
+        background: rgba(15, 23, 42, 0.38);
+        font-size: 0.83rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .org-action-btn:hover {
+        border-color: rgba(125, 211, 252, 0.85);
+        background: rgba(8, 47, 73, 0.75);
+        color: #a5f3fc;
     }
 
     .org-action:hover {
-        background-color: var(--bg-body);
-        border-color: var(--primary);
+        border-color: rgba(125, 211, 252, 0.85);
+        background: rgba(8, 47, 73, 0.75);
+        color: #a5f3fc;
     }
 
-    .org-action svg {
-        width: 12px;
-        height: 12px;
+    .org-action.danger:hover {
+        border-color: rgba(248, 113, 113, 0.82);
+        background: rgba(127, 29, 29, 0.45);
+        color: #fecaca;
+    }
+
+    .org-action-btn {
+        transition: all 0.15s ease;
+    }
+
+    .org-action-btn.wide {
+        grid-column: span 2;
+    }
+
+    .org-action.full {
+        grid-column: span 2;
     }
 
     .empty-state {
+        background: linear-gradient(160deg, #1a2742 0%, #243756 100%);
+        border: 1px dashed rgba(125, 211, 252, 0.3);
+        border-radius: 16px;
         text-align: center;
-        padding: 3rem 1rem;
-        color: var(--text-secondary);
+        padding: 3.2rem 1.4rem;
+        color: #d1dbef;
     }
 
-    .empty-state-icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-    }
-
-    .empty-state-text {
-        font-size: 0.875rem;
+    .empty-state h3 {
+        margin: 0.7rem 0 0.3rem;
+        font-size: 1.3rem;
+        color: #e2e8f0;
     }
 
     .pagination-wrapper {
         display: flex;
         justify-content: center;
-        gap: 0.5rem;
-        margin-top: 2rem;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.2rem;
     }
 
     .pagination-wrapper a,
     .pagination-wrapper span {
-        padding: 0.5rem 0.75rem;
-        border-radius: 4px;
-        border: 1px solid var(--border-color);
+        padding: 0.6rem 0.9rem;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
         text-decoration: none;
-        font-size: 0.875rem;
-        color: var(--text-primary);
+        font-size: 0.9rem;
+        color: #f1f5f9;
+        background: rgba(15, 23, 42, 0.42);
     }
 
     .pagination-wrapper a:hover {
-        background-color: var(--bg-body);
-        border-color: var(--primary);
-        color: var(--primary);
+        border-color: rgba(125, 211, 252, 0.85);
+        color: #a5f3fc;
+        background: rgba(8, 47, 73, 0.72);
     }
 
-    .pagination-wrapper span.page-current {
-        background-color: var(--primary);
-        color: white;
-        border-color: var(--primary);
+    .pagination-wrapper .page-current {
+        color: #ffffff;
+        border-color: #0284c7;
+        background: linear-gradient(145deg, #0ea5e9, #0284c7);
     }
 
-    @media (max-width: 768px) {
-        .admin-header {
-            flex-direction: column;
-            align-items: flex-start;
+    @media (max-width: 960px) {
+        .owner-hero {
+            grid-template-columns: 1fr;
         }
 
-        .admin-actions {
-            width: 100%;
+        .hero-actions {
+            justify-content: flex-start;
         }
 
-        .btn {
-            flex: 1;
-            justify-content: center;
+        .kpi-strip {
+            grid-template-columns: 1fr;
         }
 
-        .search-box {
-            flex-direction: column;
+        .org-grid {
+            grid-template-columns: 1fr;
         }
+    }
 
-        .search-box input {
-            max-width: 100%;
+    @media (max-width: 720px) {
+        .search-form {
+            grid-template-columns: 1fr;
         }
 
         .org-grid {
             grid-template-columns: 1fr;
         }
 
-        .org-stats {
-            grid-template-columns: 1fr;
-        }
-
         .org-actions {
-            flex-direction: column;
+            grid-template-columns: 1fr 1fr;
         }
 
-        .org-action {
-            width: 100%;
+        .org-action-btn.wide {
+            grid-column: span 2;
+        }
+
+        .org-action.full {
+            grid-column: span 2;
+        }
+
+        .hero-title {
+            font-size: 1.7rem;
         }
     }
 </style>
 
-<div class="admin-header">
-    <div class="admin-title-group">
-        <div class="admin-title">Manage Organizations</div>
-        <div class="admin-subtitle">View and manage all organizations in the system</div>
+<div class="org-shell">
+<section class="owner-hero">
+    <div>
+        <span class="hero-kicker">
+            <svg data-lucide="shield-check" style="width:13px;height:13px;"></svg>
+            Owner Control Zone
+        </span>
+        <h1 class="hero-title">Organization Operations Hub</h1>
+        <p class="hero-subtitle">Manage tenants, assign administrators, and enter organization context from one focused workspace.</p>
     </div>
-    <div class="admin-actions">
-        <a href="{% url 'admin-dashboard' %}" class="btn btn-secondary">
-            <svg data-lucide="arrow-left" style="width: 16px; height: 16px;"></svg>
+    <div class="hero-actions">
+        {% if user.is_superuser %}
+        <a href="{% url 'admin-org-create' %}" class="btn btn-primary">
+            <svg data-lucide="plus" style="width:15px;height:15px;"></svg>
+            New Organization
+        </a>
+        {% endif %}
+        <a href="{% url 'admin-dashboard' %}" class="btn btn-ghost">
+            <svg data-lucide="arrow-left" style="width:15px;height:15px;"></svg>
             Back to Dashboard
         </a>
     </div>
-</div>
+</section>
+
+<section class="kpi-strip">
+    <article class="kpi-card">
+        <div class="kpi-icon">
+            <svg data-lucide="building-2" style="width:16px;height:16px;"></svg>
+        </div>
+        <div>
+            <div class="kpi-value">{{ page_obj.paginator.count|default:organizations|length }}</div>
+            <div class="kpi-label">Total Organizations</div>
+        </div>
+    </article>
+    <article class="kpi-card">
+        <div class="kpi-icon">
+            <svg data-lucide="rows-3" style="width:16px;height:16px;"></svg>
+        </div>
+        <div>
+            <div class="kpi-value">{{ organizations|length }}</div>
+            <div class="kpi-label">Shown On This Page</div>
+        </div>
+    </article>
+    <article class="kpi-card">
+        <div class="kpi-icon">
+            <svg data-lucide="lock" style="width:16px;height:16px;"></svg>
+        </div>
+        <div>
+            <div class="kpi-value">Owner</div>
+            <div class="kpi-label">Restricted Actions</div>
+        </div>
+    </article>
+</section>
 
 <!-- Search Box -->
-<div class="search-box">
-    <form method="get" style="display: flex; gap: 0.75rem; width: 100%;">
+<section class="search-panel">
+    <form method="get" class="search-form">
         <input 
             type="text" 
             name="q" 
@@ -381,75 +690,111 @@
             value="{{ search_query }}"
         >
         <button type="submit" class="btn btn-primary">
-            <svg data-lucide="search" style="width: 16px; height: 16px;"></svg>
+            <svg data-lucide="search" style="width:15px;height:15px;"></svg>
             Search
         </button>
         {% if search_query %}
-        <a href="{% url 'admin-orgs' %}" class="btn btn-secondary">
-            <svg data-lucide="x" style="width: 16px; height: 16px;"></svg>
+        <a href="{% url 'admin-orgs' %}" class="btn btn-muted">
+            <svg data-lucide="x" style="width:15px;height:15px;"></svg>
             Clear
         </a>
         {% endif %}
     </form>
-</div>
+</section>
 
 <!-- Organizations Grid -->
 {% if organizations %}
 <div class="org-grid">
     {% for org in organizations %}
-    <div class="org-card">
-        <div class="org-header">
-            <div class="org-icon">
-                <svg data-lucide="building-2"></svg>
+    <article class="org-card">
+        <div class="org-head">
+            <div class="org-title-wrap">
+                <div class="org-icon">
+                    <svg data-lucide="building-2" style="width:18px;height:18px;"></svg>
+                </div>
+                <div>
+                    <h3 class="org-name" title="{{ org.name }}">{{ org.name }}</h3>
+                    <span class="org-slug">{{ org.slug }}</span>
+                </div>
             </div>
-            <div class="org-info">
-                <div class="org-name">{{ org.name }}</div>
-                <div class="org-slug">{{ org.slug }}</div>
+            <div class="org-head-right">
+                <span class="org-status {% if org.is_active %}active{% else %}inactive{% endif %}">
+                    {% if org.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+                <span class="org-index">#{{ forloop.counter }}</span>
             </div>
         </div>
 
         <div class="org-stats">
             <div class="org-stat">
-                <div class="org-stat-icon">
-                    <svg data-lucide="users"></svg>
+                <div class="org-stat-top">
+                    <span>Users</span>
+                    <svg data-lucide="users" style="width:14px;height:14px;"></svg>
                 </div>
-                <div class="org-stat-value">
-                    <span class="org-stat-number">{{ org.user_count|default:0 }}</span>
-                    <span class="org-stat-label">Users</span>
-                </div>
+                <div class="org-stat-number">{{ org.user_count|default:0 }}</div>
             </div>
-
             <div class="org-stat">
-                <div class="org-stat-icon">
-                    <svg data-lucide="package"></svg>
+                <div class="org-stat-top">
+                    <span>Assets</span>
+                    <svg data-lucide="package" style="width:14px;height:14px;"></svg>
                 </div>
-                <div class="org-stat-value">
-                    <span class="org-stat-number">{{ org.asset_count|default:0 }}</span>
-                    <span class="org-stat-label">Assets</span>
-                </div>
+                <div class="org-stat-number">{{ org.asset_count|default:0 }}</div>
             </div>
         </div>
 
         <div class="org-meta">
-            <div class="org-meta-item">
-                <svg data-lucide="calendar"></svg>
-                <span><span class="org-meta-label">Created:</span> {{ org.created_at|date:"M d, Y" }}</span>
-            </div>
+            <svg data-lucide="calendar" style="width:14px;height:14px;"></svg>
+            <span>Created {{ org.created_at|date:"M d, Y" }}</span>
         </div>
 
         <div class="org-actions">
-            <a href="#" class="org-action" title="View Details">
-                <svg data-lucide="eye"></svg>
-                Details
-            </a>
             {% if user.is_superuser %}
-            <a href="{% url 'org-tag-settings' pk=org.pk %}" class="org-action" title="Asset Tag Settings">
-                <svg data-lucide="settings"></svg>
+            {% if org.is_active %}
+            <a href="{% url 'admin-org-login' pk=org.pk %}" class="org-action primary full" title="Login to Organization">
+                <svg data-lucide="log-in" style="width:12px;height:12px;"></svg>
+                Login Org
+            </a>
+            {% else %}
+            <span class="org-action soft full" style="opacity:0.5; cursor:not-allowed;" title="Inactive organization cannot be used for login">
+                <svg data-lucide="ban" style="width:12px;height:12px;"></svg>
+                Login Disabled
+            </span>
+            {% endif %}
+            <a href="{% url 'admin-org-dashboard' pk=org.pk %}" class="org-action primary" title="Open Organization Dashboard">
+                <svg data-lucide="layout-dashboard" style="width:12px;height:12px;"></svg>
+                Dashboard
+            </a>
+            <a href="{% url 'admin-org-edit' pk=org.pk %}" class="org-action soft" title="Edit Organization">
+                <svg data-lucide="pencil" style="width:12px;height:12px;"></svg>
+                Edit
+            </a>
+            <a href="{% url 'admin-org-assign-admin' pk=org.pk %}" class="org-action soft" title="Assign Organization Admin">
+                <svg data-lucide="user-cog" style="width:12px;height:12px;"></svg>
+                Assign Admin
+            </a>
+            <a href="{% url 'org-tag-settings' pk=org.pk %}" class="org-action soft" title="Asset Tag Settings">
+                <svg data-lucide="settings" style="width:12px;height:12px;"></svg>
                 Tag Settings
+            </a>
+            <form method="post" action="{% url 'admin-org-toggle-status' pk=org.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="org-action-btn soft wide" title="Toggle organization active status">
+                    {% if org.is_active %}
+                    <svg data-lucide="pause-circle" style="width:12px;height:12px;"></svg>
+                    Make Inactive
+                    {% else %}
+                    <svg data-lucide="play-circle" style="width:12px;height:12px;"></svg>
+                    Make Active
+                    {% endif %}
+                </button>
+            </form>
+            <a href="{% url 'admin-org-delete' pk=org.pk %}" class="org-action danger" title="Delete Organization">
+                <svg data-lucide="trash-2" style="width:12px;height:12px;"></svg>
+                Delete
             </a>
             {% endif %}
         </div>
-    </div>
+    </article>
     {% endfor %}
 </div>
 
@@ -478,21 +823,31 @@
 
 {% else %}
 <div class="empty-state">
-    <div class="empty-state-icon">
-        <svg data-lucide="building-2"></svg>
-    </div>
-    <div class="empty-state-text">
+    <svg data-lucide="search-x" style="width:36px;height:36px;color:#94a3b8;"></svg>
+    <h3>No organizations found</h3>
+    <p>
         {% if search_query %}
-            No organizations found matching "{{ search_query }}"
+            Nothing matched "{{ search_query }}". Try a broader keyword.
         {% else %}
-            No organizations found
+            Create your first organization to start onboarding tenants.
         {% endif %}
+    </p>
+    {% if user.is_superuser %}
+    <div style="margin-top:0.8rem;">
+        <a href="{% url 'admin-org-create' %}" class="btn btn-primary">
+            <svg data-lucide="plus" style="width:15px;height:15px;"></svg>
+            Create Organization
+        </a>
     </div>
+    {% endif %}
 </div>
 {% endif %}
+</div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 </script>
 {% endblock %}

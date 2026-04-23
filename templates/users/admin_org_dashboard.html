@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Organization Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .orgdash-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .orgdash-hero {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background:
+            radial-gradient(900px 220px at -10% -120%, rgba(34, 197, 94, 0.16), transparent),
+            radial-gradient(900px 260px at 120% -120%, rgba(14, 165, 233, 0.18), transparent),
+            linear-gradient(145deg, #0f172a 0%, #1e293b 62%, #223756 100%);
+        color: #e2e8f0;
+        padding: 1.3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .orgdash-hero h1 {
+        margin: 0;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .orgdash-subtitle {
+        margin: 0.35rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.9rem;
+    }
+
+    .orgdash-code {
+        margin-top: 0.6rem;
+        display: inline-block;
+        font-family: 'Courier New', monospace;
+        font-size: 0.74rem;
+        background: rgba(148, 163, 184, 0.2);
+        color: #e2e8f0;
+        padding: 0.2rem 0.45rem;
+        border-radius: 6px;
+    }
+
+    .orgdash-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 0.6rem 0.85rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-light {
+        background: #f8fafc;
+        color: #0f172a;
+    }
+
+    .btn-light:hover {
+        background: #e2e8f0;
+    }
+
+    .btn-ghost {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #e2e8f0;
+    }
+
+    .btn-ghost:hover {
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.9rem;
+    }
+
+    .stat {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+    }
+
+    .stat-value {
+        margin-top: 0.3rem;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--text-primary);
+    }
+
+    .panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+        padding: 1rem;
+    }
+
+    .panel-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.7rem;
+    }
+
+    .admin-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 0.65rem;
+    }
+
+    .admin-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.7rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        background: #f8fafc;
+    }
+
+    .admin-name {
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 0.88rem;
+    }
+
+    .admin-date {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .empty {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        margin: 0;
+    }
+
+    @media (max-width: 768px) {
+        .orgdash-hero {
+            flex-direction: column;
+        }
+
+        .orgdash-actions {
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="orgdash-wrap">
+    <section class="orgdash-hero">
+        <div>
+            <h1>{{ org.name }}</h1>
+            <p class="orgdash-subtitle">Owner view for this client organization.</p>
+            <span class="orgdash-code">{{ org.slug }}</span>
+        </div>
+
+        <div class="orgdash-actions">
+            <a href="{% url 'admin-orgs' %}" class="btn btn-ghost">
+                <svg data-lucide="arrow-left" style="width:14px;height:14px;"></svg>
+                Organizations
+            </a>
+            <a href="{% url 'admin-org-login' pk=org.pk %}" class="btn btn-light">
+                <svg data-lucide="log-in" style="width:14px;height:14px;"></svg>
+                Login to Organization
+            </a>
+            <a href="{% url 'admin-org-edit' pk=org.pk %}" class="btn btn-light">
+                <svg data-lucide="pencil" style="width:14px;height:14px;"></svg>
+                Edit Organization
+            </a>
+            <a href="{% url 'admin-org-assign-admin' pk=org.pk %}" class="btn btn-light">
+                <svg data-lucide="user-cog" style="width:14px;height:14px;"></svg>
+                Assign Admin
+            </a>
+            <a href="{% url 'org-tag-settings' pk=org.pk %}" class="btn btn-light">
+                <svg data-lucide="settings" style="width:14px;height:14px;"></svg>
+                Tag Settings
+            </a>
+        </div>
+    </section>
+
+    <section class="stats-grid">
+        <div class="stat">
+            <div class="stat-label">Users</div>
+            <div class="stat-value">{{ total_users }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Admin Users</div>
+            <div class="stat-value">{{ admin_users }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Assets</div>
+            <div class="stat-value">{{ total_assets }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Created</div>
+            <div class="stat-value" style="font-size:1.2rem;">{{ org.created_at|date:"M d, Y" }}</div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2 class="panel-title">Recent Organization Admins</h2>
+        {% if recent_admins %}
+        <div class="admin-list">
+            {% for admin_user in recent_admins %}
+            <div class="admin-item">
+                <div>
+                    <div class="admin-name">{{ admin_user.get_full_name|default:admin_user.username }}</div>
+                    <div class="admin-date">@{{ admin_user.username }}</div>
+                </div>
+                <div class="admin-date">{{ admin_user.date_joined|date:"M d, Y" }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">No admin users assigned yet for this organization.</p>
+        {% endif %}
+    </section>
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

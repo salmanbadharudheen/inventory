@@ -57,11 +57,11 @@
     .btn-generate:hover { background: #1d4ed8; }
     .btn-generate:disabled { background: #94a3b8; cursor: not-allowed; }
 
-    .actions-row { display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; }
+    .actions-row { display: flex; gap: 1rem; align-items: center; margin-top: 1.25rem; flex-wrap: wrap; }
     .preview-count { font-size: 0.85rem; color: #64748b; }
 
     .or-divider {
-        display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0;
+        display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0;
         color: #94a3b8; font-size: 0.78rem; font-weight: 600;
     }
     .or-divider::before, .or-divider::after {
@@ -73,7 +73,31 @@
     .tag-list-area textarea {
         width: 100%; min-height: 80px; padding: 0.6rem; border: 1px solid #cbd5e1;
         border-radius: 8px; font-size: 0.85rem; font-family: 'Consolas', monospace;
-        resize: vertical;
+        resize: vertical; box-sizing: border-box;
+    }
+
+    .option-label {
+        font-size: 0.82rem; font-weight: 700; color: #374151;
+        margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .option-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px; background: #e0e7ff; color: #3730a3;
+        border-radius: 50%; font-size: 0.7rem; font-weight: 800; flex-shrink: 0;
+    }
+
+    .print-action-bar {
+        background: #f0fdf4; border: 1.5px solid #86efac;
+        border-radius: 12px; padding: 1.25rem 1.5rem;
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .print-action-bar .hint {
+        font-size: 0.82rem; color: #15803d; font-weight: 500;
+        display: flex; align-items: center; gap: 0.4rem;
+    }
+    .print-action-bar .hint-sub {
+        font-size: 0.75rem; color: #64748b; margin-top: 2px;
     }
 </style>
 
@@ -113,10 +137,10 @@
 
         <!-- Asset Selection -->
         <div class="print-section">
-            <h3><i data-lucide="filter"></i> Select Assets</h3>
+            <h3><i data-lucide="filter"></i> Select Assets to Print</h3>
 
             <!-- Option 1: By Tag Range -->
-            <p style="font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Option 1: By Asset Tag Range</p>
+            <p class="option-label"><span class="option-badge">1</span> By Asset Tag Range</p>
             <div class="form-row">
                 <div class="form-group">
                     <label for="tag-from">From Tag</label>
@@ -142,7 +166,7 @@
             <div class="or-divider">OR</div>
 
             <!-- Option 2: By Category -->
-            <p style="font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Option 2: By Category</p>
+            <p class="option-label"><span class="option-badge">2</span> By Category &amp; Branch</p>
             <div class="form-row">
                 <div class="form-group">
                     <label for="category-filter">Category</label>
@@ -166,19 +190,27 @@
 
             <div class="or-divider">OR</div>
 
-            <!-- Option 3: Specific Tags -->
-            <p style="font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Option 3: Specific Asset Tags</p>
+            <!-- Option 3: Specific Tags (bulk paste) -->
+            <p class="option-label"><span class="option-badge">3</span> Paste Specific Asset Tags</p>
             <div class="tag-list-area">
-                <textarea id="specific-tags" name="specific_tags" placeholder="Enter asset tags separated by commas or new lines&#10;e.g. SH-ELE-0001-26, SH-ELE-0002-26"></textarea>
+                <textarea id="specific-tags" name="specific_tags"
+                    placeholder="Paste asset tags separated by commas or new lines&#10;e.g. SH-ELE-0001-26, SH-ELE-0002-26"></textarea>
             </div>
+            <p class="range-hint">Paste one tag per line or comma-separated for bulk selection.</p>
         </div>
 
-        <!-- Actions -->
-        <div class="actions-row">
-            <button type="submit" class="btn-generate" id="btn-print">
-                <i data-lucide="printer"></i> Generate & Print Labels
-            </button>
-            <span class="preview-count" id="preview-count"></span>
+        <!-- Print Action Bar -->
+        <div class="print-action-bar">
+            <div>
+                <div class="hint">🖨️ Sticker Printer Ready — labels print one-by-one</div>
+                <div class="hint-sub">Each sticker feeds separately on your label printer (2″ × 1″)</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                <button type="submit" class="btn-generate" id="btn-print">
+                    <i data-lucide="printer"></i> Generate &amp; Print Labels
+                </button>
+                <span class="preview-count" id="preview-count"></span>
+            </div>
         </div>
 
     </form>
