@@ -700,6 +700,211 @@
             font-size: calc(0.54rem * var(--custom-font-scale)); color: #6b7280;
         }
 
+        body.size-roll-133x19 .label {
+            box-shadow: none;
+        }
+
+        body.size-roll-133x19 .label-classic,
+        body.size-roll-133x19 .label-detailed,
+        body.size-roll-133x19 .label-modern,
+        body.size-roll-133x19 .label-compact,
+        body.size-roll-133x19 .label-barcode-only,
+        body.size-roll-133x19 .label-qr-only {
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 6px;
+            padding: 5px 8px;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-accent,
+        body.size-roll-133x19 .label-classic .lbl-header,
+        body.size-roll-133x19 .label-detailed .lbl-header,
+        body.size-roll-133x19 .label-modern .lbl-modern-header,
+        body.size-roll-133x19 .label-compact .lbl-divider {
+            display: none;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-body,
+        body.size-roll-133x19 .label-detailed .lbl-body,
+        body.size-roll-133x19 .label-modern .lbl-modern-body {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
+            width: 100%;
+            min-width: 0;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-qr img,
+        body.size-roll-133x19 .label-detailed .lbl-qr img,
+        body.size-roll-133x19 .label-modern .lbl-qr img,
+        body.size-roll-133x19 .label-compact .lbl-qr img,
+        body.size-roll-133x19 .label-qr-only .lbl-qr-main img {
+            width: calc(50px * var(--custom-qr-scale));
+            height: calc(50px * var(--custom-qr-scale));
+            max-width: 50px;
+            max-height: 50px;
+            padding: 1px;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-right,
+        body.size-roll-133x19 .label-detailed .lbl-right,
+        body.size-roll-133x19 .label-modern .lbl-modern-info,
+        body.size-roll-133x19 .label-compact .lbl-text,
+        body.size-roll-133x19 .label-barcode-only,
+        body.size-roll-133x19 .label-qr-only {
+            flex: 1;
+            min-width: 0;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-right img,
+        body.size-roll-133x19 .label-detailed .lbl-right img,
+        body.size-roll-133x19 .label-modern .lbl-barcode-inline img,
+        body.size-roll-133x19 .label-barcode-only .lbl-barcode-img img {
+            height: calc(24px * var(--custom-barcode-scale));
+            width: 100%;
+            object-fit: fill;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-right,
+        body.size-roll-133x19 .label-detailed .lbl-right,
+        body.size-roll-133x19 .label-modern .lbl-modern-info,
+        body.size-roll-133x19 .label-compact .lbl-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        body.size-roll-133x19 .label-modern .lbl-modern-info {
+            gap: 1px;
+        }
+
+        body.size-roll-133x19 .label-classic .org-name,
+        body.size-roll-133x19 .label-detailed .company,
+        body.size-roll-133x19 .label-compact .lbl-company,
+        body.size-roll-133x19 .label-barcode-only .lbl-company,
+        body.size-roll-133x19 .label-modern .lbl-category,
+        body.size-roll-133x19 .label-modern .lbl-location,
+        body.size-roll-133x19 .label-qr-only .org-name {
+            font-size: calc(0.34rem * var(--custom-font-scale));
+            line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-tag,
+        body.size-roll-133x19 .label-detailed .lbl-tag,
+        body.size-roll-133x19 .label-compact .lbl-tag,
+        body.size-roll-133x19 .label-barcode-only .lbl-tag,
+        body.size-roll-133x19 .label-modern .lbl-tag,
+        body.size-roll-133x19 .label-qr-only .lbl-tag-bottom,
+        body.size-roll-133x19 .label-classic .tag-num,
+        body.size-roll-133x19 .label-detailed .tag,
+        body.size-roll-133x19 .label-modern .tag-num {
+            font-size: calc(0.4rem * var(--custom-font-scale));
+            line-height: 1;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        body.size-roll-133x19 .label-modern .lbl-asset-name {
+            font-size: calc(0.38rem * var(--custom-font-scale));
+            line-height: 1.05;
+        }
+
+        body.size-roll-133x19 .label-classic .lbl-body,
+        body.size-roll-133x19 .label-detailed .lbl-body,
+        body.size-roll-133x19 .label-modern .lbl-modern-body,
+        body.size-roll-133x19 .label-compact,
+        body.size-roll-133x19 .label-qr-only {
+            height: 100%;
+        }
+
+        body.size-roll-133x19 .label-barcode-only {
+            gap: 3px;
+        }
+
+        body.size-roll-133x19 .label-barcode-only .lbl-company,
+        body.size-roll-133x19 .label-barcode-only .lbl-tag {
+            flex: 0 0 auto;
+        }
+
+        body.size-roll-133x19 .label-barcode-only .lbl-barcode-img {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        body.size-roll-133x19 .label-qr-only {
+            justify-content: flex-start;
+            gap: 6px;
+        }
+
+        @media print {
+            body.size-roll-133x19 .label-classic,
+            body.size-roll-133x19 .label-detailed,
+            body.size-roll-133x19 .label-modern,
+            body.size-roll-133x19 .label-compact,
+            body.size-roll-133x19 .label-barcode-only,
+            body.size-roll-133x19 .label-qr-only {
+                gap: 1.2mm !important;
+                padding: 1.1mm 1.6mm !important;
+            }
+
+            body.size-roll-133x19 .label-classic .lbl-qr img,
+            body.size-roll-133x19 .label-detailed .lbl-qr img,
+            body.size-roll-133x19 .label-modern .lbl-qr img,
+            body.size-roll-133x19 .label-compact .lbl-qr img,
+            body.size-roll-133x19 .label-qr-only .lbl-qr-main img {
+                width: calc(13mm * var(--custom-qr-scale)) !important;
+                height: calc(13mm * var(--custom-qr-scale)) !important;
+                max-width: 13mm !important;
+                max-height: 13mm !important;
+                padding: 0.2mm !important;
+            }
+
+            body.size-roll-133x19 .label-classic .lbl-right img,
+            body.size-roll-133x19 .label-detailed .lbl-right img,
+            body.size-roll-133x19 .label-modern .lbl-barcode-inline img,
+            body.size-roll-133x19 .label-barcode-only .lbl-barcode-img img {
+                height: calc(5.5mm * var(--custom-barcode-scale)) !important;
+            }
+
+            body.size-roll-133x19 .label-classic .org-name,
+            body.size-roll-133x19 .label-detailed .company,
+            body.size-roll-133x19 .label-compact .lbl-company,
+            body.size-roll-133x19 .label-barcode-only .lbl-company,
+            body.size-roll-133x19 .label-modern .lbl-category,
+            body.size-roll-133x19 .label-modern .lbl-location,
+            body.size-roll-133x19 .label-qr-only .org-name {
+                font-size: calc(4.2pt * var(--custom-font-scale)) !important;
+            }
+
+            body.size-roll-133x19 .label-classic .lbl-tag,
+            body.size-roll-133x19 .label-detailed .lbl-tag,
+            body.size-roll-133x19 .label-compact .lbl-tag,
+            body.size-roll-133x19 .label-barcode-only .lbl-tag,
+            body.size-roll-133x19 .label-modern .lbl-tag,
+            body.size-roll-133x19 .label-qr-only .lbl-tag-bottom,
+            body.size-roll-133x19 .label-classic .tag-num,
+            body.size-roll-133x19 .label-detailed .tag,
+            body.size-roll-133x19 .label-modern .tag-num {
+                font-size: calc(5pt * var(--custom-font-scale)) !important;
+            }
+
+            body.size-roll-133x19 .label-modern .lbl-asset-name {
+                font-size: calc(4.6pt * var(--custom-font-scale)) !important;
+            }
+        }
+
         @media print {
             /* ── MODERN print ─────────────────────────── */
             .label-modern .lbl-modern-header { padding: 1.5pt 5pt; }
@@ -766,7 +971,7 @@
         {% endfor %}
     </select>
     <span class="count" id="lbl-count">{{ assets|length }} sticker{{ assets|length|pluralize }}</span>
-    <span class="size-hint">📏 2″ × 1″ · prints one-by-one</span>
+    <span class="size-hint">📏 2″ × 1″ only · one sticker per feed</span>
     <span id="load-status" style="font-size:0.78rem; color:#f59e0b; font-weight:600;">⏳ Loading images…</span>
     <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
@@ -776,13 +981,9 @@
     <div class="field">
         <label for="sticker-size">Sticker Size</label>
         <select id="sticker-size">
-            <option value="133x19" selected>133mm x 19mm (Sticker Printer)</option>
-            <option value="2x1">2in x 1in</option>
-            <option value="2x1.5">2in x 1.5in</option>
-            <option value="3x1">3in x 1in</option>
-            <option value="3x2">3in x 2in</option>
+            <option value="2x1" selected>2in x 1in (Sticker Printer)</option>
         </select>
-        <span class="field-note" id="sticker-size-note">Prints each label on one 133mm x 19mm sticker.</span>
+        <span class="field-note" id="sticker-size-note">Prints each label on one 2in x 1in sticker.</span>
     </div>
 
     <div class="field">
@@ -1058,9 +1259,32 @@ function escapePrintHtml(value) {
         .replace(/>/g, '&gt;');
 }
 
+function ensureRuntimePrintStyle(size) {
+    var styleId = 'runtime-print-size-style';
+    var styleEl = document.getElementById(styleId);
+
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+    }
+
+    styleEl.textContent = [
+        '@media print {',
+        '  @page { size: ' + size.wMm + 'mm ' + size.hMm + 'mm; margin: 0; }',
+        '  .label {',
+        '    width: ' + size.wMm + 'mm !important;',
+        '    height: ' + size.hMm + 'mm !important;',
+        '    max-width: ' + size.wMm + 'mm !important;',
+        '    max-height: ' + size.hMm + 'mm !important;',
+        '  }',
+        '}',
+    ].join('\n');
+}
+
 function getSelectedPrintSize(sizeValue) {
     var sizeControl = document.getElementById('sticker-size');
-    var selectedValue = sizeValue || (sizeControl ? sizeControl.value : '133x19');
+    var selectedValue = sizeValue || (sizeControl ? sizeControl.value : '2x1');
     var map = {
         '133x19': { wMm: 133, hMm: 19, wPx: 506, hPx: 72, label: '133mm x 19mm' },
         '2x1': { wMm: 50.8, hMm: 25.4, wPx: 384, hPx: 192, label: '2in x 1in' },
@@ -1068,7 +1292,7 @@ function getSelectedPrintSize(sizeValue) {
         '3x1': { wMm: 76.2, hMm: 25.4, wPx: 576, hPx: 192, label: '3in x 1in' },
         '3x2': { wMm: 76.2, hMm: 50.8, wPx: 576, hPx: 384, label: '3in x 2in' }
     };
-    return map[selectedValue] || map['133x19'];
+    return map[selectedValue] || map['2x1'];
 }
 
 /* ── Design Switcher ─────────────────────────────────── */
@@ -1103,69 +1327,18 @@ function doPrint() {
         }
     });
 
-    var printLabels = Array.from(grid.children).filter(function(el) {
-        return el.style.display !== 'none' && el.dataset && el.dataset.design;
-    }).map(function(el) {
-        return '<div class="print-label-wrap">' + el.outerHTML + '</div>';
-    }).join('');
-
-    clones.forEach(function(c) { if (c.parentNode) c.parentNode.removeChild(c); });
-
     var size = getSelectedPrintSize();
-    var printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    ensureRuntimePrintStyle(size);
+    document.body.setAttribute('data-print-size', escapePrintHtml(size.label));
 
-    if (!printWindow) {
-        window.print();
-        return;
+    function cleanupCopies() {
+        clones.forEach(function(c) { if (c.parentNode) c.parentNode.removeChild(c); });
+        window.removeEventListener('afterprint', cleanupCopies);
     }
 
-    var sourceStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).map(function(node) {
-        return node.outerHTML;
-    }).join('');
-
-    var printHtml = [
-        '<!DOCTYPE html>',
-        '<html lang="en">',
-        '<head>',
-        '<meta charset="UTF-8">',
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-        '<title>Sticker Print</title>',
-        sourceStyles,
-        '<style>',
-        ':root {',
-        '  --print-page-w: ' + size.wMm + 'mm;',
-        '  --print-page-h: ' + size.hMm + 'mm;',
-        '  --sticker-w: ' + size.wMm + 'mm;',
-        '  --sticker-h: ' + size.hMm + 'mm;',
-        '}',
-        'html, body { margin: 0; padding: 0; background: #fff; }',
-        'body { width: ' + size.wMm + 'mm; }',
-        '.toolbar, .toolbar-custom, .batch-bar, #load-status, #btn-print-all { display: none !important; }',
-        '.label-grid { display: block !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: #fff !important; }',
-        '.print-label-wrap { width: ' + size.wMm + 'mm; height: ' + size.hMm + 'mm; margin: 0; padding: 0; page-break-after: always; break-after: page; overflow: hidden; }',
-        '.print-label-wrap:last-child { page-break-after: auto; break-after: auto; }',
-        '.print-label-wrap .label { width: ' + size.wMm + 'mm !important; height: ' + size.hMm + 'mm !important; max-width: ' + size.wMm + 'mm !important; max-height: ' + size.hMm + 'mm !important; margin: 0 !important; }',
-        '</style>',
-        '</head>',
-        '<body data-print-size="' + escapePrintHtml(size.label) + '">',
-        '<div class="label-grid">',
-        printLabels,
-        '</div>',
-        '<script>',
-        'window.addEventListener("load", function () {',
-        '  setTimeout(function () {',
-        '    window.print();',
-        '    setTimeout(function () { window.close(); }, 150);',
-        '  }, 150);',
-        '});',
-        '<\/script>',
-        '</body>',
-        '</html>'
-    ].join('');
-
-    printWindow.document.open();
-    printWindow.document.write(printHtml);
-    printWindow.document.close();
+    window.addEventListener('afterprint', cleanupCopies);
+    window.print();
+    setTimeout(cleanupCopies, 1000);
 }
 
 /* ── Wait for all images, then enable Print ─────────── */
@@ -1228,7 +1401,7 @@ function doPrint() {
     };
 
     var defaults = {
-        size: '133x19',
+        size: '2x1',
         fontFamily: 'segoe',
         font: '1',
         qr: '1',
@@ -1294,6 +1467,7 @@ function doPrint() {
         root.style.setProperty('--sticker-h', selected.hPx + 'px');
         root.style.setProperty('--print-page-w', selected.wMm + 'mm');
         root.style.setProperty('--print-page-h', selected.hMm + 'mm');
+        body.classList.remove('size-roll-133x19');
 
         var note = document.getElementById('sticker-size-note');
         var sizeHint = document.querySelector('.size-hint');
@@ -1372,7 +1546,7 @@ function doPrint() {
     }
 
     function setControls(state) {
-        controls.size.value = state.size;
+        controls.size.value = state.size === '2x1' ? '2x1' : defaults.size;
         controls.fontFamily.value = state.fontFamily || defaults.fontFamily;
         controls.font.value = state.font;
 
