@@ -17,6 +17,10 @@
                     <i data-lucide="download"></i>
                     <span class="btn-tooltip">Export</span>
                 </a>
+                <a href="{% url 'label-print-center' %}" class="btn-icon-action" title="Print Labels">
+                    <i data-lucide="printer"></i>
+                    <span class="btn-tooltip">Print Labels</span>
+                </a>
                 <a href="{% url 'asset-import' %}" class="btn-icon-action" title="Import">
                     <i data-lucide="upload"></i>
                     <span class="btn-tooltip">Import</span>
@@ -606,20 +610,37 @@
         background: #1e293b;
         color: white;
         padding: 0.3rem 0.6rem;
-        border-radius: 3px;
+        border-radius: 4px;
         font-size: 0.65rem;
         font-weight: 600;
         white-space: nowrap;
         opacity: 0;
         visibility: hidden;
-        transition: all 0.2s ease;
+        transition: opacity 0.2s ease, visibility 0.2s ease, bottom 0.2s ease;
         pointer-events: none;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    }
+
+    .btn-tooltip::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-bottom: 4px solid #1e293b;
+    }
+
+    .btn-icon-action:hover {
+        z-index: 10;
     }
 
     .btn-icon-action:hover .btn-tooltip {
         opacity: 1;
         visibility: visible;
-        bottom: -30px;
+        bottom: -34px;
     }
 
     .btn-primary-action {

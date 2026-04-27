@@ -77,8 +77,8 @@ class AssetCodeGenerator:
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
                 'dpi': safe_dpi,
-                'module_width': 0.3,       # Wider bars for small labels
-                'module_height': 12.0,     # Taller bars for reliable scanning
+                'module_width': 0.5,       # Wider bars for HD print quality
+                'module_height': 15.0,     # Taller bars for reliable scanning
                 'write_text': False,       # No text — tag shown separately in label
                 'quiet_zone': 2.0,         # Proper quiet zone on sides
                 'font_size': 0,            # Ensure no text even on fallback
@@ -106,8 +106,8 @@ class AssetCodeGenerator:
             PIL.Image: QR code image
         """
         try:
-            # Higher box_size for print quality, standard 4-module quiet zone
-            box_size = 12 if dpi >= 300 else 10
+            # Higher box_size for HD print quality, standard 4-module quiet zone
+            box_size = 20 if dpi >= 300 else 14
             qr = qrcode.QRCode(
                 version=AssetCodeGenerator.QR_VERSION,
                 error_correction=AssetCodeGenerator.QR_ERROR_CORRECTION,

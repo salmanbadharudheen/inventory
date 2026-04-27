@@ -4606,7 +4606,11 @@ def print_asset_label(request, pk):
     """Render a browser-printable label page for a single asset."""
     asset = get_object_or_404(Asset, id=pk, organization=request.user.organization)
     org = request.user.organization
-    design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
+    # Superusers and org admins may override design for this print request.
+    if request.user.is_superuser or request.user.role == 'ADMIN':
+        design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
+    else:
+        design = getattr(org, 'label_template', 'CLASSIC')
     designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
     return render(request, 'assets/print_label.html', {
         'assets': [asset],
@@ -4647,7 +4651,12 @@ def print_asset_labels_bulk(request):
     - specific_tags: comma/newline-separated tags
     """
     org = request.user.organization
-    design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
+    # Superusers and org admins may override design for this print request.
+    # Other users always print with the org's configured default design.
+    if request.user.is_superuser or request.user.role == 'ADMIN':
+        design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
+    else:
+        design = getattr(org, 'label_template', 'CLASSIC')
     designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
 
     assets = Asset.objects.none()

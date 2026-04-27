@@ -173,6 +173,11 @@ class AdminCreateView(LoginRequiredMixin, CreateView):
             return redirect('admin-orgs')
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['current_user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         # Auto-assign organization from current user when present
         if self.request.user.organization:

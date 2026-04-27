@@ -20,6 +20,8 @@ class Organization(models.Model):
         COMPACT = 'COMPACT', 'Compact – QR + Tag only (small sticker)'
         DETAILED = 'DETAILED', 'Detailed – QR, Barcode, Name, Category, Location'
         BARCODE_ONLY = 'BARCODE_ONLY', 'Barcode Only – Horizontal barcode strip'
+        MODERN = 'MODERN', 'Modern – Gradient header, Name, Category, Location'
+        QR_ONLY = 'QR_ONLY', 'QR Only – Large QR code with tag'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)

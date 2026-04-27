@@ -7,16 +7,49 @@
     <style>
         /* ── Reset ─────────────────────────────────────────── */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f6; color: #1e293b; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: radial-gradient(circle at 15% 20%, #f8fafc 0%, #eef2f6 45%, #e2e8f0 100%);
+            color: #1e293b;
+        }
 
         /* ── Toolbar (hidden on print) ─────────────────────── */
         .toolbar {
             position: sticky; top: 0; z-index: 100;
             display: flex; align-items: center; gap: 1rem;
-            padding: 0.75rem 1.5rem;
-            background: #fff; border-bottom: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+            padding: 0.75rem 1.25rem;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid #dbe6f2;
+            box-shadow: 0 3px 14px rgba(15, 23, 42, 0.06);
+            flex-wrap: wrap;
         }
+
+        .toolbar-brand {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-right: 0.35rem;
+            padding-right: 0.7rem;
+            border-right: 1px solid #dbe6f2;
+        }
+
+        .toolbar-brand .kicker {
+            font-size: 0.67rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #475569;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .toolbar-brand .title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
         .toolbar label { font-size: 0.85rem; font-weight: 600; color: #475569; }
         .toolbar select {
             padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1;
@@ -31,13 +64,165 @@
         .btn-print:hover { background: #1d4ed8; }
         .btn-back { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1 !important; }
         .btn-back:hover { background: #e2e8f0; }
-        .toolbar .count { margin-left: auto; font-size: 0.85rem; color: #64748b; }
-        .toolbar .size-hint { font-size: 0.75rem; color: #94a3b8; }
+        .toolbar .count {
+            margin-left: auto;
+            font-size: 0.78rem;
+            color: #1e3a8a;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-weight: 700;
+        }
+        .toolbar .size-hint {
+            font-size: 0.75rem;
+            color: #64748b;
+            border: 1px solid #dbeafe;
+            background: #f8fbff;
+            border-radius: 999px;
+            padding: 3px 10px;
+        }
+
+        .status-pill {
+            font-size: 0.74rem;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-weight: 700;
+            border: 1px solid #fde68a;
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .toolbar-custom {
+            position: static;
+            top: auto;
+            z-index: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 0.75rem;
+            align-items: end;
+            border-top: none;
+            border-bottom: 1px solid #d8e1eb;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 0.75rem 1.25rem 1rem;
+        }
+
+        .controls-heading {
+            grid-column: 1 / -1;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #334155;
+            font-weight: 800;
+            margin-top: 0.15rem;
+            margin-bottom: -0.15rem;
+            padding-left: 0.15rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .controls-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, #cbd5e1 0%, transparent 100%);
+        }
+
+        .toolbar-custom .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            min-width: 0;
+            padding: 0.45rem 0.55rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+
+        .toolbar-custom .field label {
+            font-size: 0.72rem;
+            letter-spacing: 0.01em;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.4rem;
+        }
+
+        .control-value {
+            font-size: 0.66rem;
+            font-weight: 700;
+            color: #1d4ed8;
+            background: #e0ecff;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            padding: 1px 6px;
+            text-transform: none;
+            letter-spacing: 0;
+            flex-shrink: 0;
+        }
+
+        .toolbar-custom input[type="range"] {
+            width: 100%;
+        }
+
+        .toolbar-custom .toggles {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.85rem;
+        }
+
+        .toolbar-custom .toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.8rem;
+            color: #334155;
+            font-weight: 600;
+            background: #ffffff;
+            border: 1px solid #dbe4ee;
+            border-radius: 8px;
+            padding: 4px 8px;
+        }
+
+        .toolbar-custom .actions {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.6rem;
+        }
+
+        .toolbar-custom .mini-btn {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            border-radius: 7px;
+            padding: 0.45rem 0.7rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .toolbar-custom .mini-btn:hover {
+            background: #eef2ff;
+            border-color: #a5b4fc;
+        }
 
         /* ── Label Grid ────────────────────────────────────── */
         .label-grid {
             display: flex; flex-wrap: wrap; gap: 1.25rem;
-            padding: 1.5rem; justify-content: center;
+            padding: 1.5rem;
+            justify-content: center;
+            margin: 0.85rem 1.2rem 1.35rem;
+            border: 1px solid #dbe3ee;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.07);
         }
 
         /* ─────────────────────────────────────────────────────
@@ -47,16 +232,34 @@
         :root {
             --sticker-w: 384px;
             --sticker-h: 192px;
+            --custom-font-scale: 1;
+            --custom-font-family: 'Segoe UI', Arial, sans-serif;
+            --custom-accent: #2563eb;
+            --custom-radius: 4px;
+            --custom-inner-pad: 1;
+            --custom-qr-scale: 1;
+            --custom-barcode-scale: 1;
+            --custom-bg: #ffffff;
+            --custom-border-color: #d4d4d8;
+            --custom-border-width: 1.5px;
         }
 
         /* ── Shared label base ─────────────────────────────── */
         .label {
             width: var(--sticker-w); height: var(--sticker-h);
-            background: #fff; border: 1.5px solid #d4d4d8;
-            border-radius: 4px; overflow: hidden;
+            background: var(--custom-bg); border: var(--custom-border-width) solid var(--custom-border-color);
+            border-radius: var(--custom-radius); overflow: hidden;
             display: flex; flex-direction: column;
             page-break-inside: avoid; break-inside: avoid;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: var(--custom-font-family);
+            font-size: calc(1rem * var(--custom-font-scale));
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
         }
         .label img {
             image-rendering: -webkit-optimize-contrast;
@@ -77,12 +280,12 @@
            Accent bar top · Org left · QR left · Barcode+Tag right
         ═══════════════════════════════════════════════════ */
         .label-classic .lbl-accent {
-            height: 4px; background: #2563eb; flex-shrink: 0;
+            height: 4px; background: var(--custom-accent); flex-shrink: 0;
         }
         .label-classic .lbl-header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 2px 10px;
-            font-size: 0.6rem; color: #374151; flex-shrink: 0;
+            padding: calc(2px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad));
+            font-size: calc(0.6rem * var(--custom-font-scale)); color: #374151; flex-shrink: 0;
             border-bottom: 1px solid #e5e7eb;
         }
         .label-classic .lbl-header .org-name {
@@ -91,23 +294,23 @@
         }
         .label-classic .lbl-header .tag-num {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-weight: 600; font-size: 0.58rem; color: #6b7280; flex-shrink: 0;
+            font-weight: 600; font-size: calc(0.58rem * var(--custom-font-scale)); color: #6b7280; flex-shrink: 0;
         }
         .label-classic .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: 6px 12px; gap: 14px;
+            padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: calc(14px * var(--custom-inner-pad));
         }
         .label-classic .lbl-qr { flex: 0 0 auto; }
         .label-classic .lbl-qr img {
-            width: 120px; height: 120px;
+            width: calc(120px * var(--custom-qr-scale)); height: calc(120px * var(--custom-qr-scale));
             border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
             background: #fff;
         }
         .label-classic .lbl-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-        .label-classic .lbl-right img { width: 100%; height: 70px; object-fit: contain; }
+        .label-classic .lbl-right img { width: 100%; height: calc(70px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.72rem; font-weight: 700; color: #111827; letter-spacing: 0.06em;
+            font-size: calc(0.72rem * var(--custom-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -116,11 +319,11 @@
         ═══════════════════════════════════════════════════ */
         .label-compact {
             flex-direction: row; align-items: center;
-            padding: 8px 14px; gap: 0;
+            padding: calc(8px * var(--custom-inner-pad)) calc(14px * var(--custom-inner-pad)); gap: 0;
         }
         .label-compact .lbl-qr { flex: 0 0 auto; }
         .label-compact .lbl-qr img {
-            width: 130px; height: 130px; padding: 2px;
+            width: calc(130px * var(--custom-qr-scale)); height: calc(130px * var(--custom-qr-scale)); padding: 2px;
         }
         .label-compact .lbl-divider {
             width: 1.5px; height: 60%; background: #d4d4d8;
@@ -131,11 +334,11 @@
         }
         .label-compact .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.82rem; font-weight: 700; color: #111827;
+            font-size: calc(0.82rem * var(--custom-font-scale)); font-weight: 700; color: #111827;
             letter-spacing: 0.05em; line-height: 1;
         }
         .label-compact .lbl-company {
-            font-size: 0.58rem; color: #6b7280; font-weight: 500;
+            font-size: calc(0.58rem * var(--custom-font-scale)); color: #6b7280; font-weight: 500;
             letter-spacing: 0.01em;
         }
 
@@ -148,29 +351,29 @@
             padding: 3px 10px; background: #111827; color: #fff; flex-shrink: 0;
         }
         .label-detailed .lbl-header .company {
-            font-weight: 700; font-size: 0.6rem; letter-spacing: 0.03em;
+            font-weight: 700; font-size: calc(0.6rem * var(--custom-font-scale)); letter-spacing: 0.03em;
         }
         .label-detailed .lbl-header .tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.54rem; opacity: 0.8;
+            font-size: calc(0.54rem * var(--custom-font-scale)); opacity: 0.8;
         }
         .label-detailed .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: 6px 12px; gap: 14px;
+            padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: calc(14px * var(--custom-inner-pad));
         }
         .label-detailed .lbl-qr { flex: 0 0 auto; }
         .label-detailed .lbl-qr img {
-            width: 115px; height: 115px;
+            width: calc(115px * var(--custom-qr-scale)); height: calc(115px * var(--custom-qr-scale));
             border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
             background: #fff;
         }
         .label-detailed .lbl-right {
             flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
         }
-        .label-detailed .lbl-right img { width: 100%; height: 65px; object-fit: contain; }
+        .label-detailed .lbl-right img { width: 100%; height: calc(65px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-detailed .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.7rem; font-weight: 700; color: #111827; letter-spacing: 0.06em;
+            font-size: calc(0.7rem * var(--custom-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -179,19 +382,19 @@
         ═══════════════════════════════════════════════════ */
         .label-barcode-only {
             align-items: center; justify-content: center; text-align: center;
-            padding: 6px 12px; gap: 2px;
+            padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: 2px;
         }
         .label-barcode-only .lbl-company {
-            font-size: 0.56rem; color: #6b7280; font-weight: 600;
+            font-size: calc(0.56rem * var(--custom-font-scale)); color: #6b7280; font-weight: 600;
             letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
         }
         .label-barcode-only .lbl-barcode-img { flex: 1; display: flex; align-items: center; justify-content: center; }
         .label-barcode-only .lbl-barcode-img img {
-            width: 92%; height: 100px; object-fit: contain;
+            width: 92%; height: calc(100px * var(--custom-barcode-scale)); object-fit: contain;
         }
         .label-barcode-only .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.78rem; font-weight: 700; color: #111827;
+            font-size: calc(0.78rem * var(--custom-font-scale)); font-weight: 700; color: #111827;
             letter-spacing: 0.08em; flex-shrink: 0;
         }
 
@@ -234,7 +437,6 @@
                 height: 1in !important;
                 max-width:  2in !important;
                 max-height: 1in !important;
-                border:        none !important;
                 border-radius: 0    !important;
                 box-shadow:    none !important;
                 overflow:  hidden !important;
@@ -274,11 +476,11 @@
             }
             .label-classic .lbl-header {
                 padding: 1pt 5pt;
-                font-size: 6pt;
+                font-size: calc(7pt * var(--custom-font-scale));
                 line-height: 1.2;
             }
             .label-classic .lbl-header .tag-num {
-                font-size: 5.5pt;
+                font-size: calc(6.2pt * var(--custom-font-scale));
             }
             .label-classic .lbl-body {
                 padding: 2pt 5pt;
@@ -286,8 +488,8 @@
                 flex: 1;
             }
             .label-classic .lbl-qr img {
-                width: 0.72in;
-                height: 0.72in;
+                width: calc(0.76in * var(--custom-qr-scale));
+                height: calc(0.76in * var(--custom-qr-scale));
                 padding: 1pt;
                 border: 0.3pt solid #ccc;
             }
@@ -295,12 +497,12 @@
                 gap: 4pt;
             }
             .label-classic .lbl-right img {
-                height: 0.38in;
+                height: calc(0.42in * var(--custom-barcode-scale));
                 width: 100%;
                 object-fit: fill; /* stretch barcode to full width — better scan */
             }
             .label-classic .lbl-right .lbl-tag {
-                font-size: 7pt;
+                font-size: calc(8pt * var(--custom-font-scale));
                 letter-spacing: 0.05em;
             }
 
@@ -310,8 +512,8 @@
                 gap: 0 !important;
             }
             .label-compact .lbl-qr img {
-                width: 0.78in;
-                height: 0.78in;
+                width: calc(0.8in * var(--custom-qr-scale));
+                height: calc(0.8in * var(--custom-qr-scale));
                 padding: 1pt;
             }
             .label-compact .lbl-divider {
@@ -319,10 +521,10 @@
                 margin: 0 10pt;
             }
             .label-compact .lbl-tag {
-                font-size: 8.5pt;
+                font-size: calc(9.5pt * var(--custom-font-scale));
             }
             .label-compact .lbl-company {
-                font-size: 5.5pt;
+                font-size: calc(6.2pt * var(--custom-font-scale));
             }
 
             /* ── STANDARD (DETAILED) print ─────────────── */
@@ -330,10 +532,10 @@
                 padding: 1.5pt 5pt;
             }
             .label-detailed .lbl-header .company {
-                font-size: 6pt;
+                font-size: calc(7pt * var(--custom-font-scale));
             }
             .label-detailed .lbl-header .tag {
-                font-size: 5pt;
+                font-size: calc(6pt * var(--custom-font-scale));
             }
             .label-detailed .lbl-body {
                 padding: 2pt 5pt;
@@ -341,8 +543,8 @@
                 flex: 1;
             }
             .label-detailed .lbl-qr img {
-                width: 0.68in;
-                height: 0.68in;
+                width: calc(0.73in * var(--custom-qr-scale));
+                height: calc(0.73in * var(--custom-qr-scale));
                 padding: 1pt;
                 border: 0.3pt solid #ccc;
             }
@@ -350,12 +552,12 @@
                 gap: 4pt;
             }
             .label-detailed .lbl-right img {
-                height: 0.36in;
+                height: calc(0.40in * var(--custom-barcode-scale));
                 width: 100%;
                 object-fit: fill;
             }
             .label-detailed .lbl-right .lbl-tag {
-                font-size: 7pt;
+                font-size: calc(8pt * var(--custom-font-scale));
                 letter-spacing: 0.05em;
             }
 
@@ -365,19 +567,181 @@
                 gap: 1pt !important;
             }
             .label-barcode-only .lbl-company {
-                font-size: 5.5pt;
+                font-size: calc(6.5pt * var(--custom-font-scale));
             }
             .label-barcode-only .lbl-barcode-img {
                 flex: 1;
             }
             .label-barcode-only .lbl-barcode-img img {
-                height: 0.6in;
+                height: calc(0.66in * var(--custom-barcode-scale));
                 width: 1.85in;
                 object-fit: fill; /* fill full width for best scan quality */
             }
             .label-barcode-only .lbl-tag {
-                font-size: 8pt;
+                font-size: calc(9pt * var(--custom-font-scale));
                 letter-spacing: 0.06em;
+            }
+        }
+
+        .hide-org .org-name,
+        .hide-org .company,
+        .hide-org .lbl-company {
+            display: none !important;
+        }
+
+        .hide-tag .lbl-tag,
+        .hide-tag .tag,
+        .hide-tag .tag-num {
+            display: none !important;
+        }
+
+        .hide-qr .lbl-qr {
+            display: none !important;
+        }
+
+        .hide-barcode .lbl-right img,
+        .hide-barcode .lbl-barcode-img,
+        .hide-barcode .lbl-barcode-inline {
+            display: none !important;
+        }
+
+        .hide-name .lbl-asset-name { display: none !important; }
+        .hide-category .lbl-category { display: none !important; }
+        .hide-location .lbl-location { display: none !important; }
+        .hide-border .label { border: none !important; box-shadow: none !important; }
+        .hide-qr-border .lbl-qr img,
+        .hide-qr-border .lbl-qr-main img {
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           DESIGN 5 — MODERN
+           Gradient header · QR left · Name + Category + Barcode right
+        ═══════════════════════════════════════════════════ */
+        .label-modern .lbl-modern-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 3px 10px;
+            background: linear-gradient(135deg, var(--custom-accent) 0%, #0f2150 100%);
+            color: #fff; flex-shrink: 0;
+        }
+        .label-modern .lbl-modern-header .org-name {
+            font-weight: 700; font-size: calc(0.58rem * var(--custom-font-scale)); letter-spacing: 0.03em;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .label-modern .lbl-modern-header .tag-num {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: calc(0.55rem * var(--custom-font-scale)); opacity: 0.9; flex-shrink: 0; margin-left: 6px;
+        }
+        .label-modern .lbl-modern-body {
+            flex: 1; display: flex; align-items: stretch;
+            padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad));
+            gap: calc(8px * var(--custom-inner-pad));
+        }
+        .label-modern .lbl-qr { flex: 0 0 auto; display: flex; align-items: center; }
+        .label-modern .lbl-qr img {
+            width: calc(108px * var(--custom-qr-scale)); height: calc(108px * var(--custom-qr-scale));
+            border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px; background: #fff;
+            image-rendering: pixelated;
+        }
+        .label-modern .lbl-modern-info {
+            flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden;
+        }
+        .label-modern .lbl-asset-name {
+            font-weight: 700; font-size: calc(0.68rem * var(--custom-font-scale));
+            color: #111827; line-height: 1.2;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .label-modern .lbl-category {
+            font-size: calc(0.56rem * var(--custom-font-scale)); color: #6b7280; line-height: 1;
+        }
+        .label-modern .lbl-location {
+            font-size: calc(0.56rem * var(--custom-font-scale)); color: #6b7280; line-height: 1;
+        }
+        .label-modern .lbl-barcode-inline { width: 100%; margin-top: 2px; }
+        .label-modern .lbl-barcode-inline img {
+            width: 100%; height: calc(46px * var(--custom-barcode-scale)); object-fit: contain;
+            image-rendering: crisp-edges;
+        }
+        .label-modern .lbl-tag {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: calc(0.6rem * var(--custom-font-scale)); font-weight: 700;
+            color: #111827; letter-spacing: 0.04em; margin-top: 1px;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           DESIGN 6 — QR ONLY
+           Full-size centered QR code + tag text
+        ═══════════════════════════════════════════════════ */
+        .label-qr-only {
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: calc(4px * var(--custom-inner-pad)); gap: 4px;
+        }
+        .label-qr-only .lbl-qr-main img {
+            width: calc(140px * var(--custom-qr-scale)); height: calc(140px * var(--custom-qr-scale)); padding: 2px;
+            image-rendering: pixelated;
+        }
+        .label-qr-only .lbl-tag-bottom {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: calc(0.72rem * var(--custom-font-scale)); font-weight: 700;
+            color: #111827; letter-spacing: 0.06em;
+        }
+        .label-qr-only .org-name {
+            font-size: calc(0.54rem * var(--custom-font-scale)); color: #6b7280;
+        }
+
+        @media print {
+            /* ── MODERN print ─────────────────────────── */
+            .label-modern .lbl-modern-header { padding: 1.5pt 5pt; }
+            .label-modern .lbl-modern-header .org-name { font-size: calc(6.5pt * var(--custom-font-scale)); }
+            .label-modern .lbl-modern-header .tag-num { font-size: calc(6pt * var(--custom-font-scale)); }
+            .label-modern .lbl-modern-body { padding: 2pt 4pt; gap: 5pt; flex: 1; }
+            .label-modern .lbl-qr img { width: calc(0.68in * var(--custom-qr-scale)); height: calc(0.68in * var(--custom-qr-scale)); padding: 1pt; }
+            .label-modern .lbl-asset-name { font-size: calc(8pt * var(--custom-font-scale)); }
+            .label-modern .lbl-category,
+            .label-modern .lbl-location { font-size: calc(6pt * var(--custom-font-scale)); }
+            .label-modern .lbl-barcode-inline img { height: calc(0.3in * var(--custom-barcode-scale)); width: 100%; object-fit: fill; }
+            .label-modern .lbl-tag { font-size: calc(7pt * var(--custom-font-scale)); }
+
+            /* ── QR ONLY print ─────────────────────────── */
+            .label-qr-only { padding: 3pt !important; gap: 3pt !important; }
+            .label-qr-only .lbl-qr-main img { width: calc(0.83in * var(--custom-qr-scale)); height: calc(0.83in * var(--custom-qr-scale)); }
+            .label-qr-only .lbl-tag-bottom { font-size: calc(9pt * var(--custom-font-scale)); }
+            .label-qr-only .org-name { font-size: calc(6pt * var(--custom-font-scale)); }
+        }
+
+        @media (max-width: 860px) {
+            .toolbar {
+                gap: 0.55rem;
+                padding: 0.65rem 0.85rem;
+            }
+
+            .toolbar-brand {
+                border-right: none;
+                border-bottom: 1px solid #dbe6f2;
+                padding-right: 0;
+                padding-bottom: 0.45rem;
+                margin-right: 0;
+                width: 100%;
+            }
+
+            .toolbar .count {
+                margin-left: 0;
+                width: 100%;
+                order: 99;
+            }
+
+            .toolbar-custom {
+                padding: 0.6rem 0.85rem 0.9rem;
+                grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+            }
+
+            .label-grid {
+                padding: 0.95rem;
+                gap: 0.95rem;
+                margin: 0.65rem 0.65rem 1rem;
             }
         }
     </style>
@@ -396,8 +760,128 @@
     <span class="count" id="lbl-count">{{ assets|length }} sticker{{ assets|length|pluralize }}</span>
     <span class="size-hint">📏 2″ × 1″ · prints one-by-one</span>
     <span id="load-status" style="font-size:0.78rem; color:#f59e0b; font-weight:600;">⏳ Loading images…</span>
-    <button class="btn btn-print" id="btn-print-all" onclick="window.print();" disabled
+    <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
+</div>
+
+<div class="toolbar toolbar-custom" id="custom-toolbar">
+    <div class="field">
+        <label for="sticker-size">Sticker Size</label>
+        <select id="sticker-size">
+            <option value="2x1" selected>2in x 1in (Default)</option>
+            <option value="2x1.5">2in x 1.5in</option>
+            <option value="3x1">3in x 1in</option>
+            <option value="3x2">3in x 2in</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="font-family">Font Family</label>
+        <select id="font-family">
+            <option value="segoe" selected>Segoe UI (Default)</option>
+            <option value="arial">Arial</option>
+            <option value="verdana">Verdana</option>
+            <option value="tahoma">Tahoma</option>
+            <option value="calibri">Calibri</option>
+            <option value="cambria">Cambria</option>
+            <option value="georgia">Georgia</option>
+            <option value="palatino">Palatino Linotype</option>
+            <option value="garamond">Garamond</option>
+            <option value="bookman">Bookman Old Style</option>
+            <option value="timesnewroman">Times New Roman</option>
+            <option value="trebuchet">Trebuchet MS</option>
+            <option value="franklin">Franklin Gothic Medium</option>
+            <option value="lucida">Lucida Sans Unicode</option>
+            <option value="impact">Impact</option>
+            <option value="consolas">Consolas</option>
+            <option value="couriernew">Courier New</option>
+            <option value="inter">Inter</option>
+            <option value="roboto">Roboto</option>
+            <option value="open">Open Sans</option>
+            <option value="lato">Lato</option>
+            <option value="montserrat">Montserrat</option>
+            <option value="nunito">Nunito</option>
+            <option value="ubuntu">Ubuntu</option>
+            <option value="fira">Fira Sans</option>
+            <option value="source">Source Sans Pro</option>
+            <option value="ptsans">PT Sans</option>
+            <option value="raleway">Raleway</option>
+            <option value="merriweather">Merriweather</option>
+            <option value="playfair">Playfair Display</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="font-scale">Font Size</label>
+        <input id="font-scale" type="range" min="0.8" max="1.4" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">1.00x</span></label>
+        <input id="qr-scale" type="range" min="0.7" max="1.5" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+        <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.00x</span></label>
+        <input id="barcode-scale" type="range" min="0.8" max="1.4" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+        <label for="padding-scale">Spacing <span class="control-value" id="padding-scale-value">1.00x</span></label>
+        <input id="padding-scale" type="range" min="0.7" max="1.4" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+        <label for="radius-scale">Corner Radius <span class="control-value" id="radius-scale-value">4px</span></label>
+        <input id="radius-scale" type="range" min="0" max="10" step="1" value="4">
+    </div>
+
+    <div class="field">
+        <label for="border-width">Border Width <span class="control-value" id="border-width-value">1.5px</span></label>
+        <input id="border-width" type="range" min="0" max="3" step="0.1" value="1.5">
+    </div>
+
+    <div class="field">
+        <label for="border-color">Border Color</label>
+        <input id="border-color" type="color" value="#d4d4d8">
+    </div>
+
+    <div class="field">
+        <label for="accent-color">Accent Color</label>
+        <input id="accent-color" type="color" value="#2563eb">
+    </div>
+
+    <div class="field">
+        <label for="bg-color">Background</label>
+        <input id="bg-color" type="color" value="#ffffff">
+    </div>
+
+    <div class="field">
+        <label for="copies-count">Copies / Sticker</label>
+        <select id="copies-count">
+            <option value="1" selected>1 copy</option>
+            <option value="2">2 copies</option>
+            <option value="3">3 copies</option>
+            <option value="5">5 copies</option>
+        </select>
+    </div>
+
+    <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="toggle-org" checked> Show organization</label>
+        <label class="toggle"><input type="checkbox" id="toggle-tag" checked> Show asset tag</label>
+        <label class="toggle"><input type="checkbox" id="toggle-qr" checked> Show QR code</label>
+        <label class="toggle"><input type="checkbox" id="toggle-barcode" checked> Show barcode</label>
+        <label class="toggle"><input type="checkbox" id="toggle-name" checked> Show asset name</label>
+        <label class="toggle"><input type="checkbox" id="toggle-category"> Show category</label>
+        <label class="toggle"><input type="checkbox" id="toggle-location"> Show location</label>
+        <label class="toggle"><input type="checkbox" id="toggle-border" checked> Show border</label>
+        <label class="toggle"><input type="checkbox" id="toggle-qr-border" checked> Show QR border</label>
+    </div>
+
+    <div class="actions">
+        <button type="button" class="mini-btn" id="reset-customization">Reset Customization</button>
+        <button type="button" class="mini-btn" id="save-customization">Save as Default (Browser)</button>
+    </div>
 </div>
 
 {% if total_batches and total_batches > 1 %}
@@ -516,6 +1000,43 @@ function updateBatchParam(batchNum) {
         <div class="lbl-tag">{{ asset.asset_tag }}</div>
     </div>
 
+    {# ── MODERN ──────────────────────────────────── #}
+    <div class="label label-modern" data-design="MODERN" {% if design != 'MODERN' %}style="display:none"{% endif %}>
+        <div class="lbl-modern-header">
+            <span class="org-name">{{ org.name }}</span>
+            <span class="tag-num">{{ asset.asset_tag }}</span>
+        </div>
+        <div class="lbl-modern-body">
+            <div class="lbl-qr">
+                {% if asset.qr_code_image %}
+                <img src="{{ asset.qr_code_image.url }}" alt="QR">
+                {% endif %}
+            </div>
+            <div class="lbl-modern-info">
+                <div class="lbl-asset-name">{{ asset.name }}</div>
+                {% if asset.category %}<div class="lbl-category">{{ asset.category.name }}</div>{% endif %}
+                {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
+                <div class="lbl-barcode-inline">
+                    {% if asset.barcode_image %}
+                    <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+                    {% endif %}
+                </div>
+                <div class="lbl-tag">{{ asset.asset_tag }}</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── QR ONLY ─────────────────────────────────── #}
+    <div class="label label-qr-only" data-design="QR_ONLY" {% if design != 'QR_ONLY' %}style="display:none"{% endif %}>
+        <div class="org-name">{{ org.name }}</div>
+        <div class="lbl-qr-main">
+            {% if asset.qr_code_image %}
+            <img src="{{ asset.qr_code_image.url }}" alt="QR">
+            {% endif %}
+        </div>
+        <div class="lbl-tag-bottom">{{ asset.asset_tag }}</div>
+    </div>
+
     {% endfor %}
 </div>
 
@@ -528,6 +1049,28 @@ function switchDesign(value) {
     var url = new URL(window.location);
     url.searchParams.set('design', value);
     window.history.replaceState({}, '', url);
+}
+
+/* ── Copies-aware Print ──────────────────────────────── */
+function doPrint() {
+    var copies = parseInt(document.getElementById('copies-count').value) || 1;
+    if (copies <= 1) { window.print(); return; }
+
+    var grid = document.getElementById('label-grid');
+    var labels = Array.from(grid.children).filter(function(el) {
+        return el.style.display !== 'none' && el.dataset && el.dataset.design;
+    });
+    var clones = [];
+    labels.forEach(function(lbl) {
+        for (var i = 1; i < copies; i++) {
+            var clone = lbl.cloneNode(true);
+            clone.classList.add('_print-copy');
+            lbl.parentNode.insertBefore(clone, lbl.nextSibling);
+            clones.push(clone);
+        }
+    });
+    window.print();
+    clones.forEach(function(c) { if (c.parentNode) c.parentNode.removeChild(c); });
 }
 
 /* ── Wait for all images, then enable Print ─────────── */
@@ -557,6 +1100,235 @@ function switchDesign(value) {
         if (img.complete) { tick(); }
         else { img.addEventListener('load', tick); img.addEventListener('error', tick); }
     });
+})();
+
+/* ── Full Customization Controls ─────────────────────── */
+(function() {
+    var root = document.documentElement;
+    var body = document.body;
+    var STORAGE_KEY = 'inventory_label_customization_v1';
+
+    var controls = {
+        size: document.getElementById('sticker-size'),
+        fontFamily: document.getElementById('font-family'),
+        font: document.getElementById('font-scale'),
+        qr: document.getElementById('qr-scale'),
+        barcode: document.getElementById('barcode-scale'),
+        spacing: document.getElementById('padding-scale'),
+        radius: document.getElementById('radius-scale'),
+        borderWidth: document.getElementById('border-width'),
+        borderColor: document.getElementById('border-color'),
+        accent: document.getElementById('accent-color'),
+        bgcolor: document.getElementById('bg-color'),
+        copies: document.getElementById('copies-count'),
+        org: document.getElementById('toggle-org'),
+        tag: document.getElementById('toggle-tag'),
+        showQr: document.getElementById('toggle-qr'),
+        barcodeToggle: document.getElementById('toggle-barcode'),
+        name: document.getElementById('toggle-name'),
+        category: document.getElementById('toggle-category'),
+        location: document.getElementById('toggle-location'),
+        border: document.getElementById('toggle-border'),
+        qrBorder: document.getElementById('toggle-qr-border')
+    };
+
+    var defaults = {
+        size: '2x1',
+        fontFamily: 'segoe',
+        font: '1',
+        qr: '1',
+        barcode: '1',
+        spacing: '1',
+        radius: '4',
+        borderWidth: '1.5',
+        borderColor: '#d4d4d8',
+        accent: '#2563eb',
+        bgcolor: '#ffffff',
+        copies: '1',
+        org: true,
+        tag: true,
+        showQr: true,
+        barcodeToggle: true,
+        name: true,
+        category: false,
+        location: false,
+        border: true,
+        qrBorder: true
+    };
+
+    function resolveFontFamily(fontKey) {
+        var fontMap = {
+            segoe: "'Segoe UI', Arial, sans-serif",
+            arial: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+            verdana: "Verdana, Geneva, sans-serif",
+            tahoma: "Tahoma, Verdana, 'Segoe UI', sans-serif",
+            calibri: "Calibri, Candara, 'Segoe UI', sans-serif",
+            cambria: "Cambria, Georgia, serif",
+            georgia: "Georgia, 'Times New Roman', serif",
+            palatino: "'Palatino Linotype', Palatino, 'Book Antiqua', serif",
+            garamond: "Garamond, 'Times New Roman', serif",
+            bookman: "'Bookman Old Style', Bookman, 'URW Bookman', serif",
+            timesnewroman: "'Times New Roman', Times, serif",
+            trebuchet: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif",
+            franklin: "'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif",
+            lucida: "'Lucida Sans Unicode', 'Lucida Grande', sans-serif",
+            impact: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
+            consolas: "Consolas, 'Courier New', monospace",
+            couriernew: "'Courier New', Courier, monospace",
+            inter: "Inter, 'Segoe UI', Arial, sans-serif",
+            roboto: "Roboto, 'Segoe UI', Arial, sans-serif",
+            open: "'Open Sans', 'Segoe UI', Arial, sans-serif",
+            lato: "Lato, 'Segoe UI', Arial, sans-serif",
+            montserrat: "Montserrat, 'Segoe UI', Arial, sans-serif",
+            nunito: "Nunito, 'Segoe UI', Arial, sans-serif",
+            ubuntu: "Ubuntu, 'Segoe UI', Arial, sans-serif",
+            fira: "'Fira Sans', 'Segoe UI', Arial, sans-serif",
+            source: "'Source Sans Pro', 'Segoe UI', Arial, sans-serif",
+            ptsans: "'PT Sans', 'Segoe UI', Arial, sans-serif",
+            raleway: "Raleway, 'Segoe UI', Arial, sans-serif",
+            merriweather: "Merriweather, Georgia, serif",
+            playfair: "'Playfair Display', Georgia, serif"
+        };
+        return fontMap[fontKey] || fontMap.segoe;
+    }
+
+    function applyPrintSize(sizeValue) {
+        var map = {
+            '2x1': { wIn: 2, hIn: 1, wPx: 384, hPx: 192 },
+            '2x1.5': { wIn: 2, hIn: 1.5, wPx: 384, hPx: 288 },
+            '3x1': { wIn: 3, hIn: 1, wPx: 576, hPx: 192 },
+            '3x2': { wIn: 3, hIn: 2, wPx: 576, hPx: 384 }
+        };
+        var selected = map[sizeValue] || map['2x1'];
+
+        root.style.setProperty('--sticker-w', selected.wPx + 'px');
+        root.style.setProperty('--sticker-h', selected.hPx + 'px');
+    }
+
+    function readState() {
+        return {
+            size: controls.size.value,
+            fontFamily: controls.fontFamily.value,
+            font: controls.font.value,
+            qr: controls.qr.value,
+            barcode: controls.barcode.value,
+            spacing: controls.spacing.value,
+            radius: controls.radius.value,
+            borderWidth: controls.borderWidth.value,
+            borderColor: controls.borderColor.value,
+            accent: controls.accent.value,
+            bgcolor: controls.bgcolor.value,
+            copies: controls.copies.value,
+            org: controls.org.checked,
+            tag: controls.tag.checked,
+            showQr: controls.showQr.checked,
+            barcodeToggle: controls.barcodeToggle.checked,
+            name: controls.name.checked,
+            category: controls.category.checked,
+            location: controls.location.checked,
+            border: controls.border.checked,
+            qrBorder: controls.qrBorder.checked
+        };
+    }
+
+    function applyState(state) {    
+        applyPrintSize(state.size);
+        root.style.setProperty('--custom-font-family', resolveFontFamily(state.fontFamily));
+        root.style.setProperty('--custom-font-scale', state.font);
+        root.style.setProperty('--custom-qr-scale', state.qr);
+        root.style.setProperty('--custom-barcode-scale', state.barcode);
+        root.style.setProperty('--custom-inner-pad', state.spacing);
+        root.style.setProperty('--custom-radius', state.radius + 'px');
+        root.style.setProperty('--custom-border-width', state.borderWidth + 'px');
+        root.style.setProperty('--custom-border-color', state.borderColor);
+        root.style.setProperty('--custom-accent', state.accent);
+        root.style.setProperty('--custom-bg', state.bgcolor || '#ffffff');
+
+        body.classList.toggle('hide-org', !state.org);
+        body.classList.toggle('hide-tag', !state.tag);
+        body.classList.toggle('hide-qr', !state.showQr);
+        body.classList.toggle('hide-barcode', !state.barcodeToggle);
+        body.classList.toggle('hide-name', !state.name);
+        body.classList.toggle('hide-category', !state.category);
+        body.classList.toggle('hide-location', !state.location);
+        body.classList.toggle('hide-border', !state.border);
+        body.classList.toggle('hide-qr-border', !state.qrBorder);
+
+        var qrScaleValue = document.getElementById('qr-scale-value');
+        var barcodeScaleValue = document.getElementById('barcode-scale-value');
+        var paddingScaleValue = document.getElementById('padding-scale-value');
+        var radiusScaleValue = document.getElementById('radius-scale-value');
+        var borderWidthValue = document.getElementById('border-width-value');
+
+        if (qrScaleValue) qrScaleValue.textContent = parseFloat(state.qr).toFixed(2) + 'x';
+        if (barcodeScaleValue) barcodeScaleValue.textContent = parseFloat(state.barcode).toFixed(2) + 'x';
+        if (paddingScaleValue) paddingScaleValue.textContent = parseFloat(state.spacing).toFixed(2) + 'x';
+        if (radiusScaleValue) radiusScaleValue.textContent = parseInt(state.radius, 10) + 'px';
+        if (borderWidthValue) borderWidthValue.textContent = parseFloat(state.borderWidth).toFixed(1) + 'px';
+    }
+
+    function update() {
+        applyState(readState());
+    }
+
+    function setControls(state) {
+        controls.size.value = state.size;
+        controls.fontFamily.value = state.fontFamily || defaults.fontFamily;
+        controls.font.value = state.font;
+
+        var qrValue = parseFloat(state.qr);
+        if (Number.isNaN(qrValue)) {
+            qrValue = parseFloat(defaults.qr);
+        }
+        qrValue = Math.max(0.7, Math.min(1.5, qrValue));
+        controls.qr.value = String(qrValue);
+
+        controls.barcode.value = state.barcode;
+        controls.spacing.value = state.spacing;
+        controls.radius.value = state.radius;
+        controls.borderWidth.value = state.borderWidth || defaults.borderWidth;
+        controls.borderColor.value = state.borderColor || defaults.borderColor;
+        controls.accent.value = state.accent;
+        controls.bgcolor.value = state.bgcolor || '#ffffff';
+        controls.copies.value = state.copies || '1';
+        controls.org.checked = state.org;
+        controls.tag.checked = state.tag;
+        controls.showQr.checked = (typeof state.showQr === 'boolean') ? state.showQr : defaults.showQr;
+        controls.barcodeToggle.checked = state.barcodeToggle;
+        controls.name.checked = state.name;
+        controls.category.checked = state.category;
+        controls.location.checked = state.location;
+        controls.border.checked = state.border;
+        controls.qrBorder.checked = state.qrBorder;
+    }
+
+    var listeners = ['change', 'input'];
+    Object.keys(controls).forEach(function(key) {
+        listeners.forEach(function(evt) {
+            controls[key].addEventListener(evt, update);
+        });
+    });
+
+    document.getElementById('reset-customization').addEventListener('click', function() {
+        setControls(defaults);
+        update();
+    });
+
+    document.getElementById('save-customization').addEventListener('click', function() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));
+        alert('Customization saved in this browser.');
+    });
+
+    var initial = defaults;
+    try {
+        var cached = localStorage.getItem(STORAGE_KEY);
+        if (cached) {
+            initial = Object.assign({}, defaults, JSON.parse(cached));
+        }
+    } catch (e) {}
+
+    setControls(initial);
+    update();
 })();
 </script>
 </body>

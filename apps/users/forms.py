@@ -13,6 +13,15 @@ class UserCreationForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
     confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
 
+    def __init__(self, *args, **kwargs):
+        current_user = kwargs.pop('current_user', None)
+        super().__init__(*args, **kwargs)
+
+        # If creator already belongs to an organization, lock new user to that org.
+        # This prevents admins from creating users under other organizations.
+        if current_user and getattr(current_user, 'organization', None):
+            self.fields.pop('organization', None)
+
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'role', 'organization', 'branch', 'department']

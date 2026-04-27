@@ -103,13 +103,23 @@
 
 <div class="print-center">
     <h2>Label Print Center</h2>
-    <p class="subtitle">Generate and print asset labels in bulk. Select a design and choose assets by range or category.</p>
+    <p class="subtitle">
+        {% if user.is_superuser or user.role == 'ADMIN' %}
+            Generate and print asset labels in bulk. Select a design and choose assets by range or category.
+        {% else %}
+            Print asset labels in bulk. Choose assets by range, category, or paste specific tags below.
+        {% endif %}
+    </p>
 
     <form method="GET" action="{% url 'print-asset-labels-bulk' %}" id="print-form" target="_blank">
 
-        <!-- Design Selection -->
+        {% if user.is_superuser or user.role == 'ADMIN' %}
+        <!-- Design Selection (Admin users only) -->
         <div class="print-section">
-            <h3><i data-lucide="palette"></i> Choose Label Design</h3>
+            <h3>
+                <i data-lucide="palette"></i> Choose Label Design
+                <span style="margin-left:auto; font-size:0.7rem; font-weight:600; color:#7c3aed; background:#f5f3ff; border:1px solid #ddd6fe; padding:2px 8px; border-radius:999px;">Admin Access</span>
+            </h3>
             <div class="design-cards">
                 <div class="design-card {% if org.label_template == 'CLASSIC' %}selected{% endif %}" data-design="CLASSIC" onclick="selectDesign(this)">
                     <div class="design-icon">🏷️</div>
@@ -131,9 +141,32 @@
                     <div class="design-name">Barcode Only</div>
                     <div class="design-desc">Large barcode, centered</div>
                 </div>
+                <div class="design-card {% if org.label_template == 'MODERN' %}selected{% endif %}" data-design="MODERN" onclick="selectDesign(this)">
+                    <div class="design-icon">✨</div>
+                    <div class="design-name">Modern</div>
+                    <div class="design-desc">Gradient header, name + category + location</div>
+                </div>
+                <div class="design-card {% if org.label_template == 'QR_ONLY' %}selected{% endif %}" data-design="QR_ONLY" onclick="selectDesign(this)">
+                    <div class="design-icon">🔲</div>
+                    <div class="design-name">QR Only</div>
+                    <div class="design-desc">Full-size QR code with tag</div>
+                </div>
             </div>
             <input type="hidden" name="design" id="design-input" value="{{ org.label_template }}">
         </div>
+        {% else %}
+        <!-- Locked design notice for non-admin users -->
+        <div class="print-section" style="background:#f8fafc; border-style:dashed;">
+            <h3 style="margin-bottom:0.4rem;">
+                <i data-lucide="lock"></i> Label Design
+            </h3>
+            <p style="font-size:0.82rem; color:#64748b; margin:0;">
+                Your organization admin controls the label design to keep branding consistent across all assets.
+                Contact your admin if you need a different layout.
+            </p>
+            <input type="hidden" name="design" id="design-input" value="{{ org.label_template }}">
+        </div>
+        {% endif %}
 
         <!-- Asset Selection -->
         <div class="print-section">

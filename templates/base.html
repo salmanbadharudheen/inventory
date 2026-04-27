@@ -645,6 +645,10 @@
             <!-- Asset Setup Section -->
             <div class="nav-section">
                 <span class="nav-section-title">Masters</span>
+                <a href="{% url 'masters-list' %}" class="nav-item {% if 'masters' in request.path %}active{% endif %}" data-label="Masters List">
+                    <i data-lucide="book-open"></i>
+                    <span>Masters List</span>
+                </a>
                 <a href="{% url 'category-list' %}" class="nav-item {% if 'categories' in request.path %}active{% endif %}" data-label="Categories">
                     <i data-lucide="layers"></i>
                     <span>Categories</span>
@@ -720,10 +724,12 @@
                     <i data-lucide="user-check"></i>
                     <span>Custodians</span>
                 </a>
+                {% if not user.is_superuser and user.role != 'ADMIN' %}
                 <a href="{% url 'user-list' %}" class="nav-item {% if 'users' in request.path %}active{% endif %}" data-label="Users">
                     <i data-lucide="users"></i>
                     <span>Users</span>
                 </a>
+                {% endif %}
             </div>
 
             <!-- Admin Section -->
@@ -777,10 +783,6 @@
                     <i data-lucide="package"></i>
                     <span>Inventory</span>
                 </a>
-                <a href="{% url 'masters-list' %}" class="top-bar-nav-item {% if 'masters' in request.path %}active{% endif %}" title="Masters">
-                    <i data-lucide="layers"></i>
-                    <span>Masters</span>
-                </a>
             </div>
 
             <div class="user-menu">
@@ -794,8 +796,8 @@
                     </button>
                     {% else %}
                     <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="User menu">
-                        <div class="user-avatar" title="{{ user.username }}">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</div>
-                        <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                        <div class="user-avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
+                        <span class="user-name">{{ user.username }}</span>
                         <i data-lucide="chevron-down"></i>
                     </button>
                     {% endif %}
