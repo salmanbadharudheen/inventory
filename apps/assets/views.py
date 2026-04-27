@@ -15,9 +15,9 @@ from apps.locations.models import (Branch, Building, Floor, Room,
                                    Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
+from django.core.files.storage import default_storage
 from decimal import Decimal
 from datetime import date, datetime
-from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from uuid import uuid4
 import openpyxl
@@ -4714,8 +4714,17 @@ def print_asset_labels_bulk(request):
 
     # Auto-generate missing barcode/QR codes before printing
     from .code_generators import generate_codes_for_asset
+
+    def _file_missing(file_field):
+        if not file_field:
+            return True
+        try:
+            return not default_storage.exists(file_field.name)
+        except Exception:
+            return True
+
     for asset in assets_batch:
-        if asset.asset_tag and (not asset.barcode_image or not asset.qr_code_image):
+        if asset.asset_tag and (_file_missing(asset.barcode_image) or _file_missing(asset.qr_code_image)):
             try:
                 generate_codes_for_asset(asset)
             except Exception:
