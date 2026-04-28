@@ -20,7 +20,7 @@ ALLOWED_DOCUMENT_EXTENSIONS = {
 class AssetForm(forms.ModelForm):
     class Meta:
         model = Asset
-        exclude = ['organization', 'created_by', 'is_deleted', 'custom_fields', 'asset_tag']
+        exclude = ['organization', 'created_by', 'is_deleted', 'custom_fields', 'asset_tag', 'salvage_value', 'useful_life_years']
         widgets = {
             'purchase_date': forms.DateInput(attrs={'type': 'date'}),
             'warranty_start': forms.DateInput(attrs={'type': 'date'}),

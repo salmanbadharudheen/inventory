@@ -242,13 +242,13 @@
             --print-page-h: 1in;
             --custom-font-scale: 1;
             --custom-font-family: 'Segoe UI', Arial, sans-serif;
-            --custom-accent: #2563eb;
+            --custom-accent: #000000;
             --custom-radius: 4px;
             --custom-inner-pad: 1;
             --custom-qr-scale: 1;
             --custom-barcode-scale: 1;
             --custom-bg: #ffffff;
-            --custom-border-color: #d4d4d8;
+            --custom-border-color: #000000;
             --custom-border-width: 1.5px;
         }
 
@@ -420,7 +420,6 @@
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                color-adjust: exact !important;
             }
 
             html, body {
@@ -476,6 +475,25 @@
             }
             .label .lbl-qr img {
                 image-rendering: pixelated !important; /* QR stays pixel-perfect */
+            }
+
+            /* Force high-contrast black print to avoid faded color labels */
+            .label {
+                background: #ffffff !important;
+                border-color: #000000 !important;
+            }
+            .label * {
+                color: #000000 !important;
+            }
+            .label-classic .lbl-accent,
+            .label-detailed .lbl-header,
+            .label-modern .lbl-modern-header {
+                background: #000000 !important;
+                color: #ffffff !important;
+            }
+            .label-detailed .lbl-header *,
+            .label-modern .lbl-modern-header * {
+                color: #ffffff !important;
             }
 
             /* ── CLASSIC print ─────────────────────────── */
@@ -972,6 +990,7 @@
     </select>
     <span class="count" id="lbl-count">{{ assets|length }} sticker{{ assets|length|pluralize }}</span>
     <span class="size-hint">📏 2″ × 1″ only · one sticker per feed</span>
+    <span class="size-hint">🖤 Print profile: high-contrast black (anti-fade)</span>
     <span id="load-status" style="font-size:0.78rem; color:#f59e0b; font-weight:600;">⏳ Loading images…</span>
     <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
@@ -1054,12 +1073,12 @@
 
     <div class="field">
         <label for="border-color">Border Color</label>
-        <input id="border-color" type="color" value="#d4d4d8">
+        <input id="border-color" type="color" value="#000000">
     </div>
 
     <div class="field">
         <label for="accent-color">Accent Color</label>
-        <input id="accent-color" type="color" value="#2563eb">
+        <input id="accent-color" type="color" value="#000000">
     </div>
 
     <div class="field">
@@ -1148,7 +1167,6 @@ function updateBatchParam(batchNum) {
         <div class="lbl-accent"></div>
         <div class="lbl-header">
             <span class="org-name">{{ org.name }}</span>
-            <span class="tag-num">{{ asset.asset_tag }}</span>
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
@@ -1183,7 +1201,6 @@ function updateBatchParam(batchNum) {
     <div class="label label-detailed" data-design="DETAILED" {% if design != 'DETAILED' %}style="display:none"{% endif %}>
         <div class="lbl-header">
             <span class="company">{{ org.name }}</span>
-            <span class="tag">{{ asset.asset_tag }}</span>
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
@@ -1215,7 +1232,6 @@ function updateBatchParam(batchNum) {
     <div class="label label-modern" data-design="MODERN" {% if design != 'MODERN' %}style="display:none"{% endif %}>
         <div class="lbl-modern-header">
             <span class="org-name">{{ org.name }}</span>
-            <span class="tag-num">{{ asset.asset_tag }}</span>
         </div>
         <div class="lbl-modern-body">
             <div class="lbl-qr">
@@ -1409,8 +1425,8 @@ function doPrint() {
         spacing: '1',
         radius: '4',
         borderWidth: '1.5',
-        borderColor: '#d4d4d8',
-        accent: '#2563eb',
+        borderColor: '#000000',
+        accent: '#000000',
         bgcolor: '#ffffff',
         copies: '1',
         org: true,

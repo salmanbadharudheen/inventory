@@ -51,9 +51,16 @@ class AssetCodeGenerator:
                 return font
 
         return AssetCodeGenerator._load_font(min_size, bold=bold)
+
+    @staticmethod
+    def _to_print_binary(img, threshold=200):
+        """Convert image to hard black/white to avoid faded gray edges on print."""
+        gray = img.convert('L')
+        bw = gray.point(lambda p: 0 if p < threshold else 255, mode='1')
+        return bw.convert('RGB')
     
     @staticmethod
-    def generate_barcode(asset_tag, dpi=72):
+    def generate_barcode(asset_tag, dpi=300):
         """
         Generate a barcode image from asset tag.
         
@@ -88,13 +95,13 @@ class AssetCodeGenerator:
             img = Image.open(buffer)
             # Keep reference to buffer to prevent garbage collection
             img._buffer = buffer
-            return img.convert('RGB')
+            return AssetCodeGenerator._to_print_binary(img)
         except Exception as e:
             raise ValueError(f"Failed to generate barcode: {str(e)}")
 
     
     @staticmethod
-    def generate_qr_code(asset_tag, dpi=72):
+    def generate_qr_code(asset_tag, dpi=300):
         """
         Generate a QR code image from asset tag.
         
@@ -118,13 +125,13 @@ class AssetCodeGenerator:
             qr.make(fit=True)
             
             img = qr.make_image(fill_color="black", back_color="white")
-            
-            return img.convert('RGB')
+
+            return AssetCodeGenerator._to_print_binary(img)
         except Exception as e:
             raise ValueError(f"Failed to generate QR code: {str(e)}")
     
     @staticmethod
-    def generate_label(asset_tag, company_name=None, include_text=True, width=260, height=150, dpi=72):
+    def generate_label(asset_tag, company_name=None, include_text=True, width=260, height=150, dpi=300):
         """
         Generate a combined label with QR code, barcode, and text.
         Optimized for printing on labels.
@@ -150,10 +157,10 @@ class AssetCodeGenerator:
             label = Image.new('RGB', (width, height), color='white')
             draw = ImageDraw.Draw(label)
 
-            outer_border = '#d1d5db'
-            accent = '#111827'
-            muted = '#6b7280'
-            card_bg = '#f8fafc'
+            outer_border = '#000000'
+            accent = '#000000'
+            muted = '#000000'
+            card_bg = '#ffffff'
 
             draw.rounded_rectangle((0, 0, width - 1, height - 1), radius=10, outline=outer_border, width=1, fill='white')
 
@@ -168,7 +175,7 @@ class AssetCodeGenerator:
                 company_y = header_top
                 draw.text(((width - company_w) // 2, company_y), company_name, fill=accent, font=company_font)
                 header_bottom = company_y + company_h + 6
-                draw.line((14, header_bottom, width - 14, header_bottom), fill='#e5e7eb', width=1)
+                draw.line((14, header_bottom, width - 14, header_bottom), fill='#000000', width=1)
 
             # Content area
             content_top = header_bottom + 6
@@ -180,31 +187,18 @@ class AssetCodeGenerator:
             left_panel = (10, content_top, 10 + left_w, content_bottom)
             right_panel = (left_panel[2] + gap, content_top, width - 10, content_bottom)
 
-            draw.rounded_rectangle(left_panel, radius=8, fill=card_bg, outline='#e5e7eb', width=1)
-            draw.rounded_rectangle(right_panel, radius=8, fill=card_bg, outline='#e5e7eb', width=1)
+            draw.rounded_rectangle(left_panel, radius=8, fill=card_bg, outline='#000000', width=1)
+            draw.rounded_rectangle(right_panel, radius=8, fill=card_bg, outline='#000000', width=1)
 
             title_font = AssetCodeGenerator._load_font(9, bold=True)
 
-            # Left panel: Asset ID above QR
-            id_title = 'ASSET ID'
-            id_title_bbox = draw.textbbox((0, 0), id_title, font=title_font)
-            id_title_w = id_title_bbox[2] - id_title_bbox[0]
-            id_title_h = id_title_bbox[3] - id_title_bbox[1]
-            id_title_y = left_panel[1] + 6
-            draw.text((left_panel[0] + ((left_panel[2] - left_panel[0] - id_title_w) // 2), id_title_y), id_title, fill=muted, font=title_font)
-
-            id_font = AssetCodeGenerator._fit_text(draw, asset_tag, left_panel[2] - left_panel[0] - 12, start_size=11, bold=True, min_size=8)
-            id_bbox = draw.textbbox((0, 0), asset_tag, font=id_font)
-            id_w = id_bbox[2] - id_bbox[0]
-            id_h = id_bbox[3] - id_bbox[1]
-            id_y = id_title_y + id_title_h + 3
-            draw.text((left_panel[0] + ((left_panel[2] - left_panel[0] - id_w) // 2), id_y), asset_tag, fill=accent, font=id_font)
-
-            qr_available_h = left_panel[3] - (id_y + id_h) - 8
+            # Left panel: QR only to avoid repeating asset code twice.
+            qr_available_h = left_panel[3] - left_panel[1] - 8
             qr_size = max(min(left_panel[2] - left_panel[0] - 14, qr_available_h), 36)
-            qr_img = qr_source.resize((qr_size, qr_size), Image.Resampling.LANCZOS)
+            qr_img = qr_source.resize((qr_size, qr_size), Image.Resampling.NEAREST)
+            qr_img = AssetCodeGenerator._to_print_binary(qr_img)
             qr_x = left_panel[0] + ((left_panel[2] - left_panel[0] - qr_size) // 2)
-            qr_y = id_y + id_h + max((qr_available_h - qr_size) // 2, 2)
+            qr_y = left_panel[1] + max((qr_available_h - qr_size) // 2, 2)
             label.paste(qr_img, (qr_x, qr_y))
 
             # Right panel: Barcode section
@@ -220,7 +214,8 @@ class AssetCodeGenerator:
             barcode_text_h = 12 if include_text else 0
             barcode_h = max(min(42, barcode_area_h - barcode_text_h - 4), 20)
             barcode_w = max(min(barcode_area_w, int(barcode_h * 3.8)), 60)
-            barcode_img = barcode_source.resize((barcode_w, barcode_h), Image.Resampling.LANCZOS)
+            barcode_img = barcode_source.resize((barcode_w, barcode_h), Image.Resampling.NEAREST)
+            barcode_img = AssetCodeGenerator._to_print_binary(barcode_img)
 
             barcode_x = right_panel[0] + ((right_panel[2] - right_panel[0] - barcode_w) // 2)
             barcode_y = barcode_title_y + barcode_title_h + max((barcode_area_h - barcode_h - barcode_text_h) // 2, 2)
@@ -260,7 +255,7 @@ class AssetCodeGenerator:
             
             filename = f"{asset_tag}_barcode.png"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG')
+            img.save(filepath, 'PNG', dpi=(300, 300))
             
             return f"{directory}{filename}"
         except Exception as e:
@@ -288,7 +283,7 @@ class AssetCodeGenerator:
             
             filename = f"{asset_tag}_qr.png"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG')
+            img.save(filepath, 'PNG', dpi=(300, 300))
             
             return f"{directory}{filename}"
         except Exception as e:
@@ -316,7 +311,7 @@ class AssetCodeGenerator:
             
             filename = f"{asset_tag}_label.png"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG')
+            img.save(filepath, 'PNG', dpi=(300, 300))
             
             return f"{directory}{filename}"
         except Exception as e:
