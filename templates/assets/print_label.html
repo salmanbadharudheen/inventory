@@ -242,6 +242,7 @@
             --print-page-h: 1in;
             --custom-font-scale: 1;
             --custom-org-font-scale: 1;
+            --custom-tag-font-scale: 1;
             --custom-org-align: left;
             --custom-font-family: 'Segoe UI', Arial, sans-serif;
             --custom-accent: #000000;
@@ -300,7 +301,7 @@
            Accent bar top · Org left · QR left · Barcode+Tag right
         ═══════════════════════════════════════════════════ */
         .label-classic .lbl-accent {
-            height: 4px; background: var(--custom-accent); flex-shrink: 0;
+              display: none;
         }
         .label-classic .lbl-header {
             display: flex; align-items: center; justify-content: space-between;
@@ -330,7 +331,7 @@
         .label-classic .lbl-right img { width: 100%; height: calc(70px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.72rem * var(--custom-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
+            font-size: calc(0.72rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -354,7 +355,7 @@
         }
         .label-compact .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.82rem * var(--custom-font-scale)); font-weight: 700; color: #111827;
+            font-size: calc(0.82rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827;
             letter-spacing: 0.05em; line-height: 1;
         }
         .label-compact .lbl-company {
@@ -369,7 +370,8 @@
         ═══════════════════════════════════════════════════ */
         .label-detailed .lbl-header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 3px 10px; background: #111827; color: #fff; flex-shrink: 0;
+              padding: 3px 10px; background: transparent; color: #111827; flex-shrink: 0;
+              border-bottom: 1px solid #e5e7eb;
         }
         .label-detailed .lbl-header .company {
             --org-base-size: 0.6rem;
@@ -395,7 +397,7 @@
         .label-detailed .lbl-right img { width: 100%; height: calc(65px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-detailed .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.7rem * var(--custom-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
+            font-size: calc(0.7rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -417,7 +419,7 @@
         }
         .label-barcode-only .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.78rem * var(--custom-font-scale)); font-weight: 700; color: #111827;
+            font-size: calc(0.78rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827;
             letter-spacing: 0.08em; flex-shrink: 0;
         }
 
@@ -503,17 +505,17 @@
             .label-classic .lbl-accent,
             .label-detailed .lbl-header,
             .label-modern .lbl-modern-header {
-                background: #000000 !important;
-                color: #ffffff !important;
+                    background: transparent !important;
+                    color: #000000 !important;
             }
             .label-detailed .lbl-header *,
             .label-modern .lbl-modern-header * {
-                color: #ffffff !important;
+                    color: #000000 !important;
             }
 
             /* ── CLASSIC print ─────────────────────────── */
             .label-classic .lbl-accent {
-                height: 2.5pt;
+                display: none;
             }
             .label-classic .lbl-header {
                 padding: 1pt 5pt;
@@ -543,7 +545,7 @@
                 object-fit: fill; /* stretch barcode to full width — better scan */
             }
             .label-classic .lbl-right .lbl-tag {
-                font-size: calc(8pt * var(--custom-font-scale));
+                font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.05em;
             }
 
@@ -562,7 +564,7 @@
                 margin: 0 10pt;
             }
             .label-compact .lbl-tag {
-                font-size: calc(9.5pt * var(--custom-font-scale));
+                font-size: calc(9.5pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
             }
             .label-compact .lbl-company {
                 font-size: calc(6.2pt * var(--custom-font-scale));
@@ -598,7 +600,7 @@
                 object-fit: fill;
             }
             .label-detailed .lbl-right .lbl-tag {
-                font-size: calc(8pt * var(--custom-font-scale));
+                font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.05em;
             }
 
@@ -619,7 +621,7 @@
                 object-fit: fill; /* fill full width for best scan quality */
             }
             .label-barcode-only .lbl-tag {
-                font-size: calc(9pt * var(--custom-font-scale));
+                font-size: calc(9pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.06em;
             }
         }
@@ -665,8 +667,9 @@
         .label-modern .lbl-modern-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 3px 10px;
-            background: linear-gradient(135deg, var(--custom-accent) 0%, #0f2150 100%);
-            color: #fff; flex-shrink: 0;
+              background: transparent;
+              color: #111827; flex-shrink: 0;
+              border-bottom: 1px solid #e5e7eb;
         }
         .label-modern .lbl-modern-header .org-name {
             --org-base-size: 0.58rem;
@@ -708,7 +711,7 @@
         }
         .label-modern .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.6rem * var(--custom-font-scale)); font-weight: 700;
+            font-size: calc(0.6rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700;
             color: #111827; letter-spacing: 0.04em; margin-top: 1px;
         }
 
@@ -726,7 +729,7 @@
         }
         .label-qr-only .lbl-tag-bottom {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.72rem * var(--custom-font-scale)); font-weight: 700;
+            font-size: calc(0.72rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700;
             color: #111827; letter-spacing: 0.06em;
         }
         .label-qr-only .org-name {
@@ -839,7 +842,7 @@
         body.size-roll-133x19 .label-classic .tag-num,
         body.size-roll-133x19 .label-detailed .tag,
         body.size-roll-133x19 .label-modern .tag-num {
-            font-size: calc(0.4rem * var(--custom-font-scale));
+            font-size: calc(0.4rem * var(--custom-font-scale) * var(--custom-tag-font-scale));
             line-height: 1;
             letter-spacing: 0.04em;
             white-space: nowrap;
@@ -931,7 +934,7 @@
             body.size-roll-133x19 .label-classic .tag-num,
             body.size-roll-133x19 .label-detailed .tag,
             body.size-roll-133x19 .label-modern .tag-num {
-                font-size: calc(5pt * var(--custom-font-scale)) !important;
+                font-size: calc(5pt * var(--custom-font-scale) * var(--custom-tag-font-scale)) !important;
             }
 
             body.size-roll-133x19 .label-modern .lbl-asset-name {
@@ -950,12 +953,12 @@
             .label-modern .lbl-category,
             .label-modern .lbl-location { font-size: calc(6pt * var(--custom-font-scale)); }
             .label-modern .lbl-barcode-inline img { height: calc(0.3in * var(--custom-barcode-scale)); width: 100%; object-fit: fill; }
-            .label-modern .lbl-tag { font-size: calc(7pt * var(--custom-font-scale)); }
+            .label-modern .lbl-tag { font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
 
             /* ── QR ONLY print ─────────────────────────── */
             .label-qr-only { padding: 3pt !important; gap: 3pt !important; }
             .label-qr-only .lbl-qr-main img { width: calc(0.83in * var(--custom-qr-scale)); height: calc(0.83in * var(--custom-qr-scale)); }
-            .label-qr-only .lbl-tag-bottom { font-size: calc(9pt * var(--custom-font-scale)); }
+            .label-qr-only .lbl-tag-bottom { font-size: calc(9pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
             .label-qr-only .org-name { font-size: calc(6pt * var(--custom-font-scale)); }
         }
 
@@ -1065,6 +1068,11 @@
     <div class="field">
         <label for="org-font-scale">Organization Size <span class="control-value" id="org-font-scale-value">1.00x</span></label>
         <input id="org-font-scale" type="range" min="0.7" max="1.8" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+        <label for="tag-font-scale">Asset ID Size <span class="control-value" id="tag-font-scale-value">1.00x</span></label>
+        <input id="tag-font-scale" type="range" min="0.7" max="1.8" step="0.05" value="1">
     </div>
 
     <div class="field">
@@ -1544,6 +1552,7 @@ async function sendToExternalPrintApp() {
         fontFamily: document.getElementById('font-family'),
         font: document.getElementById('font-scale'),
         orgFont: document.getElementById('org-font-scale'),
+        tagFont: document.getElementById('tag-font-scale'),
         orgAlign: document.getElementById('org-align'),
         qr: document.getElementById('qr-scale'),
         barcode: document.getElementById('barcode-scale'),
@@ -1570,6 +1579,7 @@ async function sendToExternalPrintApp() {
         fontFamily: 'segoe',
         font: '1',
         orgFont: '1',
+        tagFont: '1',
         orgAlign: 'left',
         qr: '1',
         barcode: '1',
@@ -1652,6 +1662,7 @@ async function sendToExternalPrintApp() {
             fontFamily: controls.fontFamily.value,
             font: controls.font.value,
             orgFont: controls.orgFont.value,
+            tagFont: controls.tagFont.value,
             orgAlign: controls.orgAlign.value,
             qr: controls.qr.value,
             barcode: controls.barcode.value,
@@ -1679,6 +1690,7 @@ async function sendToExternalPrintApp() {
         root.style.setProperty('--custom-font-family', resolveFontFamily(state.fontFamily));
         root.style.setProperty('--custom-font-scale', state.font);
         root.style.setProperty('--custom-org-font-scale', state.orgFont);
+        root.style.setProperty('--custom-tag-font-scale', state.tagFont || defaults.tagFont);
         root.style.setProperty('--custom-org-align', state.orgAlign);
         root.style.setProperty('--custom-qr-scale', state.qr);
         root.style.setProperty('--custom-barcode-scale', state.barcode);
@@ -1700,6 +1712,7 @@ async function sendToExternalPrintApp() {
         body.classList.toggle('hide-qr-border', !state.qrBorder);
 
         var orgFontScaleValue = document.getElementById('org-font-scale-value');
+        var tagFontScaleValue = document.getElementById('tag-font-scale-value');
         var qrScaleValue = document.getElementById('qr-scale-value');
         var barcodeScaleValue = document.getElementById('barcode-scale-value');
         var paddingScaleValue = document.getElementById('padding-scale-value');
@@ -1707,6 +1720,7 @@ async function sendToExternalPrintApp() {
         var borderWidthValue = document.getElementById('border-width-value');
 
         if (orgFontScaleValue) orgFontScaleValue.textContent = parseFloat(state.orgFont).toFixed(2) + 'x';
+        if (tagFontScaleValue) tagFontScaleValue.textContent = parseFloat(state.tagFont || defaults.tagFont).toFixed(2) + 'x';
         if (qrScaleValue) qrScaleValue.textContent = parseFloat(state.qr).toFixed(2) + 'x';
         if (barcodeScaleValue) barcodeScaleValue.textContent = parseFloat(state.barcode).toFixed(2) + 'x';
         if (paddingScaleValue) paddingScaleValue.textContent = parseFloat(state.spacing).toFixed(2) + 'x';
@@ -1723,6 +1737,7 @@ async function sendToExternalPrintApp() {
         controls.fontFamily.value = state.fontFamily || defaults.fontFamily;
         controls.font.value = state.font;
         controls.orgFont.value = state.orgFont || defaults.orgFont;
+        controls.tagFont.value = state.tagFont || defaults.tagFont;
         controls.orgAlign.value = state.orgAlign || defaults.orgAlign;
 
         var qrValue = parseFloat(state.qr);
