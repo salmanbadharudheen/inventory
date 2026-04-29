@@ -281,22 +281,37 @@ class SubLocationUpdateView(LoginRequiredMixin, UpdateView):
 
 # AJAX Endpoints for Location Hierarchy
 def get_sites(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     region_id = request.GET.get('region_id')
     if region_id:
-        sites = Site.objects.filter(region_id=region_id).values('id', 'name')
+        sites = Site.objects.filter(region_id=region_id, region__organization=org).values('id', 'name')
         return JsonResponse(list(sites), safe=False)
     return JsonResponse([], safe=False)
 
 def get_locations(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     site_id = request.GET.get('site_id')
     if site_id:
-        locations = Location.objects.filter(site_id=site_id).values('id', 'name')
+        locations = Location.objects.filter(site_id=site_id, site__region__organization=org).values('id', 'name')
         return JsonResponse(list(locations), safe=False)
     return JsonResponse([], safe=False)
 
 def get_sublocations(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     location_id = request.GET.get('location_id')
     if location_id:
-        sublocations = SubLocation.objects.filter(location_id=location_id).values('id', 'name')
+        sublocations = SubLocation.objects.filter(
+            location_id=location_id,
+            location__site__region__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(sublocations), safe=False)
     return JsonResponse([], safe=False)

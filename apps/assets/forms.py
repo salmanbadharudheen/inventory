@@ -2,6 +2,7 @@ import os
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
@@ -59,6 +60,7 @@ class AssetForm(forms.ModelForm):
             # Filter dropdowns by Organization if user is logged in
             if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
                 org = self.request.user.organization
+                User = get_user_model()
                 self.fields['category'].queryset = Category.objects.filter(organization=org)
                 self.fields['sub_category'].queryset = SubCategory.objects.filter(category__organization=org)
                 self.fields['branch'].queryset = Branch.objects.filter(organization=org)
@@ -75,6 +77,7 @@ class AssetForm(forms.ModelForm):
                 self.fields['company'].queryset = Company.objects.filter(organization=org)
                 self.fields['supplier'].queryset = Supplier.objects.filter(organization=org)
                 self.fields['custodian'].queryset = Custodian.objects.filter(organization=org)
+                self.fields['assigned_to'].queryset = User.objects.filter(organization=org)
                 self.fields['region'].queryset = Region.objects.filter(organization=org)
                 self.fields['site'].queryset = Site.objects.filter(region__organization=org)
                 self.fields['location'].queryset = Location.objects.filter(site__region__organization=org)
@@ -89,11 +92,11 @@ class AssetForm(forms.ModelForm):
                         try:
                             parent_id = self.data.get('parent')
                             if parent_id:
-                                self.fields['parent'].queryset = Asset.objects.filter(id=parent_id)
+                                self.fields['parent'].queryset = Asset.objects.filter(id=parent_id, organization=org)
                         except (ValueError, TypeError):
                             pass  # invalid input from the client; ignore and fallback to empty queryset
                     elif self.instance.pk and self.instance.parent:
-                        self.fields['parent'].queryset = Asset.objects.filter(pk=self.instance.parent.pk)
+                        self.fields['parent'].queryset = Asset.objects.filter(pk=self.instance.parent.pk, organization=org)
         except Exception:
             import traceback
             print("ERROR in AssetForm.__init__:")

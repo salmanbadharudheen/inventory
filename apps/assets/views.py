@@ -56,55 +56,104 @@ def _build_print_payload(request, assets):
     return payload
 
 def get_subcategories(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     category_id = request.GET.get('category_id')
     if category_id:
-        subcategories = SubCategory.objects.filter(category_id=category_id).values('id', 'name')
+        subcategories = SubCategory.objects.filter(
+            category_id=category_id,
+            category__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(subcategories), safe=False)
     return JsonResponse([], safe=False)
 
 def get_departments(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     branch_id = request.GET.get('branch_id')
     if branch_id:
         from apps.locations.models import Department
-        departments = Department.objects.filter(branch_id=branch_id).values('id', 'name')
+        departments = Department.objects.filter(
+            branch_id=branch_id,
+            branch__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(departments), safe=False)
     return JsonResponse([], safe=False)
 
 def get_buildings(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     branch_id = request.GET.get('branch_id')
     if branch_id:
-        buildings = Building.objects.filter(branch_id=branch_id).values('id', 'name')
+        buildings = Building.objects.filter(
+            branch_id=branch_id,
+            branch__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(buildings), safe=False)
     return JsonResponse([], safe=False)
 
 
 def get_buildings_by_site(request):
     """Return buildings associated with a given site (via Location->building link)."""
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     site_id = request.GET.get('site_id')
     if site_id:
-        buildings = Building.objects.filter(locations__site_id=site_id).distinct().values('id', 'name')
+        buildings = Building.objects.filter(
+            locations__site_id=site_id,
+            locations__site__region__organization=org,
+        ).distinct().values('id', 'name')
         return JsonResponse(list(buildings), safe=False)
     return JsonResponse([], safe=False)
 
 def get_floors(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     building_id = request.GET.get('building_id')
     if building_id:
-        floors = Floor.objects.filter(building_id=building_id).values('id', 'name')
+        floors = Floor.objects.filter(
+            building_id=building_id,
+            building__branch__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(floors), safe=False)
     return JsonResponse([], safe=False)
 
 def get_rooms(request):
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     floor_id = request.GET.get('floor_id')
     if floor_id:
-        rooms = Room.objects.filter(floor_id=floor_id).values('id', 'name')
+        rooms = Room.objects.filter(
+            floor_id=floor_id,
+            floor__building__branch__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(rooms), safe=False)
-    return JsonResponse(list(rooms), safe=False)
+    return JsonResponse([], safe=False)
 
 def get_locations(request):
     """Return locations filtered by building_id (optional)."""
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse([], safe=False)
+
     building_id = request.GET.get('building_id')
     if building_id:
-        locations = Location.objects.filter(building_id=building_id).values('id', 'name')
+        locations = Location.objects.filter(
+            building_id=building_id,
+            site__region__organization=org,
+        ).values('id', 'name')
         return JsonResponse(list(locations), safe=False)
     return JsonResponse([], safe=False)
 
