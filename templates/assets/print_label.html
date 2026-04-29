@@ -241,6 +241,8 @@
             --print-page-w: 2in;
             --print-page-h: 1in;
             --custom-font-scale: 1;
+            --custom-org-font-scale: 1;
+            --custom-org-align: left;
             --custom-font-family: 'Segoe UI', Arial, sans-serif;
             --custom-accent: #000000;
             --custom-radius: 4px;
@@ -283,6 +285,16 @@
             image-rendering: crisp-edges;  /* Barcode lines stay sharp */
         }
 
+        .label .org-text {
+            display: block;
+            width: 100%;
+            text-align: var(--custom-org-align);
+            font-size: calc(var(--org-base-size, 0.6rem) * var(--custom-font-scale) * var(--custom-org-font-scale));
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         /* ═══════════════════════════════════════════════════
            DESIGN 1 — CLASSIC
            Accent bar top · Org left · QR left · Barcode+Tag right
@@ -297,8 +309,8 @@
             border-bottom: 1px solid #e5e7eb;
         }
         .label-classic .lbl-header .org-name {
+            --org-base-size: 0.6rem;
             font-weight: 700; letter-spacing: 0.02em;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .label-classic .lbl-header .tag-num {
             font-family: 'Consolas', 'Courier New', monospace;
@@ -346,7 +358,8 @@
             letter-spacing: 0.05em; line-height: 1;
         }
         .label-compact .lbl-company {
-            font-size: calc(0.58rem * var(--custom-font-scale)); color: #6b7280; font-weight: 500;
+            --org-base-size: 0.58rem;
+            color: #6b7280; font-weight: 500;
             letter-spacing: 0.01em;
         }
 
@@ -359,7 +372,8 @@
             padding: 3px 10px; background: #111827; color: #fff; flex-shrink: 0;
         }
         .label-detailed .lbl-header .company {
-            font-weight: 700; font-size: calc(0.6rem * var(--custom-font-scale)); letter-spacing: 0.03em;
+            --org-base-size: 0.6rem;
+            font-weight: 700; letter-spacing: 0.03em;
         }
         .label-detailed .lbl-header .tag {
             font-family: 'Consolas', 'Courier New', monospace;
@@ -393,7 +407,8 @@
             padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: 2px;
         }
         .label-barcode-only .lbl-company {
-            font-size: calc(0.56rem * var(--custom-font-scale)); color: #6b7280; font-weight: 600;
+            --org-base-size: 0.56rem;
+            color: #6b7280; font-weight: 600;
             letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
         }
         .label-barcode-only .lbl-barcode-img { flex: 1; display: flex; align-items: center; justify-content: center; }
@@ -654,8 +669,8 @@
             color: #fff; flex-shrink: 0;
         }
         .label-modern .lbl-modern-header .org-name {
-            font-weight: 700; font-size: calc(0.58rem * var(--custom-font-scale)); letter-spacing: 0.03em;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            --org-base-size: 0.58rem;
+            font-weight: 700; letter-spacing: 0.03em;
         }
         .label-modern .lbl-modern-header .tag-num {
             font-family: 'Consolas', 'Courier New', monospace;
@@ -715,7 +730,8 @@
             color: #111827; letter-spacing: 0.06em;
         }
         .label-qr-only .org-name {
-            font-size: calc(0.54rem * var(--custom-font-scale)); color: #6b7280;
+            --org-base-size: 0.54rem;
+            color: #6b7280;
         }
 
         body.size-roll-133x19 .label {
@@ -1047,6 +1063,20 @@
     </div>
 
     <div class="field">
+        <label for="org-font-scale">Organization Size <span class="control-value" id="org-font-scale-value">1.00x</span></label>
+        <input id="org-font-scale" type="range" min="0.7" max="1.8" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+        <label for="org-align">Organization Align</label>
+        <select id="org-align">
+            <option value="left" selected>Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+        </select>
+    </div>
+
+    <div class="field">
         <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">1.00x</span></label>
         <input id="qr-scale" type="range" min="0.7" max="1.5" step="0.05" value="1">
     </div>
@@ -1166,7 +1196,7 @@ function updateBatchParam(batchNum) {
     <div class="label label-classic" data-design="CLASSIC" {% if design != 'CLASSIC' %}style="display:none"{% endif %}>
         <div class="lbl-accent"></div>
         <div class="lbl-header">
-            <span class="org-name">{{ org.name }}</span>
+            <span class="org-name org-text">{{ org.name }}</span>
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
@@ -1193,14 +1223,14 @@ function updateBatchParam(batchNum) {
         <div class="lbl-divider"></div>
         <div class="lbl-text">
             <div class="lbl-tag">{{ asset.asset_tag }}</div>
-            <div class="lbl-company">{{ org.name }}</div>
+            <div class="lbl-company org-text">{{ org.name }}</div>
         </div>
     </div>
 
     {# ── STANDARD ────────────────────────────────── #}
     <div class="label label-detailed" data-design="DETAILED" {% if design != 'DETAILED' %}style="display:none"{% endif %}>
         <div class="lbl-header">
-            <span class="company">{{ org.name }}</span>
+            <span class="company org-text">{{ org.name }}</span>
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
@@ -1219,7 +1249,7 @@ function updateBatchParam(batchNum) {
 
     {# ── BARCODE ONLY ────────────────────────────── #}
     <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
-        <div class="lbl-company">{{ org.name }}</div>
+        <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
             {% if asset.barcode_image %}
             <img src="{{ asset.barcode_image.url }}" alt="Barcode">
@@ -1231,7 +1261,7 @@ function updateBatchParam(batchNum) {
     {# ── MODERN ──────────────────────────────────── #}
     <div class="label label-modern" data-design="MODERN" {% if design != 'MODERN' %}style="display:none"{% endif %}>
         <div class="lbl-modern-header">
-            <span class="org-name">{{ org.name }}</span>
+            <span class="org-name org-text">{{ org.name }}</span>
         </div>
         <div class="lbl-modern-body">
             <div class="lbl-qr">
@@ -1255,7 +1285,7 @@ function updateBatchParam(batchNum) {
 
     {# ── QR ONLY ─────────────────────────────────── #}
     <div class="label label-qr-only" data-design="QR_ONLY" {% if design != 'QR_ONLY' %}style="display:none"{% endif %}>
-        <div class="org-name">{{ org.name }}</div>
+        <div class="org-name org-text">{{ org.name }}</div>
         <div class="lbl-qr-main">
             {% if asset.qr_code_image %}
             <img src="{{ asset.qr_code_image.url }}" alt="QR">
@@ -1396,6 +1426,8 @@ function doPrint() {
         size: document.getElementById('sticker-size'),
         fontFamily: document.getElementById('font-family'),
         font: document.getElementById('font-scale'),
+        orgFont: document.getElementById('org-font-scale'),
+        orgAlign: document.getElementById('org-align'),
         qr: document.getElementById('qr-scale'),
         barcode: document.getElementById('barcode-scale'),
         spacing: document.getElementById('padding-scale'),
@@ -1420,6 +1452,8 @@ function doPrint() {
         size: '2x1',
         fontFamily: 'segoe',
         font: '1',
+        orgFont: '1',
+        orgAlign: 'left',
         qr: '1',
         barcode: '1',
         spacing: '1',
@@ -1500,6 +1534,8 @@ function doPrint() {
             size: controls.size.value,
             fontFamily: controls.fontFamily.value,
             font: controls.font.value,
+            orgFont: controls.orgFont.value,
+            orgAlign: controls.orgAlign.value,
             qr: controls.qr.value,
             barcode: controls.barcode.value,
             spacing: controls.spacing.value,
@@ -1525,6 +1561,8 @@ function doPrint() {
         applyPrintSize(state.size);
         root.style.setProperty('--custom-font-family', resolveFontFamily(state.fontFamily));
         root.style.setProperty('--custom-font-scale', state.font);
+        root.style.setProperty('--custom-org-font-scale', state.orgFont);
+        root.style.setProperty('--custom-org-align', state.orgAlign);
         root.style.setProperty('--custom-qr-scale', state.qr);
         root.style.setProperty('--custom-barcode-scale', state.barcode);
         root.style.setProperty('--custom-inner-pad', state.spacing);
@@ -1544,12 +1582,14 @@ function doPrint() {
         body.classList.toggle('hide-border', !state.border);
         body.classList.toggle('hide-qr-border', !state.qrBorder);
 
+        var orgFontScaleValue = document.getElementById('org-font-scale-value');
         var qrScaleValue = document.getElementById('qr-scale-value');
         var barcodeScaleValue = document.getElementById('barcode-scale-value');
         var paddingScaleValue = document.getElementById('padding-scale-value');
         var radiusScaleValue = document.getElementById('radius-scale-value');
         var borderWidthValue = document.getElementById('border-width-value');
 
+        if (orgFontScaleValue) orgFontScaleValue.textContent = parseFloat(state.orgFont).toFixed(2) + 'x';
         if (qrScaleValue) qrScaleValue.textContent = parseFloat(state.qr).toFixed(2) + 'x';
         if (barcodeScaleValue) barcodeScaleValue.textContent = parseFloat(state.barcode).toFixed(2) + 'x';
         if (paddingScaleValue) paddingScaleValue.textContent = parseFloat(state.spacing).toFixed(2) + 'x';
@@ -1565,6 +1605,8 @@ function doPrint() {
         controls.size.value = state.size === '2x1' ? '2x1' : defaults.size;
         controls.fontFamily.value = state.fontFamily || defaults.fontFamily;
         controls.font.value = state.font;
+        controls.orgFont.value = state.orgFont || defaults.orgFont;
+        controls.orgAlign.value = state.orgAlign || defaults.orgAlign;
 
         var qrValue = parseFloat(state.qr);
         if (Number.isNaN(qrValue)) {
