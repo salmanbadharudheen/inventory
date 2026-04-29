@@ -783,9 +783,36 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             ws.cell(row=current_row, column=1, value="Export Date:").font = meta_label_font
             ws.cell(row=current_row, column=2, value=datetime.now().strftime("%Y-%m-%d %H:%M")).font = meta_value_font
             current_row += 1
-            ws.cell(row=current_row, column=1, value="Total Records:").font = meta_label_font
-            ws.cell(row=current_row, column=2, value=queryset.count()).font = meta_value_font
-            current_row += 2
+
+            summary_rows = {}
+            for label in [
+                "Total Records:",
+                "Total Purchase Price:",
+                "Total Accumulated Depreciation:",
+                "Total Current NBV:",
+            ]:
+                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
+                summary_rows[label] = current_row
+                current_row += 1
+
+            if opening_date:
+                label = f"Total Opening Value ({opening_date.strftime('%Y-%m-%d')}):"
+                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
+                summary_rows['opening'] = current_row
+                current_row += 1
+
+            if closing_date:
+                label = f"Total Closing Value ({closing_date.strftime('%Y-%m-%d')}):"
+                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
+                summary_rows['closing'] = current_row
+                current_row += 1
+
+            if opening_date and closing_date:
+                ws.cell(row=current_row, column=1, value="Total Period Depreciation:").font = meta_label_font
+                summary_rows['period'] = current_row
+                current_row += 1
+
+            current_row += 1
 
             headers = [
                 'Asset Tag', 'Asset Code', 'Name', 'Category', 'Status',
@@ -808,11 +835,34 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             current_row += 1
 
             data_start = current_row
+            export_count = 0
+            total_purchase = 0.0
+            total_opening = 0.0
+            total_closing = 0.0
+            total_period = 0.0
+            total_accum_dep = 0.0
+            total_nbv = 0.0
+
             for asset in queryset:
                 opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
                 closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
                 if opening_date and opening_value <= 0:
                     continue
+
+                purchase_price_value = float(asset.purchase_price) if asset.purchase_price else 0.0
+                opening_float = float(opening_value)
+                closing_float = float(closing_value)
+                period_dep_value = float(opening_float - closing_float) if (opening_date and closing_date) else 0.0
+                accum_dep_value = float(asset.accumulated_depreciation)
+                nbv_value = float(asset.current_value)
+
+                export_count += 1
+                total_purchase += purchase_price_value
+                total_opening += opening_float
+                total_closing += closing_float
+                total_period += period_dep_value
+                total_accum_dep += accum_dep_value
+                total_nbv += nbv_value
 
                 row = [
                     asset.asset_tag,
@@ -821,16 +871,16 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     asset.category.name if asset.category else '',
                     asset.get_status_display(),
                     asset.purchase_date,
-                    float(asset.purchase_price) if asset.purchase_price else 0,
+                    purchase_price_value,
                     asset.currency,
                 ]
                 if opening_date:
-                    row.append(float(opening_value))
+                    row.append(opening_float)
                 if closing_date:
-                    row.append(float(closing_value))
+                    row.append(closing_float)
                 if opening_date and closing_date:
-                    row.append(float(opening_value - closing_value))
-                row.extend([float(asset.accumulated_depreciation), float(asset.current_value)])
+                    row.append(period_dep_value)
+                row.extend([accum_dep_value, nbv_value])
 
                 for col_num, value in enumerate(row, 1):
                     cell = ws.cell(row=current_row, column=col_num, value=value)
@@ -841,6 +891,24 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     for col_num in range(1, len(row) + 1):
                         ws.cell(row=current_row, column=col_num).fill = even_fill
                 current_row += 1
+
+            ws.cell(row=summary_rows['Total Records:'], column=2, value=export_count).font = meta_value_font
+            ws.cell(row=summary_rows['Total Purchase Price:'], column=2, value=total_purchase).font = meta_value_font
+            ws.cell(row=summary_rows['Total Purchase Price:'], column=2).number_format = currency_format
+            ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2, value=total_accum_dep).font = meta_value_font
+            ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2).number_format = currency_format
+            ws.cell(row=summary_rows['Total Current NBV:'], column=2, value=total_nbv).font = meta_value_font
+            ws.cell(row=summary_rows['Total Current NBV:'], column=2).number_format = currency_format
+
+            if 'opening' in summary_rows:
+                ws.cell(row=summary_rows['opening'], column=2, value=total_opening).font = meta_value_font
+                ws.cell(row=summary_rows['opening'], column=2).number_format = currency_format
+            if 'closing' in summary_rows:
+                ws.cell(row=summary_rows['closing'], column=2, value=total_closing).font = meta_value_font
+                ws.cell(row=summary_rows['closing'], column=2).number_format = currency_format
+            if 'period' in summary_rows:
+                ws.cell(row=summary_rows['period'], column=2, value=total_period).font = meta_value_font
+                ws.cell(row=summary_rows['period'], column=2).number_format = currency_format
 
         else:
             ws.title = "Assets Export"
@@ -856,9 +924,17 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             ws.cell(row=current_row, column=1, value="Export Date:").font = meta_label_font
             ws.cell(row=current_row, column=2, value=datetime.now().strftime("%Y-%m-%d %H:%M")).font = meta_value_font
             current_row += 1
-            ws.cell(row=current_row, column=1, value="Total Records:").font = meta_label_font
-            ws.cell(row=current_row, column=2, value=queryset.count()).font = meta_value_font
-            current_row += 1
+            summary_rows = {}
+            for label in [
+                "Total Records:",
+                "Total Quantity:",
+                "Total Purchase Price:",
+                "Total Accumulated Depreciation:",
+                "Total Current NBV:",
+            ]:
+                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
+                summary_rows[label] = current_row
+                current_row += 1
 
             # Show active filters
             filters_applied = []
@@ -925,7 +1001,24 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
 
             # ── Data rows ──
             data_start = current_row
+            export_count = 0
+            total_quantity = 0
+            total_purchase = 0.0
+            total_accum_dep = 0.0
+            total_nbv = 0.0
+
             for asset in queryset:
+                purchase_price_value = float(asset.purchase_price) if asset.purchase_price else ''
+                salvage_value_value = float(asset.salvage_value) if asset.salvage_value else ''
+                accum_dep_value = float(asset.accumulated_depreciation)
+                nbv_value = float(asset.current_value)
+
+                export_count += 1
+                total_quantity += int(asset.quantity or 0)
+                total_purchase += float(asset.purchase_price or 0)
+                total_accum_dep += accum_dep_value
+                total_nbv += nbv_value
+
                 row_data = [
                     # Identification
                     asset.asset_tag or '',
@@ -967,7 +1060,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     asset.sub_location.name if asset.sub_location else '',
                     # Financial
                     asset.purchase_date,
-                    float(asset.purchase_price) if asset.purchase_price else '',
+                    purchase_price_value,
                     asset.currency or '',
                     asset.invoice_number or '',
                     asset.invoice_date,
@@ -981,9 +1074,9 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     # Depreciation
                     asset.get_depreciation_method_display() if asset.depreciation_method else '',
                     asset.useful_life_years or '',
-                    float(asset.salvage_value) if asset.salvage_value else '',
-                    float(asset.accumulated_depreciation),
-                    float(asset.current_value),
+                    salvage_value_value,
+                    accum_dep_value,
+                    nbv_value,
                     # Dates
                     asset.date_placed_in_service,
                     asset.tagged_date,
@@ -1009,6 +1102,15 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     if is_even:
                         cell.fill = even_fill
                 current_row += 1
+
+                ws.cell(row=summary_rows['Total Records:'], column=2, value=export_count).font = meta_value_font
+                ws.cell(row=summary_rows['Total Quantity:'], column=2, value=total_quantity).font = meta_value_font
+                ws.cell(row=summary_rows['Total Purchase Price:'], column=2, value=total_purchase).font = meta_value_font
+                ws.cell(row=summary_rows['Total Purchase Price:'], column=2).number_format = currency_format
+                ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2, value=total_accum_dep).font = meta_value_font
+                ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2).number_format = currency_format
+                ws.cell(row=summary_rows['Total Current NBV:'], column=2, value=total_nbv).font = meta_value_font
+                ws.cell(row=summary_rows['Total Current NBV:'], column=2).number_format = currency_format
 
         # ── Auto-adjust column widths ──
         for col_idx in range(1, ws.max_column + 1):
@@ -3170,20 +3272,34 @@ class AssetTransferExportExcelView(AssetTransferListView):
 
     def get(self, request, *args, **kwargs):
         transfers = self.get_filtered_queryset()
+        total_records = transfers.count()
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Asset Transfers"
 
+        # Export summary
+        ws.merge_cells('A1:I1')
+        ws.cell(row=1, column=1, value="ASSET TRANSFER REPORT EXPORT").font = openpyxl.styles.Font(size=14, bold=True)
+        ws.cell(row=2, column=1, value="Export Date:").font = openpyxl.styles.Font(bold=True)
+        ws.cell(row=2, column=2, value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        ws.cell(row=3, column=1, value="Total Records:").font = openpyxl.styles.Font(bold=True)
+        ws.cell(row=3, column=2, value=total_records)
+
+        header_row = 5
+
         headers = [
             'Transfer No', 'Asset Tag', 'Asset Name', 'From', 'To',
             'Transfer Reason', 'Status', 'Transfer Date', 'Created By'
         ]
-        ws.append(headers)
+        for col_num, header in enumerate(headers, 1):
+            ws.cell(row=header_row, column=col_num, value=header)
 
-        for cell in ws[1]:
+        for cell in ws[header_row]:
             cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
             cell.fill = openpyxl.styles.PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+
+        data_row = header_row + 1
 
         for transfer in transfers:
             from_value = '-'
@@ -3202,7 +3318,7 @@ class AssetTransferExportExcelView(AssetTransferListView):
             if transfer.created_by:
                 created_by_value = transfer.created_by.get_full_name() or transfer.created_by.username
 
-            ws.append([
+            row_values = [
                 transfer.transfer_no or '',
                 transfer.asset.asset_tag if transfer.asset else '',
                 transfer.asset.name if transfer.asset else '',
@@ -3212,7 +3328,10 @@ class AssetTransferExportExcelView(AssetTransferListView):
                 transfer.get_status_display(),
                 transfer.transfer_date.strftime('%Y-%m-%d %H:%M:%S') if transfer.transfer_date else '',
                 created_by_value,
-            ])
+            ]
+            for col_num, value in enumerate(row_values, 1):
+                ws.cell(row=data_row, column=col_num, value=value)
+            data_row += 1
 
         for col_idx in range(1, ws.max_column + 1):
             max_length = 0
@@ -3500,10 +3619,25 @@ class AssetDisposalExportExcelView(AssetDisposalListView):
 
     def get(self, request, *args, **kwargs):
         disposals = self.get_queryset()
+        total_records = disposals.count()
+        total_salvage_value = sum(float(d.estimated_salvage_value or 0) for d in disposals)
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Asset Disposals"
+
+        # Export summary
+        ws.merge_cells('A1:N1')
+        ws.cell(row=1, column=1, value="ASSET DISPOSAL REPORT EXPORT").font = openpyxl.styles.Font(size=14, bold=True)
+        ws.cell(row=2, column=1, value="Export Date:").font = openpyxl.styles.Font(bold=True)
+        ws.cell(row=2, column=2, value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        ws.cell(row=3, column=1, value="Total Records:").font = openpyxl.styles.Font(bold=True)
+        ws.cell(row=3, column=2, value=total_records)
+        ws.cell(row=4, column=1, value="Total Estimated Salvage Value:").font = openpyxl.styles.Font(bold=True)
+        ws.cell(row=4, column=2, value=total_salvage_value)
+        ws.cell(row=4, column=2).number_format = '#,##0.00'
+
+        header_row = 6
 
         headers = [
             'Asset Tag', 'Asset Name', 'Requested By', 'Disposal Method',
@@ -3511,11 +3645,14 @@ class AssetDisposalExportExcelView(AssetDisposalListView):
             'Manager Approved By', 'Manager Approved At',
             'Admin Approved By', 'Admin Approved At', 'Notes', 'Created Date'
         ]
-        ws.append(headers)
+        for col_num, header in enumerate(headers, 1):
+            ws.cell(row=header_row, column=col_num, value=header)
 
-        for cell in ws[1]:
+        for cell in ws[header_row]:
             cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
             cell.fill = openpyxl.styles.PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+
+        data_row = header_row + 1
 
         for disposal in disposals:
             requested_by = '-'
@@ -3530,7 +3667,7 @@ class AssetDisposalExportExcelView(AssetDisposalListView):
             if disposal.approved_by:
                 admin_approved_by = disposal.approved_by.get_full_name() or disposal.approved_by.username
 
-            ws.append([
+            row_values = [
                 disposal.asset.asset_tag if disposal.asset else '',
                 disposal.asset.name if disposal.asset else '',
                 requested_by,
@@ -3538,14 +3675,19 @@ class AssetDisposalExportExcelView(AssetDisposalListView):
                 disposal.reason or '',
                 disposal.get_status_display(),
                 disposal.disposal_date.strftime('%Y-%m-%d') if disposal.disposal_date else '',
-                str(disposal.estimated_salvage_value) if disposal.estimated_salvage_value else '',
+                float(disposal.estimated_salvage_value) if disposal.estimated_salvage_value else '',
                 manager_approved_by,
                 disposal.manager_approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.manager_approved_at else '',
                 admin_approved_by,
                 disposal.approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.approved_at else '',
                 disposal.notes or '',
                 disposal.created_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.created_at else '',
-            ])
+            ]
+            for col_num, value in enumerate(row_values, 1):
+                ws.cell(row=data_row, column=col_num, value=value)
+                if col_num == 8 and isinstance(value, float):
+                    ws.cell(row=data_row, column=col_num).number_format = '#,##0.00'
+            data_row += 1
 
         for col_idx in range(1, ws.max_column + 1):
             max_length = 0
