@@ -8,8 +8,10 @@ import os
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
+import qrcode.image.svg
 import barcode
 from barcode.writer import ImageWriter
+from barcode.writer import SVGWriter
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -276,16 +278,26 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            export_dpi = AssetCodeGenerator.DEFAULT_PRINT_DPI
-            img = AssetCodeGenerator.generate_barcode(asset_tag, dpi=export_dpi)
-            
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
             media_dir.mkdir(parents=True, exist_ok=True)
             
-            filename = f"{asset_tag}_barcode.png"
+            filename = f"{asset_tag}_barcode.svg"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG', dpi=(export_dpi, export_dpi))
+
+            barcode_instance = barcode.get(
+                AssetCodeGenerator.BARCODE_FORMAT,
+                asset_tag,
+                writer=SVGWriter()
+            )
+            with open(filepath, 'wb') as barcode_file:
+                barcode_instance.write(barcode_file, {
+                    'module_width': 0.5,
+                    'module_height': 15.0,
+                    'write_text': False,
+                    'quiet_zone': 2.0,
+                    'font_size': 0,
+                })
             
             return f"{directory}{filename}"
         except Exception as e:
@@ -305,16 +317,24 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            export_dpi = AssetCodeGenerator.DEFAULT_PRINT_DPI
-            img = AssetCodeGenerator.generate_qr_code(asset_tag, dpi=export_dpi)
-            
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
             media_dir.mkdir(parents=True, exist_ok=True)
             
-            filename = f"{asset_tag}_qr.png"
+            filename = f"{asset_tag}_qr.svg"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG', dpi=(export_dpi, export_dpi))
+
+            qr = qrcode.QRCode(
+                version=AssetCodeGenerator.QR_VERSION,
+                error_correction=AssetCodeGenerator.QR_ERROR_CORRECTION,
+                box_size=24,
+                border=4,
+                image_factory=qrcode.image.svg.SvgPathImage,
+            )
+            qr.add_data(asset_tag)
+            qr.make(fit=True)
+            qr_image = qr.make_image(fill_color="black", back_color="white")
+            qr_image.save(filepath)
             
             return f"{directory}{filename}"
         except Exception as e:
@@ -366,6 +386,9 @@ def asset_codes_need_regeneration(asset_instance):
         try:
             if not default_storage.exists(file_field.name):
                 return True
+
+            if Path(file_field.name).suffix.lower() == '.svg':
+                continue
 
             with default_storage.open(file_field.name, 'rb') as image_file:
                 with Image.open(image_file) as image:
