@@ -1618,8 +1618,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
             if fixed_prefix:
                 prefix_parts.append(fixed_prefix)
             elif include_company:
-                if company and company.name:
-                    alpha = ''.join(c for c in company.name if c.isalpha()).upper()
+                if organization and getattr(organization, 'name', None):
+                    alpha = ''.join(c for c in organization.name if c.isalpha()).upper()
                     co = alpha[:2] if len(alpha) >= 2 else alpha.ljust(2, 'X')[:2]
                 else:
                     co = 'XX'

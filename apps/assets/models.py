@@ -203,7 +203,7 @@ class AssetRemarks(TenantAwareModel):
 def generate_asset_tag(organization, category, company=None):
     """
     Generate structured asset tag based on organization's tag configuration.
-    Default format: CO-CAT-XXXX-YY  (company-category-hex-year)
+    Default format: ORG-CAT-XXXX-YY  (organization-category-hex-year)
     Customizable via Organization settings.
     """
     from datetime import date
@@ -220,12 +220,12 @@ def generate_asset_tag(organization, category, company=None):
     if fixed_prefix:
         prefix_parts.append(fixed_prefix)
     elif include_company:
-        if company and company.name:
-            alpha_chars = ''.join(c for c in company.name if c.isalpha()).upper()
-            company_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
+        if organization and getattr(organization, 'name', None):
+            alpha_chars = ''.join(c for c in organization.name if c.isalpha()).upper()
+            org_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
         else:
-            company_code = 'XX'
-        prefix_parts.append(company_code)
+            org_code = 'XX'
+        prefix_parts.append(org_code)
 
     if include_category:
         category_code = category.code[:3].upper() if category.code else 'XXX'
