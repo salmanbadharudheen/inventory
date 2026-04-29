@@ -168,6 +168,10 @@
         box-shadow: 0 6px 20px rgba(99, 102, 241, 0.1);
     }
 
+    .clickable-card {
+        cursor: pointer;
+    }
+
     .master-data-item:hover::before {
         opacity: 1;
     }
@@ -1035,7 +1039,7 @@
             </div>
         </div>
         <div class="master-data-premium">
-            <div class="master-data-item">
+            <div class="master-data-item clickable-card" data-href="{% url 'region-list' %}">
                 <div class="master-data-icon regions">
                     <i data-lucide="globe"></i>
                 </div>
@@ -1045,7 +1049,7 @@
                     <div class="master-data-desc">Geographic divisions</div>
                 </div>
             </div>
-            <div class="master-data-item">
+            <div class="master-data-item clickable-card" data-href="{% url 'site-list' %}">
                 <div class="master-data-icon sites">
                     <i data-lucide="map-pin"></i>
                 </div>
@@ -1055,7 +1059,7 @@
                     <div class="master-data-desc">Physical locations</div>
                 </div>
             </div>
-            <div class="master-data-item">
+            <div class="master-data-item clickable-card" data-href="{% url 'building-list' %}">
                 <div class="master-data-icon buildings">
                     <i data-lucide="building"></i>
                 </div>
@@ -1065,7 +1069,7 @@
                     <div class="master-data-desc">Facility units</div>
                 </div>
             </div>
-            <div class="master-data-item">
+            <div class="master-data-item clickable-card" data-href="{% url 'floor-list' %}">
                 <div class="master-data-icon floors">
                     <i data-lucide="layers"></i>
                 </div>
@@ -1075,7 +1079,7 @@
                     <div class="master-data-desc">Floor levels</div>
                 </div>
             </div>
-            <div class="master-data-item">
+            <div class="master-data-item clickable-card" data-href="{% url 'group-list' %}">
                 <div class="master-data-icon groups">
                     <i data-lucide="package"></i>
                 </div>
@@ -1085,7 +1089,7 @@
                     <div class="master-data-desc">Asset classifications</div>
                 </div>
             </div>
-            <div class="master-data-item">
+            <div class="master-data-item clickable-card" data-href="{% url 'category-list' %}">
                 <div class="master-data-icon categories">
                     <i data-lucide="tag"></i>
                 </div>
@@ -1102,7 +1106,7 @@
     {% if show_financial %}
     <div class="stats-grid">
         <!-- Total Assets - Moved to First Position -->
-        <div class="stat-card info">
+        <div class="stat-card info clickable-card" data-href="{% url 'asset-list' %}">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="package-check"></i></div>
             </div>
@@ -1116,7 +1120,7 @@
             </div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card clickable-card" data-href="{% url 'asset-list' %}?view=depreciation">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="wallet"></i></div>
             </div>
@@ -1130,7 +1134,7 @@
             </div>
         </div>
 
-        <div class="stat-card success">
+        <div class="stat-card success clickable-card" data-href="{% url 'asset-list' %}?view=depreciation">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="bar-chart-3"></i></div>
             </div>
@@ -1143,7 +1147,7 @@
             </div>
         </div>
 
-        <div class="stat-card danger">
+        <div class="stat-card danger clickable-card" data-href="{% url 'asset-list' %}?view=depreciation">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="trending-down"></i></div>
             </div>
@@ -1159,7 +1163,7 @@
     {% else %}
     <!-- EMPLOYEE Dashboard - Only inventory count -->
     <div class="stats-grid">
-        <div class="stat-card info">
+        <div class="stat-card info clickable-card" data-href="{% url 'asset-list' %}">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="package-check"></i></div>
             </div>
@@ -1306,13 +1310,31 @@
             }]
         };
 
+        const groupIds = [{% for group in group_distribution %}{% if group.id %}"{{ group.id }}"{% else %}null{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
         const groupCtx = document.getElementById('groupChart').getContext('2d');
+        const groupChartEl = document.getElementById('groupChart');
         new Chart(groupCtx, {
             type: 'doughnut',
             data: groupData,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function(event, elements) {
+                    if (!elements || !elements.length) {
+                        return;
+                    }
+
+                    const index = elements[0].index;
+                    const groupId = groupIds[index];
+                    let targetUrl = "{% url 'asset-list' %}";
+
+                    if (groupId) {
+                        targetUrl += '?group=' + encodeURIComponent(groupId);
+                    }
+
+                    window.location.href = targetUrl;
+                },
                 plugins: {
                     legend: {
                         position: 'right',
@@ -1340,6 +1362,10 @@
             }
         });
 
+        if (groupChartEl) {
+            groupChartEl.style.cursor = 'pointer';
+        }
+
         // Category Chart
         const categoryData = {
             labels: [{% for cat in category_breakdown %}"{{ cat.category__name|default:'Uncategorized' }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
@@ -1351,8 +1377,10 @@
                 barThickness: 'flex'
             }]
         };
+        const categoryIds = [{% for cat in category_breakdown %}{% if cat.category %}"{{ cat.category }}"{% else %}null{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}];
 
         const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        const categoryChartEl = document.getElementById('categoryChart');
         new Chart(categoryCtx, {
             type: 'bar',
             data: categoryData,
@@ -1360,6 +1388,21 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function(event, elements) {
+                    if (!elements || !elements.length) {
+                        return;
+                    }
+
+                    const index = elements[0].index;
+                    const categoryId = categoryIds[index];
+                    let targetUrl = "{% url 'asset-list' %}";
+
+                    if (categoryId) {
+                        targetUrl += '?category=' + encodeURIComponent(categoryId);
+                    }
+
+                    window.location.href = targetUrl;
+                },
                 scales: {
                     x: {
                         grid: { display: false },
@@ -1383,6 +1426,19 @@
                     }
                 }
             }
+        });
+
+        if (categoryChartEl) {
+            categoryChartEl.style.cursor = 'pointer';
+        }
+
+        document.querySelectorAll('.clickable-card[data-href]').forEach(function(el) {
+            el.addEventListener('click', function() {
+                var href = el.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href;
+                }
+            });
         });
     }
     

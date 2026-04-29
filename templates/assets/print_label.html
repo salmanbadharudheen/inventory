@@ -1126,6 +1126,29 @@
         </select>
     </div>
 
+    <div class="field">
+        <label for="printer-profile">Printer Profile</label>
+        <select id="printer-profile">
+            <option value="auto" selected>Auto (Any Major Brand)</option>
+            <option value="zebra_zpl">Zebra (ZPL)</option>
+            <option value="zebra_epl">Zebra (EPL)</option>
+            <option value="tspl">TSPL (TSC/Godex etc.)</option>
+            <option value="escpos">ESC/POS (Receipt)</option>
+            <option value="raster">Raster/Image (Universal)</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="printer-name">Printer Name (Optional)</label>
+        <input id="printer-name" type="text" placeholder="e.g. Zebra ZD421" style="padding:0.45rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem;">
+    </div>
+
+    <div class="field" style="grid-column: span 2;">
+        <label for="external-bridge-url">External Print App URL</label>
+        <input id="external-bridge-url" type="text" value="{{ external_print_bridge_url|default:'http://127.0.0.1:50777' }}" style="padding:0.45rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem;">
+        <span class="field-note">Install/run your print bridge app locally. Endpoint must expose POST /api/print.</span>
+    </div>
+
     <div class="toggles">
         <label class="toggle"><input type="checkbox" id="toggle-org" checked> Show organization</label>
         <label class="toggle"><input type="checkbox" id="toggle-tag" checked> Show asset tag</label>
@@ -1139,8 +1162,10 @@
     </div>
 
     <div class="actions">
+        <button type="button" class="mini-btn" id="send-external-print">Send to External App</button>
         <button type="button" class="mini-btn" id="reset-customization">Reset Customization</button>
         <button type="button" class="mini-btn" id="save-customization">Save as Default (Browser)</button>
+        <span id="external-print-status" style="font-size:0.74rem; color:#475569; font-weight:600;"></span>
     </div>
 </div>
 
@@ -1297,6 +1322,8 @@ function updateBatchParam(batchNum) {
     {% endfor %}
 </div>
 
+{{ print_payload|json_script:"print-payload-data" }}
+
 <script>
 function escapePrintHtml(value) {
     return String(value)
@@ -1387,6 +1414,89 @@ function doPrint() {
     setTimeout(cleanupCopies, 1000);
 }
 
+async function sendToExternalPrintApp() {
+    var statusEl = document.getElementById('external-print-status');
+    var endpointInput = document.getElementById('external-bridge-url');
+    var profileInput = document.getElementById('printer-profile');
+    var printerNameInput = document.getElementById('printer-name');
+    var copiesInput = document.getElementById('copies-count');
+    var designInput = document.getElementById('design-picker');
+
+    if (!endpointInput) {
+        return;
+    }
+
+    var baseEndpoint = String(endpointInput.value || '').trim().replace(/\/+$/, '');
+    if (!baseEndpoint) {
+        if (statusEl) {
+            statusEl.textContent = 'Set the external app URL first.';
+            statusEl.style.color = '#b45309';
+        }
+        return;
+    }
+
+    var payloadNode = document.getElementById('print-payload-data');
+    var assetsPayload = [];
+    if (payloadNode && payloadNode.textContent) {
+        try {
+            assetsPayload = JSON.parse(payloadNode.textContent);
+        } catch (err) {
+            assetsPayload = [];
+        }
+    }
+
+    var selectedSize = getSelectedPrintSize();
+    var requestPayload = {
+        source: 'inventory-web',
+        profile: profileInput ? profileInput.value : 'auto',
+        printer_name: printerNameInput ? String(printerNameInput.value || '').trim() : '',
+        copies: copiesInput ? parseInt(copiesInput.value, 10) || 1 : 1,
+        design: designInput ? designInput.value : 'CLASSIC',
+        organization: '{{ org.name|escapejs }}',
+        label_size_mm: {
+            width: selectedSize.wMm,
+            height: selectedSize.hMm
+        },
+        assets: assetsPayload,
+        page_url: window.location.href,
+    };
+
+    if (statusEl) {
+        statusEl.textContent = 'Sending job to external app...';
+        statusEl.style.color = '#1d4ed8';
+    }
+
+    try {
+        var response = await fetch(baseEndpoint + '/api/print', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload),
+        });
+
+        if (!response.ok) {
+            throw new Error('Bridge returned HTTP ' + response.status);
+        }
+
+        var data = {};
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = {};
+        }
+
+        if (statusEl) {
+            var msg = data.message || 'Print job sent successfully.';
+            statusEl.textContent = 'External print: ' + msg;
+            statusEl.style.color = '#15803d';
+        }
+    } catch (error) {
+        if (statusEl) {
+            statusEl.textContent = 'External print failed. Ensure app is running at ' + baseEndpoint;
+            statusEl.style.color = '#b91c1c';
+        }
+    }
+}
+
 /* ── Wait for all images, then enable Print ─────────── */
 (function() {
     var imgs = Array.from(document.querySelectorAll('.label img'));
@@ -1414,6 +1524,13 @@ function doPrint() {
         if (img.complete) { tick(); }
         else { img.addEventListener('load', tick); img.addEventListener('error', tick); }
     });
+})();
+
+(function() {
+    var sendBtn = document.getElementById('send-external-print');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendToExternalPrintApp);
+    }
 })();
 
 /* ── Full Customization Controls ─────────────────────── */

@@ -96,7 +96,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             context['active_assets'] = qs.filter(status=Asset.Status.ACTIVE).count()
             
             # Category breakdown (top 5) - already optimized
-            category_data = qs.values('category__name').annotate(count=Count('id')).order_by('-count')[:5]
+            category_data = qs.values('category', 'category__name').annotate(count=Count('id')).order_by('-count')[:5]
             context['category_breakdown'] = category_data
             
             # Status distribution with efficient query
@@ -114,10 +114,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             context['status_distribution'] = status_data
             
             # Group-wise asset count (for new chart) - optimized
-            group_data = qs.values('group__name').annotate(count=Count('id')).order_by('-count')[:10]
+            group_data = qs.values('group', 'group__name').annotate(count=Count('id')).order_by('-count')[:10]
             group_list = []
             for group in group_data:
                 group_list.append({
+                    'id': group['group'],
                     'name': group['group__name'] or 'Ungrouped',
                     'count': group['count']
                 })
@@ -125,6 +126,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ungrouped_count = qs.filter(group__isnull=True).count()
             if ungrouped_count > 0:
                 group_list.append({
+                    'id': None,
                     'name': 'Ungrouped',
                     'count': ungrouped_count
                 })

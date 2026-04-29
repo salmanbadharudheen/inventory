@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
+from django.conf import settings
 from django.db.models import Q, Count
 from django.contrib import messages
 import csv
@@ -21,6 +22,25 @@ from datetime import date, datetime
 from django.core.files.base import ContentFile
 from uuid import uuid4
 import openpyxl
+
+
+def _build_print_payload(request, assets):
+    """Create a printer-app friendly payload from visible assets."""
+    payload = []
+    for asset in assets:
+        payload.append({
+            'id': str(asset.id),
+            'asset_tag': asset.asset_tag,
+            'name': asset.name,
+            'category': asset.category.name if getattr(asset, 'category', None) else '',
+            'location': (
+                asset.location.name if getattr(asset, 'location', None)
+                else (asset.branch.name if getattr(asset, 'branch', None) else '')
+            ),
+            'barcode_url': request.build_absolute_uri(asset.barcode_image.url) if asset.barcode_image else '',
+            'qr_url': request.build_absolute_uri(asset.qr_code_image.url) if asset.qr_code_image else '',
+        })
+    return payload
 
 def get_subcategories(request):
     category_id = request.GET.get('category_id')
@@ -4614,9 +4634,11 @@ def print_asset_label(request, pk):
     designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
     return render(request, 'assets/print_label.html', {
         'assets': [asset],
+        'print_payload': _build_print_payload(request, [asset]),
         'design': design,
         'designs': designs,
         'org': org,
+        'external_print_bridge_url': getattr(settings, 'EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777'),
     })
 
 
@@ -4697,9 +4719,11 @@ def print_asset_labels_bulk(request):
     if not assets.exists():
         return render(request, 'assets/print_label.html', {
             'assets': [],
+            'print_payload': [],
             'design': design,
             'designs': designs,
             'org': org,
+            'external_print_bridge_url': getattr(settings, 'EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777'),
         })
 
     # Batch pagination - max 1000 labels per page
@@ -4737,9 +4761,11 @@ def print_asset_labels_bulk(request):
 
     return render(request, 'assets/print_label.html', {
         'assets': assets_batch,
+        'print_payload': _build_print_payload(request, assets_batch),
         'design': design,
         'designs': designs,
         'org': org,
+        'external_print_bridge_url': getattr(settings, 'EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777'),
         'batch': batch,
         'total_batches': total_batches,
         'total_count': total_count,

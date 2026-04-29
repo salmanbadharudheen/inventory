@@ -266,6 +266,10 @@ SWAGGER_SETTINGS = {
     'SUPPORTED_SUBMIT_METHODS': ['get', 'post', 'put', 'delete', 'patch'],
 }
 
+# External desktop print bridge (Zebra and multi-brand printers)
+EXTERNAL_PRINT_BRIDGE_URL = os.environ.get('EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777')
+EXTERNAL_PRINT_BRIDGE_TIMEOUT_MS = int(os.environ.get('EXTERNAL_PRINT_BRIDGE_TIMEOUT_MS', '12000'))
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
