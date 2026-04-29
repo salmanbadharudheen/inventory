@@ -21,7 +21,9 @@ def test_barcode_generation():
     print("Testing barcode generation...")
     try:
         test_tag = "TEST-0001-26"
-        img = AssetCodeGenerator.generate_barcode(test_tag, dpi=72)
+        img = AssetCodeGenerator.generate_barcode(test_tag, dpi=600)
+        assert img.size[0] >= 1200, f"Barcode width too small: {img.size}"
+        assert img.size[1] >= 220, f"Barcode height too small: {img.size}"
         print(f"  ✓ Barcode generated: {img.size} {img.mode}")
         return True
     except Exception as e:
@@ -33,7 +35,8 @@ def test_qr_generation():
     print("Testing QR code generation...")
     try:
         test_tag = "TEST-0001-26"
-        img = AssetCodeGenerator.generate_qr_code(test_tag, dpi=72)
+        img = AssetCodeGenerator.generate_qr_code(test_tag, dpi=600)
+        assert img.size[0] >= 900 and img.size[1] >= 900, f"QR size too small: {img.size}"
         print(f"  ✓ QR code generated: {img.size} {img.mode}")
         return True
     except Exception as e:
@@ -45,7 +48,8 @@ def test_label_generation():
     print("Testing label generation...")
     try:
         test_tag = "TEST-0001-26"
-        img = AssetCodeGenerator.generate_label(test_tag, include_text=True, dpi=72)
+        img = AssetCodeGenerator.generate_label(test_tag, include_text=True, dpi=600)
+        assert img.size == (1200, 600), f"Label size mismatch: {img.size}"
         print(f"  ✓ Label generated: {img.size} {img.mode}")
         return True
     except Exception as e:

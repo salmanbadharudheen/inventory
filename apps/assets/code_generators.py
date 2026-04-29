@@ -12,6 +12,7 @@ import barcode
 from barcode.writer import ImageWriter
 from django.core.files.base import ContentFile
 from django.conf import settings
+from django.core.files.storage import default_storage
 
 
 class AssetCodeGenerator:
@@ -20,6 +21,29 @@ class AssetCodeGenerator:
     BARCODE_FORMAT = 'code128'  # Most common format
     QR_VERSION = 1  # Auto-detect size
     QR_ERROR_CORRECTION = qrcode.constants.ERROR_CORRECT_M  # Medium error correction for small labels
+    DEFAULT_PRINT_DPI = 600
+    LABEL_WIDTH_IN = 2.0
+    LABEL_HEIGHT_IN = 1.0
+    MIN_QR_EXPORT_SIZE = 900
+    MIN_BARCODE_EXPORT_WIDTH = 1200
+    MIN_BARCODE_EXPORT_HEIGHT = 220
+    MIN_LABEL_EXPORT_WIDTH = 1200
+    MIN_LABEL_EXPORT_HEIGHT = 600
+
+    @staticmethod
+    def _get_effective_dpi(dpi=None):
+        """Clamp requested DPI to a print-safe minimum."""
+        requested_dpi = dpi or AssetCodeGenerator.DEFAULT_PRINT_DPI
+        return max(int(requested_dpi), 300)
+
+    @staticmethod
+    def _get_label_pixels(dpi=None):
+        """Return 2in x 1in label pixels for the requested DPI."""
+        safe_dpi = AssetCodeGenerator._get_effective_dpi(dpi)
+        return (
+            int(round(AssetCodeGenerator.LABEL_WIDTH_IN * safe_dpi)),
+            int(round(AssetCodeGenerator.LABEL_HEIGHT_IN * safe_dpi)),
+        )
 
     @staticmethod
     def _load_font(size, bold=False):
@@ -80,7 +104,7 @@ class AssetCodeGenerator:
             )
             
             # Generate as image (very low DPI can break writer geometry)
-            safe_dpi = max(int(dpi), 300)
+            safe_dpi = AssetCodeGenerator._get_effective_dpi(dpi)
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
                 'dpi': safe_dpi,
@@ -114,7 +138,8 @@ class AssetCodeGenerator:
         """
         try:
             # Higher box_size for HD print quality, standard 4-module quiet zone
-            box_size = 20 if dpi >= 300 else 14
+            safe_dpi = AssetCodeGenerator._get_effective_dpi(dpi)
+            box_size = max(20, min(40, round(safe_dpi / 15)))
             qr = qrcode.QRCode(
                 version=AssetCodeGenerator.QR_VERSION,
                 error_correction=AssetCodeGenerator.QR_ERROR_CORRECTION,
@@ -148,10 +173,14 @@ class AssetCodeGenerator:
         """
         try:
             company_name = (company_name or '').strip()
+            safe_dpi = AssetCodeGenerator._get_effective_dpi(dpi)
+            target_width, target_height = AssetCodeGenerator._get_label_pixels(safe_dpi)
+            width = target_width if width is None else max(int(width), target_width)
+            height = target_height if height is None else max(int(height), target_height)
 
             # Generate source images
-            qr_source = AssetCodeGenerator.generate_qr_code(asset_tag, dpi)
-            barcode_source = AssetCodeGenerator.generate_barcode(asset_tag, dpi)
+            qr_source = AssetCodeGenerator.generate_qr_code(asset_tag, safe_dpi)
+            barcode_source = AssetCodeGenerator.generate_barcode(asset_tag, safe_dpi)
 
             # Create label base
             label = Image.new('RGB', (width, height), color='white')
@@ -247,7 +276,8 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_barcode(asset_tag, dpi=300)
+            export_dpi = AssetCodeGenerator.DEFAULT_PRINT_DPI
+            img = AssetCodeGenerator.generate_barcode(asset_tag, dpi=export_dpi)
             
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
@@ -255,7 +285,7 @@ class AssetCodeGenerator:
             
             filename = f"{asset_tag}_barcode.png"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG', dpi=(300, 300))
+            img.save(filepath, 'PNG', dpi=(export_dpi, export_dpi))
             
             return f"{directory}{filename}"
         except Exception as e:
@@ -275,7 +305,8 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_qr_code(asset_tag, dpi=300)
+            export_dpi = AssetCodeGenerator.DEFAULT_PRINT_DPI
+            img = AssetCodeGenerator.generate_qr_code(asset_tag, dpi=export_dpi)
             
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
@@ -283,7 +314,7 @@ class AssetCodeGenerator:
             
             filename = f"{asset_tag}_qr.png"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG', dpi=(300, 300))
+            img.save(filepath, 'PNG', dpi=(export_dpi, export_dpi))
             
             return f"{directory}{filename}"
         except Exception as e:
@@ -303,7 +334,8 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_label(asset_tag, company_name=company_name, include_text=True, dpi=300)
+            export_dpi = AssetCodeGenerator.DEFAULT_PRINT_DPI
+            img = AssetCodeGenerator.generate_label(asset_tag, company_name=company_name, include_text=True, dpi=export_dpi)
             
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
@@ -311,12 +343,46 @@ class AssetCodeGenerator:
             
             filename = f"{asset_tag}_label.png"
             filepath = media_dir / filename
-            img.save(filepath, 'PNG', dpi=(300, 300))
+            img.save(filepath, 'PNG', dpi=(export_dpi, export_dpi))
             
             return f"{directory}{filename}"
         except Exception as e:
             print(f"Error saving label: {str(e)}")
             return None
+
+
+def asset_codes_need_regeneration(asset_instance):
+    """Return True when stored barcode/QR assets are missing or below print-ready size."""
+    checks = (
+        ('barcode_image', AssetCodeGenerator.MIN_BARCODE_EXPORT_WIDTH, AssetCodeGenerator.MIN_BARCODE_EXPORT_HEIGHT),
+        ('qr_code_image', AssetCodeGenerator.MIN_QR_EXPORT_SIZE, AssetCodeGenerator.MIN_QR_EXPORT_SIZE),
+    )
+
+    for field_name, min_width, min_height in checks:
+        file_field = getattr(asset_instance, field_name, None)
+        if not file_field:
+            return True
+
+        try:
+            if not default_storage.exists(file_field.name):
+                return True
+
+            with default_storage.open(file_field.name, 'rb') as image_file:
+                with Image.open(image_file) as image:
+                    width, height = image.size
+                    dpi = image.info.get('dpi', (0, 0))
+                    x_dpi = int(round(dpi[0])) if dpi and dpi[0] else 0
+                    y_dpi = int(round(dpi[1])) if len(dpi) > 1 and dpi[1] else x_dpi
+
+                    if width < min_width or height < min_height:
+                        return True
+
+                    if x_dpi < 300 or y_dpi < 300:
+                        return True
+        except Exception:
+            return True
+
+    return False
 
 
 def generate_codes_for_asset(asset_instance):

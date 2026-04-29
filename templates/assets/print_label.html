@@ -1226,12 +1226,12 @@ function updateBatchParam(batchNum) {
         <div class="lbl-body">
             <div class="lbl-qr">
                 {% if asset.qr_code_image %}
-                <img src="{{ asset.qr_code_image.url }}" alt="QR">
+                <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
                 {% endif %}
             </div>
             <div class="lbl-right">
                 {% if asset.barcode_image %}
-                <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+                <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
                 {% endif %}
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
@@ -1242,7 +1242,7 @@ function updateBatchParam(batchNum) {
     <div class="label label-compact" data-design="COMPACT" {% if design != 'COMPACT' %}style="display:none"{% endif %}>
         <div class="lbl-qr">
             {% if asset.qr_code_image %}
-            <img src="{{ asset.qr_code_image.url }}" alt="QR">
+            <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
             {% endif %}
         </div>
         <div class="lbl-divider"></div>
@@ -1260,12 +1260,12 @@ function updateBatchParam(batchNum) {
         <div class="lbl-body">
             <div class="lbl-qr">
                 {% if asset.qr_code_image %}
-                <img src="{{ asset.qr_code_image.url }}" alt="QR">
+                <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
                 {% endif %}
             </div>
             <div class="lbl-right">
                 {% if asset.barcode_image %}
-                <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+                <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
                 {% endif %}
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
@@ -1277,7 +1277,7 @@ function updateBatchParam(batchNum) {
         <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
             {% if asset.barcode_image %}
-            <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+            <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
             {% endif %}
         </div>
         <div class="lbl-tag">{{ asset.asset_tag }}</div>
@@ -1291,7 +1291,7 @@ function updateBatchParam(batchNum) {
         <div class="lbl-modern-body">
             <div class="lbl-qr">
                 {% if asset.qr_code_image %}
-                <img src="{{ asset.qr_code_image.url }}" alt="QR">
+                <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
                 {% endif %}
             </div>
             <div class="lbl-modern-info">
@@ -1300,7 +1300,7 @@ function updateBatchParam(batchNum) {
                 {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
                 <div class="lbl-barcode-inline">
                     {% if asset.barcode_image %}
-                    <img src="{{ asset.barcode_image.url }}" alt="Barcode">
+                    <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
                     {% endif %}
                 </div>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
@@ -1313,7 +1313,7 @@ function updateBatchParam(batchNum) {
         <div class="org-name org-text">{{ org.name }}</div>
         <div class="lbl-qr-main">
             {% if asset.qr_code_image %}
-            <img src="{{ asset.qr_code_image.url }}" alt="QR">
+            <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
             {% endif %}
         </div>
         <div class="lbl-tag-bottom">{{ asset.asset_tag }}</div>

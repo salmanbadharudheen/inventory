@@ -24,6 +24,19 @@ from uuid import uuid4
 import openpyxl
 
 
+def _asset_media_url(request, file_field, asset):
+    """Build an absolute media URL with a cache-busting version token."""
+    if not file_field:
+        return ''
+
+    version = ''
+    if getattr(asset, 'updated_at', None):
+        version = str(int(asset.updated_at.timestamp()))
+
+    url = request.build_absolute_uri(file_field.url)
+    return f'{url}?v={version}' if version else url
+
+
 def _build_print_payload(request, assets):
     """Create a printer-app friendly payload from visible assets."""
     payload = []
@@ -37,8 +50,8 @@ def _build_print_payload(request, assets):
                 asset.location.name if getattr(asset, 'location', None)
                 else (asset.branch.name if getattr(asset, 'branch', None) else '')
             ),
-            'barcode_url': request.build_absolute_uri(asset.barcode_image.url) if asset.barcode_image else '',
-            'qr_url': request.build_absolute_uri(asset.qr_code_image.url) if asset.qr_code_image else '',
+            'barcode_url': _asset_media_url(request, asset.barcode_image, asset),
+            'qr_url': _asset_media_url(request, asset.qr_code_image, asset),
         })
     return payload
 
@@ -4625,6 +4638,15 @@ def download_barcode_batch(request):
 def print_asset_label(request, pk):
     """Render a browser-printable label page for a single asset."""
     asset = get_object_or_404(Asset, id=pk, organization=request.user.organization)
+    from .code_generators import asset_codes_need_regeneration, generate_codes_for_asset
+
+    if asset.asset_tag and asset_codes_need_regeneration(asset):
+        try:
+            generate_codes_for_asset(asset)
+            asset.refresh_from_db(fields=['barcode_image', 'qr_code_image', 'label_image'])
+        except Exception:
+            pass
+
     org = request.user.organization
     # Superusers and org admins may override design for this print request.
     if request.user.is_superuser or request.user.role == 'ADMIN':
@@ -4737,18 +4759,10 @@ def print_asset_labels_bulk(request):
     assets_batch = assets_batch.select_related('category', 'location', 'company')
 
     # Auto-generate missing barcode/QR codes before printing
-    from .code_generators import generate_codes_for_asset
-
-    def _file_missing(file_field):
-        if not file_field:
-            return True
-        try:
-            return not default_storage.exists(file_field.name)
-        except Exception:
-            return True
+    from .code_generators import asset_codes_need_regeneration, generate_codes_for_asset
 
     for asset in assets_batch:
-        if asset.asset_tag and (_file_missing(asset.barcode_image) or _file_missing(asset.qr_code_image)):
+        if asset.asset_tag and asset_codes_need_regeneration(asset):
             try:
                 generate_codes_for_asset(asset)
             except Exception:
