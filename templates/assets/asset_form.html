@@ -385,6 +385,28 @@ Add New Asset
       });
     };
 
+    // Tagged / Untagged toggle logic
+    const taggedRadios = document.querySelectorAll('input[name="is_tagged_ui"]');
+    const isTaggedHidden = document.getElementById('id_is_tagged');
+    const taggedDetailFields = document.querySelectorAll('.tagged-detail-field');
+
+    function applyTaggedState(isTagged) {
+      if (isTaggedHidden) isTaggedHidden.value = isTagged ? 'on' : '';
+      taggedDetailFields.forEach(function(el) {
+        el.classList.toggle('hidden-field', !isTagged);
+      });
+    }
+
+    taggedRadios.forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        applyTaggedState(this.value === 'tagged');
+      });
+    });
+
+    // Set initial state on page load
+    const checkedRadio = document.querySelector('input[name="is_tagged_ui"]:checked');
+    applyTaggedState(checkedRadio && checkedRadio.value === 'tagged');
+
   });
 </script>
 {% endblock %}
@@ -486,6 +508,28 @@ Add New Asset
         </div>
 
         <div class="form-group">
+          <label>Tagged / Untagged</label>
+          <div class="tagged-toggle-group">
+            <label class="tagged-option" id="opt-tagged">
+              <input type="radio" name="is_tagged_ui" value="tagged" {% if form.instance.is_tagged %}checked{% endif %}>
+              <span class="tagged-option-inner">
+                <i data-lucide="tag" style="width:15px;height:15px;"></i>
+                Tagged
+              </span>
+            </label>
+            <label class="tagged-option" id="opt-untagged">
+              <input type="radio" name="is_tagged_ui" value="untagged" {% if not form.instance.is_tagged %}checked{% endif %}>
+              <span class="tagged-option-inner">
+                <i data-lucide="tag-off" style="width:15px;height:15px;"></i>
+                Untagged
+              </span>
+            </label>
+          </div>
+          {# hidden field submitted to form #}
+          <input type="hidden" name="{{ form.is_tagged.html_name }}" id="id_is_tagged" value="{% if form.instance.is_tagged %}on{% endif %}">
+        </div>
+
+        <div class="form-group tagged-detail-field">
           <label>Label Type</label>
           {{ form.label_type }}
         </div>
@@ -712,7 +756,7 @@ Add New Asset
           {{ form.warranty_end }}
         </div>
 
-        <div class="form-group">
+        <div class="form-group tagged-detail-field">
           <label>Tagged Date</label>
           {{ form.tagged_date }}
         </div>
@@ -988,6 +1032,50 @@ Add New Asset
 
   .btn-secondary:hover {
     background: #f8fafc;
+  }
+
+  /* Tagged / Untagged toggle */
+  .tagged-toggle-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .tagged-option {
+    cursor: pointer;
+    flex: 1;
+  }
+  .tagged-option input[type="radio"] {
+    display: none;
+  }
+  .tagged-option-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #64748b;
+    background: #f8fafc;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .tagged-option input[type="radio"]:checked + .tagged-option-inner {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  #opt-untagged input[type="radio"]:checked + .tagged-option-inner {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .tagged-detail-field {
+    transition: opacity 0.2s ease;
+  }
+  .tagged-detail-field.hidden-field {
+    display: none;
   }
 </style>
 {% endblock %}

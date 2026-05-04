@@ -318,6 +318,7 @@ class Asset(TenantAwareModel):
     erp_asset_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="ERP Asset Number")
     
     quantity = models.PositiveIntegerField(default=1, verbose_name="Quantity")
+    is_tagged = models.BooleanField(default=False, verbose_name="Is Tagged")
     label_type = models.CharField(max_length=50, choices=LabelType.choices, default=LabelType.NON_METAL, verbose_name="Label Type")
     
     serial_number = models.CharField(max_length=100, blank=True, null=True)

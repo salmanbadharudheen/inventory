@@ -13,11 +13,11 @@
         </div>
         <h1 class="detail-title">Disposal: {{ disposal.asset.asset_tag }}</h1>
         <div class="header-actions">
-            {% if disposal.status == 'PENDING' and request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER %}
+            {% if disposal.status == 'PENDING' and request.user.role == request.user.Role.SENIOR_MANAGER or disposal.status == 'PENDING' and request.user.role == request.user.Role.CHECKER %}
             <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action-primary">
                 <i data-lucide="check-check"></i> Manager Review
             </a>
-            {% elif disposal.status == 'MANAGER_APPROVED' and request.user.is_superuser or request.user.role == 'ADMIN' %}
+            {% elif disposal.status == 'MANAGER_APPROVED' and request.user.is_superuser or disposal.status == 'MANAGER_APPROVED' and request.user.role == request.user.Role.ADMIN or disposal.status == 'MANAGER_APPROVED' and request.user.role == request.user.Role.SENIOR_MANAGER %}
             <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action-primary btn-green">
                 <i data-lucide="shield-check"></i> Final Approval
             </a>
@@ -55,11 +55,11 @@
                             </div>
                         </div>
 
-                        <!-- Step 2: Admin Approval -->
+                        <!-- Step 2: Final Approval -->
                         <div class="tl-item {% if disposal.status == 'APPROVED' %}completed{% elif disposal.approved_by and disposal.status == 'REJECTED' %}rejected{% endif %}">
                             <div class="tl-marker"></div>
                             <div class="tl-content">
-                                <p class="tl-label">Admin Approval</p>
+                                <p class="tl-label">Final Approval</p>
                                 {% if disposal.approved_by and disposal.status == 'APPROVED' %}
                                 <p class="tl-date">Approved {{ disposal.approved_at|date:"d M Y H:i" }}</p>
                                 <p class="tl-by">by {{ disposal.approved_by.get_full_name|default:disposal.approved_by.username }}</p>
@@ -218,7 +218,7 @@
                     </div>
                     <div class="progress-item">
                         <div class="progress-row">
-                            <span class="progress-label">Admin Approval</span>
+                            <span class="progress-label">Final Approval</span>
                             {% if disposal.status == 'APPROVED' %}
                             <span class="progress-status done">Done</span>
                             {% elif disposal.approved_by and disposal.status == 'REJECTED' %}

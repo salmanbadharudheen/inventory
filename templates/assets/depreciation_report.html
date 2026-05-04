@@ -823,7 +823,7 @@
     <div class="depr-sidebar-footer">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
             <span>Financial Depreciation Report</span>
-            <a href="#" title="Export Report" style="color: var(--text-on-sidebar); text-decoration: none; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px; background: rgba(255,255,255,0.1); transition: all 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+            <a href="{% url 'asset-export-excel' %}?{{ query_params|default:'view=depreciation' }}" title="Export Report" style="color: var(--text-on-sidebar); text-decoration: none; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px; background: rgba(255,255,255,0.1); transition: all 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                     <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -841,7 +841,7 @@
             <h2>Financial Depreciation Report</h2>
             <p>Consolidated view of asset valuations and accumulated depreciation across your organization.</p>
         </div>
-        <a href="{% url 'asset-export-excel' %}?{{ request.GET.urlencode|default:'view=depreciation' }}" class="depr-export" style="align-self: center; margin-top: 0.25rem;">
+        <a href="{% url 'asset-export-excel' %}?{{ query_params|default:'view=depreciation' }}" class="depr-export" style="align-self: center; margin-top: 0.25rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -1043,7 +1043,7 @@
                         </td>
                         <td>
                             <a href="{% url 'asset-detail' asset.pk %}" class="depr-asset-name">{{ asset.name }}</a>
-                            <span class="depr-asset-tag">{{ asset.asset_tag }}{% if asset.asset_code %} • {{ asset.asset_code }}{% endif %} • {{ asset.category.name }}</span>
+                            <span class="depr-asset-tag">{{ asset.asset_tag }} • {{ asset.category.name }}</span>
                         </td>
                         <td style="font-size: 0.85rem; color: var(--text-secondary);">{{ asset.get_depreciation_method_display }}</td>
                         <td style="text-align: center; font-weight:600;">{{ asset.useful_life_years }}Y</td>
@@ -1063,7 +1063,7 @@
                                     <div class="depr-asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
                                     <div class="depr-asset-main">
                                         <div class="depr-asset-name-detail">{{ asset.name }}</div>
-                                        <div class="depr-asset-sub">{{ asset.asset_tag }}{% if asset.asset_code %} • {{ asset.asset_code }}{% endif %} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
+                                        <div class="depr-asset-sub">{{ asset.asset_tag }} {% if asset.serial_number %}• S/N {{ asset.serial_number }}{% endif %}</div>
                                     </div>
                                 </div>
                                 <div class="depr-detail-right">
@@ -1072,7 +1072,6 @@
                                             <h4>Identification</h4>
                                             <div class="depr-kv-grid">
                                                 <div class="depr-kv"><span class="label">Asset Tag</span><span class="value">{{ asset.asset_tag }}</span></div>
-                                                <div class="depr-kv"><span class="label">Asset Code</span><span class="value">{{ asset.asset_code|default:'-' }}</span></div>
                                                 <div class="depr-kv"><span class="label">Serial #</span><span class="value">{{ asset.serial_number|default:'-' }}</span></div>
                                                 <div class="depr-kv"><span class="label">Category</span><span class="value">{{ asset.category.name }}</span></div>
                                                 <div class="depr-kv"><span class="label">Location</span><span class="value">{{ asset.site.name|default:'-' }}</span></div>

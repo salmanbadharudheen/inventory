@@ -461,13 +461,13 @@ class AssetDisposalManagerApprovalForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Only allow manager to approve or reject
         self.fields['status'].choices = [
-            (AssetDisposal.Status.MANAGER_APPROVED, _('Approve & Send to Admin')),
+            (AssetDisposal.Status.MANAGER_APPROVED, _('Approve & Send to Final Approval')),
             (AssetDisposal.Status.REJECTED, _('Reject')),
         ]
 
 
 class AssetDisposalApprovalForm(forms.ModelForm):
-    """Form for admin final approval/rejection of asset disposal requests (step 2)"""
+    """Form for final approval or rejection of asset disposal requests (step 2)"""
     
     class Meta:
         model = AssetDisposal
@@ -475,12 +475,12 @@ class AssetDisposalApprovalForm(forms.ModelForm):
         widgets = {
             'status': forms.Select(attrs={'class': 'form-control'}),
             'rejection_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for rejection'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Admin approval notes'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Final approval notes'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Only allow admin to approve or reject
+        # Only allow the final approver to approve or reject
         self.fields['status'].choices = [
             (AssetDisposal.Status.APPROVED, _('Approve')),
             (AssetDisposal.Status.REJECTED, _('Reject')),

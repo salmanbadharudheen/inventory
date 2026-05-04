@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block page_title %}Admin Approval - Disposal{% endblock %}
+{% block page_title %}Final Approval - Disposal{% endblock %}
 
 {% block content %}
 <div class="approve-container">
@@ -9,7 +9,7 @@
         <a href="{% url 'disposal-detail' form.instance.pk %}" class="btn-back-link">
             <i data-lucide="arrow-left"></i> Back to Detail
         </a>
-        <h1>Admin Approval</h1>
+        <h1>Final Approval</h1>
         <span class="step-badge step-green"><i data-lucide="shield-check"></i> Step 2 of 2</span>
     </div>
 

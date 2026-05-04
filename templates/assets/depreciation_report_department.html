@@ -456,17 +456,7 @@
         <div>
             <h2>Department Depreciation Breakdown</h2>
         </div>
-        <div style="display:flex;gap:0.75rem;align-items:center;">
-            <a href="/" class="depr-export">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                Dashboard
-            </a>
-            <a href="{% url 'reports-list' %}" class="depr-export">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14" stroke-width="2"><path d="M15 18l-6-6 6-6"></path></svg>
-                Reports
-            </a>
-            <a href="{% url 'asset-export-excel' %}?view=depreciation&{{ request.GET.urlencode }}" class="depr-export">Export</a>
-        </div>
+        <a href="{% url 'asset-export-excel' %}?{{ query_params|default:'view=depreciation' }}" class="depr-export">Export</a>
     </div>
 
     <!-- Filter Section -->
@@ -645,8 +635,7 @@
                         {% for asset in assets %}
                         <tr>
                             <td>
-                                <a href="{% url 'asset-detail' asset.id %}" style="color:var(--primary); text-decoration:none; font-weight:600;">{{ asset.name }}</a>
-                                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:0.1rem;">{{ asset.asset_tag }}{% if asset.asset_code %} • {{ asset.asset_code }}{% endif %}</div>
+                                <a href="{% url 'asset-detail' asset.id %}" style="color:var(--primary); text-decoration:none; font-weight:600;">{{ asset.asset_tag|default:asset.name }}</a>
                             </td>
                             <td>{{ asset.department.name|default:"—" }}</td>
                             <td>{{ asset.purchase_date|date:"d/m/Y"|default:"—" }}</td>

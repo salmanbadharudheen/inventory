@@ -2,8 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.conf import settings
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.contrib import messages
 import csv
 import io
@@ -16,144 +15,63 @@ from apps.locations.models import (Branch, Building, Floor, Room,
                                    Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
-from django.core.files.storage import default_storage
 from decimal import Decimal
 from datetime import date, datetime
+from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from uuid import uuid4
 import openpyxl
 
-
-def _asset_media_url(request, file_field, asset):
-    """Build an absolute media URL with a cache-busting version token."""
-    if not file_field:
-        return ''
-
-    version = ''
-    if getattr(asset, 'updated_at', None):
-        version = str(int(asset.updated_at.timestamp()))
-
-    url = request.build_absolute_uri(file_field.url)
-    return f'{url}?v={version}' if version else url
-
-
-def _build_print_payload(request, assets):
-    """Create a printer-app friendly payload from visible assets."""
-    payload = []
-    for asset in assets:
-        payload.append({
-            'id': str(asset.id),
-            'asset_tag': asset.asset_tag,
-            'name': asset.name,
-            'category': asset.category.name if getattr(asset, 'category', None) else '',
-            'location': (
-                asset.location.name if getattr(asset, 'location', None)
-                else (asset.branch.name if getattr(asset, 'branch', None) else '')
-            ),
-            'barcode_url': _asset_media_url(request, asset.barcode_image, asset),
-            'qr_url': _asset_media_url(request, asset.qr_code_image, asset),
-        })
-    return payload
-
 def get_subcategories(request):
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     category_id = request.GET.get('category_id')
     if category_id:
-        subcategories = SubCategory.objects.filter(
-            category_id=category_id,
-            category__organization=org,
-        ).values('id', 'name')
+        subcategories = SubCategory.objects.filter(category_id=category_id).values('id', 'name')
         return JsonResponse(list(subcategories), safe=False)
     return JsonResponse([], safe=False)
 
 def get_departments(request):
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     branch_id = request.GET.get('branch_id')
     if branch_id:
         from apps.locations.models import Department
-        departments = Department.objects.filter(
-            branch_id=branch_id,
-            branch__organization=org,
-        ).values('id', 'name')
+        departments = Department.objects.filter(branch_id=branch_id).values('id', 'name')
         return JsonResponse(list(departments), safe=False)
     return JsonResponse([], safe=False)
 
 def get_buildings(request):
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     branch_id = request.GET.get('branch_id')
     if branch_id:
-        buildings = Building.objects.filter(
-            branch_id=branch_id,
-            branch__organization=org,
-        ).values('id', 'name')
+        buildings = Building.objects.filter(branch_id=branch_id).values('id', 'name')
         return JsonResponse(list(buildings), safe=False)
     return JsonResponse([], safe=False)
 
 
 def get_buildings_by_site(request):
     """Return buildings associated with a given site (via Location->building link)."""
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     site_id = request.GET.get('site_id')
     if site_id:
-        buildings = Building.objects.filter(
-            locations__site_id=site_id,
-            locations__site__region__organization=org,
-        ).distinct().values('id', 'name')
+        buildings = Building.objects.filter(locations__site_id=site_id).distinct().values('id', 'name')
         return JsonResponse(list(buildings), safe=False)
     return JsonResponse([], safe=False)
 
 def get_floors(request):
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     building_id = request.GET.get('building_id')
     if building_id:
-        floors = Floor.objects.filter(
-            building_id=building_id,
-            building__branch__organization=org,
-        ).values('id', 'name')
+        floors = Floor.objects.filter(building_id=building_id).values('id', 'name')
         return JsonResponse(list(floors), safe=False)
     return JsonResponse([], safe=False)
 
 def get_rooms(request):
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     floor_id = request.GET.get('floor_id')
     if floor_id:
-        rooms = Room.objects.filter(
-            floor_id=floor_id,
-            floor__building__branch__organization=org,
-        ).values('id', 'name')
+        rooms = Room.objects.filter(floor_id=floor_id).values('id', 'name')
         return JsonResponse(list(rooms), safe=False)
-    return JsonResponse([], safe=False)
+    return JsonResponse(list(rooms), safe=False)
 
 def get_locations(request):
     """Return locations filtered by building_id (optional)."""
-    org = getattr(request.user, 'organization', None)
-    if not org:
-        return JsonResponse([], safe=False)
-
     building_id = request.GET.get('building_id')
     if building_id:
-        locations = Location.objects.filter(
-            building_id=building_id,
-            site__region__organization=org,
-        ).values('id', 'name')
+        locations = Location.objects.filter(building_id=building_id).values('id', 'name')
         return JsonResponse(list(locations), safe=False)
     return JsonResponse([], safe=False)
 
@@ -179,7 +97,8 @@ def lookup_asset(request):
     elif asset_tag:
         # Search by asset tag
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=asset_tag),
+            Q(asset_tag__iexact=asset_tag) |
+            Q(asset_code__iexact=asset_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -190,7 +109,7 @@ def lookup_asset(request):
     elif query:
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=query) | 
+            Q(asset_tag__iexact=query) |
             Q(asset_code__iexact=query),
             organization=org
         ).select_related(
@@ -261,8 +180,8 @@ def lookup_asset(request):
     return JsonResponse({'asset': current, 'departments': departments, 'locations': locations, 'users': users})
 
 ASSET_IMPORT_FIELDS = [
-    'name', 'description', 'short_description',
-    'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
+    'name', 'description', 'short_description', 'asset_tag',
+    'asset_code', 'erp_asset_number', 'quantity', 'is_tagged', 'label_type', 'serial_number', 
     'category', 'sub_category', 'asset_type', 'group', 'sub_group', 'brand', 
     'model', 'condition', 'status', 'department', 'cost_center', 'company', 
     'supplier', 'vendor', 'custodian', 'employee_number', 'branch', 'building', 
@@ -285,7 +204,7 @@ def download_sample_csv(request):
     # Sample Row
     writer.writerow([
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', '1', 'NON_METAL', 'SN123456', 
+        'C001', 'ERP-100', '1', 'yes', 'NON_METAL', 'SN123456', 
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
@@ -328,7 +247,7 @@ def download_sample_excel(request):
     # Sample row
     sample_data = [
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', 1, 'NON_METAL', 'SN123456',
+        'C001', 'ERP-100', 1, 'yes', 'NON_METAL', 'SN123456',
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell',
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp',
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building',
@@ -396,11 +315,13 @@ class AssetListView(LoginRequiredMixin, ListView):
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
             is_deleted=False
+        ).exclude(
+            disposals__status__in=[AssetDisposal.Status.APPROVED, AssetDisposal.Status.COMPLETED]
         ).select_related(
             'category', 'sub_category', 'branch', 'assigned_to', 
             'site', 'building', 'brand_new', 'room', 'department',
             'sub_location', 'group'
-        ).prefetch_related('attachments')
+        ).prefetch_related('attachments').distinct()
 
         # Search across many asset fields and common related names
         query = self.request.GET.get('q')
@@ -440,32 +361,63 @@ class AssetListView(LoginRequiredMixin, ListView):
             )
 
             queryset = queryset.filter(q)
+
+        product_name = self.request.GET.get('product_name')
+        if product_name:
+            queryset = queryset.filter(name__icontains=product_name)
             
         # Advanced Filters
         filters = {
             'status': 'status',
+            'condition': 'condition',
             'category': 'category_id',
-            'site': 'site_id',
-            'building': 'building_id',
-            'brand': 'brand_new_id',
-            'department': 'department_id',
             'subcategory': 'sub_category_id',
             'group': 'group_id',
+            'sub_group': 'sub_group_id',
+            'site': 'site_id',
+            'building': 'building_id',
+            'floor': 'floor_id',
+            'room': 'room_id',
+            'location': 'location_id',
+            'sub_location': 'sub_location_id',
+            'brand': 'brand_new_id',
+            'department': 'department_id',
+            'supplier': 'supplier_id',
+            'created_by': 'created_by_id',
+            'label_type': 'label_type',
         }
         
         for param, field in filters.items():
             val = self.request.GET.get(param)
             if val:
                 queryset = queryset.filter(**{field: val})
+
+        tag_type = self.request.GET.get('tag_type')
+        if tag_type == 'BARCODE':
+            queryset = queryset.filter(barcode_image__isnull=False)
+        elif tag_type == 'RFID':
+            queryset = queryset.filter(label_type__iexact='RFID')
+
+        is_tagged_filter = self.request.GET.get('is_tagged')
+        if is_tagged_filter == 'tagged':
+            queryset = queryset.filter(is_tagged=True)
+        elif is_tagged_filter == 'untagged':
+            queryset = queryset.filter(is_tagged=False)
         
         # Date Range Filters
         purchase_date_from = self.request.GET.get('purchase_date_from')
         purchase_date_to = self.request.GET.get('purchase_date_to')
+        registered_date_from = self.request.GET.get('registered_date_from')
+        registered_date_to = self.request.GET.get('registered_date_to')
         
         if purchase_date_from:
             queryset = queryset.filter(purchase_date__gte=purchase_date_from)
         if purchase_date_to:
             queryset = queryset.filter(purchase_date__lte=purchase_date_to)
+        if registered_date_from:
+            queryset = queryset.filter(created_at__date__gte=registered_date_from)
+        if registered_date_to:
+            queryset = queryset.filter(created_at__date__lte=registered_date_to)
 
         return queryset.order_by('-created_at')
 
@@ -527,10 +479,23 @@ class AssetListView(LoginRequiredMixin, ListView):
         context['brands'] = Brand.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['subcategories'] = SubCategory.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['subgroups'] = SubGroup.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['branches'] = Branch.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['floors'] = Floor.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['rooms'] = Room.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['sublocations'] = SubLocation.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['suppliers'] = Supplier.objects.filter(organization=org).only('id', 'name').order_by('name')
+        context['conditions'] = Asset.Condition.choices
+        context['label_types'] = Asset.LabelType.choices
         context['statuses'] = Asset.Status.choices
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        # Only show users who have actually registered at least one asset
+        asset_creator_ids = Asset.objects.filter(organization=org).values_list('created_by_id', flat=True).distinct()
+        context['creators'] = User.objects.filter(id__in=asset_creator_ids).only('id', 'first_name', 'last_name', 'username').order_by('first_name', 'last_name', 'username')
 
         if self.request.GET.get('view') == 'depreciation' and show_financial:
             # Depreciation report with efficient aggregation
@@ -744,18 +709,10 @@ class BulkAssetActionView(LoginRequiredMixin, View):
 
 class ExportAssetExcelView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-        from openpyxl.utils import get_column_letter
-
         # We reuse the logic from AssetListView to respect current filters
         view = AssetListView()
         view.request = request
-        queryset = view.get_queryset().select_related(
-            'category', 'sub_category', 'group', 'sub_group', 'brand_new',
-            'company', 'supplier', 'custodian', 'department', 'assigned_to',
-            'branch', 'building', 'floor', 'room', 'region', 'site',
-            'location', 'sub_location', 'vendor', 'asset_remarks', 'parent'
-        )
+        queryset = view.get_queryset()
 
         is_depreciation_view = request.GET.get('view') == 'depreciation'
 
@@ -763,8 +720,10 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
         closing_date = None
 
         if is_depreciation_view:
+            # Match depreciation report behavior: only assets with value
             queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
 
+            # Apply depreciation dimension filters from report pages
             depr_filters = {
                 'depr_category': 'category_id',
                 'depr_group': 'group_id',
@@ -795,77 +754,123 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 except (ValueError, TypeError):
                     closing_date = None
 
+            # Keep only assets existing up to closing date
             if closing_date:
                 queryset = queryset.filter(Q(purchase_date__lte=closing_date) | Q(purchase_date__isnull=True))
-
+        
         wb = openpyxl.Workbook()
         ws = wb.active
+        ws.title = "Depreciation Export" if is_depreciation_view else "Assets Export"
 
-        # ── Styles ──
-        title_font = Font(size=14, bold=True, color="1F4E79")
-        meta_label_font = Font(bold=True, size=10, color="1F4E79")
-        meta_value_font = Font(size=10)
-        header_font = Font(bold=True, color="FFFFFF", size=10)
-        header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
-        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        even_fill = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
-        thin_border = Border(
-            left=Side(style='thin', color='B0B0B0'),
-            right=Side(style='thin', color='B0B0B0'),
-            top=Side(style='thin', color='B0B0B0'),
-            bottom=Side(style='thin', color='B0B0B0'),
-        )
-        currency_format = '#,##0.00'
-        date_format = 'YYYY-MM-DD'
+        def resolve_name(model_cls, value):
+            if not value:
+                return ''
+            obj = model_cls.objects.filter(pk=value).only('id', 'name').first()
+            return obj.name if obj else str(value)
+
+        def resolve_creator(value):
+            if not value:
+                return ''
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user_obj = User.objects.filter(pk=value).only('id', 'first_name', 'last_name', 'username').first()
+            if not user_obj:
+                return str(value)
+            full_name = (user_obj.get_full_name() or '').strip()
+            return full_name or user_obj.username
+
+        status_map = dict(Asset.Status.choices)
+        condition_map = dict(Asset.Condition.choices)
+        label_type_map = dict(Asset.LabelType.choices)
+
+        applied_filters = []
+        if request.GET.get('q'):
+            applied_filters.append(("Search", request.GET.get('q')))
+        if request.GET.get('product_name'):
+            applied_filters.append(("Product Name", request.GET.get('product_name')))
+        if request.GET.get('status'):
+            status_val = request.GET.get('status')
+            applied_filters.append(("Status", status_map.get(status_val, status_val)))
+        if request.GET.get('condition'):
+            condition_val = request.GET.get('condition')
+            applied_filters.append(("Condition", condition_map.get(condition_val, condition_val)))
+        if request.GET.get('tag_type'):
+            applied_filters.append(("Type of Tag", request.GET.get('tag_type')))
+        if request.GET.get('is_tagged'):
+            is_tagged_val = request.GET.get('is_tagged')
+            applied_filters.append(("Tagged Status", "Tagged" if is_tagged_val == 'tagged' else "Untagged"))
+        if request.GET.get('label_type'):
+            label_type_val = request.GET.get('label_type')
+            applied_filters.append(("Label Type", label_type_map.get(label_type_val, label_type_val)))
+
+        fk_filters = [
+            ("Category", 'category', Category),
+            ("Sub Category", 'subcategory', SubCategory),
+            ("Group", 'group', Group),
+            ("Sub Group", 'sub_group', SubGroup),
+            ("Brand", 'brand', Brand),
+            ("Site", 'site', Site),
+            ("Building", 'building', Building),
+            ("Floor", 'floor', Floor),
+            ("Room", 'room', Room),
+            ("Location", 'location', Location),
+            ("Sub Location", 'sub_location', SubLocation),
+            ("Department", 'department', Department),
+            ("Supplier", 'supplier', Supplier),
+        ]
+
+        for label, param, model_cls in fk_filters:
+            raw_val = request.GET.get(param)
+            if raw_val:
+                applied_filters.append((label, resolve_name(model_cls, raw_val)))
+
+        if request.GET.get('created_by'):
+            applied_filters.append(("Registered By", resolve_creator(request.GET.get('created_by'))))
+
+        if request.GET.get('purchase_date_from') or request.GET.get('purchase_date_to'):
+            from_val = request.GET.get('purchase_date_from', '')
+            to_val = request.GET.get('purchase_date_to', '')
+            applied_filters.append(("Purchase Date Range", f"{from_val} to {to_val}"))
+
+        if request.GET.get('registered_date_from') or request.GET.get('registered_date_to'):
+            from_val = request.GET.get('registered_date_from', '')
+            to_val = request.GET.get('registered_date_to', '')
+            applied_filters.append(("Registered Date Range", f"{from_val} to {to_val}"))
 
         if is_depreciation_view:
-            ws.title = "Depreciation Export"
+            depr_fk_filters = [
+                ("Depreciation Category", 'depr_category', Category),
+                ("Depreciation Group", 'depr_group', Group),
+                ("Depreciation Department", 'depr_department', Department),
+                ("Depreciation Site", 'depr_site', Site),
+                ("Depreciation Branch", 'depr_branch', Branch),
+                ("Depreciation Building", 'depr_building', Building),
+                ("Depreciation Location", 'depr_location', Location),
+            ]
+            for label, param, model_cls in depr_fk_filters:
+                raw_val = request.GET.get(param)
+                if raw_val:
+                    applied_filters.append((label, resolve_name(model_cls, raw_val)))
 
-            # ── Title block ──
-            current_row = 1
-            ws.merge_cells('A1:G1')
-            cell = ws.cell(row=1, column=1, value="DEPRECIATION REPORT EXPORT")
-            cell.font = title_font
-            cell.alignment = Alignment(horizontal='left', vertical='center')
-            current_row = 2
+            if request.GET.get('depr_date_from') or request.GET.get('depr_date_to'):
+                from_val = request.GET.get('depr_date_from', '')
+                to_val = request.GET.get('depr_date_to', '')
+                applied_filters.append(("Depreciation Date Range", f"{from_val} to {to_val}"))
 
-            ws.cell(row=current_row, column=1, value="Export Date:").font = meta_label_font
-            ws.cell(row=current_row, column=2, value=datetime.now().strftime("%Y-%m-%d %H:%M")).font = meta_value_font
-            current_row += 1
+        ws.append(["Export Type", "Depreciation" if is_depreciation_view else "Assets"])
+        ws.append(["Exported At", datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        if applied_filters:
+            ws.append(["Applied Filters", ""])
+            for label, value in applied_filters:
+                ws.append([label, value])
+        else:
+            ws.append(["Applied Filters", "None"])
+        ws.append([])
 
-            summary_rows = {}
-            for label in [
-                "Total Records:",
-                "Total Purchase Price:",
-                "Total Accumulated Depreciation:",
-                "Total Current NBV:",
-            ]:
-                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
-                summary_rows[label] = current_row
-                current_row += 1
-
-            if opening_date:
-                label = f"Total Opening Value ({opening_date.strftime('%Y-%m-%d')}):"
-                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
-                summary_rows['opening'] = current_row
-                current_row += 1
-
-            if closing_date:
-                label = f"Total Closing Value ({closing_date.strftime('%Y-%m-%d')}):"
-                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
-                summary_rows['closing'] = current_row
-                current_row += 1
-
-            if opening_date and closing_date:
-                ws.cell(row=current_row, column=1, value="Total Period Depreciation:").font = meta_label_font
-                summary_rows['period'] = current_row
-                current_row += 1
-
-            current_row += 1
-
+        if is_depreciation_view:
             headers = [
-                'Asset Tag', 'Asset Code', 'Name', 'Category', 'Status',
-                'Purchase Date', 'Purchase Price', 'Currency',
+                'Asset Tag', 'Name', 'Category', 'Status',
+                'Purchase Date', 'Purchase Price', 'Currency'
             ]
             if opening_date:
                 headers.append(f'Opening Value ({opening_date.strftime("%Y-%m-%d")})')
@@ -874,230 +879,108 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             if opening_date and closing_date:
                 headers.append('Period Depreciation')
             headers.extend(['Accumulated Depreciation', 'Current NBV'])
-
-            for col_num, header in enumerate(headers, 1):
-                cell = ws.cell(row=current_row, column=col_num, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = header_alignment
-                cell.border = thin_border
-            current_row += 1
-
-            data_start = current_row
-            export_count = 0
-            total_purchase = 0.0
-            total_opening = 0.0
-            total_closing = 0.0
-            total_period = 0.0
-            total_accum_dep = 0.0
-            total_nbv = 0.0
-
-            for asset in queryset:
-                opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
-                closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
-                if opening_date and opening_value <= 0:
-                    continue
-
-                purchase_price_value = float(asset.purchase_price) if asset.purchase_price else 0.0
-                opening_float = float(opening_value)
-                closing_float = float(closing_value)
-                period_dep_value = float(opening_float - closing_float) if (opening_date and closing_date) else 0.0
-                accum_dep_value = float(asset.accumulated_depreciation)
-                nbv_value = float(asset.current_value)
-
-                export_count += 1
-                total_purchase += purchase_price_value
-                total_opening += opening_float
-                total_closing += closing_float
-                total_period += period_dep_value
-                total_accum_dep += accum_dep_value
-                total_nbv += nbv_value
-
-                row = [
-                    asset.asset_tag,
-                    asset.asset_code or '',
-                    asset.name,
-                    asset.category.name if asset.category else '',
-                    asset.get_status_display(),
-                    asset.purchase_date,
-                    purchase_price_value,
-                    asset.currency,
-                ]
-                if opening_date:
-                    row.append(opening_float)
-                if closing_date:
-                    row.append(closing_float)
-                if opening_date and closing_date:
-                    row.append(period_dep_value)
-                row.extend([accum_dep_value, nbv_value])
-
-                for col_num, value in enumerate(row, 1):
-                    cell = ws.cell(row=current_row, column=col_num, value=value)
-                    cell.border = thin_border
-                    if isinstance(value, float):
-                        cell.number_format = currency_format
-                if (current_row - data_start) % 2 == 0:
-                    for col_num in range(1, len(row) + 1):
-                        ws.cell(row=current_row, column=col_num).fill = even_fill
-                current_row += 1
-
-            ws.cell(row=summary_rows['Total Records:'], column=2, value=export_count).font = meta_value_font
-            ws.cell(row=summary_rows['Total Purchase Price:'], column=2, value=total_purchase).font = meta_value_font
-            ws.cell(row=summary_rows['Total Purchase Price:'], column=2).number_format = currency_format
-            ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2, value=total_accum_dep).font = meta_value_font
-            ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2).number_format = currency_format
-            ws.cell(row=summary_rows['Total Current NBV:'], column=2, value=total_nbv).font = meta_value_font
-            ws.cell(row=summary_rows['Total Current NBV:'], column=2).number_format = currency_format
-
-            if 'opening' in summary_rows:
-                ws.cell(row=summary_rows['opening'], column=2, value=total_opening).font = meta_value_font
-                ws.cell(row=summary_rows['opening'], column=2).number_format = currency_format
-            if 'closing' in summary_rows:
-                ws.cell(row=summary_rows['closing'], column=2, value=total_closing).font = meta_value_font
-                ws.cell(row=summary_rows['closing'], column=2).number_format = currency_format
-            if 'period' in summary_rows:
-                ws.cell(row=summary_rows['period'], column=2, value=total_period).font = meta_value_font
-                ws.cell(row=summary_rows['period'], column=2).number_format = currency_format
-
         else:
-            ws.title = "Assets Export"
-
-            # ── Title block ──
-            current_row = 1
-            ws.merge_cells('A1:H1')
-            cell = ws.cell(row=1, column=1, value="ASSET INVENTORY EXPORT")
-            cell.font = title_font
-            cell.alignment = Alignment(horizontal='left', vertical='center')
-            current_row = 2
-
-            ws.cell(row=current_row, column=1, value="Export Date:").font = meta_label_font
-            ws.cell(row=current_row, column=2, value=datetime.now().strftime("%Y-%m-%d %H:%M")).font = meta_value_font
-            current_row += 1
-            summary_rows = {}
-            for label in [
-                "Total Records:",
-                "Total Quantity:",
-                "Total Purchase Price:",
-                "Total Accumulated Depreciation:",
-                "Total Current NBV:",
-            ]:
-                ws.cell(row=current_row, column=1, value=label).font = meta_label_font
-                summary_rows[label] = current_row
-                current_row += 1
-
-            # Show active filters
-            filters_applied = []
-            q = request.GET.get('q', '').strip()
-            if q:
-                filters_applied.append(f"Search: {q}")
-            for param, label in [('status', 'Status'), ('category', 'Category'), ('site', 'Site'),
-                                 ('building', 'Building'), ('brand', 'Brand'), ('department', 'Department'),
-                                 ('subcategory', 'Sub Category'), ('group', 'Group')]:
-                val = request.GET.get(param, '').strip()
-                if val:
-                    filters_applied.append(f"{label}: {val}")
-            if filters_applied:
-                current_row += 1
-                ws.cell(row=current_row, column=1, value="Applied Filters:").font = meta_label_font
-                current_row += 1
-                for ft in filters_applied:
-                    ws.cell(row=current_row, column=1, value=f"  • {ft}").font = meta_value_font
-                    current_row += 1
-
-            current_row += 1  # blank row before data
-
-            # ── ALL column headers ──
             headers = [
                 # Identification
-                'Asset Tag', 'Asset Code', 'ERP Asset Number', 'Name', 'Short Description', 'Description',
-                'Serial Number', 'Quantity', 'Label Type', 'Asset Type',
+                'Asset Tag', 'Asset Code', 'ERP Asset Number', 'Name', 'Short Description',
+                'Serial Number', 'Asset Type', 'Label Type', 'Quantity',
                 # Classification
-                'Category', 'Sub Category', 'Group', 'Sub Group', 'Brand', 'Model', 'Condition',
-                # Ownership
-                'Company', 'Department', 'Assigned To', 'Custodian', 'Employee Number',
-                'Cost Center', 'Supplier', 'Vendor',
+                'Category', 'Sub Category', 'Group', 'Sub Group', 'Brand', 'Model',
+                # Status & Condition
+                'Status', 'Condition',
                 # Location
-                'Region', 'Site', 'Branch', 'Building', 'Floor', 'Room',
-                'Location', 'Sub Location',
+                'Region', 'Site', 'Branch', 'Building', 'Floor', 'Room', 'Location', 'Sub Location',
+                # Ownership
+                'Company', 'Department', 'Supplier', 'Custodian', 'Assigned To',
+                'Employee Number', 'Cost Center',
                 # Financial
-                'Purchase Date', 'Purchase Price', 'Currency', 'Invoice Number', 'Invoice Date',
-                'PO Number', 'PO Date', 'DO Number', 'DO Date', 'GRN Number',
+                'Purchase Price', 'Currency', 'Purchase Date', 'Invoice Number', 'Invoice Date',
+                'GRN Number', 'PO Number', 'PO Date', 'DO Number', 'DO Date',
+                'Date Placed in Service', 'Tagged Date',
+                # Warranty & Insurance
                 'Warranty Start', 'Warranty End',
+                'Insurance Start Date', 'Insurance End Date',
+                # Maintenance
+                'Maintenance Required', 'Maintenance Frequency (Days)', 'Next Maintenance Date',
+                'Maintenance Start Date', 'Maintenance End Date',
                 # Depreciation
                 'Depreciation Method', 'Useful Life (Years)', 'Salvage Value',
                 'Accumulated Depreciation', 'Current NBV',
-                # Dates
-                'Date Placed in Service', 'Tagged Date',
-                'Insurance Start', 'Insurance End',
-                'Maintenance Start', 'Maintenance End',
-                'Maintenance Frequency (Days)', 'Next Maintenance Date',
-                # Other
-                'Status', 'Parent Asset', 'Remarks / Notes',
-                'Created At',
+                # Notes & Tracking
+                'Notes', 'Registered By', 'Registered Date',
             ]
 
-            header_row_num = current_row
-            for col_num, header in enumerate(headers, 1):
-                cell = ws.cell(row=current_row, column=col_num, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = header_alignment
-                cell.border = thin_border
-            current_row += 1
+        ws.append(headers)
+        
+        for asset in queryset:
+            if is_depreciation_view:
+                opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
+                closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
 
-            # Freeze the header row so it stays visible while scrolling
-            ws.freeze_panes = ws.cell(row=current_row, column=1)
+                # If opening date is provided and asset has no opening value, skip it
+                if opening_date and opening_value <= 0:
+                    continue
 
-            # ── Data rows ──
-            data_start = current_row
-            export_count = 0
-            total_quantity = 0
-            total_purchase = 0.0
-            total_accum_dep = 0.0
-            total_nbv = 0.0
+                row = [
+                    asset.asset_tag,
+                    asset.name,
+                    asset.category.name if asset.category else '',
+                    asset.get_status_display(),
+                    asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else '',
+                    float(asset.purchase_price) if asset.purchase_price else 0,
+                    asset.currency,
+                ]
 
-            for asset in queryset:
-                purchase_price_value = float(asset.purchase_price) if asset.purchase_price else ''
-                salvage_value_value = float(asset.salvage_value) if asset.salvage_value else ''
-                accum_dep_value = float(asset.accumulated_depreciation)
-                nbv_value = float(asset.current_value)
+                if opening_date:
+                    row.append(float(opening_value))
+                if closing_date:
+                    row.append(float(closing_value))
+                if opening_date and closing_date:
+                    row.append(float(opening_value - closing_value))
 
-                export_count += 1
-                total_quantity += int(asset.quantity or 0)
-                total_purchase += float(asset.purchase_price or 0)
-                total_accum_dep += accum_dep_value
-                total_nbv += nbv_value
+                row.extend([
+                    float(asset.accumulated_depreciation),
+                    float(asset.current_value),
+                ])
 
-                row_data = [
+                ws.append(row)
+            else:
+                def _fmt_date(d):
+                    return d.strftime('%Y-%m-%d') if d else ''
+
+                # resolve assigned_to user name
+                assigned_name = ''
+                if asset.assigned_to:
+                    full = (asset.assigned_to.get_full_name() or '').strip()
+                    assigned_name = full or asset.assigned_to.username
+
+                # resolve created_by user name
+                creator_name = ''
+                if asset.created_by:
+                    full = (asset.created_by.get_full_name() or '').strip()
+                    creator_name = full or asset.created_by.username
+
+                ws.append([
                     # Identification
-                    asset.asset_tag or '',
-                    asset.asset_code or '',
+                    asset.asset_tag,
+                    asset.asset_code,
                     asset.erp_asset_number or '',
-                    asset.name or '',
-                    asset.short_description or '',
-                    asset.description or '',
+                    asset.name,
+                    asset.short_description,
                     asset.serial_number or '',
+                    asset.asset_type,
+                    asset.label_type,
                     asset.quantity,
-                    asset.get_label_type_display() if asset.label_type else '',
-                    asset.get_asset_type_display() if asset.asset_type else '',
                     # Classification
                     asset.category.name if asset.category else '',
                     asset.sub_category.name if asset.sub_category else '',
                     asset.group.name if asset.group else '',
                     asset.sub_group.name if asset.sub_group else '',
-                    asset.brand_new.name if asset.brand_new else (asset.brand or ''),
-                    asset.model or '',
-                    asset.get_condition_display() if asset.condition else '',
-                    # Ownership
-                    asset.company.name if asset.company else '',
-                    asset.department.name if asset.department else '',
-                    asset.assigned_to.get_full_name() if asset.assigned_to else '',
-                    (asset.custodian.user.get_full_name() if asset.custodian and asset.custodian.user
-                     else (asset.custodian.employee_id if asset.custodian else '')),
-                    asset.employee_number or '',
-                    asset.cost_center or '',
-                    asset.supplier.name if asset.supplier else '',
-                    asset.vendor.name if asset.vendor else '',
+                    asset.brand_new.name if asset.brand_new else asset.brand,
+                    asset.model,
+                    # Status & Condition
+                    asset.get_status_display(),
+                    asset.get_condition_display(),
                     # Location
                     asset.region.name if asset.region else '',
                     asset.site.name if asset.site else '',
@@ -1107,76 +990,88 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     asset.room.name if asset.room else '',
                     asset.location.name if asset.location else '',
                     asset.sub_location.name if asset.sub_location else '',
+                    # Ownership
+                    asset.company.name if asset.company else '',
+                    asset.department.name if asset.department else '',
+                    asset.supplier.name if asset.supplier else '',
+                    asset.custodian.name if asset.custodian else '',
+                    assigned_name,
+                    asset.employee_number,
+                    asset.cost_center,
                     # Financial
-                    asset.purchase_date,
-                    purchase_price_value,
-                    asset.currency or '',
-                    asset.invoice_number or '',
-                    asset.invoice_date,
-                    asset.po_number or '',
-                    asset.po_date,
-                    asset.do_number or '',
-                    asset.do_date,
-                    asset.grn_number or '',
-                    asset.warranty_start,
-                    asset.warranty_end,
+                    float(asset.purchase_price) if asset.purchase_price else '',
+                    asset.currency,
+                    _fmt_date(asset.purchase_date),
+                    asset.invoice_number,
+                    _fmt_date(asset.invoice_date),
+                    asset.grn_number,
+                    asset.po_number,
+                    _fmt_date(asset.po_date),
+                    asset.do_number,
+                    _fmt_date(asset.do_date),
+                    _fmt_date(asset.date_placed_in_service),
+                    _fmt_date(asset.tagged_date),
+                    # Warranty & Insurance
+                    _fmt_date(asset.warranty_start),
+                    _fmt_date(asset.warranty_end),
+                    _fmt_date(asset.insurance_start_date),
+                    _fmt_date(asset.insurance_end_date),
+                    # Maintenance
+                    'Yes' if asset.maintenance_required else 'No',
+                    asset.maintenance_frequency_days if asset.maintenance_frequency_days else '',
+                    _fmt_date(asset.next_maintenance_date),
+                    _fmt_date(asset.maintenance_start_date),
+                    _fmt_date(asset.maintenance_end_date),
                     # Depreciation
-                    asset.get_depreciation_method_display() if asset.depreciation_method else '',
-                    asset.useful_life_years or '',
-                    salvage_value_value,
-                    accum_dep_value,
-                    nbv_value,
-                    # Dates
-                    asset.date_placed_in_service,
-                    asset.tagged_date,
-                    asset.insurance_start_date,
-                    asset.insurance_end_date,
-                    asset.maintenance_start_date,
-                    asset.maintenance_end_date,
-                    asset.maintenance_frequency_days or '',
-                    asset.next_maintenance_date,
-                    # Other
-                    asset.get_status_display() if asset.status else '',
-                    str(asset.parent) if asset.parent else '',
-                    asset.notes or (asset.asset_remarks.name if asset.asset_remarks else ''),
-                    asset.created_at.strftime('%Y-%m-%d %H:%M') if asset.created_at else '',
-                ]
-
-                is_even = (current_row - data_start) % 2 == 0
-                for col_num, value in enumerate(row_data, 1):
-                    cell = ws.cell(row=current_row, column=col_num, value=value)
-                    cell.border = thin_border
-                    if isinstance(value, float):
-                        cell.number_format = currency_format
-                    if is_even:
-                        cell.fill = even_fill
-                current_row += 1
-
-                ws.cell(row=summary_rows['Total Records:'], column=2, value=export_count).font = meta_value_font
-                ws.cell(row=summary_rows['Total Quantity:'], column=2, value=total_quantity).font = meta_value_font
-                ws.cell(row=summary_rows['Total Purchase Price:'], column=2, value=total_purchase).font = meta_value_font
-                ws.cell(row=summary_rows['Total Purchase Price:'], column=2).number_format = currency_format
-                ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2, value=total_accum_dep).font = meta_value_font
-                ws.cell(row=summary_rows['Total Accumulated Depreciation:'], column=2).number_format = currency_format
-                ws.cell(row=summary_rows['Total Current NBV:'], column=2, value=total_nbv).font = meta_value_font
-                ws.cell(row=summary_rows['Total Current NBV:'], column=2).number_format = currency_format
-
-        # ── Auto-adjust column widths ──
-        for col_idx in range(1, ws.max_column + 1):
-            max_length = 0
-            for row_idx in range(1, ws.max_row + 1):
-                cell_value = ws.cell(row=row_idx, column=col_idx).value
-                if cell_value is not None:
-                    cell_length = len(str(cell_value))
-                    if cell_length > max_length:
-                        max_length = cell_length
-            adjusted_width = min(max_length + 3, 40) if max_length > 0 else 12
-            ws.column_dimensions[get_column_letter(col_idx)].width = adjusted_width
-
+                    asset.depreciation_method,
+                    asset.useful_life_years if asset.useful_life_years else '',
+                    float(asset.salvage_value) if asset.salvage_value else 0,
+                    float(asset.accumulated_depreciation),
+                    float(asset.current_value),
+                    # Notes & Tracking
+                    asset.notes,
+                    creator_name,
+                    asset.created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.created_at else '',
+                ])
+            
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         file_prefix = 'depreciation_export' if is_depreciation_view else 'assets_export'
+
+        # Style the header row and auto-fit column widths
+        from openpyxl.styles import Font, PatternFill, Alignment
+        # Find the header row (last non-empty row before data)
+        header_row_num = ws.max_row - queryset.count() if queryset.count() > 0 else ws.max_row
+        # Re-find the actual header row by looking for 'Asset Tag'
+        header_row_idx = None
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value == 'Asset Tag':
+                    header_row_idx = cell.row
+                    break
+            if header_row_idx:
+                break
+
+        if header_row_idx:
+            for cell in ws[header_row_idx]:
+                cell.font = Font(bold=True, color='FFFFFF')
+                cell.fill = PatternFill('solid', fgColor='4F46E5')
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=False)
+
+        # Auto-fit column widths
+        for col in ws.columns:
+            max_len = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                try:
+                    cell_len = len(str(cell.value)) if cell.value is not None else 0
+                    if cell_len > max_len:
+                        max_len = cell_len
+                except Exception:
+                    pass
+            ws.column_dimensions[col_letter].width = min(max(max_len + 2, 10), 40)
+
         response['Content-Disposition'] = f'attachment; filename="{file_prefix}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
         wb.save(response)
         return response
@@ -1399,6 +1294,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'brand name': 'brand', 'company name': 'company',
         'supplier name': 'supplier', 'vendor name': 'vendor',
         'asset name': 'name', 'asset description': 'description',
+        'asset tag': 'asset_tag', 'custom asset tag': 'asset_tag',
         'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
         'asset code': 'asset_code', 'asset type': 'asset_type',
         'label type': 'label_type', 'serial number': 'serial_number',
@@ -1748,74 +1644,27 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         errors = []
         assets_to_create = []
-        seen_asset_codes = set()
 
-        # --- PROPER ASSET TAG GENERATION (CO-CAT-XXXX-YY) ---
-        # Track counters per prefix so bulk rows auto-increment without DB round-trips
-        from datetime import date as _date
-        _year_suffix = str(_date.today().year)[-2:]
-        _tag_counters = {}  # key: "CO-CAT", value: next hex counter (int)
-
-        def _bulk_generate_tag(organization, category, company):
-            """Generate tag with in-memory counter tracking, respecting org config."""
-            sep = getattr(organization, 'tag_separator', '-') or '-'
-            include_company = getattr(organization, 'tag_include_company', True)
-            include_category = getattr(organization, 'tag_include_category', True)
-            include_year = getattr(organization, 'tag_include_year', True)
-            seq_fmt = getattr(organization, 'tag_sequence_format', 'HEX4') or 'HEX4'
-            fixed_prefix = (getattr(organization, 'tag_prefix', '') or '').strip().upper()
-
-            prefix_parts = []
-            if fixed_prefix:
-                prefix_parts.append(fixed_prefix)
-            elif include_company:
-                if organization and getattr(organization, 'name', None):
-                    alpha = ''.join(c for c in organization.name if c.isalpha()).upper()
-                    co = alpha[:2] if len(alpha) >= 2 else alpha.ljust(2, 'X')[:2]
-                else:
-                    co = 'XX'
-                prefix_parts.append(co)
-            if include_category:
-                cat_code = category.code[:3].upper() if category.code else 'XXX'
-                prefix_parts.append(cat_code)
-
-            prefix = sep.join(prefix_parts)
-            total_parts = len(prefix_parts) + 1 + (1 if include_year else 0)
-            seq_index = len(prefix_parts)
-
-            if prefix not in _tag_counters:
-                qs = Asset.objects.filter(
-                    organization=organization,
-                    asset_tag__startswith=prefix,
-                )
-                if include_year:
-                    qs = qs.filter(asset_tag__endswith=f"{sep}{_year_suffix}")
-                existing = qs.values_list('asset_tag', flat=True)
-                max_num = 0
-                for tag in existing:
-                    try:
-                        parts = tag.split(sep)
-                        if len(parts) == total_parts:
-                            cstr = parts[seq_index]
-                            num = int(cstr, 16) if seq_fmt.startswith('HEX') else int(cstr)
-                            if num > max_num:
-                                max_num = num
-                    except (ValueError, IndexError):
-                        continue
-                _tag_counters[prefix] = max_num + 1
-
-            next_num = _tag_counters[prefix]
-            _tag_counters[prefix] = next_num + 1
-
-            fmt_map = {
-                'HEX4': lambda n: f"{n:04X}", 'HEX6': lambda n: f"{n:06X}",
-                'NUM4': lambda n: f"{n:04d}", 'NUM5': lambda n: f"{n:05d}", 'NUM6': lambda n: f"{n:06d}",
-            }
-            counter = fmt_map.get(seq_fmt, fmt_map['HEX4'])(next_num)
-            all_parts = prefix_parts + [counter]
-            if include_year:
-                all_parts.append(_year_suffix)
-            return sep.join(all_parts)
+        # --- SEQUENTIAL ASSET TAG GENERATION ---
+        # Robustly find the next serial number
+        start_tag_num = 0
+        tag_prefix = "AST-"
+        # Optimized: only fetch tags that match the expected format
+        existing_tags = Asset.objects.filter(
+            organization=org, 
+            asset_tag__startswith=tag_prefix
+        ).values_list('asset_tag', flat=True)
+        
+        for tag in existing_tags:
+            try:
+                # Expecting AST-XXXXX
+                suffix = tag[len(tag_prefix):]
+                num = int(suffix)
+                if num > start_tag_num: start_tag_num = num
+            except (ValueError, IndexError, TypeError):
+                continue
+        
+        current_tag_num = start_tag_num + 1
 
         for row_idx, row in enumerate(rows, start=2):
             try:
@@ -1829,8 +1678,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 if not category:
                     raise ValueError(f"Category '{cat_val}' not found.")
 
-                company = get_from_cache(companies, row.get('company'))
-                asset_tag = _bulk_generate_tag(org, category, company)
+                asset_tag = str(row.get('asset_tag') or '').strip()
+                if not asset_tag:
+                    asset_tag = f"AST-{current_tag_num:05d}"
+                    current_tag_num += 1
 
                 # 2. Enums / Choices
                 def get_choice(val, choices_model, default):
@@ -1845,6 +1696,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 condition = get_choice(row.get('condition'), Asset.Condition, Asset.Condition.NEW)
                 asset_type = get_choice(row.get('asset_type'), Asset.Type, Asset.Type.TAGGABLE)
                 label_type = get_choice(row.get('label_type'), Asset.LabelType, Asset.LabelType.NON_METAL)
+
+                # Parse is_tagged (accepts yes/true/1)
+                is_tagged_val = str(row.get('is_tagged') or '').strip().lower()
+                is_tagged = is_tagged_val in ('yes', 'true', '1', 'tagged')
 
                 # 3. Master Data Lookups (from cache)
                 sub_category = get_from_cache(subcategories, row.get('sub_category'))
@@ -1923,19 +1778,6 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     try: return int(float(str(val)))
                     except: return default
 
-                # Validate asset_code (required + unique)
-                asset_code_val = str(row.get('asset_code') or '').strip()
-                if not asset_code_val:
-                    errors.append(f"Row {row_idx}: asset_code is required.")
-                    continue
-                if asset_code_val in seen_asset_codes:
-                    errors.append(f"Row {row_idx}: Duplicate asset_code '{asset_code_val}' in file.")
-                    continue
-                seen_asset_codes.add(asset_code_val)
-                if Asset.objects.filter(organization=org, asset_code=asset_code_val).exists():
-                    errors.append(f"Row {row_idx}: asset_code '{asset_code_val}' already exists.")
-                    continue
-
                 # Create Asset Instance (in memory)
                 asset = Asset(
                     organization=org,
@@ -1944,9 +1786,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     description=str(row.get('description') or ''),
                     short_description=str(row.get('short_description') or ''),
                     asset_tag=asset_tag,
-                    asset_code=asset_code_val,
+                    asset_code=row.get('asset_code'),
                     erp_asset_number=row.get('erp_asset_number'),
                     quantity=parse_int(row.get('quantity'), 1),
+                    is_tagged=is_tagged,
                     label_type=label_type,
                     serial_number=row.get('serial_number'),
                     category=category,
@@ -2031,26 +1874,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
             with transaction.atomic():
                 # Process in batches of 1000 for stability
                 Asset.objects.bulk_create(assets_to_create, batch_size=1000)
-
-            # Generate QR codes and barcodes for all imported assets
-            from .code_generators import generate_codes_for_asset
-            generated_count = 0
-            for asset in assets_to_create:
-                try:
-                    # Refresh from DB to get the pk assigned by bulk_create
-                    db_asset = Asset.objects.get(
-                        organization=org, asset_tag=asset.asset_tag
-                    )
-                    generate_codes_for_asset(db_asset)
-                    generated_count += 1
-                except Exception:
-                    pass  # Non-critical: asset created but code generation failed
-
-            messages.success(
-                self.request,
-                f"Successfully imported {len(assets_to_create)} assets. "
-                f"QR/Barcode generated for {generated_count} assets."
-            )
+                messages.success(self.request, f"Successfully imported {len(assets_to_create)} assets.")
         except Exception as e:
             messages.error(self.request, f"Database error during bulk save: {str(e)}")
             return redirect('asset-import')
@@ -2111,9 +1935,7 @@ class CategoryListView(LoginRequiredMixin, ListView):
     context_object_name = 'categories'
 
     def get_queryset(self):
-        return Category.objects.filter(
-            organization=self.request.user.organization
-        ).annotate(asset_count=Count('asset'))
+        return Category.objects.filter(organization=self.request.user.organization)
 
 class CategoryCreateView(LoginRequiredMixin, CreateView):
     model = Category
@@ -2513,7 +2335,7 @@ class ApprovalListView(ApprovalAccessMixin, TemplateView):
                 'disposal_method': disposal.disposal_method,
                 'manager_approved_by': disposal.manager_approved_by,
                 'can_approve': (user.role in [user.Role.SENIOR_MANAGER, user.Role.CHECKER] and disposal.status == AssetDisposal.Status.PENDING) or 
-                               (user.is_superuser or user.role == user.Role.ADMIN) and disposal.status == AssetDisposal.Status.MANAGER_APPROVED
+                               (user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER]) and disposal.status == AssetDisposal.Status.MANAGER_APPROVED
             })
         
         for approval in asset_approvals:
@@ -2663,89 +2485,25 @@ class ReportsListView(LoginRequiredMixin, View):
         # Define available reports
         reports = []
         
-        # Only show Depreciation Reports to non-EMPLOYEE users (or superusers)
-        if user.role != user.Role.EMPLOYEE or user.is_superuser:
+        # Only show Depreciation Report to non-EMPLOYEE users
+        if user.role != user.Role.EMPLOYEE:
             reports.append({
                 'name': 'Depreciation Report',
-                'description': 'Full asset-level depreciation schedule showing cost, accumulated depreciation, net book value and remaining life for every asset.',
-                'icon': 'file-text',
-                'url': reverse('asset-list') + '?view=depreciation',
-                'color': 'warning'
-            })
-            reports.append({
-                'name': 'Depreciation by Category',
-                'description': 'View asset depreciation grouped by category with book value, accumulated depreciation, and remaining life.',
+                'description': 'View asset depreciation analysis and financial depreciation data.',
                 'icon': 'trending-down',
-                'url': reverse('depreciation-category'),
-                'color': 'info'
-            })
-            reports.append({
-                'name': 'Depreciation by Group',
-                'description': 'Analyze depreciation across asset groups for consolidated financial reporting.',
-                'icon': 'bar-chart-2',
-                'url': reverse('depreciation-group'),
-                'color': 'info'
-            })
-            reports.append({
-                'name': 'Depreciation by Location',
-                'description': 'Location-wise depreciation summary to track asset value across branches and sites.',
-                'icon': 'map-pin',
-                'url': reverse('depreciation-location'),
-                'color': 'info'
-            })
-            reports.append({
-                'name': 'Depreciation by Department',
-                'description': 'Department-wise depreciation breakdown for cost allocation and budgeting.',
-                'icon': 'building-2',
-                'url': reverse('depreciation-department'),
+                'url': reverse('asset-list') + '?view=depreciation',
                 'color': 'info'
             })
         
         # Asset Inventory - visible to all
         reports.append({
             'name': 'Asset Inventory',
-            'description': 'Complete list of all assets with filters, search, and export to Excel.',
+            'description': 'Complete list of all assets in your inventory with details.',
             'icon': 'package',
             'url': reverse('asset-list'),
             'color': 'primary'
         })
-
-        # Masters Report - full asset register with all fields
-        reports.append({
-            'name': 'Asset Register (Masters)',
-            'description': 'Comprehensive asset register with all details — export full data to Excel.',
-            'icon': 'table',
-            'url': reverse('masters-list'),
-            'color': 'primary'
-        })
-
-        # Transfer Report
-        reports.append({
-            'name': 'Transfer Report',
-            'description': 'View all asset transfers with status, dates, and export to Excel.',
-            'icon': 'arrow-right-left',
-            'url': reverse('transfer-list'),
-            'color': 'warning'
-        })
-
-        # Disposal Report
-        reports.append({
-            'name': 'Disposal Report',
-            'description': 'Track disposed assets with approval status, disposal method, and value recovered.',
-            'icon': 'trash-2',
-            'url': reverse('disposal-list'),
-            'color': 'danger'
-        })
-
-        # Asset Export
-        reports.append({
-            'name': 'Export Assets (Excel)',
-            'description': 'Download a full Excel export of all assets with current filters applied.',
-            'icon': 'download',
-            'url': reverse('asset-export-excel'),
-            'color': 'success'
-        })
-
+        
         # Asset Approvals - only for users with approval permissions
         if user.can_approve:
             reports.append({
@@ -2755,7 +2513,17 @@ class ReportsListView(LoginRequiredMixin, View):
                 'url': reverse('approval_list'),
                 'color': 'success'
             })
-        
+
+        # Reconciliation Report - non-employee users
+        if user.role != user.Role.EMPLOYEE:
+            reports.append({
+                'name': 'Asset Reconciliation Report',
+                'description': 'Complete reconciliation of the asset register with opening/closing balances, additions, and financial computations by category, status, department, and more.',
+                'icon': 'file-bar-chart',
+                'url': reverse('reconciliation-report'),
+                'color': 'warning'
+            })
+
         context = {
             'reports': reports,
             'total_assets': Asset.objects.filter(
@@ -2844,6 +2612,7 @@ class MastersListView(LoginRequiredMixin, View):
         # Apply status filter
         if status_filter:
             assets_qs = assets_qs.filter(status=status_filter)
+            
         
         # Apply brand filter
         if brand_filter:
@@ -3321,34 +3090,20 @@ class AssetTransferExportExcelView(AssetTransferListView):
 
     def get(self, request, *args, **kwargs):
         transfers = self.get_filtered_queryset()
-        total_records = transfers.count()
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Asset Transfers"
 
-        # Export summary
-        ws.merge_cells('A1:I1')
-        ws.cell(row=1, column=1, value="ASSET TRANSFER REPORT EXPORT").font = openpyxl.styles.Font(size=14, bold=True)
-        ws.cell(row=2, column=1, value="Export Date:").font = openpyxl.styles.Font(bold=True)
-        ws.cell(row=2, column=2, value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        ws.cell(row=3, column=1, value="Total Records:").font = openpyxl.styles.Font(bold=True)
-        ws.cell(row=3, column=2, value=total_records)
-
-        header_row = 5
-
         headers = [
             'Transfer No', 'Asset Tag', 'Asset Name', 'From', 'To',
             'Transfer Reason', 'Status', 'Transfer Date', 'Created By'
         ]
-        for col_num, header in enumerate(headers, 1):
-            ws.cell(row=header_row, column=col_num, value=header)
+        ws.append(headers)
 
-        for cell in ws[header_row]:
+        for cell in ws[1]:
             cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
             cell.fill = openpyxl.styles.PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-
-        data_row = header_row + 1
 
         for transfer in transfers:
             from_value = '-'
@@ -3367,7 +3122,7 @@ class AssetTransferExportExcelView(AssetTransferListView):
             if transfer.created_by:
                 created_by_value = transfer.created_by.get_full_name() or transfer.created_by.username
 
-            row_values = [
+            ws.append([
                 transfer.transfer_no or '',
                 transfer.asset.asset_tag if transfer.asset else '',
                 transfer.asset.name if transfer.asset else '',
@@ -3377,10 +3132,7 @@ class AssetTransferExportExcelView(AssetTransferListView):
                 transfer.get_status_display(),
                 transfer.transfer_date.strftime('%Y-%m-%d %H:%M:%S') if transfer.transfer_date else '',
                 created_by_value,
-            ]
-            for col_num, value in enumerate(row_values, 1):
-                ws.cell(row=data_row, column=col_num, value=value)
-            data_row += 1
+            ])
 
         for col_idx in range(1, ws.max_column + 1):
             max_length = 0
@@ -3628,11 +3380,11 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
     template_name = 'assets/disposal_list.html'
     context_object_name = 'disposals'
     paginate_by = 50
-    
-    def get_queryset(self):
+
+    def get_filtered_queryset(self):
         org = self.request.user.organization
         qs = AssetDisposal.objects.filter(organization=org).select_related(
-            'asset', 'requested_by', 'approved_by'
+            'asset', 'requested_by', 'approved_by', 'manager_approved_by'
         )
         
         # Filter by status
@@ -3652,8 +3404,11 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         user = self.request.user
         if user.role == user.Role.EMPLOYEE:
             qs = qs.filter(requested_by=user)
-        
+
         return qs.order_by('-created_at')
+
+    def get_queryset(self):
+        return self.get_filtered_queryset()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -3664,79 +3419,59 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
 
 
 class AssetDisposalExportExcelView(AssetDisposalListView):
-    """Export filtered asset disposals to Excel."""
+    """Export filtered asset disposal requests to Excel."""
 
     def get(self, request, *args, **kwargs):
-        disposals = self.get_queryset()
-        total_records = disposals.count()
-        total_salvage_value = sum(float(d.estimated_salvage_value or 0) for d in disposals)
+        disposals = self.get_filtered_queryset()
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Asset Disposals"
-
-        # Export summary
-        ws.merge_cells('A1:N1')
-        ws.cell(row=1, column=1, value="ASSET DISPOSAL REPORT EXPORT").font = openpyxl.styles.Font(size=14, bold=True)
-        ws.cell(row=2, column=1, value="Export Date:").font = openpyxl.styles.Font(bold=True)
-        ws.cell(row=2, column=2, value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        ws.cell(row=3, column=1, value="Total Records:").font = openpyxl.styles.Font(bold=True)
-        ws.cell(row=3, column=2, value=total_records)
-        ws.cell(row=4, column=1, value="Total Estimated Salvage Value:").font = openpyxl.styles.Font(bold=True)
-        ws.cell(row=4, column=2, value=total_salvage_value)
-        ws.cell(row=4, column=2).number_format = '#,##0.00'
-
-        header_row = 6
+        ws.title = 'Asset Disposals'
 
         headers = [
-            'Asset Tag', 'Asset Name', 'Requested By', 'Disposal Method',
-            'Reason', 'Status', 'Disposal Date', 'Estimated Salvage Value',
-            'Manager Approved By', 'Manager Approved At',
-            'Admin Approved By', 'Admin Approved At', 'Notes', 'Created Date'
+            'Asset Tag', 'Asset Name', 'Requested By', 'Disposal Method', 'Status',
+            'Reason', 'Disposal Date', 'Estimated Salvage Value',
+            'Manager Approved By', 'Manager Approved At', 'Admin Approved By', 'Admin Approved At',
+            'Manager Rejection Reason', 'Admin Rejection Reason', 'Notes', 'Created At', 'Updated At'
         ]
-        for col_num, header in enumerate(headers, 1):
-            ws.cell(row=header_row, column=col_num, value=header)
+        ws.append(headers)
 
-        for cell in ws[header_row]:
-            cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
-            cell.fill = openpyxl.styles.PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-
-        data_row = header_row + 1
+        for cell in ws[1]:
+            cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
+            cell.fill = openpyxl.styles.PatternFill(start_color='366092', end_color='366092', fill_type='solid')
 
         for disposal in disposals:
-            requested_by = '-'
+            requested_by_value = ''
             if disposal.requested_by:
-                requested_by = disposal.requested_by.get_full_name() or disposal.requested_by.username
+                requested_by_value = disposal.requested_by.get_full_name() or disposal.requested_by.username
 
-            manager_approved_by = '-'
+            manager_approved_by_value = ''
             if disposal.manager_approved_by:
-                manager_approved_by = disposal.manager_approved_by.get_full_name() or disposal.manager_approved_by.username
+                manager_approved_by_value = disposal.manager_approved_by.get_full_name() or disposal.manager_approved_by.username
 
-            admin_approved_by = '-'
+            approved_by_value = ''
             if disposal.approved_by:
-                admin_approved_by = disposal.approved_by.get_full_name() or disposal.approved_by.username
+                approved_by_value = disposal.approved_by.get_full_name() or disposal.approved_by.username
 
-            row_values = [
+            ws.append([
                 disposal.asset.asset_tag if disposal.asset else '',
                 disposal.asset.name if disposal.asset else '',
-                requested_by,
+                requested_by_value,
                 disposal.get_disposal_method_display(),
-                disposal.reason or '',
                 disposal.get_status_display(),
+                disposal.reason or '',
                 disposal.disposal_date.strftime('%Y-%m-%d') if disposal.disposal_date else '',
-                float(disposal.estimated_salvage_value) if disposal.estimated_salvage_value else '',
-                manager_approved_by,
+                float(disposal.estimated_salvage_value) if disposal.estimated_salvage_value is not None else '',
+                manager_approved_by_value,
                 disposal.manager_approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.manager_approved_at else '',
-                admin_approved_by,
+                approved_by_value,
                 disposal.approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.approved_at else '',
+                disposal.manager_rejection_reason or '',
+                disposal.rejection_reason or '',
                 disposal.notes or '',
                 disposal.created_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.created_at else '',
-            ]
-            for col_num, value in enumerate(row_values, 1):
-                ws.cell(row=data_row, column=col_num, value=value)
-                if col_num == 8 and isinstance(value, float):
-                    ws.cell(row=data_row, column=col_num).number_format = '#,##0.00'
-            data_row += 1
+                disposal.updated_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.updated_at else '',
+            ])
 
         for col_idx in range(1, ws.max_column + 1):
             max_length = 0
@@ -3825,7 +3560,7 @@ class AssetDisposalManagerApproveView(LoginRequiredMixin, UpdateView):
         form.instance.manager_approved_at = datetime.now()
         
         if form.instance.status == AssetDisposal.Status.MANAGER_APPROVED:
-            messages.success(self.request, f'Asset disposal request approved by manager: {form.instance.asset.asset_tag}. Pending admin approval.')
+            messages.success(self.request, f'Asset disposal request approved by manager: {form.instance.asset.asset_tag}. Pending final approval.')
         elif form.instance.status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected by manager: {form.instance.asset.asset_tag}')
         
@@ -3836,14 +3571,17 @@ class AssetDisposalManagerApproveView(LoginRequiredMixin, UpdateView):
 
 
 class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
-    """Final admin approval of asset disposal request (step 2)"""
+    """Final senior manager or admin approval of asset disposal request (step 2)"""
     model = AssetDisposal
     form_class = AssetDisposalApprovalForm
     template_name = 'assets/disposal_approve.html'
     
     def test_func(self):
-        """Only admins can give final approval"""
-        return self.request.user.is_superuser or self.request.user.role == self.request.user.Role.ADMIN
+        """Senior managers and admins can give final approval"""
+        return self.request.user.is_superuser or self.request.user.role in [
+            self.request.user.Role.ADMIN,
+            self.request.user.Role.SENIOR_MANAGER,
+        ]
     
     def dispatch(self, request, *args, **kwargs):
         if not self.test_func():
@@ -3860,6 +3598,18 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
         form.instance.approved_at = datetime.now()
         
         if form.instance.status == AssetDisposal.Status.APPROVED:
+            # Remove disposed asset from active inventory while preserving disposal history.
+            if form.instance.asset:
+                asset = form.instance.asset
+                update_fields = []
+                if not asset.is_deleted:
+                    asset.is_deleted = True
+                    update_fields.append('is_deleted')
+                if getattr(asset, 'status', None) != Asset.Status.RETIRED:
+                    asset.status = Asset.Status.RETIRED
+                    update_fields.append('status')
+                if update_fields:
+                    asset.save(update_fields=update_fields)
             messages.success(self.request, f'Asset disposal request approved: {form.instance.asset.asset_tag}')
         elif form.instance.status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected: {form.instance.asset.asset_tag}')
@@ -3879,35 +3629,38 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        if hasattr(self, '_cached_queryset'):
-            return self._cached_queryset
-
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
-            is_deleted=False,
-            purchase_price__isnull=False,
-            purchase_price__gt=0,
-        ).select_related('category').only(
-            'id', 'name', 'asset_tag', 'asset_code', 'serial_number',
-            'purchase_price', 'purchase_date', 'useful_life_years',
-            'salvage_value', 'depreciation_method', 'expected_units',
-            'units_consumed', 'category_id', 'category__name',
-            'organization_id', 'is_deleted', 'status',
-            'cached_accumulated_depreciation', 'cached_nbv',
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
         )
+
+        queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
+
+        queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
+
+        queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
+
+        # Only assets with financial value
+        queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
 
         # Search filter
         query = self.request.GET.get('q')
         if query:
-            queryset = queryset.filter(
+            q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(category__name__icontains=query)
             )
-
-        # Date range filters
+            queryset = queryset.filter(q)
+        
+        # Date range filters (opening/closing style)
         self._opening_date = None
         self._closing_date = None
         depr_date_from = self.request.GET.get('depr_date_from')
@@ -3917,17 +3670,18 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             try:
                 self._opening_date = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._opening_date = None
 
         if depr_date_to:
             try:
                 self._closing_date = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._closing_date = None
 
+        # Include only assets that existed up to closing date
         if self._closing_date:
             queryset = queryset.filter(Q(purchase_date__lte=self._closing_date) | Q(purchase_date__isnull=True))
-
+        
         # Dimension filters
         depr_filters = {
             'depr_category': 'category_id',
@@ -3938,94 +3692,92 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             'depr_building': 'building_id',
             'depr_location': 'location_id',
         }
+        
         for param, field in depr_filters.items():
             val = self.request.GET.get(param)
             if val:
                 queryset = queryset.filter(**{field: val})
-
-        self._cached_queryset = queryset.order_by('-purchase_date')
-        return self._cached_queryset
+        
+        return queryset.order_by('-purchase_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         org = self.request.user.organization
-        qs = self.get_queryset()
-
+        queryset = self.get_queryset()
+        
+        # Summary totals
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-
-        # ── Fast path: DB-level aggregation using cached fields ──
-        agg = qs.aggregate(
+        
+        agg = queryset.aggregate(
             total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+            total_count=Count('id')
         )
+        
         total_cost = agg['total_cost']
         total_count = agg['total_count']
-        total_acc_dep = agg['total_acc_dep']
-        total_nbv = agg['total_nbv']
-
-        # Backfill cache if empty (bulk-imported assets or first-time setup)
-        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
-            to_update = []
-            total_acc_dep = Decimal('0')
-            total_nbv = Decimal('0')
-            for asset in qs.iterator(chunk_size=500):
-                acc_dep = asset.accumulated_depreciation
-                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
-                asset.cached_accumulated_depreciation = acc_dep
-                asset.cached_nbv = nbv
-                total_acc_dep += acc_dep
-                total_nbv += nbv
-                to_update.append(asset)
-            if to_update:
-                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
-
-        # Category grouping via DB aggregation
-        grouped_qs = qs.values('category', 'category__name').annotate(
-            count=Count('id'),
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
-        ).order_by('-total_cost')[:100]
-
-        grouped_list = []
-        for g in grouped_qs:
-            grouped_list.append({
-                'id': g['category'],
-                'name': g['category__name'] or 'Uncategorized',
-                'total_cost': g['total_cost'],
-                'total_acc_dep': g['total_acc_dep'],
-                'total_nbv': g['total_nbv'],
-                'count': g['count'],
-            })
-
-        # ── Period values: only iterate if date range specified ──
-        if opening_date or closing_date:
-            total_opening_value = Decimal('0')
-            total_closing_value = Decimal('0')
-            for asset in qs.iterator(chunk_size=2000):
-                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-        else:
-            total_opening_value = total_nbv
-            total_closing_value = total_nbv
-
+        
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
+        
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
         context['total_nbv'] = total_nbv
         context['total_assets_report'] = total_count
+
+        opening_date = getattr(self, '_opening_date', None)
+        closing_date = getattr(self, '_closing_date', None)
+
+        if opening_date or closing_date:
+            all_for_period = list(queryset)
+            if opening_date:
+                total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
+            else:
+                total_opening_value = total_nbv
+
+            if closing_date:
+                total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
+            else:
+                total_closing_value = total_nbv
+        else:
+            total_opening_value = total_nbv
+            total_closing_value = total_nbv
+
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
+        
+        # Category grouping
+        grouped_data = queryset.values('category', 'category__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for group in grouped_data:
+            cat_id = group['category']
+            cat_assets = list(queryset.filter(category_id=cat_id))
+            total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': cat_id,
+                'name': group['category__name'] or 'Uncategorized',
+                'total_cost': group['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_cat_dep,
+                'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
+                'count': group['count'],
+            })
+        
         context['grouped_data'] = grouped_list
-
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -4073,33 +3825,29 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        if hasattr(self, '_cached_queryset'):
-            return self._cached_queryset
-
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
-            is_deleted=False,
-            purchase_price__isnull=False,
-            purchase_price__gt=0,
-        ).select_related('department').only(
-            'id', 'name', 'asset_tag', 'asset_code', 'serial_number',
-            'purchase_price', 'purchase_date', 'useful_life_years',
-            'salvage_value', 'depreciation_method', 'expected_units',
-            'units_consumed', 'department_id', 'department__name',
-            'organization_id', 'is_deleted', 'status',
-            'cached_accumulated_depreciation', 'cached_nbv',
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
         )
 
+        # Search filter
         query = self.request.GET.get('q')
         if query:
-            queryset = queryset.filter(
+            q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(department__name__icontains=query)
             )
-
+            queryset = queryset.filter(q)
+        
+        # Date range filters (opening/closing style)
         self._opening_date = None
         self._closing_date = None
         depr_date_from = self.request.GET.get('depr_date_from')
@@ -4109,17 +3857,18 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             try:
                 self._opening_date = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._opening_date = None
 
         if depr_date_to:
             try:
                 self._closing_date = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._closing_date = None
 
         if self._closing_date:
             queryset = queryset.filter(Q(purchase_date__lte=self._closing_date) | Q(purchase_date__isnull=True))
-
+        
+        # Dimension filters
         depr_filters = {
             'depr_category': 'category_id',
             'depr_group': 'group_id',
@@ -4129,94 +3878,88 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             'depr_building': 'building_id',
             'depr_location': 'location_id',
         }
+        
         for param, field in depr_filters.items():
             val = self.request.GET.get(param)
             if val:
                 queryset = queryset.filter(**{field: val})
-
-        self._cached_queryset = queryset.order_by('-purchase_date')
-        return self._cached_queryset
+        
+        return queryset.order_by('-purchase_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         org = self.request.user.organization
-        qs = self.get_queryset()
-
+        queryset = self.get_queryset()
+        
+        # Summary totals
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-
-        # ── Fast path: DB-level aggregation using cached fields ──
-        agg = qs.aggregate(
+        
+        agg = queryset.aggregate(
             total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+            total_count=Count('id')
         )
+        
         total_cost = agg['total_cost']
         total_count = agg['total_count']
-        total_acc_dep = agg['total_acc_dep']
-        total_nbv = agg['total_nbv']
-
-        # Backfill cache if empty (bulk-imported assets or first-time setup)
-        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
-            to_update = []
-            total_acc_dep = Decimal('0')
-            total_nbv = Decimal('0')
-            for asset in qs.iterator(chunk_size=500):
-                acc_dep = asset.accumulated_depreciation
-                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
-                asset.cached_accumulated_depreciation = acc_dep
-                asset.cached_nbv = nbv
-                total_acc_dep += acc_dep
-                total_nbv += nbv
-                to_update.append(asset)
-            if to_update:
-                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
-
-        # Department grouping via DB aggregation
-        grouped_qs = qs.values('department', 'department__name').annotate(
-            count=Count('id'),
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
-        ).order_by('-total_cost')[:100]
-
-        grouped_list = []
-        for g in grouped_qs:
-            grouped_list.append({
-                'id': g['department'],
-                'name': g['department__name'] or 'Uncategorized',
-                'total_cost': g['total_cost'],
-                'total_acc_dep': g['total_acc_dep'],
-                'total_nbv': g['total_nbv'],
-                'count': g['count'],
-            })
-
-        # ── Period values: only iterate if date range specified ──
-        if opening_date or closing_date:
-            total_opening_value = Decimal('0')
-            total_closing_value = Decimal('0')
-            for asset in qs.iterator(chunk_size=2000):
-                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-        else:
-            total_opening_value = total_nbv
-            total_closing_value = total_nbv
-
+        
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
+        
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
         context['total_nbv'] = total_nbv
         context['total_assets_report'] = total_count
+
+        opening_date = getattr(self, '_opening_date', None)
+        closing_date = getattr(self, '_closing_date', None)
+        all_for_period = list(queryset)
+
+        if opening_date:
+            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
+        else:
+            total_opening_value = total_nbv
+
+        if closing_date:
+            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
+        else:
+            total_closing_value = total_nbv
+
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
+        
+        # Department grouping
+        grouped_data = queryset.values('department', 'department__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for department in grouped_data:
+            department_id = department['department']
+            department_assets = list(queryset.filter(department_id=department_id))
+            total_department_dep = sum(a.accumulated_depreciation for a in department_assets) if department_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': department_id,
+                'name': department['department__name'] or 'Uncategorized',
+                'total_cost': department['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_department_dep,
+                'total_nbv': (department['total_cost'] or Decimal('0')) - total_department_dep,
+                'count': department['count'],
+            })
+        
         context['grouped_data'] = grouped_list
-
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -4224,12 +3967,14 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
-
+        
+        # Filter persistence
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             del query_params['page']
         context['query_params'] = query_params.urlencode()
-
+        
+        # Store filter values
         context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
         context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
         context['depr_category'] = self.request.GET.get('depr_category', '')
@@ -4249,7 +3994,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
                 asset.period_depreciation = asset.opening_value - asset.closing_value
                 enriched_assets.append(asset)
             context['assets'] = enriched_assets
-
+        
         return context
 
 class DepreciationReportLocationView(LoginRequiredMixin, ListView):
@@ -4260,33 +4005,29 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        if hasattr(self, '_cached_queryset'):
-            return self._cached_queryset
-
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
-            is_deleted=False,
-            purchase_price__isnull=False,
-            purchase_price__gt=0,
-        ).select_related('location').only(
-            'id', 'name', 'asset_tag', 'asset_code', 'serial_number',
-            'purchase_price', 'purchase_date', 'useful_life_years',
-            'salvage_value', 'depreciation_method', 'expected_units',
-            'units_consumed', 'location_id', 'location__name',
-            'organization_id', 'is_deleted', 'status',
-            'cached_accumulated_depreciation', 'cached_nbv',
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
         )
 
+        # Search filter
         query = self.request.GET.get('q')
         if query:
-            queryset = queryset.filter(
+            q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(location__name__icontains=query)
             )
-
+            queryset = queryset.filter(q)
+        
+        # Date range filters (opening/closing style)
         self._opening_date = None
         self._closing_date = None
         depr_date_from = self.request.GET.get('depr_date_from')
@@ -4296,17 +4037,18 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             try:
                 self._opening_date = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._opening_date = None
 
         if depr_date_to:
             try:
                 self._closing_date = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._closing_date = None
 
         if self._closing_date:
             queryset = queryset.filter(Q(purchase_date__lte=self._closing_date) | Q(purchase_date__isnull=True))
-
+        
+        # Dimension filters
         depr_filters = {
             'depr_category': 'category_id',
             'depr_group': 'group_id',
@@ -4316,94 +4058,88 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             'depr_building': 'building_id',
             'depr_location': 'location_id',
         }
+        
         for param, field in depr_filters.items():
             val = self.request.GET.get(param)
             if val:
                 queryset = queryset.filter(**{field: val})
-
-        self._cached_queryset = queryset.order_by('-purchase_date')
-        return self._cached_queryset
+        
+        return queryset.order_by('-purchase_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         org = self.request.user.organization
-        qs = self.get_queryset()
-
+        queryset = self.get_queryset()
+        
+        # Summary totals
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-
-        # ── Fast path: DB-level aggregation using cached fields ──
-        agg = qs.aggregate(
+        
+        agg = queryset.aggregate(
             total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+            total_count=Count('id')
         )
+        
         total_cost = agg['total_cost']
         total_count = agg['total_count']
-        total_acc_dep = agg['total_acc_dep']
-        total_nbv = agg['total_nbv']
-
-        # Backfill cache if empty (bulk-imported assets or first-time setup)
-        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
-            to_update = []
-            total_acc_dep = Decimal('0')
-            total_nbv = Decimal('0')
-            for asset in qs.iterator(chunk_size=500):
-                acc_dep = asset.accumulated_depreciation
-                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
-                asset.cached_accumulated_depreciation = acc_dep
-                asset.cached_nbv = nbv
-                total_acc_dep += acc_dep
-                total_nbv += nbv
-                to_update.append(asset)
-            if to_update:
-                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
-
-        # Location grouping via DB aggregation
-        grouped_qs = qs.values('location', 'location__name').annotate(
-            count=Count('id'),
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
-        ).order_by('-total_cost')[:100]
-
-        grouped_list = []
-        for g in grouped_qs:
-            grouped_list.append({
-                'id': g['location'],
-                'name': g['location__name'] or 'Uncategorized',
-                'total_cost': g['total_cost'],
-                'total_acc_dep': g['total_acc_dep'],
-                'total_nbv': g['total_nbv'],
-                'count': g['count'],
-            })
-
-        # ── Period values: only iterate if date range specified ──
-        if opening_date or closing_date:
-            total_opening_value = Decimal('0')
-            total_closing_value = Decimal('0')
-            for asset in qs.iterator(chunk_size=2000):
-                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-        else:
-            total_opening_value = total_nbv
-            total_closing_value = total_nbv
-
+        
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
+        
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
         context['total_nbv'] = total_nbv
         context['total_assets_report'] = total_count
+
+        opening_date = getattr(self, '_opening_date', None)
+        closing_date = getattr(self, '_closing_date', None)
+        all_for_period = list(queryset)
+
+        if opening_date:
+            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
+        else:
+            total_opening_value = total_nbv
+
+        if closing_date:
+            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
+        else:
+            total_closing_value = total_nbv
+
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
+        
+        # Location grouping
+        grouped_data = queryset.values('location', 'location__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for location in grouped_data:
+            location_id = location['location']
+            location_assets = list(queryset.filter(location_id=location_id))
+            total_location_dep = sum(a.accumulated_depreciation for a in location_assets) if location_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': location_id,
+                'name': location['location__name'] or 'Uncategorized',
+                'total_cost': location['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_location_dep,
+                'total_nbv': (location['total_cost'] or Decimal('0')) - total_location_dep,
+                'count': location['count'],
+            })
+        
         context['grouped_data'] = grouped_list
-
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -4411,12 +4147,14 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
-
+        
+        # Filter persistence
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             del query_params['page']
         context['query_params'] = query_params.urlencode()
-
+        
+        # Store filter values
         context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
         context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
         context['depr_category'] = self.request.GET.get('depr_category', '')
@@ -4427,7 +4165,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         context['depr_building'] = self.request.GET.get('depr_building', '')
         context['depr_location'] = self.request.GET.get('depr_location', '')
         context['search_query'] = self.request.GET.get('q', '')
-
+        
         if context.get('page_obj'):
             enriched_assets = []
             for asset in context['page_obj'].object_list:
@@ -4447,33 +4185,29 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        if hasattr(self, '_cached_queryset'):
-            return self._cached_queryset
-
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
-            is_deleted=False,
-            purchase_price__isnull=False,
-            purchase_price__gt=0,
-        ).select_related('group').only(
-            'id', 'name', 'asset_tag', 'asset_code', 'serial_number',
-            'purchase_price', 'purchase_date', 'useful_life_years',
-            'salvage_value', 'depreciation_method', 'expected_units',
-            'units_consumed', 'group_id', 'group__name',
-            'organization_id', 'is_deleted', 'status',
-            'cached_accumulated_depreciation', 'cached_nbv',
+            is_deleted=False
+        ).select_related(
+            'category', 'sub_category', 'branch', 'assigned_to', 
+            'site', 'building', 'brand_new', 'room', 'department',
+            'region', 'location', 'sub_location', 'vendor', 
+            'supplier', 'company', 'group', 'custodian'
         )
 
+        # Search filter
         query = self.request.GET.get('q')
         if query:
-            queryset = queryset.filter(
+            q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(group__name__icontains=query)
             )
-
+            queryset = queryset.filter(q)
+        
+        # Date range filters (opening/closing style)
         self._opening_date = None
         self._closing_date = None
         depr_date_from = self.request.GET.get('depr_date_from')
@@ -4483,17 +4217,18 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             try:
                 self._opening_date = datetime.strptime(depr_date_from, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._opening_date = None
 
         if depr_date_to:
             try:
                 self._closing_date = datetime.strptime(depr_date_to, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass
+                self._closing_date = None
 
         if self._closing_date:
             queryset = queryset.filter(Q(purchase_date__lte=self._closing_date) | Q(purchase_date__isnull=True))
-
+        
+        # Dimension filters
         depr_filters = {
             'depr_category': 'category_id',
             'depr_group': 'group_id',
@@ -4503,94 +4238,88 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             'depr_building': 'building_id',
             'depr_location': 'location_id',
         }
+        
         for param, field in depr_filters.items():
             val = self.request.GET.get(param)
             if val:
                 queryset = queryset.filter(**{field: val})
-
-        self._cached_queryset = queryset.order_by('-purchase_date')
-        return self._cached_queryset
+        
+        return queryset.order_by('-purchase_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         org = self.request.user.organization
-        qs = self.get_queryset()
-
+        queryset = self.get_queryset()
+        
+        # Summary totals
         from django.db.models import Sum, Count
         from django.db.models.functions import Coalesce
-
-        opening_date = getattr(self, '_opening_date', None)
-        closing_date = getattr(self, '_closing_date', None)
-
-        # ── Fast path: DB-level aggregation using cached fields ──
-        agg = qs.aggregate(
+        
+        agg = queryset.aggregate(
             total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_count=Count('id'),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
+            total_count=Count('id')
         )
+        
         total_cost = agg['total_cost']
         total_count = agg['total_count']
-        total_acc_dep = agg['total_acc_dep']
-        total_nbv = agg['total_nbv']
-
-        # Backfill cache if empty (bulk-imported assets or first-time setup)
-        if total_acc_dep == Decimal('0') and total_cost > Decimal('0'):
-            to_update = []
-            total_acc_dep = Decimal('0')
-            total_nbv = Decimal('0')
-            for asset in qs.iterator(chunk_size=500):
-                acc_dep = asset.accumulated_depreciation
-                nbv = (asset.purchase_price or Decimal('0')) - acc_dep
-                asset.cached_accumulated_depreciation = acc_dep
-                asset.cached_nbv = nbv
-                total_acc_dep += acc_dep
-                total_nbv += nbv
-                to_update.append(asset)
-            if to_update:
-                Asset.objects.bulk_update(to_update, ['cached_accumulated_depreciation', 'cached_nbv'], batch_size=500)
-
-        # Group grouping via DB aggregation
-        grouped_qs = qs.values('group', 'group__name').annotate(
-            count=Count('id'),
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            total_acc_dep=Coalesce(Sum('cached_accumulated_depreciation'), Decimal('0')),
-            total_nbv=Coalesce(Sum('cached_nbv'), Decimal('0')),
-        ).order_by('-total_cost')[:100]
-
-        grouped_list = []
-        for g in grouped_qs:
-            grouped_list.append({
-                'id': g['group'],
-                'name': g['group__name'] or 'Uncategorized',
-                'total_cost': g['total_cost'],
-                'total_acc_dep': g['total_acc_dep'],
-                'total_nbv': g['total_nbv'],
-                'count': g['count'],
-            })
-
-        # ── Period values: only iterate if date range specified ──
-        if opening_date or closing_date:
-            total_opening_value = Decimal('0')
-            total_closing_value = Decimal('0')
-            for asset in qs.iterator(chunk_size=2000):
-                total_opening_value += asset.get_value_at_date(opening_date) if opening_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-                total_closing_value += asset.get_value_at_date(closing_date) if closing_date else (asset.purchase_price - asset.cached_accumulated_depreciation)
-        else:
-            total_opening_value = total_nbv
-            total_closing_value = total_nbv
-
+        
+        # Calculate exact values by iterating in batches
+        BATCH_SIZE = 1000
+        total_acc_dep = Decimal('0')
+        total_nbv = Decimal('0')
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = list(queryset[i:i+BATCH_SIZE])
+            for asset in batch:
+                total_nbv += asset.current_value
+                total_acc_dep += asset.accumulated_depreciation
+        
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
         context['total_nbv'] = total_nbv
         context['total_assets_report'] = total_count
+
+        opening_date = getattr(self, '_opening_date', None)
+        closing_date = getattr(self, '_closing_date', None)
+        all_for_period = list(queryset)
+
+        if opening_date:
+            total_opening_value = sum(a.get_value_at_date(opening_date) for a in all_for_period) if all_for_period else Decimal('0')
+        else:
+            total_opening_value = total_nbv
+
+        if closing_date:
+            total_closing_value = sum(a.get_value_at_date(closing_date) for a in all_for_period) if all_for_period else Decimal('0')
+        else:
+            total_closing_value = total_nbv
+
         context['total_opening_value'] = total_opening_value
         context['total_closing_value'] = total_closing_value
         context['period_depreciation'] = total_opening_value - total_closing_value
         context['opening_date'] = opening_date
         context['closing_date'] = closing_date
+        
+        # Group grouping
+        grouped_data = queryset.values('group', 'group__name').annotate(
+            count=Count('id'),
+            total_cost=Sum('purchase_price')
+        ).order_by('-total_cost')[:100]
+        
+        grouped_list = []
+        for group in grouped_data:
+            group_id = group['group']
+            group_assets = list(queryset.filter(group_id=group_id))
+            total_group_dep = sum(a.accumulated_depreciation for a in group_assets) if group_assets else Decimal('0')
+            
+            grouped_list.append({
+                'id': group_id,
+                'name': group['group__name'] or 'Uncategorized',
+                'total_cost': group['total_cost'] or Decimal('0'),
+                'total_acc_dep': total_group_dep,
+                'total_nbv': (group['total_cost'] or Decimal('0')) - total_group_dep,
+                'count': group['count'],
+            })
+        
         context['grouped_data'] = grouped_list
-
         context['categories'] = Category.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['departments'] = Department.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['locations'] = Location.objects.filter(organization=org).only('id', 'name').order_by('name')
@@ -4598,12 +4327,14 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         context['sites'] = Site.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['buildings'] = Building.objects.filter(organization=org).only('id', 'name').order_by('name')
         context['groups'] = Group.objects.filter(organization=org).only('id', 'name').order_by('name')
-
+        
+        # Filter persistence
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             del query_params['page']
         context['query_params'] = query_params.urlencode()
-
+        
+        # Store filter values
         context['depr_date_from'] = self.request.GET.get('depr_date_from', '')
         context['depr_date_to'] = self.request.GET.get('depr_date_to', '')
         context['depr_category'] = self.request.GET.get('depr_category', '')
@@ -4623,8 +4354,205 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
                 asset.period_depreciation = asset.opening_value - asset.closing_value
                 enriched_assets.append(asset)
             context['assets'] = enriched_assets
-
+        
         return context
+
+
+# --- RECONCILIATION REPORT ---
+class AssetReconciliationReportView(LoginRequiredMixin, View):
+    """Comprehensive Asset Reconciliation Report — full-picture summary of the asset register."""
+    template_name = 'assets/reconciliation_report.html'
+
+    def get(self, request):
+        from django.db.models import Sum, Count, Q
+        from django.db.models.functions import Coalesce
+
+        org = request.user.organization
+        date_from_str = request.GET.get('date_from', '')
+        date_to_str = request.GET.get('date_to', '')
+
+        date_from = None
+        date_to = None
+        try:
+            if date_from_str:
+                date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+        try:
+            if date_to_str:
+                date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+        base_qs = Asset.objects.filter(organization=org, is_deleted=False)
+
+        # --- Period slicing ---
+        if date_from:
+            period_qs = base_qs.filter(purchase_date__gte=date_from)
+        else:
+            period_qs = base_qs
+
+        if date_to:
+            period_qs = period_qs.filter(purchase_date__lte=date_to)
+
+        # Additions in period (purchased within range)
+        additions_qs = period_qs if (date_from or date_to) else base_qs.none()
+
+        # Opening balance: purchased before date_from
+        if date_from:
+            opening_qs = base_qs.filter(Q(purchase_date__lt=date_from) | Q(purchase_date__isnull=True))
+        else:
+            opening_qs = base_qs.none()
+
+        # --- Helper: aggregate financials from a queryset ---
+        def agg_financials(qs):
+            result = qs.aggregate(
+                count=Count('id'),
+                total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+            )
+            assets_list = list(qs)
+            acc_dep = sum(a.accumulated_depreciation for a in assets_list)
+            nbv = sum(a.current_value for a in assets_list)
+            result['acc_dep'] = acc_dep
+            result['nbv'] = nbv
+            return result
+
+        # Overall totals (all assets, no date filter)
+        all_assets = list(base_qs.select_related('category', 'department', 'site'))
+        total_count = len(all_assets)
+        total_cost = sum((a.purchase_price or Decimal('0')) for a in all_assets)
+        total_acc_dep = sum(a.accumulated_depreciation for a in all_assets)
+        total_nbv = sum(a.current_value for a in all_assets)
+
+        # Opening / additions / closing
+        opening_data = agg_financials(opening_qs) if date_from else None
+        additions_data = agg_financials(additions_qs) if (date_from or date_to) else None
+        closing_data = agg_financials(base_qs.filter(purchase_date__lte=date_to) if date_to else base_qs)
+
+        # --- By Category ---
+        by_category = []
+        cat_groups = base_qs.values('category__id', 'category__name').annotate(
+            count=Count('id'),
+            total_cost=Coalesce(Sum('purchase_price'), Decimal('0'))
+        ).order_by('-total_cost')
+        for row in cat_groups:
+            cat_assets = [a for a in all_assets if a.category_id == row['category__id']]
+            acc = sum(a.accumulated_depreciation for a in cat_assets)
+            nbv = sum(a.current_value for a in cat_assets)
+            by_category.append({
+                'name': row['category__name'] or 'Uncategorized',
+                'count': row['count'],
+                'cost': row['total_cost'] or Decimal('0'),
+                'acc_dep': acc,
+                'nbv': nbv,
+            })
+
+        # --- By Status ---
+        by_status = []
+        for code, label in Asset.Status.choices:
+            status_assets = [a for a in all_assets if a.status == code]
+            cost = sum((a.purchase_price or Decimal('0')) for a in status_assets)
+            acc = sum(a.accumulated_depreciation for a in status_assets)
+            nbv = sum(a.current_value for a in status_assets)
+            by_status.append({
+                'label': label, 'count': len(status_assets),
+                'cost': cost, 'acc_dep': acc, 'nbv': nbv,
+            })
+
+        # --- By Condition ---
+        by_condition = []
+        for code, label in Asset.Condition.choices:
+            c_assets = [a for a in all_assets if a.condition == code]
+            cost = sum((a.purchase_price or Decimal('0')) for a in c_assets)
+            acc = sum(a.accumulated_depreciation for a in c_assets)
+            nbv = sum(a.current_value for a in c_assets)
+            by_condition.append({
+                'label': label, 'count': len(c_assets),
+                'cost': cost, 'acc_dep': acc, 'nbv': nbv,
+            })
+
+        # --- Tagged vs Untagged ---
+        tagged_assets = [a for a in all_assets if a.is_tagged]
+        untagged_assets = [a for a in all_assets if not a.is_tagged]
+        by_tagged = [
+            {
+                'label': 'Tagged',
+                'count': len(tagged_assets),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in tagged_assets),
+                'acc_dep': sum(a.accumulated_depreciation for a in tagged_assets),
+                'nbv': sum(a.current_value for a in tagged_assets),
+            },
+            {
+                'label': 'Untagged',
+                'count': len(untagged_assets),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in untagged_assets),
+                'acc_dep': sum(a.accumulated_depreciation for a in untagged_assets),
+                'nbv': sum(a.current_value for a in untagged_assets),
+            },
+        ]
+
+        # --- By Department ---
+        by_department = []
+        dept_map = {}
+        for a in all_assets:
+            key = a.department_id
+            label = a.department.name if a.department else 'No Department'
+            if key not in dept_map:
+                dept_map[key] = {'label': label, 'assets': []}
+            dept_map[key]['assets'].append(a)
+        for entry in sorted(dept_map.values(), key=lambda x: -sum((a.purchase_price or 0) for a in x['assets'])):
+            a_list = entry['assets']
+            by_department.append({
+                'label': entry['label'],
+                'count': len(a_list),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in a_list),
+                'acc_dep': sum(a.accumulated_depreciation for a in a_list),
+                'nbv': sum(a.current_value for a in a_list),
+            })
+
+        # --- By Site ---
+        by_site = []
+        site_map = {}
+        for a in all_assets:
+            key = a.site_id
+            label = a.site.name if a.site else 'No Site'
+            if key not in site_map:
+                site_map[key] = {'label': label, 'assets': []}
+            site_map[key]['assets'].append(a)
+        for entry in sorted(site_map.values(), key=lambda x: -sum((a.purchase_price or 0) for a in x['assets'])):
+            a_list = entry['assets']
+            by_site.append({
+                'label': entry['label'],
+                'count': len(a_list),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in a_list),
+                'acc_dep': sum(a.accumulated_depreciation for a in a_list),
+                'nbv': sum(a.current_value for a in a_list),
+            })
+
+        context = {
+            # Totals
+            'total_count': total_count,
+            'total_cost': total_cost,
+            'total_acc_dep': total_acc_dep,
+            'total_nbv': total_nbv,
+            # Period
+            'date_from': date_from_str,
+            'date_to': date_to_str,
+            'opening_data': opening_data,
+            'additions_data': additions_data,
+            'closing_data': closing_data,
+            # Breakdowns
+            'by_category': by_category,
+            'by_status': by_status,
+            'by_condition': by_condition,
+            'by_tagged': by_tagged,
+            'by_department': by_department,
+            'by_site': by_site,
+            # Currency
+            'currency': 'AED',
+        }
+        return render(request, self.template_name, context)
+
 
 # AJAX View to create category inline
 @login_required
@@ -4823,159 +4751,3 @@ def download_barcode_batch(request):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required
-def print_asset_label(request, pk):
-    """Render a browser-printable label page for a single asset."""
-    asset = get_object_or_404(Asset, id=pk, organization=request.user.organization)
-    from .code_generators import asset_codes_need_regeneration, generate_codes_for_asset
-
-    if asset.asset_tag and asset_codes_need_regeneration(asset):
-        try:
-            generate_codes_for_asset(asset)
-            asset.refresh_from_db(fields=['barcode_image', 'qr_code_image', 'label_image'])
-        except Exception:
-            pass
-
-    org = request.user.organization
-    # Superusers and org admins may override design for this print request.
-    if request.user.is_superuser or request.user.role == 'ADMIN':
-        design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
-    else:
-        design = getattr(org, 'label_template', 'CLASSIC')
-    designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
-    return render(request, 'assets/print_label.html', {
-        'assets': [asset],
-        'print_payload': _build_print_payload(request, [asset]),
-        'design': design,
-        'designs': designs,
-        'org': org,
-        'external_print_bridge_url': getattr(settings, 'EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777'),
-    })
-
-
-@login_required
-def label_print_center(request):
-    """Dedicated page for bulk label printing with design selection and filters."""
-    org = request.user.organization
-    all_assets = Asset.objects.filter(
-        organization=org
-    ).order_by('asset_tag').values_list('asset_tag', flat=True)
-    # Build lightweight asset list for dropdowns
-    asset_tags = [{'asset_tag': tag} for tag in all_assets]
-    categories = Category.objects.filter(organization=org).order_by('name')
-    branches = Branch.objects.filter(organization=org).order_by('name')
-
-    return render(request, 'assets/label_print_center.html', {
-        'org': org,
-        'all_assets': asset_tags,
-        'categories': categories,
-        'branches': branches,
-    })
-
-
-@login_required
-def print_asset_labels_bulk(request):
-    """Render a browser-printable label page for multiple assets.
-    
-    Supports multiple selection modes:
-    - ids: comma-separated asset UUIDs
-    - tag_from + tag_to: tag range (inclusive)
-    - category / branch: filter by category or branch
-    - specific_tags: comma/newline-separated tags
-    """
-    org = request.user.organization
-    # Superusers and org admins may override design for this print request.
-    # Other users always print with the org's configured default design.
-    if request.user.is_superuser or request.user.role == 'ADMIN':
-        design = request.GET.get('design', getattr(org, 'label_template', 'CLASSIC'))
-    else:
-        design = getattr(org, 'label_template', 'CLASSIC')
-    designs = org.LabelTemplate.choices if hasattr(org, 'LabelTemplate') else []
-
-    assets = Asset.objects.none()
-
-    # Mode 1: By IDs (existing behavior)
-    asset_ids = request.GET.get('ids', '').split(',')
-    asset_ids = [aid.strip() for aid in asset_ids if aid.strip()]
-
-    if asset_ids:
-        assets = Asset.objects.filter(id__in=asset_ids, organization=org)
-
-    # Mode 2: By tag range
-    elif request.GET.get('tag_from') and request.GET.get('tag_to'):
-        tag_from = request.GET['tag_from'].strip()
-        tag_to = request.GET['tag_to'].strip()
-        assets = Asset.objects.filter(
-            organization=org,
-            asset_tag__gte=tag_from,
-            asset_tag__lte=tag_to,
-        ).order_by('asset_tag')
-
-    # Mode 3: By category/branch filters
-    elif request.GET.get('category') or request.GET.get('branch'):
-        qs = Asset.objects.filter(organization=org)
-        if request.GET.get('category'):
-            qs = qs.filter(category_id=request.GET['category'])
-        if request.GET.get('branch'):
-            qs = qs.filter(branch_id=request.GET['branch'])
-        assets = qs.order_by('asset_tag')
-
-    # Mode 4: Specific tags
-    elif request.GET.get('specific_tags'):
-        raw_tags = request.GET['specific_tags']
-        # Split by comma or newline
-        tags = [t.strip() for t in raw_tags.replace('\n', ',').split(',') if t.strip()]
-        assets = Asset.objects.filter(organization=org, asset_tag__in=tags).order_by('asset_tag')
-
-    if not assets.exists():
-        return render(request, 'assets/print_label.html', {
-            'assets': [],
-            'print_payload': [],
-            'design': design,
-            'designs': designs,
-            'org': org,
-            'external_print_bridge_url': getattr(settings, 'EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777'),
-        })
-
-    # Batch pagination - max 1000 labels per page
-    BATCH_SIZE = 1000
-    total_count = assets.count()
-    batch = int(request.GET.get('batch', 1))
-    total_batches = (total_count + BATCH_SIZE - 1) // BATCH_SIZE  # ceil division
-    offset = (batch - 1) * BATCH_SIZE
-    assets_batch = assets[offset:offset + BATCH_SIZE]
-
-    assets_batch = assets_batch.select_related('category', 'location', 'company')
-
-    # Auto-generate missing barcode/QR codes before printing
-    from .code_generators import asset_codes_need_regeneration, generate_codes_for_asset
-
-    for asset in assets_batch:
-        if asset.asset_tag and asset_codes_need_regeneration(asset):
-            try:
-                generate_codes_for_asset(asset)
-            except Exception:
-                pass
-
-    # Build next/prev batch URLs
-    remaining = total_count - (offset + BATCH_SIZE)
-    if remaining < 0:
-        remaining = 0
-
-    return render(request, 'assets/print_label.html', {
-        'assets': assets_batch,
-        'print_payload': _build_print_payload(request, assets_batch),
-        'design': design,
-        'designs': designs,
-        'org': org,
-        'external_print_bridge_url': getattr(settings, 'EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777'),
-        'batch': batch,
-        'total_batches': total_batches,
-        'total_count': total_count,
-        'batch_size': BATCH_SIZE,
-        'remaining': remaining,
-        'batch_start': offset + 1,
-        'batch_end': min(offset + BATCH_SIZE, total_count),
-    })

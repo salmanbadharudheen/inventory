@@ -1,0 +1,709 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Asset Reconciliation Report{% endblock %}
+
+{% block content %}
+<div class="recon-wrap">
+
+  <!-- Header -->
+  <div class="recon-header">
+    <div class="recon-header-text">
+      <h1 class="recon-title">Asset Reconciliation Report</h1>
+      <p class="recon-subtitle">Full-picture summary of the asset register including costs, depreciation, and net book values across all dimensions.</p>
+    </div>
+    <div class="recon-header-actions">
+      <a href="{% url 'reports-list' %}" class="btn-back">
+        <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
+        <span class="btn-label">Reports</span>
+      </a>
+      <button onclick="window.print()" class="btn-export">
+        <i data-lucide="printer" style="width:16px;height:16px;"></i>
+        <span class="btn-label">Print / PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Date Filter -->
+  <div class="filter-bar">
+    <form method="get" class="filter-form">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>From Date</label>
+          <input type="date" name="date_from" value="{{ date_from }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+          <label>To Date</label>
+          <input type="date" name="date_to" value="{{ date_to }}" class="filter-input">
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn-apply">Apply</button>
+        {% if date_from or date_to %}
+        <a href="{% url 'reconciliation-report' %}" class="btn-clear">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+    {% if date_from or date_to %}
+    <div class="period-badge">
+      <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+      <span>{% if date_from %}{{ date_from }}{% else %}—{% endif %} → {% if date_to %}{{ date_to }}{% else %}Today{% endif %}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- KPI Summary Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-label">Total Assets</div>
+      <div class="kpi-value">{{ total_count }}</div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-label">Total Original Cost</div>
+      <div class="kpi-value">{{ currency }} {{ total_cost|floatformat:2 }}</div>
+    </div>
+    <div class="kpi-card kpi-orange">
+      <div class="kpi-label">Total Accumulated Depreciation</div>
+      <div class="kpi-value">{{ currency }} {{ total_acc_dep|floatformat:2 }}</div>
+    </div>
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-label">Total Net Book Value (NBV)</div>
+      <div class="kpi-value">{{ currency }} {{ total_nbv|floatformat:2 }}</div>
+    </div>
+  </div>
+
+  <!-- Opening / Additions / Closing (only when period filter is set) -->
+  {% if opening_data or additions_data %}
+  <div class="section-card">
+    <div class="section-head">
+      <i data-lucide="git-merge" style="width:18px;height:18px;color:#6366f1;"></i>
+      <h2>Period Movement</h2>
+    </div>
+    <div class="table-scroll">
+    <table class="recon-table">
+      <thead>
+        <tr>
+          <th>Period Movement</th>
+          <th>Asset Count</th>
+          <th>Original Cost ({{ currency }})</th>
+          <th>Acc. Depreciation ({{ currency }})</th>
+          <th>NBV ({{ currency }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if opening_data %}
+        <tr class="row-opening">
+          <td><strong>Opening Balance</strong> <small>(before {{ date_from }})</small></td>
+          <td>{{ opening_data.count }}</td>
+          <td>{{ opening_data.total_cost|floatformat:2 }}</td>
+          <td>{{ opening_data.acc_dep|floatformat:2 }}</td>
+          <td>{{ opening_data.nbv|floatformat:2 }}</td>
+        </tr>
+        {% endif %}
+        {% if additions_data %}
+        <tr class="row-addition">
+          <td><strong>Additions in Period</strong></td>
+          <td>{{ additions_data.count }}</td>
+          <td>{{ additions_data.total_cost|floatformat:2 }}</td>
+          <td>{{ additions_data.acc_dep|floatformat:2 }}</td>
+          <td>{{ additions_data.nbv|floatformat:2 }}</td>
+        </tr>
+        {% endif %}
+        {% if closing_data %}
+        <tr class="row-closing">
+          <td><strong>Closing Balance</strong>{% if date_to %} <small>(as at {{ date_to }})</small>{% endif %}</td>
+          <td>{{ closing_data.count }}</td>
+          <td>{{ closing_data.total_cost|floatformat:2 }}</td>
+          <td>{{ closing_data.acc_dep|floatformat:2 }}</td>
+          <td>{{ closing_data.nbv|floatformat:2 }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- By Category -->
+  <div class="section-card">
+    <div class="section-head">
+      <i data-lucide="layers" style="width:18px;height:18px;color:#6366f1;"></i>
+      <h2>By Category</h2>
+    </div>
+    <div class="table-scroll">
+    <table class="recon-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Count</th>
+          <th>Original Cost ({{ currency }})</th>
+          <th>Acc. Depreciation ({{ currency }})</th>
+          <th>NBV ({{ currency }})</th>
+          <th>% of Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in by_category %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.cost|floatformat:2 }}</td>
+          <td class="num">{{ row.acc_dep|floatformat:2 }}</td>
+          <td class="num">{{ row.nbv|floatformat:2 }}</td>
+          <td class="num">
+            {% if total_cost and total_cost > 0 %}
+              {% widthratio row.cost total_cost 100 %}%
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="empty">No data</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td><strong>Total</strong></td>
+          <td class="num"><strong>{{ total_count }}</strong></td>
+          <td class="num"><strong>{{ total_cost|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_acc_dep|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_nbv|floatformat:2 }}</strong></td>
+          <td class="num"><strong>100%</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>
+
+  <!-- Two-column: By Status + By Condition -->
+  <div class="two-col">
+
+    <!-- By Status -->
+    <div class="section-card">
+      <div class="section-head">
+        <i data-lucide="activity" style="width:18px;height:18px;color:#10b981;"></i>
+        <h2>By Lifecycle Status</h2>
+      </div>
+      <div class="table-scroll">
+      <table class="recon-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Count</th>
+            <th>Cost ({{ currency }})</th>
+            <th>NBV ({{ currency }})</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in by_status %}
+          {% if row.count > 0 %}
+          <tr>
+            <td><span class="status-pill status-{{ row.label|lower|slugify }}">{{ row.label }}</span></td>
+            <td class="num">{{ row.count }}</td>
+            <td class="num">{{ row.cost|floatformat:2 }}</td>
+            <td class="num">{{ row.nbv|floatformat:2 }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td><strong>Total</strong></td>
+            <td class="num"><strong>{{ total_count }}</strong></td>
+            <td class="num"><strong>{{ total_cost|floatformat:2 }}</strong></td>
+            <td class="num"><strong>{{ total_nbv|floatformat:2 }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+    </div>
+
+    <!-- By Condition -->
+    <div class="section-card">
+      <div class="section-head">
+        <i data-lucide="shield-check" style="width:18px;height:18px;color:#f59e0b;"></i>
+        <h2>By Condition</h2>
+      </div>
+      <div class="table-scroll">
+      <table class="recon-table">
+        <thead>
+          <tr>
+            <th>Condition</th>
+            <th>Count</th>
+            <th>Cost ({{ currency }})</th>
+            <th>NBV ({{ currency }})</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in by_condition %}
+          {% if row.count > 0 %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="num">{{ row.count }}</td>
+            <td class="num">{{ row.cost|floatformat:2 }}</td>
+            <td class="num">{{ row.nbv|floatformat:2 }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td><strong>Total</strong></td>
+            <td class="num"><strong>{{ total_count }}</strong></td>
+            <td class="num"><strong>{{ total_cost|floatformat:2 }}</strong></td>
+            <td class="num"><strong>{{ total_nbv|floatformat:2 }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tagged vs Untagged -->
+  <div class="section-card">
+    <div class="section-head">
+      <i data-lucide="tag" style="width:18px;height:18px;color:#6366f1;"></i>
+      <h2>Tagged vs Untagged</h2>
+    </div>
+    <div class="table-scroll">
+    <table class="recon-table">
+      <thead>
+        <tr>
+          <th>Tag Status</th>
+          <th>Count</th>
+          <th>Original Cost ({{ currency }})</th>
+          <th>Acc. Depreciation ({{ currency }})</th>
+          <th>NBV ({{ currency }})</th>
+          <th>% of Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in by_tagged %}
+        <tr>
+          <td>
+            {% if row.label == 'Tagged' %}
+            <span class="tag-pill tag-yes">Tagged</span>
+            {% else %}
+            <span class="tag-pill tag-no">Untagged</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.cost|floatformat:2 }}</td>
+          <td class="num">{{ row.acc_dep|floatformat:2 }}</td>
+          <td class="num">{{ row.nbv|floatformat:2 }}</td>
+          <td class="num">
+            {% if total_count > 0 %}{% widthratio row.count total_count 100 %}%{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td><strong>Total</strong></td>
+          <td class="num"><strong>{{ total_count }}</strong></td>
+          <td class="num"><strong>{{ total_cost|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_acc_dep|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_nbv|floatformat:2 }}</strong></td>
+          <td class="num"><strong>100%</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>
+
+  <!-- By Department -->
+  {% if by_department %}
+  <div class="section-card">
+    <div class="section-head">
+      <i data-lucide="building-2" style="width:18px;height:18px;color:#6366f1;"></i>
+      <h2>By Department</h2>
+    </div>
+    <div class="table-scroll">
+    <table class="recon-table">
+      <thead>
+        <tr>
+          <th>Department</th>
+          <th>Count</th>
+          <th>Original Cost ({{ currency }})</th>
+          <th>Acc. Depreciation ({{ currency }})</th>
+          <th>NBV ({{ currency }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in by_department %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.cost|floatformat:2 }}</td>
+          <td class="num">{{ row.acc_dep|floatformat:2 }}</td>
+          <td class="num">{{ row.nbv|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td><strong>Total</strong></td>
+          <td class="num"><strong>{{ total_count }}</strong></td>
+          <td class="num"><strong>{{ total_cost|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_acc_dep|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_nbv|floatformat:2 }}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- By Site -->
+  {% if by_site %}
+  <div class="section-card">
+    <div class="section-head">
+      <i data-lucide="map-pin" style="width:18px;height:18px;color:#6366f1;"></i>
+      <h2>By Site</h2>
+    </div>
+    <div class="table-scroll">
+    <table class="recon-table">
+      <thead>
+        <tr>
+          <th>Site</th>
+          <th>Count</th>
+          <th>Original Cost ({{ currency }})</th>
+          <th>Acc. Depreciation ({{ currency }})</th>
+          <th>NBV ({{ currency }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in by_site %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.cost|floatformat:2 }}</td>
+          <td class="num">{{ row.acc_dep|floatformat:2 }}</td>
+          <td class="num">{{ row.nbv|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td><strong>Total</strong></td>
+          <td class="num"><strong>{{ total_count }}</strong></td>
+          <td class="num"><strong>{{ total_cost|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_acc_dep|floatformat:2 }}</strong></td>
+          <td class="num"><strong>{{ total_nbv|floatformat:2 }}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+  /* ===================== BASE ===================== */
+  .recon-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.25rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: inherit;
+  }
+
+  /* ===================== HEADER ===================== */
+  .recon-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .recon-header-text { flex: 1 1 0; min-width: 0; }
+  .recon-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 0.2rem;
+    line-height: 1.2;
+  }
+  .recon-subtitle {
+    color: #6b7280;
+    font-size: 0.82rem;
+    margin: 0;
+    line-height: 1.4;
+  }
+  .recon-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .btn-back, .btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #374151;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-back:hover { border-color: #6366f1; color: #6366f1; }
+  .btn-export { background: #6366f1; color: #fff; border-color: #6366f1; }
+  .btn-export:hover { background: #4f46e5; }
+
+  /* ===================== FILTER BAR ===================== */
+  .filter-bar {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .filter-form {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .filter-row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1 1 140px;
+    min-width: 130px;
+  }
+  .filter-group label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .filter-input {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.85rem;
+    color: #374151;
+    background: #fff;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .filter-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-apply {
+    padding: 0.45rem 1.1rem;
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-apply:hover { background: #4f46e5; }
+  .btn-clear {
+    padding: 0.45rem 0.75rem;
+    background: #fff;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .btn-clear:hover { border-color: #ef4444; color: #ef4444; }
+  .period-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  /* ===================== KPI CARDS ===================== */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .kpi-card {
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    border: 1px solid transparent;
+  }
+  .kpi-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 0.35rem;
+    opacity: 0.75;
+    line-height: 1.3;
+  }
+  .kpi-value {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    word-break: break-all;
+  }
+  .kpi-blue   { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+  .kpi-green  { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  .kpi-orange { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  .kpi-purple { background: #f5f3ff; color: #4c1d95; border-color: #ddd6fe; }
+
+  /* ===================== SECTION CARD ===================== */
+  .section-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    background: #fafafa;
+  }
+  .section-head h2 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+  }
+
+  /* ===================== TABLE SCROLL WRAPPER ===================== */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ===================== TABLES ===================== */
+  .recon-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .recon-table thead tr { background: #f9fafb; }
+  .recon-table th {
+    padding: 0.6rem 0.875rem;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+  .recon-table td {
+    padding: 0.6rem 0.875rem;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+    white-space: nowrap;
+  }
+  .recon-table td:first-child { white-space: normal; }
+  .recon-table tbody tr:hover { background: #f9fafb; }
+  .recon-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .recon-table .empty { text-align: center; color: #9ca3af; padding: 2rem; white-space: normal; }
+  .total-row { background: #f9fafb !important; }
+  .total-row td { border-top: 2px solid #e5e7eb; border-bottom: none; font-size: 0.84rem; }
+
+  /* ===================== PERIOD ROWS ===================== */
+  .row-opening td { background: #f0fdf4; }
+  .row-addition td { background: #eff6ff; }
+  .row-closing td { background: #fdf4ff; }
+
+  /* ===================== PILLS ===================== */
+  .status-pill, .tag-pill {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .status-active              { background: #dcfce7; color: #166534; }
+  .status-in-storage          { background: #dbeafe; color: #1e40af; }
+  .status-under-maintenance   { background: #fef3c7; color: #92400e; }
+  .status-lost                { background: #fee2e2; color: #991b1b; }
+  .status-stolen              { background: #ffe4e6; color: #9f1239; }
+  .status-retired             { background: #f3f4f6; color: #374151; }
+  .tag-yes { background: #dbeafe; color: #1e40af; }
+  .tag-no  { background: #f3f4f6; color: #6b7280; }
+
+  /* ===================== TWO-COLUMN ===================== */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  /* ===================== RESPONSIVE ===================== */
+  @media (min-width: 768px) {
+    .recon-wrap { padding: 1.5rem; gap: 1.5rem; }
+    .recon-title { font-size: 1.5rem; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    .kpi-value { font-size: 1.35rem; }
+    .filter-form { flex-direction: row; align-items: flex-end; flex-wrap: wrap; }
+    .filter-row { flex-wrap: nowrap; }
+    .filter-group { flex: 0 1 auto; min-width: 160px; }
+  }
+
+  @media (max-width: 480px) {
+    .recon-wrap { padding: 0.75rem; gap: 0.875rem; }
+    .recon-title { font-size: 1.1rem; }
+    .recon-subtitle { font-size: 0.78rem; }
+    .btn-back, .btn-export { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
+    .kpi-card { padding: 0.8rem 0.875rem; }
+    .kpi-value { font-size: 1rem; }
+    .kpi-label { font-size: 0.63rem; }
+    .two-col { grid-template-columns: 1fr; }
+    .recon-table { font-size: 0.78rem; }
+    .recon-table th, .recon-table td { padding: 0.5rem 0.65rem; }
+  }
+
+  /* ===================== PRINT ===================== */
+  @media print {
+    .recon-header-actions, .filter-bar { display: none !important; }
+    .recon-wrap { padding: 0; gap: 1rem; }
+    .section-card { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+    .two-col { grid-template-columns: 1fr 1fr; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    .table-scroll { overflow: visible; }
+    .recon-table { min-width: unset; font-size: 0.75rem; }
+  }
+</style>
+{% endblock %}
