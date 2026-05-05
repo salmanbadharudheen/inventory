@@ -466,6 +466,89 @@ class AdminUserDetailView(AdminRequiredMixin, DetailView):
         return context
 
 
+class AdminUserDeleteView(AdminRequiredMixin, View):
+    """Delete a user"""
+    
+    def post(self, request, pk, *args, **kwargs):
+        user_obj = get_object_or_404(User, pk=pk)
+        
+        # If not superuser, only allow deleting users in their organization
+        if not request.user.is_superuser and request.user.organization:
+            if user_obj.organization != request.user.organization:
+                messages.error(request, "You can only manage users in your organization.")
+                return redirect('user-list')
+        
+        # Prevent deleting yourself
+        if user_obj.id == request.user.id:
+            messages.error(request, "You cannot delete your own account.")
+            return redirect('user-list')
+        
+        username = user_obj.username
+        user_obj.delete()
+        
+        messages.success(request, f'User "{username}" has been deleted.')
+        
+        return redirect('user-list')
+    
+    def get(self, request, pk, *args, **kwargs):
+        return self.post(request, pk, *args, **kwargs)
+
+
+class AdminUserToggleStatusView(AdminRequiredMixin, View):
+    """Toggle user active/inactive status"""
+    
+    def post(self, request, pk, *args, **kwargs):
+        user_obj = get_object_or_404(User, pk=pk)
+        
+        # If not superuser, only allow toggling users in their organization
+        if not request.user.is_superuser and request.user.organization:
+            if user_obj.organization != request.user.organization:
+                messages.error(request, "You can only manage users in your organization.")
+                return redirect('user-list')
+        
+        user_obj.is_active = not user_obj.is_active
+        user_obj.save(update_fields=['is_active'])
+        
+        state = 'activated' if user_obj.is_active else 'deactivated'
+        messages.success(request, f'User "{user_obj.username}" has been {state}.')
+        
+        return redirect('user-list')
+    
+    def get(self, request, pk, *args, **kwargs):
+        return self.post(request, pk, *args, **kwargs)
+
+
+class UserProfileView(LoginRequiredMixin, View):
+    """Show and update the logged-in user's own profile."""
+    template_name = 'users/profile.html'
+
+    def get(self, request):
+        from django.shortcuts import render
+        return render(request, self.template_name, {'profile_user': request.user})
+
+    def post(self, request):
+        from django.shortcuts import render
+        user = request.user
+        user.first_name = request.POST.get('first_name', user.first_name).strip()
+        user.last_name = request.POST.get('last_name', user.last_name).strip()
+        user.email = request.POST.get('email', user.email).strip()
+
+        # Password change (optional)
+        new_password = request.POST.get('new_password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+        if new_password:
+            if new_password != confirm_password:
+                messages.error(request, 'Passwords do not match.')
+                return render(request, self.template_name, {'profile_user': user})
+            user.set_password(new_password)
+            messages.success(request, 'Password changed successfully. Please log in again.')
+        
+        user.save()
+        if not new_password:
+            messages.success(request, 'Profile updated successfully.')
+        return redirect('user-profile')
+
+
 class OrgAssetTagSettingsView(SuperuserRequiredMixin, DetailView):
     """Organization asset tag configuration – superuser only."""
     model = Organization

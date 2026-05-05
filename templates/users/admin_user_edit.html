@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Edit User{% endblock %}
+
+{% block content %}
+<style>
+    .user-form-shell {
+        max-width: 980px;
+        margin: 0 auto;
+    }
+
+    .user-form-hero {
+        background: linear-gradient(120deg, #0b1320 0%, #1f3a5f 50%, #2a6da8 100%);
+        color: #fff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        box-shadow: 0 14px 36px rgba(16, 24, 40, 0.22);
+        margin-bottom: 1rem;
+    }
+
+    .user-form-hero h2 {
+        margin: 0 0 0.3rem;
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+    }
+
+    .user-form-hero p {
+        margin: 0;
+        font-size: 0.88rem;
+        color: rgba(255, 255, 255, 0.92);
+    }
+
+    .user-form-card {
+        border-radius: 16px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        padding: 1.3rem;
+    }
+
+    .section-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.95rem;
+    }
+
+    .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .field-group.full {
+        grid-column: 1 / -1;
+    }
+
+    .field-label {
+        margin: 0;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .required-mark {
+        color: #dc2626;
+        margin-left: 0.1rem;
+    }
+
+    .field-help {
+        font-size: 0.77rem;
+        color: #64748b;
+    }
+
+    .field-error {
+        color: #b91c1c;
+        font-size: 0.8rem;
+        margin-top: 0.2rem;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    select,
+    textarea {
+        padding: 0.65rem 0.8rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        background: #ffffff;
+        color: #000;
+        transition: all 0.2s ease;
+        font-family: inherit;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="password"]:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: #4f46e5;
+        background: #f8f7ff;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    input[type="text"]:disabled,
+    input[type="email"]:disabled,
+    select:disabled {
+        background: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 0.8rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    button, .btn {
+        padding: 0.55rem 1.2rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-submit {
+        background: #4f46e5;
+        color: #fff;
+    }
+
+    .btn-submit:hover {
+        background: #4338ca;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-cancel {
+        background: #f1f5f9;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+    }
+
+    .btn-cancel:hover {
+        background: #e2e8f0;
+    }
+</style>
+
+<div class="user-form-shell">
+    <div class="user-form-hero">
+        <h2>Edit User</h2>
+        <p>Update user details and settings</p>
+    </div>
+
+    <div class="user-form-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="section-grid">
+                <!-- Username -->
+                <div class="field-group">
+                    <label for="id_username" class="field-label">
+                        Username
+                        <span class="required-mark">*</span>
+                    </label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="field-error">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Email -->
+                <div class="field-group">
+                    <label for="id_email" class="field-label">
+                        Email
+                        <span class="required-mark">*</span>
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <div class="field-error">{{ form.email.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- First Name -->
+                <div class="field-group">
+                    <label for="id_first_name" class="field-label">First Name</label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <div class="field-error">{{ form.first_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Last Name -->
+                <div class="field-group">
+                    <label for="id_last_name" class="field-label">Last Name</label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <div class="field-error">{{ form.last_name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Role -->
+                <div class="field-group">
+                    <label for="id_role" class="field-label">
+                        Role
+                        <span class="required-mark">*</span>
+                    </label>
+                    {{ form.role }}
+                    {% if form.role.errors %}
+                        <div class="field-error">{{ form.role.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Employee ID -->
+                <div class="field-group">
+                    <label for="id_employee_id" class="field-label">Employee ID</label>
+                    {{ form.employee_id }}
+                    {% if form.employee_id.errors %}
+                        <div class="field-error">{{ form.employee_id.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Branch -->
+                <div class="field-group">
+                    <label for="id_branch" class="field-label">Branch</label>
+                    {{ form.branch }}
+                    {% if form.branch.errors %}
+                        <div class="field-error">{{ form.branch.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Department -->
+                <div class="field-group">
+                    <label for="id_department" class="field-label">Department</label>
+                    {{ form.department }}
+                    {% if form.department.errors %}
+                        <div class="field-error">{{ form.department.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn btn-submit">
+                    <i data-lucide="save" style="width: 16px; height: 16px; display: inline; margin-right: 6px;"></i>
+                    Save Changes
+                </button>
+                <a href="{% url 'user-list' %}" class="btn btn-cancel" style="text-decoration: none;">
+                    <i data-lucide="x" style="width: 16px; height: 16px; display: inline; margin-right: 6px;"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

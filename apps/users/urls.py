@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     AdminCreateView, UserListView, 
     AdminDashboardView, AdminUserListView, AdminOrgListView, AdminUserDetailView,
+    AdminUserDeleteView, AdminUserToggleStatusView, UserProfileView,
     OrgAssetTagSettingsView, OrgTagPreviewAPI,
     AdminOrgCreateView, AdminOrgUpdateView, AdminOrgDeleteView, AdminOrgAssignAdminView, AdminOrgDashboardView,
     AdminOrgToggleStatusView,
@@ -11,6 +12,9 @@ from .views import (
 urlpatterns = [
     path('add/', AdminCreateView.as_view(), name='user-add'),
     path('', UserListView.as_view(), name='user-list'),
+    path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('<int:pk>/delete/', AdminUserDeleteView.as_view(), name='user-delete'),
+    path('<int:pk>/toggle-status/', AdminUserToggleStatusView.as_view(), name='user-toggle-status'),
     # Owner login / logout (separate from regular user login)
     path('owner/login/', OwnerLoginView.as_view(), name='owner-login'),
     path('owner/logout/', OwnerLogoutView.as_view(), name='owner-logout'),

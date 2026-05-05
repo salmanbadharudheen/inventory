@@ -534,27 +534,10 @@
             transform: rotate(180deg);
         }
 
-        .user-info-block {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            line-height: 1.2;
-        }
-
         .user-name {
             font-weight: 600;
             color: var(--text-primary);
-            font-size: 0.85rem;
-        }
-
-        .user-org-name {
-            font-size: 0.7rem;
-            color: var(--text-secondary, #64748b);
-            font-weight: 400;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 140px;
+            font-size: 0.9rem;
         }
 
         .user-dropdown-menu {
@@ -896,10 +879,6 @@
                     <i data-lucide="package"></i>
                     <span>Inventory</span>
                 </a>
-                <a href="{% url 'masters-list' %}" class="top-bar-nav-item {% if 'masters' in request.path %}active{% endif %}" title="Masters">
-                    <i data-lucide="layers"></i>
-                    <span>Masters</span>
-                </a>
             </div>
 
             <div class="user-menu">
@@ -907,17 +886,12 @@
                 <div class="user-dropdown" id="userDropdown">
                     <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="User menu">
                         <div class="user-avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
-                        <div class="user-info-block">
-                            <span class="user-name">{{ user.username }}</span>
-                            {% if user.organization %}
-                            <span class="user-org-name">{{ user.organization.name }}</span>
-                            {% endif %}
-                        </div>
+                        <span class="user-name">{{ user.username }}</span>
                         <i data-lucide="chevron-down"></i>
                     </button>
 
                     <div class="user-dropdown-menu" id="userDropdownMenu" role="menu" aria-labelledby="userDropdownBtn" style="display:none;">
-                        <a href="{% url 'user-list' %}" class="dropdown-item" role="menuitem">
+                        <a href="{% url 'user-profile' %}" class="dropdown-item" role="menuitem">
                             <i data-lucide="user"></i>
                             <span>My Profile</span>
                         </a>
