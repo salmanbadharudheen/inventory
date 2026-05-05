@@ -2367,7 +2367,17 @@ class ReportsListView(LoginRequiredMixin, View):
                 'url': reverse('approval_list'),
                 'color': 'success'
             })
-        
+
+        # Asset Reconciliation Report - non-EMPLOYEE users
+        if user.role != user.Role.EMPLOYEE:
+            reports.append({
+                'name': 'Asset Reconciliation Report',
+                'description': 'Full-picture summary of the entire asset register with opening balance, additions, disposals, and closing values.',
+                'icon': 'clipboard-check',
+                'url': reverse('reconciliation-report'),
+                'color': 'warning'
+            })
+
         context = {
             'reports': reports,
             'total_assets': Asset.objects.filter(
