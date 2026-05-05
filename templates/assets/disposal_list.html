@@ -8,9 +8,6 @@
         <div class="title-row">
             <h1>Asset Disposals</h1>
             <div class="actions">
-                <a href="{% url 'disposal-export-excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-secondary">
-                    <i data-lucide="file-spreadsheet"></i> Export Excel
-                </a>
                 <a href="{% url 'disposal-create' %}" class="btn btn-primary">
                     <i data-lucide="plus"></i> New Request
                 </a>
