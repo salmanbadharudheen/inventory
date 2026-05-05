@@ -17,6 +17,10 @@
                     <i data-lucide="download"></i>
                     <span class="btn-tooltip">Export</span>
                 </a>
+                <button type="button" class="btn-icon-action" title="Print Labels" onclick="window.open('{% url "label-print-center" %}', '_blank')">
+                    <i data-lucide="printer"></i>
+                    <span class="btn-tooltip">Print Labels</span>
+                </button>
                 <a href="{% url 'asset-import' %}" class="btn-icon-action" title="Import">
                     <i data-lucide="upload"></i>
                     <span class="btn-tooltip">Import</span>
