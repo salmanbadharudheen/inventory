@@ -6,6 +6,7 @@ from .views import (
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
     label_print_center, print_asset_labels_bulk,
+    asset_attachment_upload, asset_attachment_delete,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
@@ -71,6 +72,10 @@ urlpatterns = [
     path('barcodes/download/batch/', download_barcode_batch, name='download-barcode-batch'),
     path('labels/print/', label_print_center, name='label-print-center'),
     path('labels/print/bulk/', print_asset_labels_bulk, name='print-asset-labels-bulk'),
+
+    # Asset Attachments
+    path('<uuid:pk>/attachments/upload/', asset_attachment_upload, name='asset-attachment-upload'),
+    path('<uuid:pk>/attachments/<int:attachment_id>/delete/', asset_attachment_delete, name='asset-attachment-delete'),
 
     # Configuration: Categories
     path('categories/', CategoryListView.as_view(), name='category-list'),

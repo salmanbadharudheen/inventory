@@ -1753,6 +1753,8 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         from datetime import date
         context['today'] = date.today()
+        context['attachments'] = self.object.attachments.all().order_by('-created_at')
+        context['attachment_types'] = AssetAttachment.Type.choices
         return context
 
 class AssetUpdateView(LoginRequiredMixin, UpdateView):
@@ -4309,6 +4311,68 @@ def download_barcode_batch(request):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def asset_attachment_upload(request, pk):
+    """AJAX: Upload a file attachment to an asset."""
+    try:
+        asset = Asset.objects.get(pk=pk, organization=request.user.organization)
+    except Asset.DoesNotExist:
+        return JsonResponse({'error': 'Asset not found'}, status=404)
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    uploaded_file = request.FILES.get('file')
+    if not uploaded_file:
+        return JsonResponse({'error': 'No file provided'}, status=400)
+
+    # Basic validation: max 20 MB
+    if uploaded_file.size > 20 * 1024 * 1024:
+        return JsonResponse({'error': 'File too large (max 20 MB)'}, status=400)
+
+    attachment_type = request.POST.get('attachment_type', 'OTHER')
+    valid_types = {t[0] for t in AssetAttachment.Type.choices}
+    if attachment_type not in valid_types:
+        attachment_type = 'OTHER'
+
+    description = request.POST.get('description', '')[:255]
+
+    attachment = AssetAttachment.objects.create(
+        asset=asset,
+        organization=request.user.organization,
+        file=uploaded_file,
+        attachment_type=attachment_type,
+        description=description,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'id': attachment.pk,
+        'name': uploaded_file.name,
+        'url': attachment.file.url,
+        'type': attachment.get_attachment_type_display(),
+        'description': attachment.description,
+        'size': uploaded_file.size,
+    })
+
+
+@login_required
+def asset_attachment_delete(request, pk, attachment_id):
+    """AJAX: Delete an attachment from an asset."""
+    try:
+        asset = Asset.objects.get(pk=pk, organization=request.user.organization)
+        attachment = AssetAttachment.objects.get(pk=attachment_id, asset=asset)
+    except (Asset.DoesNotExist, AssetAttachment.DoesNotExist):
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    attachment.file.delete(save=False)
+    attachment.delete()
+    return JsonResponse({'success': True})
 
 
 @login_required

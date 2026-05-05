@@ -216,7 +216,7 @@
                         <a href="{% url 'download-asset-label' asset.pk %}" class="btn" style="flex: 1; font-size: 0.85rem; padding: 0.5rem;">
                             <i data-lucide="download" style="width: 14px;"></i> Download
                         </a>
-                        <a href="{% url 'download-asset-label' asset.pk %}" target="_blank" class="btn btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.5rem;">
+                        <a href="{% url 'print-asset-label' asset.pk %}" target="_blank" class="btn btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.5rem;">
                             <i data-lucide="printer" style="width: 14px;"></i> Print
                         </a>
                     </div>
@@ -234,22 +234,87 @@
             </div>
 
             <!-- Documents & Attachments -->
-            <div class="card detail-section">
-                <div class="section-header"><i data-lucide="paperclip"></i><h3>Documents</h3></div>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+            <div class="card detail-section" id="attachments-card">
+                <div class="section-header" style="justify-content: space-between;">
+                    <div style="display:flex;align-items:center;gap:0.75rem;color:var(--primary)">
+                        <i data-lucide="paperclip" style="width:20px;height:20px;"></i>
+                        <h3>Documents &amp; Photos</h3>
+                    </div>
+                    <button class="btn-add-attachment" onclick="toggleUploadPanel()">
+                        <i data-lucide="plus" style="width:14px;height:14px;"></i> Add
+                    </button>
+                </div>
+
+                <!-- Static files from asset fields -->
+                <div style="display:flex;flex-direction:column;gap:0.6rem;">
                     {% if asset.po_file %}<a href="{{ asset.po_file.url }}" target="_blank" class="document-link"><i data-lucide="file-text"></i><span>Purchase Order</span></a>{% endif %}
                     {% if asset.invoice_file %}<a href="{{ asset.invoice_file.url }}" target="_blank" class="document-link"><i data-lucide="file-check"></i><span>Invoice / Contract</span></a>{% endif %}
                     {% if asset.delivery_note_file %}<a href="{{ asset.delivery_note_file.url }}" target="_blank" class="document-link"><i data-lucide="truck"></i><span>Delivery Note</span></a>{% endif %}
                     {% if asset.insurance_file %}<a href="{{ asset.insurance_file.url }}" target="_blank" class="document-link"><i data-lucide="shield"></i><span>Insurance Policy</span></a>{% endif %}
                     {% if asset.amc_file %}<a href="{{ asset.amc_file.url }}" target="_blank" class="document-link"><i data-lucide="clipboard-list"></i><span>AMC Document</span></a>{% endif %}
-                    {% if not asset.po_file and not asset.invoice_file and not asset.delivery_note_file and not asset.insurance_file and not asset.amc_file %}
-                    <div style="text-align: center; padding: 2rem 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-                        <i data-lucide="file-question" style="width: 32px; height: 32px; opacity: 0.2; margin-bottom: 0.5rem;"></i>
-                        <p>No documents attached to this asset.</p>
-                    </div>
-                    {% endif %}
                 </div>
-                <button class="btn" style="width: 100%; margin-top: 1.25rem; background: #f8fafc; border: 1px dashed var(--border-color); color: var(--text-secondary); font-size: 0.85rem;">+ Manage Files</button>
+
+                <!-- Dynamic attachments list -->
+                <div id="attachments-list" style="display:flex;flex-direction:column;gap:0.6rem;margin-top:{% if asset.po_file or asset.invoice_file or asset.delivery_note_file or asset.insurance_file or asset.amc_file %}0.6rem{% else %}0{% endif %};">
+                    {% for att in attachments %}
+                    <div class="attachment-item" id="att-{{ att.pk }}">
+                        <div class="att-icon">
+                            {% if att.attachment_type == 'PHOTO' %}
+                            <i data-lucide="image"></i>
+                            {% else %}
+                            <i data-lucide="file"></i>
+                            {% endif %}
+                        </div>
+                        <div class="att-info">
+                            <a href="{{ att.file.url }}" target="_blank" class="att-name">{{ att.file.name|cut:'assets/attachments/' }}</a>
+                            <span class="att-type">{{ att.get_attachment_type_display }}{% if att.description %} — {{ att.description }}{% endif %}</span>
+                        </div>
+                        <button class="att-delete" onclick="deleteAttachment('{{ asset.pk }}', {{ att.pk }})" title="Delete">
+                            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if not attachments and not asset.po_file and not asset.invoice_file and not asset.delivery_note_file and not asset.insurance_file and not asset.amc_file %}
+                <div id="no-attachments-msg" style="text-align:center;padding:1.5rem 1rem;color:var(--text-secondary);font-size:0.88rem;">
+                    <i data-lucide="file-question" style="width:32px;height:32px;opacity:0.2;margin-bottom:0.5rem;"></i>
+                    <p>No documents or photos attached yet.</p>
+                </div>
+                {% else %}
+                <div id="no-attachments-msg" style="display:none;"></div>
+                {% endif %}
+
+                <!-- Upload Panel -->
+                <div id="upload-panel" style="display:none;margin-top:1rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:1rem;">
+                    <p style="font-size:0.8rem;font-weight:700;color:#374151;margin:0 0 0.75rem;">Upload File</p>
+                    <div style="display:flex;flex-direction:column;gap:0.6rem;">
+                        <select id="att-type" style="padding:0.5rem 0.7rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.85rem;background:#fff;">
+                            {% for value, label in attachment_types %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="text" id="att-desc" placeholder="Description (optional)" style="padding:0.5rem 0.7rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.85rem;">
+                        <!-- Mobile-friendly: accept images + docs, allow camera capture -->
+                        <label class="file-upload-label" id="file-upload-label">
+                            <i data-lucide="upload-cloud" style="width:20px;height:20px;"></i>
+                            <span id="file-label-text">Tap to choose file or take photo</span>
+                            <input type="file" id="att-file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none;" onchange="fileSelected(this)">
+                        </label>
+                        <div style="display:flex;gap:0.5rem;">
+                            <button class="btn-upload-submit" id="btn-upload" onclick="uploadAttachment('{{ asset.pk }}')" disabled>
+                                <i data-lucide="upload" style="width:14px;"></i> Upload
+                            </button>
+                            <button class="btn-upload-cancel" onclick="toggleUploadPanel()">Cancel</button>
+                        </div>
+                        <div id="upload-progress" style="display:none;">
+                            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+                                <div id="upload-bar" style="height:100%;width:0%;background:#2563eb;transition:width 0.3s;"></div>
+                            </div>
+                            <p id="upload-status" style="font-size:0.75rem;color:#64748b;margin:0.3rem 0 0;">Uploading...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Notes & Remarks -->
@@ -283,6 +348,67 @@
     .document-link:hover { border-color: var(--primary); background: #f0f7ff; color: var(--primary); transform: translateY(-1px); }
     .document-link i { width: 18px; color: var(--text-secondary); }
     .document-link:hover i { color: var(--primary); }
+
+    .btn-add-attachment { display:inline-flex;align-items:center;gap:0.3rem;padding:0.35rem 0.8rem;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap; }
+    .btn-add-attachment:hover { background:#dbeafe; }
+    .attachment-item { display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:#fff;border:1px solid var(--border-color);border-radius:10px; }
+    .att-icon { color:#2563eb;flex-shrink:0; }
+    .att-icon i { width:18px;height:18px; }
+    .att-info { flex:1;min-width:0;display:flex;flex-direction:column;gap:0.15rem; }
+    .att-name { font-size:0.85rem;font-weight:600;color:#1e293b;text-decoration:none;word-break:break-all; }
+    .att-name:hover { color:#2563eb;text-decoration:underline; }
+    .att-type { font-size:0.72rem;color:#64748b; }
+    .att-delete { background:none;border:none;cursor:pointer;color:#94a3b8;padding:0.3rem;border-radius:5px;flex-shrink:0; }
+    .att-delete:hover { color:#ef4444;background:#fee2e2; }
+    .file-upload-label { display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:1.25rem;border:2px dashed #cbd5e1;border-radius:8px;cursor:pointer;color:#64748b;font-size:0.83rem;transition:border-color 0.2s,background 0.2s;text-align:center; }
+    .file-upload-label:hover, .file-upload-label.has-file { border-color:#2563eb;background:#eff6ff;color:#2563eb; }
+    .btn-upload-submit { flex:1;display:inline-flex;align-items:center;justify-content:center;gap:0.3rem;padding:0.55rem 1rem;background:#2563eb;color:#fff;border:none;border-radius:7px;font-size:0.85rem;font-weight:600;cursor:pointer; }
+    .btn-upload-submit:disabled { background:#93c5fd;cursor:not-allowed; }
+    .btn-upload-cancel { padding:0.55rem 1rem;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:7px;font-size:0.85rem;cursor:pointer; }
+
+    /* Attachment styles */
+    .btn-add-attachment {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.35rem 0.8rem; background: #eff6ff; color: #2563eb;
+        border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.78rem;
+        font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .btn-add-attachment:hover { background: #dbeafe; }
+    .attachment-item {
+        display: flex; align-items: center; gap: 0.75rem;
+        padding: 0.75rem 1rem; background: #fff;
+        border: 1px solid var(--border-color); border-radius: 10px;
+    }
+    .att-icon { color: #2563eb; flex-shrink: 0; }
+    .att-icon i { width: 18px; height: 18px; }
+    .att-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+    .att-name { font-size: 0.85rem; font-weight: 600; color: #1e293b; text-decoration: none; word-break: break-all; }
+    .att-name:hover { color: #2563eb; text-decoration: underline; }
+    .att-type { font-size: 0.72rem; color: #64748b; }
+    .att-delete {
+        background: none; border: none; cursor: pointer; color: #94a3b8;
+        padding: 0.3rem; border-radius: 5px; flex-shrink: 0;
+    }
+    .att-delete:hover { color: #ef4444; background: #fee2e2; }
+    .file-upload-label {
+        display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+        padding: 1.25rem; border: 2px dashed #cbd5e1; border-radius: 8px;
+        cursor: pointer; color: #64748b; font-size: 0.83rem;
+        transition: border-color 0.2s, background 0.2s; text-align: center;
+    }
+    .file-upload-label:hover, .file-upload-label.has-file {
+        border-color: #2563eb; background: #eff6ff; color: #2563eb;
+    }
+    .btn-upload-submit {
+        flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+        padding: 0.55rem 1rem; background: #2563eb; color: #fff;
+        border: none; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-upload-submit:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-upload-cancel {
+        padding: 0.55rem 1rem; background: #f1f5f9; color: #475569;
+        border: 1px solid #cbd5e1; border-radius: 7px; font-size: 0.85rem; cursor: pointer;
+    }
 </style>
 
 <script>
@@ -333,6 +459,124 @@ function refreshAssetCodes(assetId) {
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="refresh-cw" style="width: 14px;"></i> Regenerate';
         });
+}
+
+function toggleUploadPanel() {
+    const panel = document.getElementById('upload-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'block') {
+        document.getElementById('att-type').focus();
+    }
+}
+
+function fileSelected(input) {
+    const label = document.getElementById('file-label-text');
+    const btn = document.getElementById('btn-upload');
+    const uploadLabel = document.getElementById('file-upload-label');
+    if (input.files && input.files[0]) {
+        label.textContent = input.files[0].name;
+        uploadLabel.classList.add('has-file');
+        btn.disabled = false;
+    } else {
+        label.textContent = 'Tap to choose file or take photo';
+        uploadLabel.classList.remove('has-file');
+        btn.disabled = true;
+    }
+}
+
+function uploadAttachment(assetId) {
+    const fileInput = document.getElementById('att-file');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('attachment_type', document.getElementById('att-type').value);
+    formData.append('description', document.getElementById('att-desc').value);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    const btn = document.getElementById('btn-upload');
+    const progress = document.getElementById('upload-progress');
+    const bar = document.getElementById('upload-bar');
+    const status = document.getElementById('upload-status');
+
+    btn.disabled = true;
+    progress.style.display = 'block';
+    bar.style.width = '30%';
+    status.textContent = 'Uploading...';
+
+    fetch(`/assets/${assetId}/attachments/upload/`, {
+        method: 'POST',
+        body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+        bar.style.width = '100%';
+        if (data.success) {
+            status.textContent = 'Uploaded!';
+            // Add to list
+            addAttachmentToList(data, assetId);
+            // Reset form
+            setTimeout(() => {
+                fileInput.value = '';
+                document.getElementById('att-desc').value = '';
+                document.getElementById('file-label-text').textContent = 'Tap to choose file or take photo';
+                document.getElementById('file-upload-label').classList.remove('has-file');
+                progress.style.display = 'none';
+                bar.style.width = '0%';
+                btn.disabled = true;
+                document.getElementById('upload-panel').style.display = 'none';
+                document.getElementById('no-attachments-msg').style.display = 'none';
+            }, 800);
+        } else {
+            status.textContent = 'Error: ' + (data.error || 'Upload failed');
+            bar.style.background = '#ef4444';
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        status.textContent = 'Error: ' + err.message;
+        bar.style.background = '#ef4444';
+        btn.disabled = false;
+    });
+}
+
+function addAttachmentToList(data, assetId) {
+    const list = document.getElementById('attachments-list');
+    const isPhoto = data.type === 'Photo';
+    const icon = isPhoto ? 'image' : 'file';
+    const item = document.createElement('div');
+    item.className = 'attachment-item';
+    item.id = 'att-' + data.id;
+    item.innerHTML = `
+        <div class="att-icon"><i data-lucide="${icon}" style="width:18px;height:18px;"></i></div>
+        <div class="att-info">
+            <a href="${data.url}" target="_blank" class="att-name">${data.name}</a>
+            <span class="att-type">${data.type}${data.description ? ' — ' + data.description : ''}</span>
+        </div>
+        <button class="att-delete" onclick="deleteAttachment('${assetId}', ${data.id})" title="Delete">
+            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        </button>`;
+    list.appendChild(item);
+    lucide.createIcons();
+}
+
+function deleteAttachment(assetId, attachmentId) {
+    if (!confirm('Delete this attachment?')) return;
+    fetch(`/assets/${assetId}/attachments/${attachmentId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const el = document.getElementById('att-' + attachmentId);
+            if (el) el.remove();
+        } else {
+            alert('Delete failed');
+        }
+    })
+    .catch(() => alert('Delete failed'));
 }
 </script>
 {% endblock %}
