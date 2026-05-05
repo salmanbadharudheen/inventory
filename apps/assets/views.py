@@ -97,8 +97,8 @@ def lookup_asset(request):
     elif asset_tag:
         # Search by asset tag
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=asset_tag) |
-            Q(asset_code__iexact=asset_tag),
+            Q(asset_tag__iexact=asset_tag) | 
+            Q(custom_asset_tag__iexact=asset_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -109,7 +109,8 @@ def lookup_asset(request):
     elif query:
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=query) |
+            Q(asset_tag__iexact=query) | 
+            Q(custom_asset_tag__iexact=query) |
             Q(asset_code__iexact=query),
             organization=org
         ).select_related(
@@ -180,8 +181,8 @@ def lookup_asset(request):
     return JsonResponse({'asset': current, 'departments': departments, 'locations': locations, 'users': users})
 
 ASSET_IMPORT_FIELDS = [
-    'name', 'description', 'short_description', 'asset_tag',
-    'asset_code', 'erp_asset_number', 'quantity', 'is_tagged', 'label_type', 'serial_number', 
+    'name', 'description', 'short_description', 'asset_tag', 'custom_asset_tag', 
+    'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
     'category', 'sub_category', 'asset_type', 'group', 'sub_group', 'brand', 
     'model', 'condition', 'status', 'department', 'cost_center', 'company', 
     'supplier', 'vendor', 'custodian', 'employee_number', 'branch', 'building', 
@@ -204,7 +205,7 @@ def download_sample_csv(request):
     # Sample Row
     writer.writerow([
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', '1', 'yes', 'NON_METAL', 'SN123456', 
+        'C001', 'ERP-100', '1', 'NON_METAL', 'SN123456', 
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
@@ -247,7 +248,7 @@ def download_sample_excel(request):
     # Sample row
     sample_data = [
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', 1, 'yes', 'NON_METAL', 'SN123456',
+        'C001', 'ERP-100', 1, 'NON_METAL', 'SN123456',
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell',
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp',
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building',
@@ -315,13 +316,11 @@ class AssetListView(LoginRequiredMixin, ListView):
         queryset = Asset.objects.filter(
             organization=self.request.user.organization,
             is_deleted=False
-        ).exclude(
-            disposals__status__in=[AssetDisposal.Status.APPROVED, AssetDisposal.Status.COMPLETED]
         ).select_related(
             'category', 'sub_category', 'branch', 'assigned_to', 
             'site', 'building', 'brand_new', 'room', 'department',
             'sub_location', 'group'
-        ).prefetch_related('attachments').distinct()
+        ).prefetch_related('attachments')
 
         # Search across many asset fields and common related names
         query = self.request.GET.get('q')
@@ -329,6 +328,7 @@ class AssetListView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(erp_asset_number__icontains=query) |
                 Q(serial_number__icontains=query) |
@@ -397,12 +397,6 @@ class AssetListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(barcode_image__isnull=False)
         elif tag_type == 'RFID':
             queryset = queryset.filter(label_type__iexact='RFID')
-
-        is_tagged_filter = self.request.GET.get('is_tagged')
-        if is_tagged_filter == 'tagged':
-            queryset = queryset.filter(is_tagged=True)
-        elif is_tagged_filter == 'untagged':
-            queryset = queryset.filter(is_tagged=False)
         
         # Date Range Filters
         purchase_date_from = self.request.GET.get('purchase_date_from')
@@ -493,9 +487,7 @@ class AssetListView(LoginRequiredMixin, ListView):
 
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        # Only show users who have actually registered at least one asset
-        asset_creator_ids = Asset.objects.filter(organization=org).values_list('created_by_id', flat=True).distinct()
-        context['creators'] = User.objects.filter(id__in=asset_creator_ids).only('id', 'first_name', 'last_name', 'username').order_by('first_name', 'last_name', 'username')
+        context['creators'] = User.objects.filter(organization=org).only('id', 'first_name', 'last_name', 'username').order_by('first_name', 'last_name', 'username')
 
         if self.request.GET.get('view') == 'depreciation' and show_financial:
             # Depreciation report with efficient aggregation
@@ -796,9 +788,6 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             applied_filters.append(("Condition", condition_map.get(condition_val, condition_val)))
         if request.GET.get('tag_type'):
             applied_filters.append(("Type of Tag", request.GET.get('tag_type')))
-        if request.GET.get('is_tagged'):
-            is_tagged_val = request.GET.get('is_tagged')
-            applied_filters.append(("Tagged Status", "Tagged" if is_tagged_val == 'tagged' else "Untagged"))
         if request.GET.get('label_type'):
             label_type_val = request.GET.get('label_type')
             applied_filters.append(("Label Type", label_type_map.get(label_type_val, label_type_val)))
@@ -881,33 +870,9 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             headers.extend(['Accumulated Depreciation', 'Current NBV'])
         else:
             headers = [
-                # Identification
-                'Asset Tag', 'Asset Code', 'ERP Asset Number', 'Name', 'Short Description',
-                'Serial Number', 'Asset Type', 'Label Type', 'Quantity',
-                # Classification
-                'Category', 'Sub Category', 'Group', 'Sub Group', 'Brand', 'Model',
-                # Status & Condition
-                'Status', 'Condition',
-                # Location
-                'Region', 'Site', 'Branch', 'Building', 'Floor', 'Room', 'Location', 'Sub Location',
-                # Ownership
-                'Company', 'Department', 'Supplier', 'Custodian', 'Assigned To',
-                'Employee Number', 'Cost Center',
-                # Financial
-                'Purchase Price', 'Currency', 'Purchase Date', 'Invoice Number', 'Invoice Date',
-                'GRN Number', 'PO Number', 'PO Date', 'DO Number', 'DO Date',
-                'Date Placed in Service', 'Tagged Date',
-                # Warranty & Insurance
-                'Warranty Start', 'Warranty End',
-                'Insurance Start Date', 'Insurance End Date',
-                # Maintenance
-                'Maintenance Required', 'Maintenance Frequency (Days)', 'Next Maintenance Date',
-                'Maintenance Start Date', 'Maintenance End Date',
-                # Depreciation
-                'Depreciation Method', 'Useful Life (Years)', 'Salvage Value',
-                'Accumulated Depreciation', 'Current NBV',
-                # Notes & Tracking
-                'Notes', 'Registered By', 'Registered Date',
+                'Asset Tag', 'Name', 'Category', 'Status',
+                'Site', 'Building', 'Room', 'Condition',
+                'Purchase Price', 'Currency', 'Purchase Date'
             ]
 
         ws.append(headers)
@@ -945,133 +910,24 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
 
                 ws.append(row)
             else:
-                def _fmt_date(d):
-                    return d.strftime('%Y-%m-%d') if d else ''
-
-                # resolve assigned_to user name
-                assigned_name = ''
-                if asset.assigned_to:
-                    full = (asset.assigned_to.get_full_name() or '').strip()
-                    assigned_name = full or asset.assigned_to.username
-
-                # resolve created_by user name
-                creator_name = ''
-                if asset.created_by:
-                    full = (asset.created_by.get_full_name() or '').strip()
-                    creator_name = full or asset.created_by.username
-
                 ws.append([
-                    # Identification
                     asset.asset_tag,
-                    asset.asset_code,
-                    asset.erp_asset_number or '',
                     asset.name,
-                    asset.short_description,
-                    asset.serial_number or '',
-                    asset.asset_type,
-                    asset.label_type,
-                    asset.quantity,
-                    # Classification
                     asset.category.name if asset.category else '',
-                    asset.sub_category.name if asset.sub_category else '',
-                    asset.group.name if asset.group else '',
-                    asset.sub_group.name if asset.sub_group else '',
-                    asset.brand_new.name if asset.brand_new else asset.brand,
-                    asset.model,
-                    # Status & Condition
                     asset.get_status_display(),
-                    asset.get_condition_display(),
-                    # Location
-                    asset.region.name if asset.region else '',
                     asset.site.name if asset.site else '',
-                    asset.branch.name if asset.branch else '',
                     asset.building.name if asset.building else '',
-                    asset.floor.name if asset.floor else '',
-                    asset.room.name if asset.room else '',
-                    asset.location.name if asset.location else '',
-                    asset.sub_location.name if asset.sub_location else '',
-                    # Ownership
-                    asset.company.name if asset.company else '',
-                    asset.department.name if asset.department else '',
-                    asset.supplier.name if asset.supplier else '',
-                    asset.custodian.name if asset.custodian else '',
-                    assigned_name,
-                    asset.employee_number,
-                    asset.cost_center,
-                    # Financial
-                    float(asset.purchase_price) if asset.purchase_price else '',
+                    str(asset.room) if asset.room else '',
+                    asset.get_condition_display(),
+                    float(asset.purchase_price) if asset.purchase_price else 0,
                     asset.currency,
-                    _fmt_date(asset.purchase_date),
-                    asset.invoice_number,
-                    _fmt_date(asset.invoice_date),
-                    asset.grn_number,
-                    asset.po_number,
-                    _fmt_date(asset.po_date),
-                    asset.do_number,
-                    _fmt_date(asset.do_date),
-                    _fmt_date(asset.date_placed_in_service),
-                    _fmt_date(asset.tagged_date),
-                    # Warranty & Insurance
-                    _fmt_date(asset.warranty_start),
-                    _fmt_date(asset.warranty_end),
-                    _fmt_date(asset.insurance_start_date),
-                    _fmt_date(asset.insurance_end_date),
-                    # Maintenance
-                    'Yes' if asset.maintenance_required else 'No',
-                    asset.maintenance_frequency_days if asset.maintenance_frequency_days else '',
-                    _fmt_date(asset.next_maintenance_date),
-                    _fmt_date(asset.maintenance_start_date),
-                    _fmt_date(asset.maintenance_end_date),
-                    # Depreciation
-                    asset.depreciation_method,
-                    asset.useful_life_years if asset.useful_life_years else '',
-                    float(asset.salvage_value) if asset.salvage_value else 0,
-                    float(asset.accumulated_depreciation),
-                    float(asset.current_value),
-                    # Notes & Tracking
-                    asset.notes,
-                    creator_name,
-                    asset.created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.created_at else '',
+                    asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else ''
                 ])
             
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         file_prefix = 'depreciation_export' if is_depreciation_view else 'assets_export'
-
-        # Style the header row and auto-fit column widths
-        from openpyxl.styles import Font, PatternFill, Alignment
-        # Find the header row (last non-empty row before data)
-        header_row_num = ws.max_row - queryset.count() if queryset.count() > 0 else ws.max_row
-        # Re-find the actual header row by looking for 'Asset Tag'
-        header_row_idx = None
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value == 'Asset Tag':
-                    header_row_idx = cell.row
-                    break
-            if header_row_idx:
-                break
-
-        if header_row_idx:
-            for cell in ws[header_row_idx]:
-                cell.font = Font(bold=True, color='FFFFFF')
-                cell.fill = PatternFill('solid', fgColor='4F46E5')
-                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=False)
-
-        # Auto-fit column widths
-        for col in ws.columns:
-            max_len = 0
-            col_letter = col[0].column_letter
-            for cell in col:
-                try:
-                    cell_len = len(str(cell.value)) if cell.value is not None else 0
-                    if cell_len > max_len:
-                        max_len = cell_len
-                except Exception:
-                    pass
-            ws.column_dimensions[col_letter].width = min(max(max_len + 2, 10), 40)
-
         response['Content-Disposition'] = f'attachment; filename="{file_prefix}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
         wb.save(response)
         return response
@@ -1294,7 +1150,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'brand name': 'brand', 'company name': 'company',
         'supplier name': 'supplier', 'vendor name': 'vendor',
         'asset name': 'name', 'asset description': 'description',
-        'asset tag': 'asset_tag', 'custom asset tag': 'asset_tag',
+        'asset tag': 'asset_tag', 'custom asset tag': 'custom_asset_tag',
         'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
         'asset code': 'asset_code', 'asset type': 'asset_type',
         'label type': 'label_type', 'serial number': 'serial_number',
@@ -1697,10 +1553,6 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 asset_type = get_choice(row.get('asset_type'), Asset.Type, Asset.Type.TAGGABLE)
                 label_type = get_choice(row.get('label_type'), Asset.LabelType, Asset.LabelType.NON_METAL)
 
-                # Parse is_tagged (accepts yes/true/1)
-                is_tagged_val = str(row.get('is_tagged') or '').strip().lower()
-                is_tagged = is_tagged_val in ('yes', 'true', '1', 'tagged')
-
                 # 3. Master Data Lookups (from cache)
                 sub_category = get_from_cache(subcategories, row.get('sub_category'))
                 group = get_from_cache(groups, row.get('group'))
@@ -1786,10 +1638,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     description=str(row.get('description') or ''),
                     short_description=str(row.get('short_description') or ''),
                     asset_tag=asset_tag,
+                    custom_asset_tag=row.get('custom_asset_tag'),
                     asset_code=row.get('asset_code'),
                     erp_asset_number=row.get('erp_asset_number'),
                     quantity=parse_int(row.get('quantity'), 1),
-                    is_tagged=is_tagged,
                     label_type=label_type,
                     serial_number=row.get('serial_number'),
                     category=category,
@@ -2335,7 +2187,7 @@ class ApprovalListView(ApprovalAccessMixin, TemplateView):
                 'disposal_method': disposal.disposal_method,
                 'manager_approved_by': disposal.manager_approved_by,
                 'can_approve': (user.role in [user.Role.SENIOR_MANAGER, user.Role.CHECKER] and disposal.status == AssetDisposal.Status.PENDING) or 
-                               (user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER]) and disposal.status == AssetDisposal.Status.MANAGER_APPROVED
+                               (user.is_superuser or user.role == user.Role.ADMIN) and disposal.status == AssetDisposal.Status.MANAGER_APPROVED
             })
         
         for approval in asset_approvals:
@@ -2513,17 +2365,7 @@ class ReportsListView(LoginRequiredMixin, View):
                 'url': reverse('approval_list'),
                 'color': 'success'
             })
-
-        # Reconciliation Report - non-employee users
-        if user.role != user.Role.EMPLOYEE:
-            reports.append({
-                'name': 'Asset Reconciliation Report',
-                'description': 'Complete reconciliation of the asset register with opening/closing balances, additions, and financial computations by category, status, department, and more.',
-                'icon': 'file-bar-chart',
-                'url': reverse('reconciliation-report'),
-                'color': 'warning'
-            })
-
+        
         context = {
             'reports': reports,
             'total_assets': Asset.objects.filter(
@@ -3380,11 +3222,11 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
     template_name = 'assets/disposal_list.html'
     context_object_name = 'disposals'
     paginate_by = 50
-
-    def get_filtered_queryset(self):
+    
+    def get_queryset(self):
         org = self.request.user.organization
         qs = AssetDisposal.objects.filter(organization=org).select_related(
-            'asset', 'requested_by', 'approved_by', 'manager_approved_by'
+            'asset', 'requested_by', 'approved_by'
         )
         
         # Filter by status
@@ -3404,11 +3246,8 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         user = self.request.user
         if user.role == user.Role.EMPLOYEE:
             qs = qs.filter(requested_by=user)
-
+        
         return qs.order_by('-created_at')
-
-    def get_queryset(self):
-        return self.get_filtered_queryset()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -3416,79 +3255,6 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         context['status_filter'] = self.request.GET.get('status', '')
         context['search'] = self.request.GET.get('search', '')
         return context
-
-
-class AssetDisposalExportExcelView(AssetDisposalListView):
-    """Export filtered asset disposal requests to Excel."""
-
-    def get(self, request, *args, **kwargs):
-        disposals = self.get_filtered_queryset()
-
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = 'Asset Disposals'
-
-        headers = [
-            'Asset Tag', 'Asset Name', 'Requested By', 'Disposal Method', 'Status',
-            'Reason', 'Disposal Date', 'Estimated Salvage Value',
-            'Manager Approved By', 'Manager Approved At', 'Admin Approved By', 'Admin Approved At',
-            'Manager Rejection Reason', 'Admin Rejection Reason', 'Notes', 'Created At', 'Updated At'
-        ]
-        ws.append(headers)
-
-        for cell in ws[1]:
-            cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
-            cell.fill = openpyxl.styles.PatternFill(start_color='366092', end_color='366092', fill_type='solid')
-
-        for disposal in disposals:
-            requested_by_value = ''
-            if disposal.requested_by:
-                requested_by_value = disposal.requested_by.get_full_name() or disposal.requested_by.username
-
-            manager_approved_by_value = ''
-            if disposal.manager_approved_by:
-                manager_approved_by_value = disposal.manager_approved_by.get_full_name() or disposal.manager_approved_by.username
-
-            approved_by_value = ''
-            if disposal.approved_by:
-                approved_by_value = disposal.approved_by.get_full_name() or disposal.approved_by.username
-
-            ws.append([
-                disposal.asset.asset_tag if disposal.asset else '',
-                disposal.asset.name if disposal.asset else '',
-                requested_by_value,
-                disposal.get_disposal_method_display(),
-                disposal.get_status_display(),
-                disposal.reason or '',
-                disposal.disposal_date.strftime('%Y-%m-%d') if disposal.disposal_date else '',
-                float(disposal.estimated_salvage_value) if disposal.estimated_salvage_value is not None else '',
-                manager_approved_by_value,
-                disposal.manager_approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.manager_approved_at else '',
-                approved_by_value,
-                disposal.approved_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.approved_at else '',
-                disposal.manager_rejection_reason or '',
-                disposal.rejection_reason or '',
-                disposal.notes or '',
-                disposal.created_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.created_at else '',
-                disposal.updated_at.strftime('%Y-%m-%d %H:%M:%S') if disposal.updated_at else '',
-            ])
-
-        for col_idx in range(1, ws.max_column + 1):
-            max_length = 0
-            col_letter = openpyxl.utils.get_column_letter(col_idx)
-            for row_idx in range(1, ws.max_row + 1):
-                cell_value = ws.cell(row=row_idx, column=col_idx).value
-                if cell_value is None:
-                    continue
-                max_length = max(max_length, len(str(cell_value)))
-            ws.column_dimensions[col_letter].width = min(max_length + 2, 45) if max_length else 12
-
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        response['Content-Disposition'] = f'attachment; filename="asset_disposals_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
-        wb.save(response)
-        return response
 
 
 class AssetDisposalCreateView(EmployeeRequiredMixin, CreateView):
@@ -3560,7 +3326,7 @@ class AssetDisposalManagerApproveView(LoginRequiredMixin, UpdateView):
         form.instance.manager_approved_at = datetime.now()
         
         if form.instance.status == AssetDisposal.Status.MANAGER_APPROVED:
-            messages.success(self.request, f'Asset disposal request approved by manager: {form.instance.asset.asset_tag}. Pending final approval.')
+            messages.success(self.request, f'Asset disposal request approved by manager: {form.instance.asset.asset_tag}. Pending admin approval.')
         elif form.instance.status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected by manager: {form.instance.asset.asset_tag}')
         
@@ -3571,17 +3337,14 @@ class AssetDisposalManagerApproveView(LoginRequiredMixin, UpdateView):
 
 
 class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
-    """Final senior manager or admin approval of asset disposal request (step 2)"""
+    """Final admin approval of asset disposal request (step 2)"""
     model = AssetDisposal
     form_class = AssetDisposalApprovalForm
     template_name = 'assets/disposal_approve.html'
     
     def test_func(self):
-        """Senior managers and admins can give final approval"""
-        return self.request.user.is_superuser or self.request.user.role in [
-            self.request.user.Role.ADMIN,
-            self.request.user.Role.SENIOR_MANAGER,
-        ]
+        """Only admins can give final approval"""
+        return self.request.user.is_superuser or self.request.user.role == self.request.user.Role.ADMIN
     
     def dispatch(self, request, *args, **kwargs):
         if not self.test_func():
@@ -3598,18 +3361,6 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
         form.instance.approved_at = datetime.now()
         
         if form.instance.status == AssetDisposal.Status.APPROVED:
-            # Remove disposed asset from active inventory while preserving disposal history.
-            if form.instance.asset:
-                asset = form.instance.asset
-                update_fields = []
-                if not asset.is_deleted:
-                    asset.is_deleted = True
-                    update_fields.append('is_deleted')
-                if getattr(asset, 'status', None) != Asset.Status.RETIRED:
-                    asset.status = Asset.Status.RETIRED
-                    update_fields.append('status')
-                if update_fields:
-                    asset.save(update_fields=update_fields)
             messages.success(self.request, f'Asset disposal request approved: {form.instance.asset.asset_tag}')
         elif form.instance.status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected: {form.instance.asset.asset_tag}')
@@ -3654,6 +3405,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(category__name__icontains=query)
@@ -3841,6 +3593,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(department__name__icontains=query)
@@ -4021,6 +3774,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(location__name__icontains=query)
@@ -4201,6 +3955,7 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
+                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(group__name__icontains=query)
@@ -4356,203 +4111,6 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             context['assets'] = enriched_assets
         
         return context
-
-
-# --- RECONCILIATION REPORT ---
-class AssetReconciliationReportView(LoginRequiredMixin, View):
-    """Comprehensive Asset Reconciliation Report — full-picture summary of the asset register."""
-    template_name = 'assets/reconciliation_report.html'
-
-    def get(self, request):
-        from django.db.models import Sum, Count, Q
-        from django.db.models.functions import Coalesce
-
-        org = request.user.organization
-        date_from_str = request.GET.get('date_from', '')
-        date_to_str = request.GET.get('date_to', '')
-
-        date_from = None
-        date_to = None
-        try:
-            if date_from_str:
-                date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
-        try:
-            if date_to_str:
-                date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
-        except ValueError:
-            pass
-
-        base_qs = Asset.objects.filter(organization=org, is_deleted=False)
-
-        # --- Period slicing ---
-        if date_from:
-            period_qs = base_qs.filter(purchase_date__gte=date_from)
-        else:
-            period_qs = base_qs
-
-        if date_to:
-            period_qs = period_qs.filter(purchase_date__lte=date_to)
-
-        # Additions in period (purchased within range)
-        additions_qs = period_qs if (date_from or date_to) else base_qs.none()
-
-        # Opening balance: purchased before date_from
-        if date_from:
-            opening_qs = base_qs.filter(Q(purchase_date__lt=date_from) | Q(purchase_date__isnull=True))
-        else:
-            opening_qs = base_qs.none()
-
-        # --- Helper: aggregate financials from a queryset ---
-        def agg_financials(qs):
-            result = qs.aggregate(
-                count=Count('id'),
-                total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-            )
-            assets_list = list(qs)
-            acc_dep = sum(a.accumulated_depreciation for a in assets_list)
-            nbv = sum(a.current_value for a in assets_list)
-            result['acc_dep'] = acc_dep
-            result['nbv'] = nbv
-            return result
-
-        # Overall totals (all assets, no date filter)
-        all_assets = list(base_qs.select_related('category', 'department', 'site'))
-        total_count = len(all_assets)
-        total_cost = sum((a.purchase_price or Decimal('0')) for a in all_assets)
-        total_acc_dep = sum(a.accumulated_depreciation for a in all_assets)
-        total_nbv = sum(a.current_value for a in all_assets)
-
-        # Opening / additions / closing
-        opening_data = agg_financials(opening_qs) if date_from else None
-        additions_data = agg_financials(additions_qs) if (date_from or date_to) else None
-        closing_data = agg_financials(base_qs.filter(purchase_date__lte=date_to) if date_to else base_qs)
-
-        # --- By Category ---
-        by_category = []
-        cat_groups = base_qs.values('category__id', 'category__name').annotate(
-            count=Count('id'),
-            total_cost=Coalesce(Sum('purchase_price'), Decimal('0'))
-        ).order_by('-total_cost')
-        for row in cat_groups:
-            cat_assets = [a for a in all_assets if a.category_id == row['category__id']]
-            acc = sum(a.accumulated_depreciation for a in cat_assets)
-            nbv = sum(a.current_value for a in cat_assets)
-            by_category.append({
-                'name': row['category__name'] or 'Uncategorized',
-                'count': row['count'],
-                'cost': row['total_cost'] or Decimal('0'),
-                'acc_dep': acc,
-                'nbv': nbv,
-            })
-
-        # --- By Status ---
-        by_status = []
-        for code, label in Asset.Status.choices:
-            status_assets = [a for a in all_assets if a.status == code]
-            cost = sum((a.purchase_price or Decimal('0')) for a in status_assets)
-            acc = sum(a.accumulated_depreciation for a in status_assets)
-            nbv = sum(a.current_value for a in status_assets)
-            by_status.append({
-                'label': label, 'count': len(status_assets),
-                'cost': cost, 'acc_dep': acc, 'nbv': nbv,
-            })
-
-        # --- By Condition ---
-        by_condition = []
-        for code, label in Asset.Condition.choices:
-            c_assets = [a for a in all_assets if a.condition == code]
-            cost = sum((a.purchase_price or Decimal('0')) for a in c_assets)
-            acc = sum(a.accumulated_depreciation for a in c_assets)
-            nbv = sum(a.current_value for a in c_assets)
-            by_condition.append({
-                'label': label, 'count': len(c_assets),
-                'cost': cost, 'acc_dep': acc, 'nbv': nbv,
-            })
-
-        # --- Tagged vs Untagged ---
-        tagged_assets = [a for a in all_assets if a.is_tagged]
-        untagged_assets = [a for a in all_assets if not a.is_tagged]
-        by_tagged = [
-            {
-                'label': 'Tagged',
-                'count': len(tagged_assets),
-                'cost': sum((a.purchase_price or Decimal('0')) for a in tagged_assets),
-                'acc_dep': sum(a.accumulated_depreciation for a in tagged_assets),
-                'nbv': sum(a.current_value for a in tagged_assets),
-            },
-            {
-                'label': 'Untagged',
-                'count': len(untagged_assets),
-                'cost': sum((a.purchase_price or Decimal('0')) for a in untagged_assets),
-                'acc_dep': sum(a.accumulated_depreciation for a in untagged_assets),
-                'nbv': sum(a.current_value for a in untagged_assets),
-            },
-        ]
-
-        # --- By Department ---
-        by_department = []
-        dept_map = {}
-        for a in all_assets:
-            key = a.department_id
-            label = a.department.name if a.department else 'No Department'
-            if key not in dept_map:
-                dept_map[key] = {'label': label, 'assets': []}
-            dept_map[key]['assets'].append(a)
-        for entry in sorted(dept_map.values(), key=lambda x: -sum((a.purchase_price or 0) for a in x['assets'])):
-            a_list = entry['assets']
-            by_department.append({
-                'label': entry['label'],
-                'count': len(a_list),
-                'cost': sum((a.purchase_price or Decimal('0')) for a in a_list),
-                'acc_dep': sum(a.accumulated_depreciation for a in a_list),
-                'nbv': sum(a.current_value for a in a_list),
-            })
-
-        # --- By Site ---
-        by_site = []
-        site_map = {}
-        for a in all_assets:
-            key = a.site_id
-            label = a.site.name if a.site else 'No Site'
-            if key not in site_map:
-                site_map[key] = {'label': label, 'assets': []}
-            site_map[key]['assets'].append(a)
-        for entry in sorted(site_map.values(), key=lambda x: -sum((a.purchase_price or 0) for a in x['assets'])):
-            a_list = entry['assets']
-            by_site.append({
-                'label': entry['label'],
-                'count': len(a_list),
-                'cost': sum((a.purchase_price or Decimal('0')) for a in a_list),
-                'acc_dep': sum(a.accumulated_depreciation for a in a_list),
-                'nbv': sum(a.current_value for a in a_list),
-            })
-
-        context = {
-            # Totals
-            'total_count': total_count,
-            'total_cost': total_cost,
-            'total_acc_dep': total_acc_dep,
-            'total_nbv': total_nbv,
-            # Period
-            'date_from': date_from_str,
-            'date_to': date_to_str,
-            'opening_data': opening_data,
-            'additions_data': additions_data,
-            'closing_data': closing_data,
-            # Breakdowns
-            'by_category': by_category,
-            'by_status': by_status,
-            'by_condition': by_condition,
-            'by_tagged': by_tagged,
-            'by_department': by_department,
-            'by_site': by_site,
-            # Currency
-            'currency': 'AED',
-        }
-        return render(request, self.template_name, context)
-
 
 # AJAX View to create category inline
 @login_required
@@ -4751,3 +4309,89 @@ def download_barcode_batch(request):
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def label_print_center(request):
+    """Label Print Center — lets the user pick a design and select assets to print."""
+    org = request.user.organization
+    categories = Category.objects.filter(organization=org).order_by('name')
+    branches = Branch.objects.filter(organization=org).order_by('name')
+    all_assets = Asset.objects.filter(organization=org).order_by('asset_tag').values('asset_tag')
+    return render(request, 'assets/label_print_center.html', {
+        'org': org,
+        'categories': categories,
+        'branches': branches,
+        'all_assets': all_assets,
+    })
+
+
+@login_required
+def print_asset_labels_bulk(request):
+    """Renders the printable label sheet based on filters passed via GET params."""
+    org = request.user.organization
+    design = request.GET.get('design', 'CLASSIC').upper()
+    VALID_DESIGNS = {'CLASSIC', 'COMPACT', 'DETAILED', 'BARCODE_ONLY'}
+    if design not in VALID_DESIGNS:
+        design = 'CLASSIC'
+
+    DESIGN_CHOICES = [
+        ('CLASSIC', 'Classic'),
+        ('COMPACT', 'Compact'),
+        ('DETAILED', 'Standard'),
+        ('BARCODE_ONLY', 'Barcode Only'),
+    ]
+
+    qs = Asset.objects.filter(organization=org)
+
+    # Filter by specific IDs (from asset-list checkbox selection)
+    ids = request.GET.get('ids', '')
+    if ids:
+        id_list = [i.strip() for i in ids.split(',') if i.strip()]
+        qs = qs.filter(id__in=id_list)
+    else:
+        # Filter by tag range
+        tag_from = request.GET.get('tag_from', '')
+        tag_to = request.GET.get('tag_to', '')
+        category = request.GET.get('category', '')
+        branch = request.GET.get('branch', '')
+        specific_tags = request.GET.get('specific_tags', '')
+
+        if tag_from and tag_to:
+            qs = qs.filter(asset_tag__gte=tag_from, asset_tag__lte=tag_to)
+        elif category or branch:
+            if category:
+                qs = qs.filter(category_id=category)
+            if branch:
+                qs = qs.filter(branch_id=branch)
+        elif specific_tags:
+            tags = [t.strip() for t in specific_tags.replace('\n', ',').split(',') if t.strip()]
+            qs = qs.filter(asset_tag__in=tags)
+
+    qs = qs.order_by('asset_tag')
+
+    # Batch pagination — 100 labels per page
+    BATCH_SIZE = 100
+    total_count = qs.count()
+    total_batches = max(1, (total_count + BATCH_SIZE - 1) // BATCH_SIZE)
+    try:
+        batch = max(1, min(int(request.GET.get('batch', 1)), total_batches))
+    except (ValueError, TypeError):
+        batch = 1
+
+    batch_start = (batch - 1) * BATCH_SIZE
+    batch_end = batch_start + BATCH_SIZE
+    assets = list(qs[batch_start:batch_end])
+
+    return render(request, 'assets/print_label.html', {
+        'org': org,
+        'assets': assets,
+        'design': design,
+        'designs': DESIGN_CHOICES,
+        'batch': batch,
+        'total_batches': total_batches,
+        'total_count': total_count,
+        'batch_start': batch_start + 1,
+        'batch_end': min(batch_end, total_count),
+        'remaining': max(0, total_count - batch_end),
+    })

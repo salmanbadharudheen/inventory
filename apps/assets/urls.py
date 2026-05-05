@@ -1,10 +1,11 @@
 from django.urls import path
 from .views import (
-    AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView,
+    AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView, 
     BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
+    label_print_center, print_asset_labels_bulk,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
@@ -17,9 +18,8 @@ from .views import (
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
     AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferExportExcelView,
-    AssetDisposalListView, AssetDisposalExportExcelView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
-    ReportsListView, MastersListView, MastersExportExcelView,
-    AssetReconciliationReportView,
+    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
+    ReportsListView, MastersListView, MastersExportExcelView
 )
 from .views_approval import (
     AssetApprovalRequestCreateView,
@@ -37,12 +37,11 @@ urlpatterns = [
     path('depreciation/group/', DepreciationReportGroupView.as_view(), name='depreciation-group'),
     path('depreciation/location/', DepreciationReportLocationView.as_view(), name='depreciation-location'),
     path('depreciation/department/', DepreciationReportDepartmentView.as_view(), name='depreciation-department'),
-    path('reconciliation/', AssetReconciliationReportView.as_view(), name='reconciliation-report'),
-
+    
     # Masters
     path('masters/', MastersListView.as_view(), name='masters-list'),
     path('masters/export/excel/', MastersExportExcelView.as_view(), name='masters-export-excel'),
-
+    
     # Assets
     path('', AssetListView.as_view(), name='asset-list'),
     path('bulk-action/', BulkAssetActionView.as_view(), name='asset-bulk-action'),
@@ -63,13 +62,15 @@ urlpatterns = [
     path('add/', AssetCreateView.as_view(), name='asset-create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset-detail'),
     path('<uuid:pk>/edit/', AssetUpdateView.as_view(), name='asset-update'),
-
-    # Barcode and QR code endpoints
+    
+    # Barcode & QR Code endpoints
     path('<uuid:pk>/codes/generate/', generate_asset_codes, name='generate-asset-codes'),
     path('<uuid:pk>/barcode/download/', download_asset_barcode, name='download-asset-barcode'),
     path('<uuid:pk>/qr/download/', download_asset_qr, name='download-asset-qr'),
     path('<uuid:pk>/label/download/', download_asset_label, name='download-asset-label'),
     path('barcodes/download/batch/', download_barcode_batch, name='download-barcode-batch'),
+    path('labels/print/', label_print_center, name='label-print-center'),
+    path('labels/print/bulk/', print_asset_labels_bulk, name='print-asset-labels-bulk'),
 
     # Configuration: Categories
     path('categories/', CategoryListView.as_view(), name='category-list'),
@@ -80,7 +81,7 @@ urlpatterns = [
     path('subcategories/', SubCategoryListView.as_view(), name='subcategory-list'),
     path('subcategories/add/', SubCategoryCreateView.as_view(), name='subcategory-create'),
     path('subcategories/<int:pk>/edit/', SubCategoryUpdateView.as_view(), name='subcategory-edit'),
-
+    
     # Configuration: Vendors
     path('vendors/', VendorListView.as_view(), name='vendor-list'),
     path('vendors/add/', VendorCreateView.as_view(), name='vendor-create'),
@@ -121,21 +122,21 @@ urlpatterns = [
     path('remarks/', AssetRemarksListView.as_view(), name='assetremarks-list'),
     path('remarks/add/', AssetRemarksCreateView.as_view(), name='assetremarks-create'),
     path('remarks/<int:pk>/edit/', AssetRemarksUpdateView.as_view(), name='assetremarks-edit'),
-
+    
     # Approval Workflow
     path('approvals/', ApprovalListView.as_view(), name='approval_list'),
     path('approvals/<uuid:pk>/', ApprovalDetailView.as_view(), name='approval_detail'),
     path('approvals/<uuid:pk>/approve/', ApprovalApproveView.as_view(), name='approval_approve'),
     path('approvals/new/', CreateApprovalRequestView.as_view(), name='approval_create'),
-
-    # Asset Approval Request
+    
+    # Asset Approval Request (New Feature)
     path('approval-requests/', ApprovalRequestListView.as_view(), name='approval-request-list'),
     path('approval-requests/new/', AssetApprovalRequestCreateView.as_view(), name='approval-request-create'),
     path('approval-requests/<uuid:pk>/', ApprovalRequestDetailView.as_view(), name='approval-request-detail'),
     path('approval-requests/<uuid:pk>/approve/', ApprovalRequestApproveView.as_view(), name='approval-request-approve'),
     path('approval-requests/<uuid:pk>/reject/', ApprovalRequestRejectView.as_view(), name='approval-request-reject'),
     path('approval-requests/pending/', ApprovalPendingListView.as_view(), name='approval-pending-list'),
-
+    
     # Asset Transfer Workflow
     path('transfers/', AssetTransferListView.as_view(), name='transfer-list'),
     path('transfers/export/excel/', AssetTransferExportExcelView.as_view(), name='transfer-export-excel'),
@@ -143,10 +144,9 @@ urlpatterns = [
     path('transfers/<uuid:pk>/', AssetTransferDetailView.as_view(), name='transfer-detail'),
     path('transfers/<uuid:pk>/edit/', AssetTransferUpdateView.as_view(), name='transfer-update'),
     path('transfers/<uuid:pk>/receive/', AssetTransferReceiveView.as_view(), name='transfer-receive'),
-
-    # Asset Disposal Workflow
+    
+    # Asset Disposal Workflow (Two-step approval: Manager → Admin)
     path('disposals/', AssetDisposalListView.as_view(), name='disposal-list'),
-    path('disposals/export/excel/', AssetDisposalExportExcelView.as_view(), name='disposal-export-excel'),
     path('disposals/add/', AssetDisposalCreateView.as_view(), name='disposal-create'),
     path('disposals/<uuid:pk>/', AssetDisposalDetailView.as_view(), name='disposal-detail'),
     path('disposals/<uuid:pk>/manager-approve/', AssetDisposalManagerApproveView.as_view(), name='disposal-manager-approve'),
