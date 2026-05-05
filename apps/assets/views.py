@@ -95,10 +95,11 @@ def lookup_asset(request):
             asset = None
 
     elif asset_tag:
-        # Search by asset tag
+        # Search by asset tag, asset code, ERP number (exact) then partial
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=asset_tag) | 
-            Q(custom_asset_tag__iexact=asset_tag),
+            Q(asset_tag__iexact=asset_tag) |
+            Q(asset_code__iexact=asset_tag) |
+            Q(erp_asset_number__iexact=asset_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -106,12 +107,25 @@ def lookup_asset(request):
             'company', 'custodian'
         ).first()
 
+        if not asset:
+            # Partial match fallback
+            asset = Asset.objects.filter(
+                Q(asset_tag__icontains=asset_tag) |
+                Q(asset_code__icontains=asset_tag) |
+                Q(name__icontains=asset_tag),
+                organization=org
+            ).select_related(
+                'department', 'branch', 'building', 'floor', 'room',
+                'region', 'site', 'location', 'sub_location', 'assigned_to',
+                'company', 'custodian'
+            ).first()
+
     elif query:
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
-            Q(asset_tag__iexact=query) | 
-            Q(custom_asset_tag__iexact=query) |
-            Q(asset_code__iexact=query),
+            Q(asset_tag__iexact=query) |
+            Q(asset_code__iexact=query) |
+            Q(erp_asset_number__iexact=query),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -181,7 +195,7 @@ def lookup_asset(request):
     return JsonResponse({'asset': current, 'departments': departments, 'locations': locations, 'users': users})
 
 ASSET_IMPORT_FIELDS = [
-    'name', 'description', 'short_description', 'asset_tag', 'custom_asset_tag', 
+    'name', 'description', 'short_description', 'asset_tag',
     'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
     'category', 'sub_category', 'asset_type', 'group', 'sub_group', 'brand', 
     'model', 'condition', 'status', 'department', 'cost_center', 'company', 
@@ -328,7 +342,6 @@ class AssetListView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(erp_asset_number__icontains=query) |
                 Q(serial_number__icontains=query) |
@@ -1150,7 +1163,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'brand name': 'brand', 'company name': 'company',
         'supplier name': 'supplier', 'vendor name': 'vendor',
         'asset name': 'name', 'asset description': 'description',
-        'asset tag': 'asset_tag', 'custom asset tag': 'custom_asset_tag',
+        'asset tag': 'asset_tag',
         'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
         'asset code': 'asset_code', 'asset type': 'asset_type',
         'label type': 'label_type', 'serial number': 'serial_number',
@@ -1638,7 +1651,6 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     description=str(row.get('description') or ''),
                     short_description=str(row.get('short_description') or ''),
                     asset_tag=asset_tag,
-                    custom_asset_tag=row.get('custom_asset_tag'),
                     asset_code=row.get('asset_code'),
                     erp_asset_number=row.get('erp_asset_number'),
                     quantity=parse_int(row.get('quantity'), 1),
@@ -2908,7 +2920,9 @@ class AssetTransferListView(LoginRequiredMixin, ListView):
         if search:
             queryset = queryset.filter(
                 Q(asset__asset_tag__icontains=search) |
+                Q(asset__asset_code__icontains=search) |
                 Q(asset__name__icontains=search) |
+                Q(transfer_no__icontains=search) |
                 Q(transfer_reason__icontains=search)
             )
 
@@ -3013,10 +3027,8 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/transfer_form.html'
 
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        if not (user.role == user.Role.EMPLOYEE or user.is_superuser):
-            messages.error(request, 'Only employees can create asset transfer requests.')
-            return redirect('transfer-list')
+        if not request.user.is_authenticated:
+            return redirect('login')
         return super().dispatch(request, *args, **kwargs)
     
     def get_form_kwargs(self):
@@ -3027,57 +3039,46 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
         form.instance.created_by = self.request.user
-        # Support multiple assets: frontend may submit comma-separated asset IDs in `asset` field
-        asset_field = form.cleaned_data.get('asset') or self.request.POST.get('asset', '')
-        # Normalize to list of ids (strings)
-        if asset_field and isinstance(asset_field, str) and ',' in asset_field:
-            asset_ids = [s.strip() for s in asset_field.split(',') if s.strip()]
-        elif hasattr(asset_field, 'pk'):
-            asset_ids = [str(asset_field.pk)]
-        elif asset_field:
-            asset_ids = [str(asset_field)]
-        else:
-            asset_ids = []
+        # Asset IDs come from the hidden asset_ids CharField (plain string, possibly comma-separated UUIDs)
+        asset_raw = form.cleaned_data.get('asset_ids') or self.request.POST.get('asset_ids', '')
+        asset_ids = [s.strip() for s in str(asset_raw).split(',') if s.strip()]
+
+        if not asset_ids:
+            form.add_error(None, 'Please add at least one asset before submitting.')
+            return self.form_invalid(form)
 
         created = []
-        if asset_ids:
-            for aid in asset_ids:
-                try:
-                    asset_obj = Asset.objects.get(pk=aid, organization=self.request.user.organization)
-                except Asset.DoesNotExist:
-                    continue
+        for aid in asset_ids:
+            try:
+                asset_obj = Asset.objects.get(pk=aid, organization=self.request.user.organization)
+            except (Asset.DoesNotExist, Exception):
+                continue
 
-                at = AssetTransfer.objects.create(
-                    organization=self.request.user.organization,
-                    created_by=self.request.user,
-                    asset=asset_obj,
-                    transfer_no=form.cleaned_data.get('transfer_no'),
-                    transfer_description=form.cleaned_data.get('transfer_description'),
-                    transferred_to_region=form.cleaned_data.get('transferred_to_region'),
-                    transferred_to_site=form.cleaned_data.get('transferred_to_site'),
-                    transferred_to_building=form.cleaned_data.get('transferred_to_building'),
-                    transferred_to_floor=form.cleaned_data.get('transferred_to_floor'),
-                    transferred_to_room=form.cleaned_data.get('transferred_to_room'),
-                    transferred_to_company=form.cleaned_data.get('transferred_to_company'),
-                    transferred_to_department=form.cleaned_data.get('transferred_to_department'),
-                    transferred_to_custodian=form.cleaned_data.get('transferred_to_custodian'),
-                    movement_reason=form.cleaned_data.get('movement_reason'),
-                    requester_name=form.cleaned_data.get('requester_name'),
-                )
-                created.append(at)
+            at = AssetTransfer.objects.create(
+                organization=self.request.user.organization,
+                created_by=self.request.user,
+                asset=asset_obj,
+                transfer_no=form.cleaned_data.get('transfer_no'),
+                transfer_description=form.cleaned_data.get('transfer_description'),
+                transferred_to_region=form.cleaned_data.get('transferred_to_region'),
+                transferred_to_site=form.cleaned_data.get('transferred_to_site'),
+                transferred_to_building=form.cleaned_data.get('transferred_to_building'),
+                transferred_to_floor=form.cleaned_data.get('transferred_to_floor'),
+                transferred_to_room=form.cleaned_data.get('transferred_to_room'),
+                transferred_to_company=form.cleaned_data.get('transferred_to_company'),
+                transferred_to_department=form.cleaned_data.get('transferred_to_department'),
+                transferred_to_custodian=form.cleaned_data.get('transferred_to_custodian'),
+                movement_reason=form.cleaned_data.get('movement_reason'),
+                requester_name=form.cleaned_data.get('requester_name'),
+            )
+            created.append(at)
 
-            if created:
-                # Redirect to the first created transfer
-                messages.success(self.request, f'Asset transfer created for {len(created)} asset(s)')
-                return redirect(reverse('transfer-detail', kwargs={'pk': created[0].pk}))
-            else:
-                form.add_error(None, 'No valid assets were provided')
-                return self.form_invalid(form)
+        if created:
+            messages.success(self.request, f'Asset transfer created for {len(created)} asset(s).')
+            return redirect(reverse('transfer-detail', kwargs={'pk': created[0].pk}))
 
-        # Fallback: single asset (normal flow)
-        response = super().form_valid(form)
-        messages.success(self.request, f'Asset transfer created successfully for {form.instance.asset.asset_tag}')
-        return response
+        form.add_error(None, 'No valid assets were found. Please check the asset tag/ID and try again.')
+        return self.form_invalid(form)
     
     def get_success_url(self):
         return reverse('transfer-detail', kwargs={'pk': self.object.pk})
@@ -3149,11 +3150,11 @@ class AssetTransferReceiveView(LoginRequiredMixin, UpdateView):
 
     def _is_transfer_approver(self):
         user = self.request.user
-        return user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER]
+        return user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER, user.Role.CHECKER]
 
     def dispatch(self, request, *args, **kwargs):
         if not self._is_transfer_approver():
-            return HttpResponseForbidden('Only senior manager or admin can approve asset transfer requests.')
+            return HttpResponseForbidden('Only manager, senior manager, or admin can approve asset transfer requests.')
         return super().dispatch(request, *args, **kwargs)
     
     def get_queryset(self):
@@ -3163,7 +3164,7 @@ class AssetTransferReceiveView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         form.instance.received_by = self.request.user
         user = self.request.user
-        is_final_approver = user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER]
+        is_final_approver = user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER, user.Role.CHECKER]
 
         if form.instance.status == AssetTransfer.Status.RECEIVED:
             if not form.instance.actual_receipt_date:
@@ -3417,7 +3418,6 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(category__name__icontains=query)
@@ -3605,7 +3605,6 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(department__name__icontains=query)
@@ -3786,7 +3785,6 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(location__name__icontains=query)
@@ -3967,7 +3965,6 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             q = (
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
-                Q(custom_asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(group__name__icontains=query)

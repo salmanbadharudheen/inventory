@@ -16,6 +16,12 @@
                   <form method="post" id="simple-transfer-form" class="asset-form">
                     {% csrf_token %}
 
+                    {% if form.non_field_errors %}
+                    <div style="background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;">
+                      {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                    {% endif %}
+
                     <div class="form-row">
                       <div class="form-group">
                         <label class="form-label">Transfer No</label>
@@ -92,14 +98,14 @@
 
                     <div class="form-row">
                       <div class="form-group full-width">
-                        <label class="form-label">Assets (enter asset tags)</label>
+                        <label class="form-label">Assets (search by tag, code or name)</label>
                         <div style="display:flex;gap:8px;">
-                          <input type="text" id="asset-tag-input" class="form-control" placeholder="e.g. ASSET-001 and press Enter" />
+                          <input type="text" id="asset-tag-input" class="form-control" placeholder="e.g. ASSET-001 or asset code, then press Enter" />
                           <button type="button" id="asset-add-btn" class="btn-default">Add</button>
                         </div>
-                        {{ form.asset }}
-                        <div id="asset-lookup-result" style="margin-top:6px;color:#555;font-size:13px;"></div>
-                        <div id="asset-list" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+                        {{ form.asset_ids }}
+                        <div id="asset-lookup-result" style="margin-top:6px;font-size:13px;"></div>
+                        <div id="asset-list" style="margin-top:8px;display:flex;flex-direction:column;gap:10px;"></div>
                       </div>
                     </div>
 
@@ -181,60 +187,105 @@
                   // Asset lookup by tag -> populate hidden asset field
                   const assetTagInput = document.getElementById('asset-tag-input');
                   const assetAddBtn = document.getElementById('asset-add-btn');
-                  const hiddenAsset = document.getElementById('{{ form.asset.id_for_label }}');
+                  const hiddenAsset = document.getElementById('{{ form.asset_ids.id_for_label }}');
                   const assetResult = document.getElementById('asset-lookup-result');
                   const assetList = document.getElementById('asset-list');
                   let selectedAssets = [];
 
+                  function locationLabel(obj){ return obj ? obj.name : null; }
+
+                  function buildLocationCard(a){
+                    const loc = a.locationData;
+                    const rows = [
+                      ['Asset Tag', a.tag],
+                      ['Asset Name', a.name],
+                      ['Department', locationLabel(loc.department)],
+                      ['Branch', locationLabel(loc.branch)],
+                      ['Region', locationLabel(loc.region)],
+                      ['Site', locationLabel(loc.site)],
+                      ['Building', locationLabel(loc.building)],
+                      ['Floor', locationLabel(loc.floor)],
+                      ['Room', locationLabel(loc.room)],
+                      ['Custodian', loc.custodian ? loc.custodian.name : null],
+                      ['Assigned To', loc.assigned_to ? loc.assigned_to.name : null],
+                      ['Status', loc.status],
+                    ].filter(r => r[1]);
+
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;position:relative;';
+
+                    // Remove button
+                    const rem = document.createElement('button');
+                    rem.type = 'button';
+                    rem.innerHTML = '&times;';
+                    rem.title = 'Remove asset';
+                    rem.style.cssText = 'position:absolute;top:8px;right:10px;background:transparent;border:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1;';
+                    rem.addEventListener('click', function(){
+                      selectedAssets = selectedAssets.filter(x => x.id !== a.id);
+                      hiddenAsset.value = selectedAssets.map(x => x.id).join(',');
+                      renderAssetChips();
+                    });
+                    card.appendChild(rem);
+
+                    // Header
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-weight:700;color:#15803d;margin-bottom:8px;font-size:13px;display:flex;align-items:center;gap:6px;';
+                    header.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Current Location — ' + a.tag;
+                    card.appendChild(header);
+
+                    // Grid of location fields
+                    const grid = document.createElement('div');
+                    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 14px;';
+                    rows.forEach(([label, val]) => {
+                      const item = document.createElement('div');
+                      item.style.cssText = 'font-size:12px;';
+                      item.innerHTML = '<span style="color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:10px;">' + label + '</span><br><span style="color:#111827;">' + val + '</span>';
+                      grid.appendChild(item);
+                    });
+                    card.appendChild(grid);
+                    return card;
+                  }
+
                   function renderAssetChips(){
                     assetList.innerHTML = '';
-                    selectedAssets.forEach(a=>{
-                      const chip = document.createElement('div');
-                      chip.style.background = '#eef2ff';
-                      chip.style.color = '#1f2937';
-                      chip.style.padding = '6px 10px';
-                      chip.style.borderRadius = '999px';
-                      chip.style.display = 'inline-flex';
-                      chip.style.alignItems = 'center';
-                      chip.style.gap = '8px';
-                      chip.textContent = a.tag + ' — ' + a.name;
-                      const rem = document.createElement('button');
-                      rem.type = 'button';
-                      rem.textContent = '×';
-                      rem.style.background = 'transparent';
-                      rem.style.border = 'none';
-                      rem.style.cursor = 'pointer';
-                      rem.addEventListener('click', function(){
-                        selectedAssets = selectedAssets.filter(x=> x.id !== a.id);
-                        hiddenAsset.value = selectedAssets.map(x=>x.id).join(',');
-                        renderAssetChips();
-                      });
-                      chip.appendChild(rem);
-                      assetList.appendChild(chip);
-                    });
+                    selectedAssets.forEach(a => assetList.appendChild(buildLocationCard(a)));
                   }
 
                   async function lookupAndAdd(tag){
-                    assetResult.textContent = '';
+                    assetResult.textContent = 'Searching...';
+                    assetResult.style.color = '#6b7280';
                     if(!tag) return;
                     const url = new URL('{% url "asset-lookup" %}', window.location.origin);
                     url.searchParams.set('asset_tag', tag);
                     try{
                       const r = await fetch(url.toString());
-                      if(!r.ok){ assetResult.textContent = 'Asset not found'; return; }
-                      const data = await r.json();
-                      const found = data.asset;
-                      // avoid duplicates
-                      if(selectedAssets.some(x=>x.id === found.id)){
-                        assetResult.textContent = 'Asset already added';
+                      if(!r.ok){
+                        assetResult.textContent = 'Asset not found. Check the tag or code and try again.';
+                        assetResult.style.color = '#dc2626';
                         return;
                       }
-                      selectedAssets.push({ id: found.id, tag: found.asset_tag, name: found.name });
+                      const data = await r.json();
+                      const found = data.asset;
+                      if(!found || !found.id){
+                        assetResult.textContent = 'Asset not found.';
+                        assetResult.style.color = '#dc2626';
+                        return;
+                      }
+                      if(selectedAssets.some(x=>x.id === found.id)){
+                        assetResult.textContent = 'Asset already added.';
+                        assetResult.style.color = '#d97706';
+                        return;
+                      }
+                      selectedAssets.push({ id: found.id, tag: found.asset_tag, name: found.name, locationData: found });
                       hiddenAsset.value = selectedAssets.map(x=>x.id).join(',');
-                      assetResult.textContent = '';
+                      assetResult.textContent = '\u2713 Added: ' + found.asset_tag + ' — ' + found.name;
+                      assetResult.style.color = '#059669';
                       renderAssetChips();
                       assetTagInput.value = '';
-                    }catch(e){ assetResult.textContent = 'Lookup error'; }
+                    }catch(e){
+                      assetResult.textContent = 'Lookup error. Please try again.';
+                      assetResult.style.color = '#dc2626';
+                    }
                   }
 
                   if(assetAddBtn){

@@ -19,6 +19,8 @@
                 <i data-lucide="edit"></i>
             </a>
             {% endif %}
+            {% endif %}
+            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER or request.user.is_superuser %}
             {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
             <a href="{% url 'transfer-receive' transfer.id %}" class="btn-primary-action" title="Receive Transfer">
                 <i data-lucide="check"></i> Receive
@@ -46,9 +48,9 @@
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <p class="timeline-label">Created</p>
-                                <p class="timeline-date">{{ transfer.created_at|date:"d M Y H:i" }}</p>
+                                <p class="timeline-date">{{ transfer.transfer_date|date:"d M Y H:i" }}</p>
                                 {% if transfer.created_by %}
-                                <p class="timeline-by">by {{ transfer.created_by.get_full_name }}</p>
+                                <p class="timeline-by">by {{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</p>
                                 {% endif %}
                             </div>
                         </div>

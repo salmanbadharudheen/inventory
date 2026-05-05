@@ -11,7 +11,7 @@
                 <a href="{% url 'transfer-export-excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-secondary">
                     <i data-lucide="file-spreadsheet"></i> Export Excel
                 </a>
-                {% if request.user.role == request.user.Role.EMPLOYEE or request.user.is_superuser %}
+                {% if request.user.is_authenticated %}
                 <a href="{% url 'transfer-create' %}" class="btn btn-primary">
                     <i data-lucide="plus"></i> New Transfer
                 </a>
@@ -23,18 +23,12 @@
             <div class="filter-left">
                 <div class="search">
                     <i data-lucide="search"></i>
-                    <input type="text" name="search" placeholder="Search transfers, tags or names" value="{{ search }}">
+                    <input type="text" name="search" placeholder="Search by asset tag, asset code, name or transfer no." value="{{ search }}">
                 </div>
                 <select name="status">
                     <option value="">All Status</option>
                     {% for code, label in status_choices %}
                     <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <select name="asset">
-                    <option value="">All Assets</option>
-                    {% for asset in assets %}
-                    <option value="{{ asset.id }}" {% if asset_filter == asset.id|stringformat:"s" %}selected{% endif %}>{{ asset.asset_tag }} - {{ asset.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -43,6 +37,9 @@
                 <input type="date" name="date_from" value="{{ date_from }}" title="From">
                 <input type="date" name="date_to" value="{{ date_to }}" title="To">
                 <button type="submit" class="btn btn-secondary">Apply</button>
+                {% if search or status_filter or date_from or date_to %}
+                <a href="{% url 'transfer-list' %}" class="btn btn-secondary" title="Clear filters">Clear</a>
+                {% endif %}
             </div>
         </form>
     </header>
@@ -57,7 +54,8 @@
                         <th>Asset</th>
                         <th>From</th>
                         <th>To</th>
-                        <th>Date</th>
+                        <th>Transferred By</th>
+                        <th>Date & Time</th>
                         <th>Status</th>
                         <th></th>
                     </tr>
@@ -85,7 +83,14 @@
                                 -
                             {% endif %}
                         </td>
-                        <td>{{ transfer.transfer_date|date:"d M Y" }}</td>
+                        <td class="muted">
+                            {% if transfer.created_by %}
+                                {{ transfer.created_by.get_full_name|default:transfer.created_by.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ transfer.transfer_date|date:"d M Y H:i" }}</td>
                         <td>
                             {% with cls=transfer.status|lower %}
                             <span class="pill pill-{{ cls|slugify }}">{{ transfer.get_status_display }}</span>
@@ -97,6 +102,8 @@
                             {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
                             <a href="{% url 'transfer-update' transfer.id %}" class="icon-btn" title="Edit"><i data-lucide="edit"></i></a>
                             {% endif %}
+                            {% endif %}
+                            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER or request.user.is_superuser %}
                             {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
                             <a href="{% url 'transfer-receive' transfer.id %}" class="icon-btn" title="Receive"><i data-lucide="check"></i></a>
                             {% endif %}

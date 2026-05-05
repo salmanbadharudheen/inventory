@@ -2,7 +2,6 @@ import os
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
@@ -21,7 +20,7 @@ ALLOWED_DOCUMENT_EXTENSIONS = {
 class AssetForm(forms.ModelForm):
     class Meta:
         model = Asset
-        exclude = ['organization', 'created_by', 'is_deleted', 'custom_fields', 'asset_tag', 'salvage_value', 'useful_life_years']
+        exclude = ['organization', 'created_by', 'is_deleted', 'custom_fields', 'asset_tag']
         widgets = {
             'purchase_date': forms.DateInput(attrs={'type': 'date'}),
             'warranty_start': forms.DateInput(attrs={'type': 'date'}),
@@ -60,7 +59,6 @@ class AssetForm(forms.ModelForm):
             # Filter dropdowns by Organization if user is logged in
             if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
                 org = self.request.user.organization
-                User = get_user_model()
                 self.fields['category'].queryset = Category.objects.filter(organization=org)
                 self.fields['sub_category'].queryset = SubCategory.objects.filter(category__organization=org)
                 self.fields['branch'].queryset = Branch.objects.filter(organization=org)
@@ -77,7 +75,6 @@ class AssetForm(forms.ModelForm):
                 self.fields['company'].queryset = Company.objects.filter(organization=org)
                 self.fields['supplier'].queryset = Supplier.objects.filter(organization=org)
                 self.fields['custodian'].queryset = Custodian.objects.filter(organization=org)
-                self.fields['assigned_to'].queryset = User.objects.filter(organization=org)
                 self.fields['region'].queryset = Region.objects.filter(organization=org)
                 self.fields['site'].queryset = Site.objects.filter(region__organization=org)
                 self.fields['location'].queryset = Location.objects.filter(site__region__organization=org)
@@ -92,11 +89,11 @@ class AssetForm(forms.ModelForm):
                         try:
                             parent_id = self.data.get('parent')
                             if parent_id:
-                                self.fields['parent'].queryset = Asset.objects.filter(id=parent_id, organization=org)
+                                self.fields['parent'].queryset = Asset.objects.filter(id=parent_id)
                         except (ValueError, TypeError):
                             pass  # invalid input from the client; ignore and fallback to empty queryset
                     elif self.instance.pk and self.instance.parent:
-                        self.fields['parent'].queryset = Asset.objects.filter(pk=self.instance.parent.pk, organization=org)
+                        self.fields['parent'].queryset = Asset.objects.filter(pk=self.instance.parent.pk)
         except Exception:
             import traceback
             print("ERROR in AssetForm.__init__:")
@@ -303,8 +300,10 @@ class AssetRemarksForm(forms.ModelForm):
 
 class AssetTransferForm(forms.ModelForm):
     """Form for creating and updating asset transfers"""
-    
-    
+
+    # Not a model field — holds comma-separated asset UUIDs from the JS chip picker.
+    asset_ids = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = AssetTransfer
         fields = [
@@ -320,7 +319,6 @@ class AssetTransferForm(forms.ModelForm):
             'transferred_to_custodian',
             'movement_reason',
             'requester_name',
-            'asset',
         ]
         widgets = {
             'transfer_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional transfer reference'}),
@@ -338,18 +336,14 @@ class AssetTransferForm(forms.ModelForm):
                 'placeholder': 'Specific reason for this movement'
             }),
             'requester_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Requester name (free text)'}),
-            'asset': forms.HiddenInput(),
         }
     
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         
-        # Filter by organization
         if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
-            self.fields['asset'].queryset = Asset.objects.filter(organization=org)
-            # Populate the 'to' selects
             self.fields['transferred_to_region'].queryset = Region.objects.filter(organization=org)
             self.fields['transferred_to_site'].queryset = Site.objects.filter(region__organization=org)
             # Buildings are linked to Locations -> derive buildings available via locations
@@ -362,7 +356,6 @@ class AssetTransferForm(forms.ModelForm):
         
         # Make all fields optional (bulk form handles multiple assets via JS)
         self.fields['transfer_no'].required = False
-        self.fields['asset'].required = False
         self.fields['transfer_description'].required = False
         self.fields['transferred_to_region'].required = False
         self.fields['transferred_to_site'].required = False
@@ -461,13 +454,13 @@ class AssetDisposalManagerApprovalForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Only allow manager to approve or reject
         self.fields['status'].choices = [
-            (AssetDisposal.Status.MANAGER_APPROVED, _('Approve & Send to Final Approval')),
+            (AssetDisposal.Status.MANAGER_APPROVED, _('Approve & Send to Admin')),
             (AssetDisposal.Status.REJECTED, _('Reject')),
         ]
 
 
 class AssetDisposalApprovalForm(forms.ModelForm):
-    """Form for final approval or rejection of asset disposal requests (step 2)"""
+    """Form for admin final approval/rejection of asset disposal requests (step 2)"""
     
     class Meta:
         model = AssetDisposal
@@ -475,12 +468,12 @@ class AssetDisposalApprovalForm(forms.ModelForm):
         widgets = {
             'status': forms.Select(attrs={'class': 'form-control'}),
             'rejection_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for rejection'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Final approval notes'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Admin approval notes'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Only allow the final approver to approve or reject
+        # Only allow admin to approve or reject
         self.fields['status'].choices = [
             (AssetDisposal.Status.APPROVED, _('Approve')),
             (AssetDisposal.Status.REJECTED, _('Reject')),
