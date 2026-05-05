@@ -7,9 +7,11 @@
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <h3>All Users</h3>
+        {% if user.is_superuser or user.role == 'ADMIN' or user.role == 'SENIOR_MANAGER' %}
         <a href="{% url 'user-add' %}" class="btn btn-primary">
             <i data-lucide="user-plus"></i> Add User
         </a>
+        {% endif %}
     </div>
 
     <table style="width: 100%; border-collapse: collapse;">

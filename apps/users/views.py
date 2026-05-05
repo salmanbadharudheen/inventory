@@ -171,12 +171,11 @@ class AdminCreateView(LoginRequiredMixin, CreateView):
         if request.user.is_superuser and not is_superuser_org_mode(request):
             messages.info(request, 'Software owner can only manage organizations from the owner portal.')
             return redirect('admin-orgs')
+        # Restrict user addition for Data Entry and Checker roles
+        if request.user.role in [User.Role.EMPLOYEE, User.Role.CHECKER]:
+            messages.error(request, "You don't have permission to add users. Only Senior Manager, Admin, or Superuser can add users.")
+            return redirect('user-list')
         return super().dispatch(request, *args, **kwargs)
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['current_user'] = self.request.user
-        return kwargs
 
     def form_valid(self, form):
         # Auto-assign organization from current user when present
