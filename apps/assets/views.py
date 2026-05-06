@@ -1822,26 +1822,82 @@ class AssetImportView(LoginRequiredMixin, FormView):
         errors = []
         assets_to_create = []
 
-        # --- SEQUENTIAL ASSET TAG GENERATION ---
-        # Robustly find the next serial number
-        start_tag_num = 0
-        tag_prefix = "AST-"
-        # Optimized: only fetch tags that match the expected format
-        existing_tags = Asset.objects.filter(
-            organization=org, 
-            asset_tag__startswith=tag_prefix
-        ).values_list('asset_tag', flat=True)
-        
-        for tag in existing_tags:
-            try:
-                # Expecting AST-XXXXX
-                suffix = tag[len(tag_prefix):]
-                num = int(suffix)
-                if num > start_tag_num: start_tag_num = num
-            except (ValueError, IndexError, TypeError):
-                continue
-        
-        current_tag_num = start_tag_num + 1
+        # --- STRUCTURED ASSET TAG GENERATION (matches the rest of the app) ---
+        # Use the same configuration the org uses for manual asset creation
+        # (apps.assets.models.generate_asset_tag), but maintain an in-memory
+        # counter per-prefix so rows in the same import don't collide while
+        # they're queued for bulk_create (and not yet visible in the DB).
+        from datetime import date as _date
+        from .models import generate_asset_tag  # noqa: F401  (kept for parity)
+
+        _sep = getattr(org, 'tag_separator', '-') or '-'
+        _include_company = getattr(org, 'tag_include_company', True)
+        _include_category = getattr(org, 'tag_include_category', True)
+        _include_year = getattr(org, 'tag_include_year', True)
+        _seq_format = getattr(org, 'tag_sequence_format', 'HEX4') or 'HEX4'
+        _fixed_prefix = (getattr(org, 'tag_prefix', '') or '').strip().upper()
+        _year_suffix = str(_date.today().year)[-2:] if _include_year else ''
+
+        _fmt_map = {
+            'HEX4': lambda n: f"{n:04X}",
+            'HEX6': lambda n: f"{n:06X}",
+            'NUM4': lambda n: f"{n:04d}",
+            'NUM5': lambda n: f"{n:05d}",
+            'NUM6': lambda n: f"{n:06d}",
+        }
+        _fmt_seq = _fmt_map.get(_seq_format, _fmt_map['HEX4'])
+
+        # Cache: prefix -> next available number
+        _next_num_cache = {}
+
+        def _build_prefix_parts(_company, _category):
+            parts = []
+            if _fixed_prefix:
+                parts.append(_fixed_prefix)
+            elif _include_company:
+                if _company and _company.name:
+                    alpha = ''.join(c for c in _company.name if c.isalpha()).upper()
+                    code = alpha[:2] if len(alpha) >= 2 else alpha.ljust(2, 'X')[:2]
+                else:
+                    code = 'XX'
+                parts.append(code)
+            if _include_category:
+                cat_code = (_category.code[:3].upper() if _category and _category.code else 'XXX')
+                parts.append(cat_code)
+            return parts
+
+        def _seed_counter(prefix, prefix_parts):
+            """Return the highest existing sequence number for this prefix."""
+            qs = Asset.objects.filter(organization=org, asset_tag__startswith=prefix)
+            if _include_year:
+                qs = qs.filter(asset_tag__endswith=f"{_sep}{_year_suffix}")
+            total_parts = len(prefix_parts) + 1 + (1 if _include_year else 0)
+            seq_index = len(prefix_parts)
+            max_num = 0
+            for tag in qs.values_list('asset_tag', flat=True):
+                try:
+                    parts = tag.split(_sep)
+                    if len(parts) != total_parts:
+                        continue
+                    counter_str = parts[seq_index]
+                    num = int(counter_str, 16) if _seq_format.startswith('HEX') else int(counter_str)
+                    if num > max_num:
+                        max_num = num
+                except (ValueError, IndexError):
+                    continue
+            return max_num
+
+        def generate_tag_for_row(_company, _category):
+            prefix_parts = _build_prefix_parts(_company, _category)
+            prefix = _sep.join(prefix_parts)
+            if prefix not in _next_num_cache:
+                _next_num_cache[prefix] = _seed_counter(prefix, prefix_parts) + 1
+            num = _next_num_cache[prefix]
+            _next_num_cache[prefix] = num + 1
+            all_parts = prefix_parts + [_fmt_seq(num)]
+            if _include_year:
+                all_parts.append(_year_suffix)
+            return _sep.join(all_parts)
 
         for row_idx, row in enumerate(rows, start=2):
             try:
@@ -1855,10 +1911,13 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 if not category:
                     raise ValueError(f"Category '{cat_val}' not found.")
 
+                # Look up company early so we can use it in the tag
+                _company_val = row.get('company')
+                _row_company = get_from_cache(companies, _company_val)
+
                 asset_tag = str(row.get('asset_tag') or '').strip()
                 if not asset_tag:
-                    asset_tag = f"AST-{current_tag_num:05d}"
-                    current_tag_num += 1
+                    asset_tag = generate_tag_for_row(_row_company, category)
 
                 # 2. Enums / Choices
                 def get_choice(val, choices_model, default):
