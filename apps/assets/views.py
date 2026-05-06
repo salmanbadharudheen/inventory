@@ -2826,7 +2826,8 @@ class ReportsListView(LoginRequiredMixin, View):
         context = {
             'reports': reports,
             'total_assets': Asset.objects.filter(
-                organization=request.user.organization
+                organization=request.user.organization,
+                is_deleted=False
             ).count(),
         }
         
@@ -2864,7 +2865,8 @@ class MastersListView(LoginRequiredMixin, View):
         
         # Fetch assets with optimization
         assets_qs = Asset.objects.filter(
-            organization=organization
+            organization=organization,
+            is_deleted=False
         ).select_related(
             'category', 'sub_category', 'group', 'sub_group', 'brand_new',
             'company', 'supplier', 'custodian', 'department', 'assigned_to',
@@ -3376,7 +3378,7 @@ class AssetTransferListView(LoginRequiredMixin, ListView):
         org = self.request.user.organization
         
         context['status_choices'] = AssetTransfer.Status.choices
-        context['assets'] = Asset.objects.filter(organization=org)
+        context['assets'] = Asset.objects.filter(organization=org, is_deleted=False)
         context['status_filter'] = self.request.GET.get('status', '')
         context['asset_filter'] = self.request.GET.get('asset', '')
         context['date_from'] = self.request.GET.get('date_from', '')
@@ -3813,9 +3815,12 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
         form.instance.approved_by = self.request.user
         form.instance.approved_at = datetime.now()
 
+        # Capture the decision before saving
+        new_status = form.cleaned_data.get('status')
+
         response = super().form_valid(form)
 
-        if self.object.status == AssetDisposal.Status.APPROVED:
+        if new_status == AssetDisposal.Status.APPROVED:
             # Capture full asset snapshot before soft-deleting
             asset = self.object.asset
             snapshot = {
@@ -3856,7 +3861,7 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
             asset.is_deleted = True
             asset.save(update_fields=['status', 'is_deleted'])
             messages.success(self.request, f'Asset disposal approved and asset {asset.asset_tag} removed from inventory.')
-        elif self.object.status == AssetDisposal.Status.REJECTED:
+        elif new_status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected: {self.object.asset.asset_tag}')
 
         return response
@@ -5265,7 +5270,7 @@ def label_print_center(request):
     org = request.user.organization
     categories = Category.objects.filter(organization=org).order_by('name')
     branches = Branch.objects.filter(organization=org).order_by('name')
-    all_assets = Asset.objects.filter(organization=org).order_by('asset_tag').values('asset_tag')
+    all_assets = Asset.objects.filter(organization=org, is_deleted=False).order_by('asset_tag').values('asset_tag')
     return render(request, 'assets/label_print_center.html', {
         'org': org,
         'categories': categories,
@@ -5290,7 +5295,7 @@ def print_asset_labels_bulk(request):
         ('BARCODE_ONLY', 'Barcode Only'),
     ]
 
-    qs = Asset.objects.filter(organization=org)
+    qs = Asset.objects.filter(organization=org, is_deleted=False)
 
     # Filter by specific IDs (from asset-list checkbox selection)
     ids = request.GET.get('ids', '')
