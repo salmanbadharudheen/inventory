@@ -19,6 +19,7 @@
             <div class="form-card">
                 <form method="post">
                     {% csrf_token %}
+                    <input type="hidden" name="asset_ids" value="{{ selected_asset_ids }}">
 
                     {% if form.non_field_errors %}
                     <div class="form-alert">
@@ -29,12 +30,27 @@
                     </div>
                     {% endif %}
 
+                    {% if selected_assets %}
+                    <div class="field-group">
+                        <label>Selected Assets for Disposal <span class="req">*</span></label>
+                        <div class="selected-assets-box">
+                            {% for a in selected_assets %}
+                            <div class="selected-asset-row">
+                                <span class="selected-asset-tag">{{ a.asset_tag }}</span>
+                                <span class="selected-asset-name">{{ a.name }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <span class="field-hint">{{ selected_assets|length }} asset(s) selected from inventory list.</span>
+                    </div>
+                    {% else %}
                     <div class="field-group">
                         <label for="{{ form.asset.id_for_label }}">Asset to Dispose <span class="req">*</span></label>
                         {{ form.asset }}
                         {% if form.asset.errors %}<span class="field-error">{{ form.asset.errors.0 }}</span>{% endif %}
                         <span class="field-hint">Select the asset you want to dispose</span>
                     </div>
+                    {% endif %}
 
                     <div class="field-row">
                         <div class="field-group">
@@ -128,6 +144,12 @@
 .field-group textarea { resize:vertical; min-height:90px; }
 .field-hint { display:block; font-size:0.78rem; color:#9ca3af; margin-top:4px; }
 .field-error { display:block; font-size:0.78rem; color:#ef4444; margin-top:4px; }
+
+.selected-assets-box { border:1px solid #dbeafe; background:#f8fbff; border-radius:6px; max-height:220px; overflow:auto; }
+.selected-asset-row { display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid #e5efff; }
+.selected-asset-row:last-child { border-bottom:none; }
+.selected-asset-tag { display:inline-block; font-size:0.72rem; font-weight:700; color:#1e40af; background:#dbeafe; border:1px solid #bfdbfe; border-radius:999px; padding:2px 8px; white-space:nowrap; }
+.selected-asset-name { font-size:0.82rem; color:#1f2937; }
 
 .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media (max-width:600px) { .field-row { grid-template-columns:1fr; } }

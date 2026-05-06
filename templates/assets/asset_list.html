@@ -359,6 +359,26 @@
                     </div>
                 </div>
 
+                <div id="bulk-action-bar" class="bulk-action-bar" style="display:none;">
+                    <div class="bulk-selection-meta">
+                        <strong><span id="selected-count">0</span> selected</strong>
+                        <span id="selected-asset-preview" class="selected-asset-preview"></span>
+                    </div>
+                    <div class="bulk-action-controls">
+                        <select id="bulk-action-select" name="action" class="bulk-action-select">
+                            <option value="">Choose action...</option>
+                            <option value="disposal-request">Request disposal</option>
+                            <option value="delete">Delete selected</option>
+                        </select>
+                        <button type="submit" class="btn-primary-action" style="padding:0.4rem 0.8rem; font-size:0.75rem;">
+                            Apply
+                        </button>
+                        <button type="button" class="btn-icon-action" onclick="deselectAll()" title="Clear selection">
+                            <i data-lucide="x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+
                 {% with q=request.GET.q status=request.GET.status category=request.GET.category site=request.GET.site department=request.GET.department %}
                 {% if q or status or category or site or department or request.GET.brand or request.GET.condition or request.GET.floor or request.GET.room or request.GET.location or request.GET.sub_location or request.GET.purchase_date_from or request.GET.purchase_date_to or request.GET.registered_date_from or request.GET.registered_date_to or request.GET.created_by or request.GET.date_range %}
                 <div class="filter-applied-bar">
@@ -424,7 +444,7 @@
                             {% for asset in assets %}
                             <tr class="table-row">
                                 <td class="td-check">
-                                    <input type="checkbox" name="asset_ids" value="{{ asset.id }}" class="asset-checkbox form-check-input">
+                                    <input type="checkbox" name="asset_ids" value="{{ asset.id }}" class="asset-checkbox form-check-input" data-asset-tag="{{ asset.asset_tag }}" data-asset-name="{{ asset.name|escape }}">
                                 </td>
                                 <td class="td-name">
                                     <a href="{% url 'asset-detail' asset.pk %}" class="asset-link">
@@ -728,6 +748,48 @@
     .filter-clear-all-link:hover {
         background: #fecaca;
         color: #b91c1c;
+    }
+
+    .bulk-action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin: 0.6rem 0.9rem;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        border-radius: 8px;
+    }
+
+    .bulk-selection-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font-size: 0.78rem;
+        color: #1e3a8a;
+    }
+
+    .selected-asset-preview {
+        color: #334155;
+        font-size: 0.74rem;
+    }
+
+    .bulk-action-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .bulk-action-select {
+        min-width: 170px;
+        padding: 0.38rem 0.55rem;
+        border: 1px solid #93c5fd;
+        border-radius: 6px;
+        font-size: 0.78rem;
+        background: #fff;
     }
 
     .asset-container {
@@ -2632,18 +2694,30 @@
     const assetCheckboxes = document.querySelectorAll('.asset-checkbox');
     const bulkBar = document.getElementById('bulk-action-bar');
     const selectedCountSpan = document.getElementById('selected-count');
+    const selectedAssetPreview = document.getElementById('selected-asset-preview');
     const bulkForm = document.getElementById('bulk-action-form');
 
     function updateBulkBar() {
-        const checkedCount = document.querySelectorAll('.asset-checkbox:checked').length;
+        const checkedItems = Array.from(document.querySelectorAll('.asset-checkbox:checked'));
+        const checkedCount = checkedItems.length;
         if (bulkBar) {
             if (checkedCount > 0) {
                 bulkBar.style.display = 'flex';
                 if (selectedCountSpan) {
                     selectedCountSpan.textContent = checkedCount;
                 }
+                if (selectedAssetPreview) {
+                    const labels = checkedItems
+                        .slice(0, 3)
+                        .map(cb => `${cb.dataset.assetTag || ''} - ${cb.dataset.assetName || ''}`.trim())
+                        .filter(Boolean);
+                    selectedAssetPreview.textContent = checkedCount > 3
+                        ? `${labels.join(', ')} +${checkedCount - 3} more`
+                        : labels.join(', ');
+                }
             } else {
                 bulkBar.style.display = 'none';
+                if (selectedAssetPreview) selectedAssetPreview.textContent = '';
             }
         }
     }
@@ -2684,8 +2758,22 @@
                 return;
             }
 
+            const selectedIds = Array.from(document.querySelectorAll('.asset-checkbox:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) {
+                alert('Please select at least one asset.');
+                e.preventDefault();
+                return;
+            }
+
+            if (action === 'disposal-request') {
+                e.preventDefault();
+                const params = new URLSearchParams({ asset_ids: selectedIds.join(',') });
+                window.location.href = `{% url 'disposal-create' %}?${params.toString()}`;
+                return;
+            }
+
             if (action === 'delete') {
-                if (!confirm('Are you sure you want to delete the selected assets permanently? This cannot be undone.')) {
+                if (!confirm('Are you sure you want to delete the selected assets?')) {
                     e.preventDefault();
                 }
             }

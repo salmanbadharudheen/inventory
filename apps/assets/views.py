@@ -3734,9 +3734,79 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
         return kwargs
+
+    def _parse_asset_ids(self):
+        raw = self.request.POST.get('asset_ids') or self.request.GET.get('asset_ids', '')
+        return [s.strip() for s in str(raw).split(',') if s.strip()]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_ids = self._parse_asset_ids()
+        if selected_ids:
+            context['selected_assets'] = list(
+                Asset.objects.filter(
+                    id__in=selected_ids,
+                    organization=self.request.user.organization,
+                    is_deleted=False
+                ).order_by('asset_tag')
+            )
+            context['selected_asset_ids'] = ','.join([str(a.id) for a in context['selected_assets']])
+        else:
+            context['selected_assets'] = []
+            context['selected_asset_ids'] = ''
+        return context
     
     def form_valid(self, form):
-        form.instance.organization = self.request.user.organization
+        org = self.request.user.organization
+        selected_ids = self._parse_asset_ids()
+
+        if selected_ids:
+            assets = list(
+                Asset.objects.filter(
+                    id__in=selected_ids,
+                    organization=org,
+                    is_deleted=False,
+                    status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
+                )
+            )
+
+            created_count = 0
+            skipped_count = 0
+
+            for asset in assets:
+                already_pending = AssetDisposal.objects.filter(
+                    organization=org,
+                    asset=asset,
+                    status__in=[AssetDisposal.Status.PENDING, AssetDisposal.Status.MANAGER_APPROVED]
+                ).exists()
+
+                if already_pending:
+                    skipped_count += 1
+                    continue
+
+                AssetDisposal.objects.create(
+                    organization=org,
+                    requested_by=self.request.user,
+                    asset=asset,
+                    disposal_method=form.cleaned_data.get('disposal_method') or AssetDisposal.DisposalMethod.SCRAP,
+                    reason=form.cleaned_data.get('reason') or '',
+                    disposal_date=form.cleaned_data.get('disposal_date'),
+                    estimated_salvage_value=form.cleaned_data.get('estimated_salvage_value'),
+                    notes=form.cleaned_data.get('notes') or '',
+                )
+                created_count += 1
+
+            if created_count > 0:
+                if skipped_count > 0:
+                    messages.success(self.request, f'Disposal requests created for {created_count} asset(s). {skipped_count} skipped (already pending).')
+                else:
+                    messages.success(self.request, f'Disposal requests created for {created_count} asset(s).')
+                return redirect('disposal-list')
+
+            messages.warning(self.request, 'No new disposal requests were created. Selected assets may already have pending requests.')
+            return redirect('disposal-list')
+
+        form.instance.organization = org
         form.instance.requested_by = self.request.user
         messages.success(self.request, 'Asset disposal request submitted successfully')
         return super().form_valid(form)

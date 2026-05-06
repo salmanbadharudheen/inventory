@@ -441,6 +441,13 @@ class AssetDisposalForm(forms.ModelForm):
         self.fields['reason'].required = False
         self.fields['notes'].required = False
 
+        # Bulk disposal flow passes selected asset IDs via query/post payload.
+        bulk_asset_ids = ''
+        if self.request:
+            bulk_asset_ids = self.request.POST.get('asset_ids') or self.request.GET.get('asset_ids', '')
+        if bulk_asset_ids:
+            self.fields['asset'].required = False
+
     def clean(self):
         cleaned_data = super().clean()
         asset = cleaned_data.get('asset')
