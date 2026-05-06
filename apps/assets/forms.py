@@ -2,6 +2,7 @@ import os
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
@@ -127,6 +128,13 @@ class AssetForm(forms.ModelForm):
         for field_name, (allowed_extensions, max_bytes) in field_rules.items():
             upload = cleaned_data.get(field_name)
             if not upload:
+                continue
+
+            # Only validate freshly uploaded files. When editing, an unchanged
+            # field returns the existing FieldFile, and accessing .size would
+            # try to stat the file on disk — raising FileNotFoundError if the
+            # underlying file is missing (e.g. lost between deploys).
+            if not isinstance(upload, UploadedFile):
                 continue
 
             extension = os.path.splitext(upload.name)[1].lower()
