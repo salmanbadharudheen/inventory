@@ -534,10 +534,27 @@
             transform: rotate(180deg);
         }
 
+        .user-info-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.2;
+        }
+
         .user-name {
             font-weight: 600;
             color: var(--text-primary);
             font-size: 0.9rem;
+        }
+
+        .user-org-name {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
         }
 
         .user-dropdown-menu {
@@ -886,7 +903,12 @@
                 <div class="user-dropdown" id="userDropdown">
                     <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="User menu">
                         <div class="user-avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
-                        <span class="user-name">{{ user.username }}</span>
+                        <div class="user-info-stack">
+                            <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                            {% if not user.is_superuser and user.organization %}
+                            <span class="user-org-name">{{ user.organization.name }}</span>
+                            {% endif %}
+                        </div>
                         <i data-lucide="chevron-down"></i>
                     </button>
 

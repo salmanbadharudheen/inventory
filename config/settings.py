@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_yasg',
+    'storages',
 
     # Local apps
     'apps.api',
@@ -191,17 +192,67 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Upload handling (helps keep requests predictable and prevents oversized uploads)
-FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MEMORY_SIZE', 5 * 1024 * 1024))
-DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_SIZE', 20 * 1024 * 1024))
+# Upload handling
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MEMORY_SIZE', 10 * 1024 * 1024))   # 10 MB in-memory threshold
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_SIZE', 50 * 1024 * 1024))   # 50 MB max POST body
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+# ── Cloud File Storage (Cloudflare R2 / AWS S3) ───────────────────────────────
+# Set these environment variables on Railway for persistent, fast file storage.
+# When not set the app falls back to local filesystem (good for local dev).
+_AWS_ACCESS_KEY_ID       = os.environ.get('AWS_ACCESS_KEY_ID')
+_AWS_SECRET_ACCESS_KEY   = os.environ.get('AWS_SECRET_ACCESS_KEY')
+_AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+_AWS_S3_ENDPOINT_URL     = os.environ.get('AWS_S3_ENDPOINT_URL')       # e.g. https://<accountid>.r2.cloudflarestorage.com
+_AWS_S3_CUSTOM_DOMAIN    = os.environ.get('AWS_S3_CUSTOM_DOMAIN')       # optional public CDN / R2 custom domain
+
+if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_STORAGE_BUCKET_NAME:
+    # django-storages S3Boto3 settings
+    AWS_ACCESS_KEY_ID       = _AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY   = _AWS_SECRET_ACCESS_KEY
+    AWS_STORAGE_BUCKET_NAME = _AWS_STORAGE_BUCKET_NAME
+    AWS_S3_ENDPOINT_URL     = _AWS_S3_ENDPOINT_URL     # None → AWS; set for R2/MinIO
+    AWS_S3_FILE_OVERWRITE   = False                    # never silently replace files
+    AWS_DEFAULT_ACL         = None                     # honour bucket policy
+    AWS_QUERYSTRING_AUTH    = False                    # public URLs (via bucket/CDN policy)
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_REGION_NAME      = os.environ.get('AWS_S3_REGION_NAME', 'auto')
+
+    # Long browser cache for uploaded assets (1 year)
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=31536000, public',
+    }
+
+    if _AWS_S3_CUSTOM_DOMAIN:
+        AWS_S3_CUSTOM_DOMAIN = _AWS_S3_CUSTOM_DOMAIN
+        MEDIA_URL = f'https://{_AWS_S3_CUSTOM_DOMAIN}/'
+    elif _AWS_S3_ENDPOINT_URL and _AWS_STORAGE_BUCKET_NAME:
+        MEDIA_URL = f'{_AWS_S3_ENDPOINT_URL}/{_AWS_STORAGE_BUCKET_NAME}/'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+else:
+    # Local filesystem (development)
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+# ─────────────────────────────────────────────────────────────────────────────
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -265,10 +316,6 @@ SWAGGER_SETTINGS = {
     'JSON_EDITOR': True,
     'SUPPORTED_SUBMIT_METHODS': ['get', 'post', 'put', 'delete', 'patch'],
 }
-
-# External desktop print bridge (Zebra and multi-brand printers)
-EXTERNAL_PRINT_BRIDGE_URL = os.environ.get('EXTERNAL_PRINT_BRIDGE_URL', 'http://127.0.0.1:50777')
-EXTERNAL_PRINT_BRIDGE_TIMEOUT_MS = int(os.environ.get('EXTERNAL_PRINT_BRIDGE_TIMEOUT_MS', '12000'))
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

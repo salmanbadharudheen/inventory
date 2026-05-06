@@ -432,6 +432,36 @@ class AssetDisposalForm(forms.ModelForm):
         self.fields['estimated_salvage_value'].required = False
         self.fields['reason'].required = False
         self.fields['notes'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        asset = cleaned_data.get('asset')
+
+        if not asset:
+            return cleaned_data
+
+        # Allow retry only after a request is responded (e.g., rejected/cancelled).
+        # Block parallel in-progress requests for the same asset.
+        in_progress_statuses = [
+            AssetDisposal.Status.PENDING,
+            AssetDisposal.Status.MANAGER_APPROVED,
+        ]
+
+        existing_qs = AssetDisposal.objects.filter(
+            asset=asset,
+            status__in=in_progress_statuses,
+        )
+
+        if self.request and getattr(self.request.user, 'organization', None):
+            existing_qs = existing_qs.filter(organization=self.request.user.organization)
+
+        if self.instance and self.instance.pk:
+            existing_qs = existing_qs.exclude(pk=self.instance.pk)
+
+        if existing_qs.exists():
+            self.add_error('asset', 'A disposal request is already pending for this asset.')
+
+        return cleaned_data
     
     def __str__(self):
         """Display asset with tag and name for better searchability"""

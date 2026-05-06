@@ -176,16 +176,18 @@
                     <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">QR CODE</div>
                     <div id="qr-container" style="background: white; width: 140px; height: 140px; margin: 0 auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         {% if asset.qr_code_image %}
-                            <img src="{{ asset.qr_code_image.url }}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">
+                            <img src="{{ asset.qr_code_image.url }}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;"
+                                 onerror="this.style.display='none';autoGenerateCodes('{{ asset.pk }}','qr-container','barcode-container')">
                         {% else %}
-                            <i data-lucide="qr-code" style="width: 80px; height: 80px; color: #94a3b8; opacity: 0.3;"></i>
+                            <div id="qr-spinner" style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                                <svg style="width:32px;height:32px;animation:spin 1s linear infinite;color:#6366f1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                <span style="font-size:0.7rem;color:#94a3b8;">Generating…</span>
+                            </div>
                         {% endif %}
                     </div>
-                    {% if asset.qr_code_image %}
-                    <a href="{% url 'download-asset-qr' asset.pk %}" class="btn" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+                    <a id="qr-download-btn" href="{% url 'download-asset-qr' asset.pk %}" class="btn" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem; {% if not asset.qr_code_image %}display:none;{% endif %}">
                         <i data-lucide="download" style="width: 14px;"></i> Download QR
                     </a>
-                    {% endif %}
                 </div>
                 
                 <!-- Barcode -->
@@ -193,16 +195,18 @@
                     <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">BARCODE</div>
                     <div id="barcode-container" style="background: white; width: 100%; max-width: 200px; height: 80px; margin: 0 auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         {% if asset.barcode_image %}
-                            <img src="{{ asset.barcode_image.url }}" alt="Barcode" style="width: 100%; height: 100%; object-fit: contain;">
+                            <img src="{{ asset.barcode_image.url }}" alt="Barcode" style="width: 100%; height: 100%; object-fit: contain;"
+                                 onerror="this.style.display='none';autoGenerateCodes('{{ asset.pk }}','qr-container','barcode-container')">
                         {% else %}
-                            <i data-lucide="barcode" style="width: 80px; height: 40px; color: #94a3b8; opacity: 0.3;"></i>
+                            <div id="barcode-spinner" style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                                <svg style="width:24px;height:24px;animation:spin 1s linear infinite;color:#6366f1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                <span style="font-size:0.7rem;color:#94a3b8;">Generating…</span>
+                            </div>
                         {% endif %}
                     </div>
-                    {% if asset.barcode_image %}
-                    <a href="{% url 'download-asset-barcode' asset.pk %}" class="btn" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
+                    <a id="barcode-download-btn" href="{% url 'download-asset-barcode' asset.pk %}" class="btn" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem; {% if not asset.barcode_image %}display:none;{% endif %}">
                         <i data-lucide="download" style="width: 14px;"></i> Download Barcode
                     </a>
-                    {% endif %}
                 </div>
                 
                 <!-- Combined Label -->
@@ -221,9 +225,10 @@
                         </a>
                     </div>
                     {% else %}
-                    <button onclick="generateAssetCodes('{{ asset.pk }}')" class="btn btn-primary" style="margin-top: 0.75rem; width: 100%; font-size: 0.85rem; padding: 0.5rem;">
-                        <i data-lucide="plus" style="width: 14px;"></i> Generate Codes
-                    </button>
+                    <div style="margin-top:0.75rem;display:flex;flex-direction:column;align-items:center;gap:6px;">
+                        <svg style="width:28px;height:28px;animation:spin 1s linear infinite;color:#6366f1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        <span style="font-size:0.7rem;color:#94a3b8;">Generating…</span>
+                    </div>
                     {% endif %}
                 </div>
                 <div style="margin-top: 0.75rem; text-align: center;">
@@ -409,9 +414,52 @@
         padding: 0.55rem 1rem; background: #f1f5f9; color: #475569;
         border: 1px solid #cbd5e1; border-radius: 7px; font-size: 0.85rem; cursor: pointer;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
 <script>
+/* Auto-called when an image src fails to load (file missing on disk/cloud) */
+let _autoGenerating = false;
+function autoGenerateCodes(assetId) {
+    if (_autoGenerating) return;
+    _autoGenerating = true;
+    fetch(`/assets/${assetId}/codes/generate/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Update images without full page reload
+                if (data.qr_url) {
+                    const qrC = document.getElementById('qr-container');
+                    qrC.innerHTML = `<img src="${data.qr_url}" alt="QR Code" style="width:100%;height:100%;object-fit:contain;">`;
+                    const dl = document.getElementById('qr-download-btn');
+                    if (dl) dl.style.display = '';
+                }
+                if (data.barcode_url) {
+                    const bcC = document.getElementById('barcode-container');
+                    bcC.innerHTML = `<img src="${data.barcode_url}" alt="Barcode" style="width:100%;height:100%;object-fit:contain;">`;
+                    const dl = document.getElementById('barcode-download-btn');
+                    if (dl) dl.style.display = '';
+                }
+                if (data.label_url) {
+                    const lbC = document.getElementById('label-container');
+                    if (lbC) lbC.innerHTML = `<img src="${data.label_url}" alt="Label" style="width:100%;height:100%;object-fit:contain;">`;
+                }
+            } else {
+                // Fall back to full reload — generation happens server-side on next load
+                location.reload();
+            }
+        })
+        .catch(() => location.reload());
+}
+
+/* On page load: if any spinner is showing, trigger auto-generation immediately */
+document.addEventListener('DOMContentLoaded', function() {
+    const hasSpinner = document.getElementById('qr-spinner') || document.getElementById('barcode-spinner');
+    if (hasSpinner) {
+        autoGenerateCodes('{{ asset.pk }}');
+    }
+});
+
 function generateAssetCodes(assetId) {
     const btn = event.target.closest('button');
     btn.disabled = true;

@@ -31,6 +31,17 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return super().handle_no_permission()
 
 
+class UserManagementRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Allow superuser, admin, and senior manager to manage organization users."""
+    def test_func(self):
+        user = self.request.user
+        return user.is_superuser or user.role in [User.Role.ADMIN, User.Role.SENIOR_MANAGER]
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to manage users.")
+        return super().handle_no_permission()
+
+
 class ApprovalAccessMixin(LoginRequiredMixin):
     """Mixin to ensure user has approval workflow access"""
     def test_func(self):
@@ -466,7 +477,7 @@ class AdminUserDetailView(AdminRequiredMixin, DetailView):
         return context
 
 
-class AdminUserDeleteView(AdminRequiredMixin, View):
+class AdminUserDeleteView(UserManagementRequiredMixin, View):
     """Delete a user"""
     
     def post(self, request, pk, *args, **kwargs):
@@ -494,7 +505,7 @@ class AdminUserDeleteView(AdminRequiredMixin, View):
         return self.post(request, pk, *args, **kwargs)
 
 
-class AdminUserToggleStatusView(AdminRequiredMixin, View):
+class AdminUserToggleStatusView(UserManagementRequiredMixin, View):
     """Toggle user active/inactive status"""
     
     def post(self, request, pk, *args, **kwargs):

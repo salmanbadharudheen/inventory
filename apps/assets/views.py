@@ -1764,8 +1764,23 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from datetime import date
+        from .code_generators import generate_codes_for_asset
+
+        asset = self.object
+        # Auto-generate missing codes so they always show on the detail page
+        if asset.asset_tag and (
+            not asset.barcode_image or not asset.qr_code_image or not asset.label_image
+        ):
+            try:
+                generate_codes_for_asset(asset)
+                # Re-fetch so template gets up-to-date file URLs
+                asset.refresh_from_db(fields=['barcode_image', 'qr_code_image', 'label_image'])
+                context['asset'] = asset
+            except Exception:
+                pass
+
         context['today'] = date.today()
-        context['attachments'] = self.object.attachments.all().order_by('-created_at')
+        context['attachments'] = asset.attachments.all().order_by('-created_at')
         context['attachment_types'] = AssetAttachment.Type.choices
         return context
 
@@ -2326,11 +2341,16 @@ class ApprovalApproveView(LoginRequiredMixin, View):
         return HttpResponseRedirect(reverse('approval_detail', args=[pk]))
 
 
-class CreateApprovalRequestView(EmployeeRequiredMixin, CreateView):
-    """Employee creates approval request for new asset"""
+class CreateApprovalRequestView(LoginRequiredMixin, CreateView):
+    """Create approval request for new asset (any authenticated user)."""
     model = ApprovalRequest
     fields = ['request_type', 'data', 'comments']
     template_name = 'assets/approval_request_form.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
     
     def form_valid(self, form):
         form.instance.requester = self.request.user
@@ -3270,11 +3290,16 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         return context
 
 
-class AssetDisposalCreateView(EmployeeRequiredMixin, CreateView):
-    """Create a new asset disposal request (employees only)"""
+class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
+    """Create a new asset disposal request (any authenticated user)."""
     model = AssetDisposal
     form_class = AssetDisposalForm
     template_name = 'assets/disposal_form.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
     
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -3318,11 +3343,9 @@ class AssetDisposalManagerApproveView(LoginRequiredMixin, UpdateView):
     template_name = 'assets/disposal_manager_approve.html'
     
     def test_func(self):
-        """Only managers/senior managers can approve disposals first"""
-        return self.request.user.role in [
-            self.request.user.Role.SENIOR_MANAGER,
-            self.request.user.Role.CHECKER
-        ]
+        """Only senior manager or admin can approve disposal requests."""
+        user = self.request.user
+        return user.is_superuser or user.role in [user.Role.SENIOR_MANAGER, user.Role.ADMIN]
     
     def dispatch(self, request, *args, **kwargs):
         if not self.test_func():

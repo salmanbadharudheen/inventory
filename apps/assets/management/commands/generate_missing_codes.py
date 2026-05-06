@@ -1,47 +1,72 @@
 from django.core.management.base import BaseCommand
-from django.core.files.storage import default_storage
+from django.db.models import Q
 from apps.assets.models import Asset
 from apps.assets.code_generators import generate_codes_for_asset
 
 
 class Command(BaseCommand):
-    help = 'Generate barcode and QR code for all assets that are missing them'
+    help = 'Generate barcode / QR code / label for all assets that are missing them.'
 
-    @staticmethod
-    def _file_missing(file_field):
-        if not file_field:
-            return True
-        try:
-            return not default_storage.exists(file_field.name)
-        except Exception:
-            return True
-
-    @classmethod
-    def _asset_needs_codes(cls, asset):
-        return cls._file_missing(asset.barcode_image) or cls._file_missing(asset.qr_code_image)
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--org',
+            dest='org',
+            default=None,
+            help='Limit to a single organisation (slug or numeric id).',
+        )
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            default=False,
+            help='Regenerate codes even for assets that already have them.',
+        )
 
     def handle(self, *args, **options):
-        assets = Asset.objects.filter(asset_tag__isnull=False).exclude(asset_tag='')
+        org_filter = options['org']
+        force = options['force']
 
-        # We check both DB fields and actual file existence in storage.
-        missing_ids = []
-        for asset in assets.iterator(chunk_size=500):
-            if self._asset_needs_codes(asset):
-                missing_ids.append(asset.id)
+        qs = (
+            Asset.objects
+            .filter(is_deleted=False)
+            .exclude(asset_tag__isnull=True)
+            .exclude(asset_tag='')
+        )
 
-        total = len(missing_ids)
+        if org_filter:
+            if org_filter.isdigit():
+                qs = qs.filter(organization_id=int(org_filter))
+            else:
+                qs = qs.filter(organization__slug=org_filter)
+
+        if not force:
+            qs = qs.filter(
+                Q(barcode_image='') | Q(barcode_image__isnull=True) |
+                Q(qr_code_image='') | Q(qr_code_image__isnull=True) |
+                Q(label_image='') | Q(label_image__isnull=True)
+            )
+
+        qs = qs.distinct()
+        total = qs.count()
+
         if total == 0:
-            self.stdout.write(self.style.SUCCESS('All assets already have barcode and QR code.'))
+            self.stdout.write(self.style.SUCCESS('All assets already have barcode, QR code and label. Nothing to do.'))
             return
 
-        self.stdout.write(f'Found {total} assets missing barcode/QR code. Generating...')
+        self.stdout.write(f'Processing {total} asset(s)...')
 
         success = 0
-        for asset in Asset.objects.filter(id__in=missing_ids).iterator(chunk_size=200):
+        errors = 0
+        for asset in qs.iterator(chunk_size=200):
             try:
                 generate_codes_for_asset(asset)
                 success += 1
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f'  Failed: {asset.asset_tag} - {e}'))
+                if success % 50 == 0:
+                    self.stdout.write(f'  {success}/{total} done...')
+            except Exception as exc:
+                errors += 1
+                self.stdout.write(self.style.WARNING(f'  Failed: {asset.asset_tag} — {exc}'))
 
-        self.stdout.write(self.style.SUCCESS(f'Done. Generated codes for {success}/{total} assets.'))
+        self.stdout.write(
+            self.style.SUCCESS(f'\nDone. {success} generated, {errors} errors out of {total} assets.')
+        )
+
