@@ -889,7 +889,25 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             ]
 
         ws.append(headers)
-        
+        header_row_idx = ws.max_row
+
+        # Identify numeric columns (1-based indexes) to total in the summary row
+        if is_depreciation_view:
+            numeric_col_indexes = [6]  # Purchase Price
+            col = 8  # next column after Currency (7)
+            if opening_date:
+                numeric_col_indexes.append(col); col += 1
+            if closing_date:
+                numeric_col_indexes.append(col); col += 1
+            if opening_date and closing_date:
+                numeric_col_indexes.append(col); col += 1
+            numeric_col_indexes.extend([col, col + 1])  # Accumulated Depreciation, Current NBV
+        else:
+            numeric_col_indexes = [9]  # Purchase Price
+
+        totals = {idx: 0.0 for idx in numeric_col_indexes}
+        row_count = 0
+
         for asset in queryset:
             if is_depreciation_view:
                 opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
@@ -923,7 +941,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
 
                 ws.append(row)
             else:
-                ws.append([
+                row = [
                     asset.asset_tag,
                     asset.name,
                     asset.category.name if asset.category else '',
@@ -935,8 +953,62 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     float(asset.purchase_price) if asset.purchase_price else 0,
                     asset.currency,
                     asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else ''
-                ])
-            
+                ]
+                ws.append(row)
+
+            row_count += 1
+            for idx in numeric_col_indexes:
+                if idx <= len(row):
+                    val = row[idx - 1]
+                    if isinstance(val, (int, float)):
+                        totals[idx] += float(val)
+
+        # Append a TOTAL summary row (bold)
+        from openpyxl.styles import Font, PatternFill, Alignment
+        bold_font = Font(bold=True)
+        total_fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
+
+        # Style header row
+        for cell in ws[header_row_idx]:
+            cell.font = bold_font
+
+        if row_count > 0:
+            total_row = [''] * len(headers)
+            total_row[0] = 'TOTAL'
+            for idx in numeric_col_indexes:
+                if idx <= len(total_row):
+                    total_row[idx - 1] = round(totals[idx], 2)
+            ws.append(total_row)
+            total_row_idx = ws.max_row
+            for cell in ws[total_row_idx]:
+                cell.font = bold_font
+                cell.fill = total_fill
+
+            # Append a final summary block
+            ws.append([])
+            summary_label_font = Font(bold=True)
+            summary_start = ws.max_row + 1
+            ws.append(['Summary', ''])
+            ws.cell(row=ws.max_row, column=1).font = summary_label_font
+            ws.append(['Total Records', row_count])
+            for idx in numeric_col_indexes:
+                label = headers[idx - 1] if idx - 1 < len(headers) else f'Column {idx}'
+                ws.append([f'Total {label}', round(totals[idx], 2)])
+            for r in range(summary_start, ws.max_row + 1):
+                ws.cell(row=r, column=1).font = summary_label_font
+
+        # Auto-fit column widths (approximate)
+        for col_idx, _ in enumerate(headers, start=1):
+            max_len = 10
+            for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=header_row_idx, values_only=True):
+                for v in cell:
+                    if v is None:
+                        continue
+                    l = len(str(v))
+                    if l > max_len:
+                        max_len = l
+            ws.column_dimensions[ws.cell(row=header_row_idx, column=col_idx).column_letter].width = min(max_len + 2, 40)
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
