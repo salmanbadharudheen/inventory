@@ -2072,16 +2072,33 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from datetime import date
+        from django.core.files.storage import default_storage
         from .code_generators import generate_codes_for_asset
 
         asset = self.object
-        # Auto-generate missing codes so they always show on the detail page
+
+        def _file_missing(field):
+            if not field:
+                return True
+            try:
+                return not default_storage.exists(field.name)
+            except Exception:
+                return True
+
+        # Auto-generate / regenerate missing codes so they always show
         if asset.asset_tag and (
-            not asset.barcode_image or not asset.qr_code_image or not asset.label_image
+            _file_missing(asset.barcode_image)
+            or _file_missing(asset.qr_code_image)
+            or _file_missing(asset.label_image)
         ):
             try:
+                if _file_missing(asset.barcode_image):
+                    asset.barcode_image = None
+                if _file_missing(asset.qr_code_image):
+                    asset.qr_code_image = None
+                if _file_missing(asset.label_image):
+                    asset.label_image = None
                 generate_codes_for_asset(asset)
-                # Re-fetch so template gets up-to-date file URLs
                 asset.refresh_from_db(fields=['barcode_image', 'qr_code_image', 'label_image'])
                 context['asset'] = asset
             except Exception:
