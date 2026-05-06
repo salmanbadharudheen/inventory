@@ -327,8 +327,13 @@ class AssetListView(LoginRequiredMixin, ListView):
         return ['assets/asset_list.html']
 
     def get_queryset(self):
+        org = getattr(self.request.user, 'organization', None)
+        # Tenant isolation guard: never show organization-less assets.
+        if not org:
+            return Asset.objects.none()
+
         queryset = Asset.objects.filter(
-            organization=self.request.user.organization,
+            organization=org,
             is_deleted=False
         ).select_related(
             'category', 'sub_category', 'branch', 'assigned_to', 
