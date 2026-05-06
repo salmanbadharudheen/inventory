@@ -1191,6 +1191,13 @@ class AssetDisposal(TenantAwareModel):
         help_text="Additional notes or comments"
     )
 
+    # Snapshot of asset data at time of disposal approval
+    asset_snapshot = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Full asset details captured at the time of disposal approval"
+    )
+
     # Tracking
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

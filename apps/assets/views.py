@@ -3816,9 +3816,42 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
         response = super().form_valid(form)
 
         if self.object.status == AssetDisposal.Status.APPROVED:
-            # Mark the asset as retired and soft-deleted so it disappears from
-            # the inventory list and all depreciation / financial calculations.
+            # Capture full asset snapshot before soft-deleting
             asset = self.object.asset
+            snapshot = {
+                'asset_tag': asset.asset_tag,
+                'asset_code': asset.asset_code,
+                'name': asset.name,
+                'serial_number': asset.serial_number,
+                'status': asset.status,
+                'category': str(asset.category) if asset.category else None,
+                'sub_category': str(asset.sub_category) if asset.sub_category else None,
+                'brand': asset.brand,
+                'model': asset.model,
+                'purchase_price': str(asset.purchase_price) if asset.purchase_price else None,
+                'purchase_date': str(asset.purchase_date) if asset.purchase_date else None,
+                'useful_life_years': asset.useful_life_years,
+                'salvage_value': str(asset.salvage_value) if asset.salvage_value else None,
+                'depreciation_method': asset.depreciation_method,
+                'location': str(asset.location) if asset.location else None,
+                'sub_location': str(asset.sub_location) if asset.sub_location else None,
+                'department': str(asset.department) if asset.department else None,
+                'branch': str(asset.branch) if asset.branch else None,
+                'site': str(asset.site) if asset.site else None,
+                'building': str(asset.building) if asset.building else None,
+                'room': str(asset.room) if asset.room else None,
+                'assigned_to': str(asset.assigned_to) if asset.assigned_to else None,
+                'custodian': str(asset.custodian) if asset.custodian else None,
+                'vendor': str(asset.vendor) if asset.vendor else None,
+                'supplier': str(asset.supplier) if asset.supplier else None,
+                'warranty_expiry': str(asset.warranty_expiry) if asset.warranty_expiry else None,
+                'notes': asset.notes,
+                'condition': asset.condition if hasattr(asset, 'condition') else None,
+            }
+            self.object.asset_snapshot = snapshot
+            self.object.save(update_fields=['asset_snapshot'])
+
+            # Mark the asset as retired and soft-deleted
             asset.status = Asset.Status.RETIRED
             asset.is_deleted = True
             asset.save(update_fields=['status', 'is_deleted'])
