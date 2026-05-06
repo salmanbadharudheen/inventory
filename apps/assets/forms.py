@@ -9,8 +9,8 @@ from apps.locations.models import Branch, Department, Building, Floor, Room, Reg
 from django.utils.translation import gettext_lazy as _
 
 
-MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB
-MAX_DOCUMENT_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_IMAGE_UPLOAD_BYTES = 1 * 1024 * 1024   # 1 MB
+MAX_DOCUMENT_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 ALLOWED_DOCUMENT_EXTENSIONS = {
