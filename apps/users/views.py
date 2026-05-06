@@ -206,10 +206,12 @@ class UserListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        # Filter by organization if applicable
-        if self.request.user.organization:
-            qs = qs.filter(organization=self.request.user.organization)
+        org = getattr(self.request.user, 'organization', None)
+        # Tenant isolation: always scope to the user's org.
+        # If the user has no org, return nobody — never return all users.
+        if not org:
+            return User.objects.none()
+        qs = super().get_queryset().filter(organization=org)
         return qs
 
 
@@ -259,9 +261,15 @@ class AdminUserListView(AdminRequiredMixin, ListView):
     def get_queryset(self):
         qs = User.objects.all().select_related('organization', 'branch', 'department').order_by('-date_joined')
         
-        # If not superuser, filter to their organization only
-        if not self.request.user.is_superuser and self.request.user.organization:
-            qs = qs.filter(organization=self.request.user.organization)
+        if self.request.user.is_superuser:
+            # Superuser sees all (owner portal)
+            pass
+        else:
+            org = getattr(self.request.user, 'organization', None)
+            # Tenant isolation: non-superusers without an org see nobody.
+            if not org:
+                return User.objects.none()
+            qs = qs.filter(organization=org)
         
         # Filter by search query if provided
         search = self.request.GET.get('q', '').strip()
