@@ -13,7 +13,11 @@
         </div>
         <h1 class="detail-title">Disposal: {{ disposal.asset.asset_tag }}</h1>
         <div class="header-actions">
-            {% if disposal.status == 'PENDING' and request.user.role == request.user.Role.SENIOR_MANAGER or disposal.status == 'PENDING' and request.user.role == request.user.Role.CHECKER %}
+            {% if disposal.status == 'PENDING' and request.user.is_superuser or disposal.status == 'PENDING' and request.user.role == request.user.Role.ADMIN %}
+            <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action-primary btn-green">
+                <i data-lucide="shield-check"></i> Final Approval
+            </a>
+            {% elif disposal.status == 'PENDING' and request.user.role == request.user.Role.SENIOR_MANAGER or disposal.status == 'PENDING' and request.user.role == request.user.Role.CHECKER %}
             <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action-primary">
                 <i data-lucide="check-check"></i> Manager Review
             </a>

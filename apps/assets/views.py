@@ -3803,8 +3803,12 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
     
     def get_queryset(self):
         org = self.request.user.organization
-        return AssetDisposal.objects.filter(organization=org, status=AssetDisposal.Status.MANAGER_APPROVED)
-    
+        # Admins can approve both PENDING (direct) and MANAGER_APPROVED disposals
+        return AssetDisposal.objects.filter(
+            organization=org,
+            status__in=[AssetDisposal.Status.PENDING, AssetDisposal.Status.MANAGER_APPROVED]
+        )
+
     def form_valid(self, form):
         form.instance.approved_by = self.request.user
         form.instance.approved_at = datetime.now()
