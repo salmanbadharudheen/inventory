@@ -22,3 +22,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # Serve user-uploaded media (QR codes, barcodes, asset images, etc.) in
+    # production when files live on a persistent volume rather than cloud
+    # storage. Skip this branch when MEDIA_URL points at an external CDN/bucket
+    # (configured via AWS_* env vars in settings.py).
+    if settings.MEDIA_URL.startswith('/'):
+        urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
