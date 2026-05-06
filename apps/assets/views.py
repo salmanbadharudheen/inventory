@@ -5181,6 +5181,41 @@ def print_asset_labels_bulk(request):
     batch_end = batch_start + BATCH_SIZE
     assets = list(qs[batch_start:batch_end])
 
+    # Auto-heal: regenerate any missing barcode/QR/label files for assets in
+    # this batch. Handles the case where the DB still references a file path
+    # but the actual file is missing on disk (e.g. after a deploy without a
+    # persistent volume, or a fresh volume that hasn't been backfilled).
+    try:
+        from django.core.files.storage import default_storage
+        from .code_generators import generate_codes_for_asset
+
+        def _file_missing(field):
+            if not field:
+                return True
+            try:
+                return not default_storage.exists(field.name)
+            except Exception:
+                return True
+
+        for asset in assets:
+            if (_file_missing(asset.barcode_image)
+                    or _file_missing(asset.qr_code_image)
+                    or _file_missing(asset.label_image)):
+                try:
+                    # Clear stale paths so generate_codes_for_asset writes new files
+                    if _file_missing(asset.barcode_image):
+                        asset.barcode_image = None
+                    if _file_missing(asset.qr_code_image):
+                        asset.qr_code_image = None
+                    if _file_missing(asset.label_image):
+                        asset.label_image = None
+                    generate_codes_for_asset(asset)
+                    asset.refresh_from_db(fields=['barcode_image', 'qr_code_image', 'label_image'])
+                except Exception as e:
+                    print(f"[print_asset_labels_bulk] failed to regenerate codes for {asset.asset_tag}: {e}")
+    except Exception as e:
+        print(f"[print_asset_labels_bulk] auto-heal skipped: {e}")
+
     return render(request, 'assets/print_label.html', {
         'org': org,
         'assets': assets,
