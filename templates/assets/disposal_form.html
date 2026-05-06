@@ -46,9 +46,23 @@
                     {% else %}
                     <div class="field-group">
                         <label for="{{ form.assets.id_for_label }}">Assets to Dispose <span class="req">*</span></label>
-                        {{ form.assets }}
+                        <div class="asset-picker">
+                            <div class="asset-picker-toolbar">
+                                <input type="text" id="asset-picker-search" class="asset-picker-search" placeholder="Search by asset tag or name...">
+                                <div class="asset-picker-actions">
+                                    <button type="button" class="asset-picker-btn" id="asset-select-visible">Select Visible</button>
+                                    <button type="button" class="asset-picker-btn" id="asset-clear-selected">Clear</button>
+                                </div>
+                            </div>
+                            {{ form.assets }}
+                            <div class="asset-picker-footer">
+                                <span id="asset-picker-count" class="asset-picker-count">0 selected</span>
+                                <span class="asset-picker-tip">Tip: filter then click Select Visible for fast bulk selection.</span>
+                            </div>
+                            <div id="asset-picker-preview" class="asset-picker-preview"></div>
+                        </div>
                         {% if form.assets.errors %}<span class="field-error">{{ form.assets.errors.0 }}</span>{% endif %}
-                        <span class="field-hint">Select one or more assets (you can request disposal for 3+ assets at once).</span>
+                        <span class="field-hint">Pick one or many assets in one request. This creates a disposal request for each selected asset.</span>
                     </div>
                     {% endif %}
 
@@ -146,6 +160,20 @@
 .field-hint { display:block; font-size:0.78rem; color:#9ca3af; margin-top:4px; }
 .field-error { display:block; font-size:0.78rem; color:#ef4444; margin-top:4px; }
 
+.asset-picker { border:1px solid #dbeafe; border-radius:8px; padding:10px; background:#f8fbff; }
+.asset-picker-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+.asset-picker-search { flex:1; height:34px; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.82rem; background:#fff; }
+.asset-picker-search:focus { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.08); }
+.asset-picker-actions { display:flex; gap:6px; }
+.asset-picker-btn { border:1px solid #bfdbfe; background:#fff; color:#1e3a8a; border-radius:6px; padding:6px 10px; font-size:0.76rem; font-weight:600; cursor:pointer; }
+.asset-picker-btn:hover { background:#eef2ff; }
+.asset-picker .form-control[multiple] { min-height:260px; background:#fff; }
+.asset-picker-footer { margin-top:7px; display:flex; justify-content:space-between; gap:8px; align-items:center; font-size:0.74rem; color:#475569; }
+.asset-picker-count { font-weight:700; color:#1e3a8a; }
+.asset-picker-tip { color:#64748b; }
+.asset-picker-preview { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+.asset-preview-chip { background:#e0e7ff; border:1px solid #c7d2fe; color:#3730a3; border-radius:999px; padding:3px 8px; font-size:0.72rem; line-height:1.2; }
+
 .selected-assets-box { border:1px solid #dbeafe; background:#f8fbff; border-radius:6px; max-height:220px; overflow:auto; }
 .selected-asset-row { display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid #e5efff; }
 .selected-asset-row:last-child { border-bottom:none; }
@@ -177,5 +205,76 @@
 .sidebar-blue h3 { color:#1e40af; }
 </style>
 
-<script>document.addEventListener('DOMContentLoaded', function() { lucide.createIcons(); });</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+
+    const selectEl = document.getElementById('{{ form.assets.id_for_label }}');
+    const searchEl = document.getElementById('asset-picker-search');
+    const selectVisibleBtn = document.getElementById('asset-select-visible');
+    const clearBtn = document.getElementById('asset-clear-selected');
+    const countEl = document.getElementById('asset-picker-count');
+    const previewEl = document.getElementById('asset-picker-preview');
+
+    if (!selectEl || !searchEl) {
+        return;
+    }
+
+    function renderSelectionSummary() {
+        const selected = Array.from(selectEl.options).filter(opt => opt.selected);
+        if (countEl) {
+            countEl.textContent = `${selected.length} selected`;
+        }
+        if (!previewEl) {
+            return;
+        }
+        previewEl.innerHTML = '';
+        selected.slice(0, 8).forEach(opt => {
+            const chip = document.createElement('span');
+            chip.className = 'asset-preview-chip';
+            chip.textContent = opt.textContent;
+            previewEl.appendChild(chip);
+        });
+        if (selected.length > 8) {
+            const chip = document.createElement('span');
+            chip.className = 'asset-preview-chip';
+            chip.textContent = `+${selected.length - 8} more`;
+            previewEl.appendChild(chip);
+        }
+    }
+
+    function filterOptions() {
+        const q = (searchEl.value || '').trim().toLowerCase();
+        Array.from(selectEl.options).forEach(opt => {
+            const visible = !q || opt.textContent.toLowerCase().includes(q);
+            opt.hidden = !visible;
+        });
+    }
+
+    searchEl.addEventListener('input', filterOptions);
+
+    if (selectVisibleBtn) {
+        selectVisibleBtn.addEventListener('click', function() {
+            Array.from(selectEl.options).forEach(opt => {
+                if (!opt.hidden) {
+                    opt.selected = true;
+                }
+            });
+            renderSelectionSummary();
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            Array.from(selectEl.options).forEach(opt => {
+                opt.selected = false;
+            });
+            renderSelectionSummary();
+        });
+    }
+
+    selectEl.addEventListener('change', renderSelectionSummary);
+    renderSelectionSummary();
+});
+</script>
 {% endblock %}
