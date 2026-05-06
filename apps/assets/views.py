@@ -904,9 +904,26 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             headers.extend(['Accumulated Depreciation', 'Current NBV'])
         else:
             headers = [
-                'Asset Tag', 'Name', 'Category', 'Status',
-                'Site', 'Building', 'Room', 'Condition',
-                'Purchase Price', 'Currency', 'Purchase Date'
+                # Identification
+                'Asset Tag', 'Asset Code', 'ERP Asset Number', 'Name', 'Short Description', 'Description',
+                'Serial Number', 'Quantity', 'Label Type', 'Asset Type', 'Status', 'Condition',
+                # Classification
+                'Category', 'Sub Category', 'Group', 'Sub Group', 'Brand', 'Model',
+                # Ownership
+                'Company', 'Department', 'Cost Center', 'Assigned To', 'Custodian', 'Employee Number', 'Supplier', 'Vendor',
+                # Location
+                'Region', 'Site', 'Branch', 'Building', 'Floor', 'Room', 'Location', 'Sub Location',
+                # Financial
+                'Currency', 'Purchase Price', 'Salvage Value', 'Purchase Date', 'Invoice Number', 'Invoice Date',
+                'PO Number', 'PO Date', 'DO Number', 'DO Date', 'GRN Number', 'Date Placed in Service', 'Tagged Date',
+                # Warranty / Insurance / AMC
+                'Warranty Start', 'Warranty End', 'Insurance Start', 'Insurance End', 'Maintenance Start', 'Maintenance End',
+                # Depreciation
+                'Depreciation Method', 'Useful Life (Years)', 'Accumulated Depreciation', 'Current NBV',
+                # Maintenance
+                'Maintenance Required', 'Maintenance Frequency (days)', 'Next Maintenance Date',
+                # Misc / Audit
+                'Notes', 'Registered By', 'Registered On',
             ]
 
         n_cols = len(headers)
@@ -973,7 +990,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 numeric_col_indexes.append(col); col += 1
             numeric_col_indexes.extend([col, col + 1])  # Accumulated Depreciation, Current NBV
         else:
-            numeric_col_indexes = [9]  # Purchase Price
+            # Quantity, Purchase Price, Salvage Value, Useful Life, Accumulated Depreciation, Current NBV, Maintenance Frequency
+            numeric_col_indexes = [8, 36, 37, 55, 56, 57, 59]
 
         totals = {idx: 0.0 for idx in numeric_col_indexes}
         row_count = 0
@@ -1011,18 +1029,92 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
 
                 ws.append(row)
             else:
+                def _d(d):
+                    return d.strftime('%Y-%m-%d') if d else ''
+                creator = ''
+                if asset.created_by:
+                    creator = (asset.created_by.get_full_name() or '').strip() or asset.created_by.username
+                assigned = ''
+                if asset.assigned_to:
+                    assigned = (asset.assigned_to.get_full_name() or '').strip() or asset.assigned_to.username
+                brand_val = ''
+                if getattr(asset, 'brand_new', None):
+                    brand_val = asset.brand_new.name
+                elif asset.brand:
+                    brand_val = asset.brand
                 row = [
+                    # Identification
                     asset.asset_tag,
+                    asset.asset_code or '',
+                    asset.erp_asset_number or '',
                     asset.name,
-                    asset.category.name if asset.category else '',
+                    asset.short_description or '',
+                    asset.description or '',
+                    asset.serial_number or '',
+                    int(asset.quantity or 0),
+                    asset.get_label_type_display() if asset.label_type else '',
+                    asset.get_asset_type_display() if asset.asset_type else '',
                     asset.get_status_display(),
-                    asset.site.name if asset.site else '',
-                    asset.building.name if asset.building else '',
-                    str(asset.room) if asset.room else '',
                     asset.get_condition_display(),
+                    # Classification
+                    asset.category.name if asset.category else '',
+                    asset.sub_category.name if asset.sub_category else '',
+                    asset.group.name if asset.group else '',
+                    asset.sub_group.name if asset.sub_group else '',
+                    brand_val,
+                    asset.model or '',
+                    # Ownership
+                    asset.company.name if asset.company else '',
+                    asset.department.name if asset.department else '',
+                    asset.cost_center or '',
+                    assigned,
+                    asset.custodian.name if asset.custodian else '',
+                    asset.employee_number or '',
+                    asset.supplier.name if asset.supplier else '',
+                    asset.vendor.name if asset.vendor else '',
+                    # Location
+                    asset.region.name if asset.region else '',
+                    asset.site.name if asset.site else '',
+                    asset.branch.name if asset.branch else '',
+                    asset.building.name if asset.building else '',
+                    asset.floor.name if asset.floor else '',
+                    str(asset.room) if asset.room else '',
+                    asset.location.name if asset.location else '',
+                    asset.sub_location.name if asset.sub_location else '',
+                    # Financial
+                    asset.currency or '',
                     float(asset.purchase_price) if asset.purchase_price else 0,
-                    asset.currency,
-                    asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else ''
+                    float(asset.salvage_value) if asset.salvage_value else 0,
+                    _d(asset.purchase_date),
+                    asset.invoice_number or '',
+                    _d(asset.invoice_date),
+                    asset.po_number or '',
+                    _d(asset.po_date),
+                    asset.do_number or '',
+                    _d(asset.do_date),
+                    asset.grn_number or '',
+                    _d(asset.date_placed_in_service),
+                    _d(asset.tagged_date),
+                    # Warranty / Insurance / AMC
+                    _d(asset.warranty_start),
+                    _d(asset.warranty_end),
+                    _d(asset.insurance_start_date),
+                    _d(asset.insurance_end_date),
+                    _d(asset.maintenance_start_date),
+                    _d(asset.maintenance_end_date),
+                    # Depreciation
+                    asset.get_depreciation_method_display() if asset.depreciation_method else '',
+                    int(asset.useful_life_years) if asset.useful_life_years else 0,
+                    float(asset.accumulated_depreciation),
+                    float(asset.current_value),
+                    # Maintenance
+                    'Yes' if asset.maintenance_required else 'No',
+                    int(asset.maintenance_frequency_days or 0),
+                    _d(asset.next_maintenance_date),
+                    # Misc / Audit
+                    asset.notes or '',
+                    creator,
+                    asset.created_at.strftime('%Y-%m-%d %H:%M') if getattr(asset, 'created_at', None) else '',
                 ]
                 ws.append(row)
 
