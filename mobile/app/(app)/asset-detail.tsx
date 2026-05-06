@@ -10,6 +10,7 @@ import {
   Image,
   Linking,
   Alert,
+  Share,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { lookupAssetByTag, getAssetDetail } from "../../src/services/asset-api";
@@ -148,6 +149,21 @@ export default function AssetDetailScreen() {
     }
   };
 
+  /* ─── Share / copy a file URL via the system share sheet ─── */
+  const shareFile = async (path: string | null, label: string) => {
+    const url = imageUrl(path);
+    if (!url) return;
+    try {
+      await Share.share({
+        message: `${a.name} — ${label}\n${url}`,
+        url, // iOS uses this for proper link sharing
+        title: `${a.name} — ${label}`,
+      });
+    } catch (e: any) {
+      Alert.alert("Cannot share", e?.message ?? "Failed to share link.");
+    }
+  };
+
   /* ─── Filename from a path ─── */
   const fileName = (path: string | null) => {
     if (!path) return "";
@@ -222,8 +238,23 @@ export default function AssetDetailScreen() {
                 style={styles.assetPhoto}
                 resizeMode="cover"
               />
-              <Text style={styles.tapHint}>Tap to open full size</Text>
             </TouchableOpacity>
+            <View style={styles.photoActions}>
+              <TouchableOpacity
+                style={styles.photoActionBtn}
+                onPress={() => openFile(a.image)}
+              >
+                <Text style={styles.photoActionText}>Open</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.photoActionBtn, styles.photoActionBtnAlt]}
+                onPress={() => shareFile(a.image, "Photo")}
+              >
+                <Text style={[styles.photoActionText, styles.photoActionTextAlt]}>
+                  🔗 Share Link
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -261,21 +292,31 @@ export default function AssetDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>📎  Documents</Text>
             {documents.map((doc) => (
-              <TouchableOpacity
-                key={doc.label}
-                style={styles.docRow}
-                onPress={() => openFile(doc.path)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.docIcon}>{doc.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.docLabel}>{doc.label}</Text>
-                  <Text style={styles.docFile} numberOfLines={1}>
-                    {fileName(doc.path)}
-                  </Text>
-                </View>
-                <Text style={styles.docOpen}>Open ›</Text>
-              </TouchableOpacity>
+              <View key={doc.label} style={styles.docRow}>
+                <TouchableOpacity
+                  style={styles.docMain}
+                  onPress={() => openFile(doc.path)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.docIcon}>{doc.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docLabel}>{doc.label}</Text>
+                    <Text style={styles.docFile} numberOfLines={1}>
+                      {fileName(doc.path)}
+                    </Text>
+                  </View>
+                  <Text style={styles.docOpen}>Open</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.docShareBtn}
+                  onPress={() => shareFile(doc.path, doc.label)}
+                  activeOpacity={0.7}
+                  hitSlop={8}
+                >
+                  <Text style={styles.docShareIcon}>🔗</Text>
+                  <Text style={styles.docShareText}>Share</Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
         )}
@@ -554,20 +595,53 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: "italic",
   },
+  photoActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
+  photoActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: C.primary,
+    alignItems: "center",
+  },
+  photoActionBtnAlt: {
+    backgroundColor: C.primaryLight,
+  },
+  photoActionText: { color: C.white, fontWeight: "700", fontSize: 13 },
+  photoActionTextAlt: { color: C.primary },
 
   // Documents
   docRow: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: C.border,
+  },
+  docMain: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   docIcon: { fontSize: 22 },
   docLabel: { fontSize: 14, fontWeight: "700", color: C.text },
   docFile: { fontSize: 12, color: C.muted, marginTop: 2 },
   docOpen: { fontSize: 13, fontWeight: "700", color: C.primary },
+  docShareBtn: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    marginLeft: 34,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: C.primaryLight,
+  },
+  docShareIcon: { fontSize: 13 },
+  docShareText: { fontSize: 12, fontWeight: "700", color: C.primary },
 
   // Info rows
   infoRow: {
