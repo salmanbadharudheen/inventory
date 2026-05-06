@@ -5198,40 +5198,69 @@ def print_asset_labels_bulk(request):
     batch_end = batch_start + BATCH_SIZE
     assets = list(qs[batch_start:batch_end])
 
-    # Auto-heal: regenerate any missing barcode/QR/label files for assets in
-    # this batch. Handles the case where the DB still references a file path
-    # but the actual file is missing on disk (e.g. after a deploy without a
-    # persistent volume, or a fresh volume that hasn't been backfilled).
-    try:
-        from django.core.files.storage import default_storage
-        from .code_generators import generate_codes_for_asset
+    # Refresh mode: when ?refresh=1 is passed (via the "Refresh codes" button),
+    # scan ALL matching assets (not just the current batch) and regenerate
+    # ONLY the ones with missing files. Existing files are left untouched.
+    refresh_requested = request.GET.get('refresh') == '1'
+    refresh_report = None
 
-        def _file_missing(field):
-            if not field:
-                return True
+    from django.core.files.storage import default_storage
+    from .code_generators import generate_codes_for_asset
+
+    def _file_missing(field):
+        if not field:
+            return True
+        try:
+            return not default_storage.exists(field.name)
+        except Exception:
+            return True
+
+    def _heal(target_assets, refresh_after=False):
+        regenerated = 0
+        failed = 0
+        for asset in target_assets:
             try:
-                return not default_storage.exists(field.name)
-            except Exception:
-                return True
-
-        for asset in assets:
-            if (_file_missing(asset.barcode_image)
-                    or _file_missing(asset.qr_code_image)
-                    or _file_missing(asset.label_image)):
-                try:
-                    # Clear stale paths so generate_codes_for_asset writes new files
-                    if _file_missing(asset.barcode_image):
-                        asset.barcode_image = None
-                    if _file_missing(asset.qr_code_image):
-                        asset.qr_code_image = None
-                    if _file_missing(asset.label_image):
-                        asset.label_image = None
-                    generate_codes_for_asset(asset)
+                missing_b = _file_missing(asset.barcode_image)
+                missing_q = _file_missing(asset.qr_code_image)
+                missing_l = _file_missing(asset.label_image)
+                if not (missing_b or missing_q or missing_l):
+                    continue
+                if missing_b:
+                    asset.barcode_image = None
+                if missing_q:
+                    asset.qr_code_image = None
+                if missing_l:
+                    asset.label_image = None
+                generate_codes_for_asset(asset)
+                if refresh_after:
                     asset.refresh_from_db(fields=['barcode_image', 'qr_code_image', 'label_image'])
-                except Exception as e:
-                    print(f"[print_asset_labels_bulk] failed to regenerate codes for {asset.asset_tag}: {e}")
-    except Exception as e:
-        print(f"[print_asset_labels_bulk] auto-heal skipped: {e}")
+                regenerated += 1
+            except Exception as e:
+                failed += 1
+                print(f"[print_asset_labels_bulk] failed to regenerate codes for {asset.asset_tag}: {e}")
+        return regenerated, failed
+
+    if refresh_requested:
+        # Scan everything matching the current filter
+        try:
+            scanned = total_count
+            regenerated, failed = _heal(qs.iterator(chunk_size=200), refresh_after=False)
+            # Reload the current batch so URLs reflect newly generated files
+            assets = list(qs[batch_start:batch_end])
+            refresh_report = {
+                'scanned': scanned,
+                'regenerated': regenerated,
+                'failed': failed,
+            }
+        except Exception as e:
+            print(f"[print_asset_labels_bulk] refresh failed: {e}")
+            refresh_report = {'scanned': 0, 'regenerated': 0, 'failed': 0, 'error': str(e)}
+    else:
+        # Default behaviour: auto-heal only the current batch on every load
+        try:
+            _heal(assets, refresh_after=True)
+        except Exception as e:
+            print(f"[print_asset_labels_bulk] auto-heal skipped: {e}")
 
     return render(request, 'assets/print_label.html', {
         'org': org,
@@ -5244,4 +5273,5 @@ def print_asset_labels_bulk(request):
         'batch_start': batch_start + 1,
         'batch_end': min(batch_end, total_count),
         'remaining': max(0, total_count - batch_end),
+        'refresh_report': refresh_report,
     })
