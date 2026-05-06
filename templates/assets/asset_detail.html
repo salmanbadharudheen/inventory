@@ -33,6 +33,13 @@
                 <a href="{% url 'asset-update' asset.pk %}" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
                     <i data-lucide="edit-2" style="width: 18px;"></i> Edit Asset
                 </a>
+                <form method="post" action="{% url 'asset-delete' asset.pk %}" style="margin: 0;"
+                      onsubmit="return confirm('Delete this asset? This will remove it from active inventory.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn" style="display:flex;align-items:center;gap:0.5rem;background:#fee2e2;border:1px solid #fecaca;color:#b91c1c;">
+                        <i data-lucide="trash-2" style="width: 18px;"></i> Delete Asset
+                    </button>
+                </form>
             </div>
         </div>
     </div>

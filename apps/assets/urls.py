@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetImportView, 
+    AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetDeleteView, AssetImportView, 
     BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
     ajax_create_category, ajax_create_subcategory,
@@ -64,6 +64,7 @@ urlpatterns = [
     path('add/', AssetCreateView.as_view(), name='asset-create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset-detail'),
     path('<uuid:pk>/edit/', AssetUpdateView.as_view(), name='asset-update'),
+    path('<uuid:pk>/delete/', AssetDeleteView.as_view(), name='asset-delete'),
     
     # Barcode & QR Code endpoints
     path('<uuid:pk>/codes/generate/', generate_asset_codes, name='generate-asset-codes'),

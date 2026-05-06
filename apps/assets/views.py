@@ -15,6 +15,7 @@ from apps.locations.models import (Branch, Building, Floor, Room,
                                    Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
+from django.utils import timezone
 from decimal import Decimal
 from datetime import date, datetime
 from django.core.files.storage import default_storage
@@ -2176,6 +2177,24 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
         context['attachments'] = asset.attachments.all().order_by('-created_at')
         context['attachment_types'] = AssetAttachment.Type.choices
         return context
+
+
+class AssetDeleteView(LoginRequiredMixin, View):
+    """Soft-delete a single asset within the current tenant."""
+
+    def post(self, request, pk, *args, **kwargs):
+        org = getattr(request.user, 'organization', None)
+        if not org:
+            messages.error(request, 'You are not assigned to an organization.')
+            return redirect('asset-list')
+
+        asset = get_object_or_404(Asset, pk=pk, organization=org, is_deleted=False)
+        asset.is_deleted = True
+        asset.deleted_at = timezone.now()
+        asset.save(update_fields=['is_deleted', 'deleted_at'])
+
+        messages.success(request, f'Asset {asset.asset_tag} deleted successfully.')
+        return redirect('asset-list')
 
 class AssetUpdateView(LoginRequiredMixin, UpdateView):
     model = Asset
