@@ -3759,6 +3759,7 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         org = self.request.user.organization
         selected_ids = self._parse_asset_ids()
+        form_assets = list(form.cleaned_data.get('selected_assets') or [])
 
         if selected_ids:
             assets = list(
@@ -3769,6 +3770,10 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
                     status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
                 )
             )
+        else:
+            assets = [a for a in form_assets if a.organization_id == org.id and not a.is_deleted]
+
+        if assets:
 
             created_count = 0
             skipped_count = 0
@@ -3806,6 +3811,7 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
             messages.warning(self.request, 'No new disposal requests were created. Selected assets may already have pending requests.')
             return redirect('disposal-list')
 
+        # Fallback single-create path
         form.instance.organization = org
         form.instance.requested_by = self.request.user
         messages.success(self.request, 'Asset disposal request submitted successfully')

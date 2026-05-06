@@ -412,6 +412,16 @@ class AssetDisposalForm(forms.ModelForm):
             'data-placeholder': 'Search and select an asset...'
         })
     )
+
+    assets = forms.ModelMultipleChoiceField(
+        queryset=Asset.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control',
+            'size': 10,
+            'data-placeholder': 'Select one or more assets...'
+        })
+    )
     
     class Meta:
         model = AssetDisposal
@@ -431,10 +441,15 @@ class AssetDisposalForm(forms.ModelForm):
         # Filter assets by organization - supports searching by asset_tag and name
         if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
-            self.fields['asset'].queryset = Asset.objects.filter(
+            allowed_assets = Asset.objects.filter(
                 organization=org,
                 status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
             ).order_by('asset_tag')
+            self.fields['asset'].queryset = allowed_assets
+            self.fields['assets'].queryset = allowed_assets
+
+            self.fields['asset'].label_from_instance = lambda a: f"{a.asset_tag} - {a.name}"
+            self.fields['assets'].label_from_instance = lambda a: f"{a.asset_tag} - {a.name}"
         
         self.fields['disposal_date'].required = False
         self.fields['estimated_salvage_value'].required = False
@@ -448,11 +463,19 @@ class AssetDisposalForm(forms.ModelForm):
         if bulk_asset_ids:
             self.fields['asset'].required = False
 
+        # Multi-select is now the preferred path, so the single asset selector is optional.
+        self.fields['asset'].required = False
+
     def clean(self):
         cleaned_data = super().clean()
         asset = cleaned_data.get('asset')
+        assets = list(cleaned_data.get('assets') or [])
 
-        if not asset:
+        if asset and not assets:
+            assets = [asset]
+
+        if not assets:
+            self.add_error('assets', 'Please select at least one asset for disposal.')
             return cleaned_data
 
         # Allow retry only after a request is responded (e.g., rejected/cancelled).
@@ -462,19 +485,22 @@ class AssetDisposalForm(forms.ModelForm):
             AssetDisposal.Status.MANAGER_APPROVED,
         ]
 
-        existing_qs = AssetDisposal.objects.filter(
-            asset=asset,
-            status__in=in_progress_statuses,
-        )
+        for selected_asset in assets:
+            existing_qs = AssetDisposal.objects.filter(
+                asset=selected_asset,
+                status__in=in_progress_statuses,
+            )
 
-        if self.request and getattr(self.request.user, 'organization', None):
-            existing_qs = existing_qs.filter(organization=self.request.user.organization)
+            if self.request and getattr(self.request.user, 'organization', None):
+                existing_qs = existing_qs.filter(organization=self.request.user.organization)
 
-        if self.instance and self.instance.pk:
-            existing_qs = existing_qs.exclude(pk=self.instance.pk)
+            if self.instance and self.instance.pk:
+                existing_qs = existing_qs.exclude(pk=self.instance.pk)
 
-        if existing_qs.exists():
-            self.add_error('asset', 'A disposal request is already pending for this asset.')
+            if existing_qs.exists():
+                self.add_error('assets', f'A disposal request is already pending for {selected_asset.asset_tag}.')
+
+        cleaned_data['selected_assets'] = assets
 
         return cleaned_data
     
