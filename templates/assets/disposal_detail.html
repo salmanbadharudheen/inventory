@@ -152,7 +152,8 @@
                         {% if s.custodian %}<div class="info-item"><span class="info-label">Custodian</span><span class="info-value">{{ s.custodian }}</span></div>{% endif %}
                         {% if s.vendor %}<div class="info-item"><span class="info-label">Vendor</span><span class="info-value">{{ s.vendor }}</span></div>{% endif %}
                         {% if s.supplier %}<div class="info-item"><span class="info-label">Supplier</span><span class="info-value">{{ s.supplier }}</span></div>{% endif %}
-                        {% if s.warranty_expiry %}<div class="info-item"><span class="info-label">Warranty Expiry</span><span class="info-value">{{ s.warranty_expiry }}</span></div>{% endif %}
+                        {% if s.warranty_start %}<div class="info-item"><span class="info-label">Warranty Start</span><span class="info-value">{{ s.warranty_start }}</span></div>{% endif %}
+                        {% if s.warranty_end %}<div class="info-item"><span class="info-label">Warranty End</span><span class="info-value">{{ s.warranty_end }}</span></div>{% endif %}
                         {% if s.notes %}<div class="info-item" style="grid-column:1/-1;"><span class="info-label">Notes</span><span class="info-value">{{ s.notes }}</span></div>{% endif %}
                         {% endwith %}
                     </div>

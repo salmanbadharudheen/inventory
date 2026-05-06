@@ -3849,7 +3849,8 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
                 'custodian': str(asset.custodian) if asset.custodian else None,
                 'vendor': str(asset.vendor) if asset.vendor else None,
                 'supplier': str(asset.supplier) if asset.supplier else None,
-                'warranty_expiry': str(asset.warranty_expiry) if asset.warranty_expiry else None,
+                'warranty_start': str(asset.warranty_start) if asset.warranty_start else None,
+                'warranty_end': str(asset.warranty_end) if asset.warranty_end else None,
                 'notes': asset.notes,
                 'condition': asset.condition if hasattr(asset, 'condition') else None,
             }
