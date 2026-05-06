@@ -859,16 +859,37 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 to_val = request.GET.get('depr_date_to', '')
                 applied_filters.append(("Depreciation Date Range", f"{from_val} to {to_val}"))
 
-        ws.append(["Export Type", "Depreciation" if is_depreciation_view else "Assets"])
-        ws.append(["Exported At", datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
-        if applied_filters:
-            ws.append(["Applied Filters", ""])
-            for label, value in applied_filters:
-                ws.append([label, value])
-        else:
-            ws.append(["Applied Filters", "None"])
-        ws.append([])
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, NamedStyle
+        from openpyxl.utils import get_column_letter
 
+        # Style palette
+        TITLE_FILL = PatternFill(start_color='1F3864', end_color='1F3864', fill_type='solid')
+        META_LABEL_FILL = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
+        META_VALUE_FILL = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
+        HEADER_FILL = PatternFill(start_color='305496', end_color='305496', fill_type='solid')
+        ROW_ALT_FILL = PatternFill(start_color='F8F9FB', end_color='F8F9FB', fill_type='solid')
+        TOTAL_FILL = PatternFill(start_color='FFE699', end_color='FFE699', fill_type='solid')
+        SUMMARY_HEADER_FILL = PatternFill(start_color='1F3864', end_color='1F3864', fill_type='solid')
+        SUMMARY_LABEL_FILL = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
+
+        TITLE_FONT = Font(name='Calibri', size=16, bold=True, color='FFFFFF')
+        META_LABEL_FONT = Font(name='Calibri', size=10, bold=True, color='1F3864')
+        META_VALUE_FONT = Font(name='Calibri', size=10, color='000000')
+        HEADER_FONT = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+        BODY_FONT = Font(name='Calibri', size=10, color='000000')
+        TOTAL_FONT = Font(name='Calibri', size=11, bold=True, color='000000')
+        SUMMARY_HEADER_FONT = Font(name='Calibri', size=12, bold=True, color='FFFFFF')
+
+        thin = Side(border_style='thin', color='BFBFBF')
+        BORDER = Border(left=thin, right=thin, top=thin, bottom=thin)
+        thick = Side(border_style='medium', color='1F3864')
+        TOTAL_BORDER = Border(left=thin, right=thin, top=thick, bottom=thick)
+
+        center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        left = Alignment(horizontal='left', vertical='center', wrap_text=True)
+        right = Alignment(horizontal='right', vertical='center')
+
+        # Build headers first so we know the column count for the title merge
         if is_depreciation_view:
             headers = [
                 'Asset Tag', 'Name', 'Category', 'Status',
@@ -888,8 +909,57 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 'Purchase Price', 'Currency', 'Purchase Date'
             ]
 
+        n_cols = len(headers)
+        last_col_letter = get_column_letter(n_cols)
+
+        # ---- Title row ----
+        title_text = ('Asset Depreciation Report' if is_depreciation_view
+                      else 'Asset Inventory Report')
+        ws.append([title_text])
+        ws.merge_cells(f'A1:{last_col_letter}1')
+        title_cell = ws.cell(row=1, column=1)
+        title_cell.font = TITLE_FONT
+        title_cell.fill = TITLE_FILL
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 30
+
+        # ---- Metadata block (label | value spans rest) ----
+        def add_meta(label, value):
+            ws.append([label, value] + [''] * (n_cols - 2))
+            r = ws.max_row
+            ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=n_cols)
+            lc = ws.cell(row=r, column=1)
+            vc = ws.cell(row=r, column=2)
+            lc.font = META_LABEL_FONT
+            lc.fill = META_LABEL_FILL
+            lc.alignment = left
+            lc.border = BORDER
+            vc.font = META_VALUE_FONT
+            vc.fill = META_VALUE_FILL
+            vc.alignment = left
+            vc.border = BORDER
+
+        add_meta('Export Type', 'Depreciation' if is_depreciation_view else 'Assets')
+        add_meta('Exported At', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        if applied_filters:
+            add_meta('Applied Filters', '')
+            for label, value in applied_filters:
+                add_meta(label, str(value))
+        else:
+            add_meta('Applied Filters', 'None')
+
+        # Spacer row
+        ws.append([])
+
+        # ---- Header row ----
         ws.append(headers)
         header_row_idx = ws.max_row
+        for cell in ws[header_row_idx]:
+            cell.font = HEADER_FONT
+            cell.fill = HEADER_FILL
+            cell.alignment = center
+            cell.border = BORDER
+        ws.row_dimensions[header_row_idx].height = 26
 
         # Identify numeric columns (1-based indexes) to total in the summary row
         if is_depreciation_view:
@@ -963,51 +1033,125 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     if isinstance(val, (int, float)):
                         totals[idx] += float(val)
 
-        # Append a TOTAL summary row (bold)
-        from openpyxl.styles import Font, PatternFill, Alignment
-        bold_font = Font(bold=True)
-        total_fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
+        data_start_row = header_row_idx + 1
+        data_end_row = ws.max_row
+        NUMBER_FORMAT = '#,##0.00'
+        numeric_set = set(numeric_col_indexes)
 
-        # Style header row
-        for cell in ws[header_row_idx]:
-            cell.font = bold_font
-
+        # Style data rows: borders, alignment, banding, number formats
         if row_count > 0:
-            total_row = [''] * len(headers)
+            for r in range(data_start_row, data_end_row + 1):
+                is_alt = ((r - data_start_row) % 2 == 1)
+                for c in range(1, n_cols + 1):
+                    cell = ws.cell(row=r, column=c)
+                    cell.font = BODY_FONT
+                    cell.border = BORDER
+                    if c in numeric_set:
+                        cell.alignment = right
+                        cell.number_format = NUMBER_FORMAT
+                    else:
+                        cell.alignment = left
+                    if is_alt:
+                        cell.fill = ROW_ALT_FILL
+                ws.row_dimensions[r].height = 18
+
+        # ---- TOTAL row ----
+        if row_count > 0:
+            total_row = [''] * n_cols
             total_row[0] = 'TOTAL'
             for idx in numeric_col_indexes:
                 if idx <= len(total_row):
                     total_row[idx - 1] = round(totals[idx], 2)
             ws.append(total_row)
             total_row_idx = ws.max_row
-            for cell in ws[total_row_idx]:
-                cell.font = bold_font
-                cell.fill = total_fill
+            for c in range(1, n_cols + 1):
+                cell = ws.cell(row=total_row_idx, column=c)
+                cell.font = TOTAL_FONT
+                cell.fill = TOTAL_FILL
+                cell.border = TOTAL_BORDER
+                if c in numeric_set:
+                    cell.alignment = right
+                    cell.number_format = NUMBER_FORMAT
+                elif c == 1:
+                    cell.alignment = Alignment(horizontal='left', vertical='center')
+                else:
+                    cell.alignment = left
+            ws.row_dimensions[total_row_idx].height = 22
 
-            # Append a final summary block
-            ws.append([])
-            summary_label_font = Font(bold=True)
-            summary_start = ws.max_row + 1
-            ws.append(['Summary', ''])
-            ws.cell(row=ws.max_row, column=1).font = summary_label_font
-            ws.append(['Total Records', row_count])
+            # ---- Summary card ----
+            ws.append([])  # spacer
+
+            # Summary header (merged)
+            ws.append(['Summary'] + [''] * (n_cols - 1))
+            sh_row = ws.max_row
+            ws.merge_cells(start_row=sh_row, start_column=1, end_row=sh_row, end_column=min(3, n_cols))
+            sh_cell = ws.cell(row=sh_row, column=1)
+            sh_cell.font = SUMMARY_HEADER_FONT
+            sh_cell.fill = SUMMARY_HEADER_FILL
+            sh_cell.alignment = Alignment(horizontal='center', vertical='center')
+            ws.row_dimensions[sh_row].height = 24
+            for c in range(1, min(3, n_cols) + 1):
+                ws.cell(row=sh_row, column=c).border = BORDER
+
+            def add_summary_row(label, value, is_number=False):
+                ws.append([label, value] + [''] * (n_cols - 2))
+                r = ws.max_row
+                lc = ws.cell(row=r, column=1)
+                vc = ws.cell(row=r, column=2)
+                lc.font = META_LABEL_FONT
+                lc.fill = SUMMARY_LABEL_FILL
+                lc.alignment = left
+                lc.border = BORDER
+                vc.font = Font(name='Calibri', size=10, bold=True, color='000000')
+                vc.fill = META_VALUE_FILL
+                vc.alignment = right if is_number else left
+                vc.border = BORDER
+                if is_number:
+                    vc.number_format = NUMBER_FORMAT
+
+            add_summary_row('Total Records', row_count)
             for idx in numeric_col_indexes:
                 label = headers[idx - 1] if idx - 1 < len(headers) else f'Column {idx}'
-                ws.append([f'Total {label}', round(totals[idx], 2)])
-            for r in range(summary_start, ws.max_row + 1):
-                ws.cell(row=r, column=1).font = summary_label_font
+                add_summary_row(f'Total {label}', round(totals[idx], 2), is_number=True)
+        else:
+            # No data row notice
+            ws.append(['No records found for the selected filters.'] + [''] * (n_cols - 1))
+            r = ws.max_row
+            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=n_cols)
+            cell = ws.cell(row=r, column=1)
+            cell.font = Font(italic=True, color='808080')
+            cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Auto-fit column widths (approximate)
-        for col_idx, _ in enumerate(headers, start=1):
-            max_len = 10
-            for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=header_row_idx, values_only=True):
-                for v in cell:
-                    if v is None:
-                        continue
-                    l = len(str(v))
-                    if l > max_len:
-                        max_len = l
-            ws.column_dimensions[ws.cell(row=header_row_idx, column=col_idx).column_letter].width = min(max_len + 2, 40)
+        # ---- Column widths (auto-fit, capped) ----
+        for col_idx in range(1, n_cols + 1):
+            max_len = len(str(headers[col_idx - 1]))
+            for r in range(data_start_row, ws.max_row + 1):
+                v = ws.cell(row=r, column=col_idx).value
+                if v is None:
+                    continue
+                # Format numbers similar to display for width calc
+                if isinstance(v, (int, float)):
+                    s = f'{v:,.2f}'
+                else:
+                    s = str(v)
+                if len(s) > max_len:
+                    max_len = len(s)
+            ws.column_dimensions[get_column_letter(col_idx)].width = min(max(max_len + 4, 12), 40)
+
+        # Freeze header row
+        ws.freeze_panes = ws.cell(row=header_row_idx + 1, column=1)
+
+        # Add auto-filter on the data range
+        if row_count > 0:
+            ws.auto_filter.ref = f'A{header_row_idx}:{last_col_letter}{data_end_row}'
+
+        # Print setup
+        ws.print_options.horizontalCentered = True
+        ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.print_title_rows = f'{header_row_idx}:{header_row_idx}'
 
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
