@@ -2129,7 +2129,8 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return Asset.objects.filter(
-            organization=self.request.user.organization
+            organization=self.request.user.organization,
+            is_deleted=False,
         ).select_related(
             'category', 'sub_category', 'group', 'sub_group',
             'brand_new', 'department', 'assigned_to', 'company',
@@ -2203,7 +2204,7 @@ class AssetUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('asset-list')
 
     def get_queryset(self):
-        return Asset.objects.filter(organization=self.request.user.organization)
+        return Asset.objects.filter(organization=self.request.user.organization, is_deleted=False)
 
 
     def get_form_kwargs(self):
