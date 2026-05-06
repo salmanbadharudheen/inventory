@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Linking,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { lookupAssetByTag, getAssetDetail } from "../../src/services/asset-api";
@@ -133,6 +135,35 @@ export default function AssetDetailScreen() {
     return `${API.BASE_URL}${path}`;
   };
 
+  /* ─── Open a document/file URL in browser or external app ─── */
+  const openFile = async (path: string | null) => {
+    const url = imageUrl(path);
+    if (!url) return;
+    try {
+      const can = await Linking.canOpenURL(url);
+      if (!can) throw new Error("Cannot open URL");
+      await Linking.openURL(url);
+    } catch (e) {
+      Alert.alert("Cannot open file", "No app available to open this file.");
+    }
+  };
+
+  /* ─── Filename from a path ─── */
+  const fileName = (path: string | null) => {
+    if (!path) return "";
+    const segs = path.split("/");
+    return decodeURIComponent(segs[segs.length - 1] || "file");
+  };
+
+  /* ─── Document fields list ─── */
+  const documents: { label: string; icon: string; path: string | null }[] = [
+    { label: "Purchase Order", icon: "🧾", path: a.po_file },
+    { label: "Invoice", icon: "💳", path: a.invoice_file },
+    { label: "Delivery Note", icon: "📦", path: a.delivery_note_file },
+    { label: "Insurance", icon: "🛡️", path: a.insurance_file },
+    { label: "AMC Contract", icon: "📑", path: a.amc_file },
+  ].filter((d) => !!d.path);
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -181,6 +212,21 @@ export default function AssetDetailScreen() {
           ) : null}
         </View>
 
+        {/* ── Asset Photo ── */}
+        {a.image && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>🖼️  Asset Photo</Text>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => openFile(a.image)}>
+              <Image
+                source={{ uri: imageUrl(a.image)! }}
+                style={styles.assetPhoto}
+                resizeMode="cover"
+              />
+              <Text style={styles.tapHint}>Tap to open full size</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── QR / Barcode Images ── */}
         {(a.qr_code_image || a.barcode_image) && (
           <View style={styles.card}>
@@ -207,6 +253,30 @@ export default function AssetDetailScreen() {
                 </View>
               )}
             </View>
+          </View>
+        )}
+
+        {/* ── Documents ── */}
+        {documents.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>📎  Documents</Text>
+            {documents.map((doc) => (
+              <TouchableOpacity
+                key={doc.label}
+                style={styles.docRow}
+                onPress={() => openFile(doc.path)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.docIcon}>{doc.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docLabel}>{doc.label}</Text>
+                  <Text style={styles.docFile} numberOfLines={1}>
+                    {fileName(doc.path)}
+                  </Text>
+                </View>
+                <Text style={styles.docOpen}>Open ›</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -469,6 +539,35 @@ const styles = StyleSheet.create({
   qrImage: { width: 120, height: 120 },
   barcodeImage: { width: 180, height: 60 },
   codeLabel: { fontSize: 12, color: C.muted, marginTop: 8, fontWeight: "600" },
+
+  // Asset photo
+  assetPhoto: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: C.bg,
+  },
+  tapHint: {
+    fontSize: 12,
+    color: C.muted,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+
+  // Documents
+  docRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    gap: 12,
+  },
+  docIcon: { fontSize: 22 },
+  docLabel: { fontSize: 14, fontWeight: "700", color: C.text },
+  docFile: { fontSize: 12, color: C.muted, marginTop: 2 },
+  docOpen: { fontSize: 13, fontWeight: "700", color: C.primary },
 
   // Info rows
   infoRow: {

@@ -211,6 +211,11 @@ export interface AssetDetail {
   image: string | null;
   barcode_image: string | null;
   qr_code_image: string | null;
+  po_file: string | null;
+  invoice_file: string | null;
+  delivery_note_file: string | null;
+  insurance_file: string | null;
+  amc_file: string | null;
   created_at: string;
   updated_at: string;
 }

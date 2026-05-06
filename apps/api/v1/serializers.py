@@ -237,6 +237,9 @@ class AssetReadSerializer(serializers.ModelSerializer):
             'status', 'notes',
             # images
             'image', 'barcode_image', 'qr_code_image',
+            # documents
+            'po_file', 'invoice_file', 'delivery_note_file',
+            'insurance_file', 'amc_file',
             # meta
             'created_at', 'updated_at',
         ]
