@@ -203,7 +203,7 @@ class AssetRemarks(TenantAwareModel):
 def generate_asset_tag(organization, category, company=None):
     """
     Generate structured asset tag based on organization's tag configuration.
-    Default format: ORG-CAT-XXXX-YY  (organization-category-hex-year)
+    Default format: CO-CAT-XXXX-YY  (company-category-hex-year)
     Customizable via Organization settings.
     """
     from datetime import date
@@ -220,12 +220,18 @@ def generate_asset_tag(organization, category, company=None):
     if fixed_prefix:
         prefix_parts.append(fixed_prefix)
     elif include_company:
-        if organization and getattr(organization, 'name', None):
-            alpha_chars = ''.join(c for c in organization.name if c.isalpha()).upper()
-            org_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
+        # Derive 2-letter code from the ORGANIZATION name (was company name).
+        # Falls back to company name only if the organization has no usable
+        # alphabetic characters, then to 'XX' as a final safety net.
+        org_name = getattr(organization, 'name', '') or ''
+        alpha_chars = ''.join(c for c in org_name if c.isalpha()).upper()
+        if not alpha_chars and company and getattr(company, 'name', ''):
+            alpha_chars = ''.join(c for c in company.name if c.isalpha()).upper()
+        if alpha_chars:
+            company_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
         else:
-            org_code = 'XX'
-        prefix_parts.append(org_code)
+            company_code = 'XX'
+        prefix_parts.append(company_code)
 
     if include_category:
         category_code = category.code[:3].upper() if category.code else 'XXX'
@@ -318,7 +324,6 @@ class Asset(TenantAwareModel):
     erp_asset_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="ERP Asset Number")
     
     quantity = models.PositiveIntegerField(default=1, verbose_name="Quantity")
-    is_tagged = models.BooleanField(default=False, verbose_name="Is Tagged")
     label_type = models.CharField(max_length=50, choices=LabelType.choices, default=LabelType.NON_METAL, verbose_name="Label Type")
     
     serial_number = models.CharField(max_length=100, blank=True, null=True)
@@ -424,16 +429,6 @@ class Asset(TenantAwareModel):
     units_consumed = models.PositiveBigIntegerField(default=0, blank=True)
     
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_assets')
-
-    # Cached depreciation values (updated on save and via management command)
-    cached_accumulated_depreciation = models.DecimalField(
-        max_digits=15, decimal_places=2, default=0, editable=False,
-        verbose_name="Cached Accumulated Depreciation",
-    )
-    cached_nbv = models.DecimalField(
-        max_digits=15, decimal_places=2, default=0, editable=False,
-        verbose_name="Cached Net Book Value",
-    )
 
     @property
     def accumulated_depreciation(self):
@@ -623,12 +618,6 @@ class Asset(TenantAwareModel):
                 
         return schedule
 
-    def update_depreciation_cache(self):
-        """Recompute and store cached depreciation values."""
-        acc_dep = self.accumulated_depreciation
-        self.cached_accumulated_depreciation = acc_dep
-        self.cached_nbv = (self.purchase_price or Decimal('0')) - acc_dep
-
     def save(self, *args, **kwargs):
         # Auto-generate asset tag if not provided
         if not self.asset_tag:
@@ -648,9 +637,6 @@ class Asset(TenantAwareModel):
             if self.depreciation_method == DepreciationMethod.UNITS_OF_PRODUCTION:
                 if not self.expected_units:
                     self.expected_units = self.category.default_expected_units
-
-        # Update cached depreciation before saving
-        self.update_depreciation_cache()
 
         super().save(*args, **kwargs)
         

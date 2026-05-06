@@ -1855,8 +1855,12 @@ class AssetImportView(LoginRequiredMixin, FormView):
             if _fixed_prefix:
                 parts.append(_fixed_prefix)
             elif _include_company:
-                if _company and _company.name:
+                # Derive 2-letter code from the ORGANIZATION name (was company name).
+                org_name = getattr(org, 'name', '') or ''
+                alpha = ''.join(c for c in org_name if c.isalpha()).upper()
+                if not alpha and _company and getattr(_company, 'name', ''):
                     alpha = ''.join(c for c in _company.name if c.isalpha()).upper()
+                if alpha:
                     code = alpha[:2] if len(alpha) >= 2 else alpha.ljust(2, 'X')[:2]
                 else:
                     code = 'XX'

@@ -20,8 +20,6 @@ class Organization(models.Model):
         COMPACT = 'COMPACT', 'Compact – QR + Tag only (small sticker)'
         DETAILED = 'DETAILED', 'Detailed – QR, Barcode, Name, Category, Location'
         BARCODE_ONLY = 'BARCODE_ONLY', 'Barcode Only – Horizontal barcode strip'
-        MODERN = 'MODERN', 'Modern – Gradient header, Name, Category, Location'
-        QR_ONLY = 'QR_ONLY', 'QR Only – Large QR code with tag'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -79,7 +77,9 @@ class Organization(models.Model):
         if self.tag_prefix:
             parts.append(self.tag_prefix.upper())
         elif self.tag_include_company:
-            parts.append('SH')
+            # Use first 2 alphabetic letters of the organization name
+            alpha = ''.join(c for c in (self.name or '') if c.isalpha()).upper()
+            parts.append(alpha[:2] if len(alpha) >= 2 else (alpha.ljust(2, 'X')[:2] if alpha else 'XX'))
         if self.tag_include_category:
             parts.append('LAP')
         # Sequence
