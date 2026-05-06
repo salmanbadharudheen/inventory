@@ -20,8 +20,14 @@ from decimal import Decimal
 from datetime import date, datetime
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.core.cache import cache
 from uuid import uuid4
 import openpyxl
+
+
+def invalidate_dashboard_cache_for_org(org):
+    if org:
+        cache.delete(f'dashboard_data_{org.id}')
 
 def get_subcategories(request):
     category_id = request.GET.get('category_id')
@@ -710,10 +716,12 @@ class BulkAssetActionView(LoginRequiredMixin, View):
         
         if action == 'delete':
             assets.update(is_deleted=True)
+            invalidate_dashboard_cache_for_org(request.user.organization)
             messages.success(request, f"Successfully deleted {count} assets.")
         elif action.startswith('status_'):
             new_status = action.replace('status_', '').upper()
             assets.update(status=new_status)
+            invalidate_dashboard_cache_for_org(request.user.organization)
             messages.success(request, f"Successfully updated status for {count} assets.")
             
         return redirect('asset-list')
@@ -1344,6 +1352,8 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
                     form.instance.company
                 )
                 new_asset.save()
+
+            invalidate_dashboard_cache_for_org(self.request.user.organization)
             
             return response
         else:
@@ -1354,7 +1364,9 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
                     form.instance.category,
                     form.instance.company
                 )
-            return super().form_valid(form)
+            response = super().form_valid(form)
+            invalidate_dashboard_cache_for_org(self.request.user.organization)
+            return response
 
     def _build_approval_payload(self, form):
         """Serialize asset form data for deferred creation after checker approval."""
@@ -2191,8 +2203,8 @@ class AssetDeleteView(LoginRequiredMixin, View):
 
         asset = get_object_or_404(Asset, pk=pk, organization=org, is_deleted=False)
         asset.is_deleted = True
-        asset.deleted_at = timezone.now()
-        asset.save(update_fields=['is_deleted', 'deleted_at'])
+        asset.save(update_fields=['is_deleted'])
+        invalidate_dashboard_cache_for_org(org)
 
         messages.success(request, f'Asset {asset.asset_tag} deleted successfully.')
         return redirect('asset-list')
@@ -2220,7 +2232,9 @@ class AssetUpdateView(LoginRequiredMixin, UpdateView):
                 form.instance.category,
                 form.instance.company
             )
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        invalidate_dashboard_cache_for_org(self.request.user.organization)
+        return response
 
 # --- CATEGORY VIEWS ---
 class CategoryListView(LoginRequiredMixin, ListView):
@@ -3861,6 +3875,7 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
             asset.status = Asset.Status.RETIRED
             asset.is_deleted = True
             asset.save(update_fields=['status', 'is_deleted'])
+            invalidate_dashboard_cache_for_org(self.request.user.organization)
             messages.success(self.request, f'Asset disposal approved and asset {asset.asset_tag} removed from inventory.')
         elif new_status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected: {self.object.asset.asset_tag}')
