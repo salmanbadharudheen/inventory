@@ -15,11 +15,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='assettransfer',
-            name='is_deleted',
-            field=models.BooleanField(default=False),
-        ),
+        # is_deleted already created by 0020_assettransfer CreateModel — do not add again
         migrations.AddField(
             model_name='assettransfer',
             name='movement_reason',
