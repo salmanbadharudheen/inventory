@@ -3821,8 +3821,7 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
             asset = self.object.asset
             asset.status = Asset.Status.RETIRED
             asset.is_deleted = True
-            asset.deleted_at = timezone.now()
-            asset.save(update_fields=['status', 'is_deleted', 'deleted_at'])
+            asset.save(update_fields=['status', 'is_deleted'])
             messages.success(self.request, f'Asset disposal approved and asset {asset.asset_tag} removed from inventory.')
         elif self.object.status == AssetDisposal.Status.REJECTED:
             messages.warning(self.request, f'Asset disposal request rejected: {self.object.asset.asset_tag}')
