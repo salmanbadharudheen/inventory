@@ -3808,14 +3808,23 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         form.instance.approved_by = self.request.user
         form.instance.approved_at = datetime.now()
-        
-        if form.instance.status == AssetDisposal.Status.APPROVED:
-            messages.success(self.request, f'Asset disposal request approved: {form.instance.asset.asset_tag}')
-        elif form.instance.status == AssetDisposal.Status.REJECTED:
-            messages.warning(self.request, f'Asset disposal request rejected: {form.instance.asset.asset_tag}')
-        
-        return super().form_valid(form)
-    
+
+        response = super().form_valid(form)
+
+        if self.object.status == AssetDisposal.Status.APPROVED:
+            # Mark the asset as retired and soft-deleted so it disappears from
+            # the inventory list and all depreciation / financial calculations.
+            asset = self.object.asset
+            asset.status = Asset.Status.RETIRED
+            asset.is_deleted = True
+            asset.deleted_at = timezone.now()
+            asset.save(update_fields=['status', 'is_deleted', 'deleted_at'])
+            messages.success(self.request, f'Asset disposal approved and asset {asset.asset_tag} removed from inventory.')
+        elif self.object.status == AssetDisposal.Status.REJECTED:
+            messages.warning(self.request, f'Asset disposal request rejected: {self.object.asset.asset_tag}')
+
+        return response
+
     def get_success_url(self):
         return reverse('disposal-detail', kwargs={'pk': self.object.pk})
 
