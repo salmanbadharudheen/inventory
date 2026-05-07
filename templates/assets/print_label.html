@@ -275,15 +275,16 @@
         .label img {
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;
-            image-rendering: pixelated;
         }
         .label .lbl-qr img {
             image-rendering: pixelated;  /* QR must stay pixel-sharp */
         }
         .label .lbl-right img,
-        .label .lbl-barcode-img img {
+        .label .lbl-barcode-img img,
+        .label .lbl-barcode-inline img {
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;  /* Barcode lines stay sharp */
+            object-fit: contain;
         }
 
         .label .org-text {
@@ -543,7 +544,7 @@
             .label-classic .lbl-right img {
                 height: calc(0.42in * var(--custom-barcode-scale));
                 width: 100%;
-                object-fit: fill; /* stretch barcode to full width — better scan */
+                object-fit: contain;
             }
             .label-classic .lbl-right .lbl-tag {
                 font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
@@ -598,7 +599,7 @@
             .label-detailed .lbl-right img {
                 height: calc(0.40in * var(--custom-barcode-scale));
                 width: 100%;
-                object-fit: fill;
+                object-fit: contain;
             }
             .label-detailed .lbl-right .lbl-tag {
                 font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
@@ -619,7 +620,7 @@
             .label-barcode-only .lbl-barcode-img img {
                 height: calc(0.66in * var(--custom-barcode-scale));
                 width: 1.85in;
-                object-fit: fill; /* fill full width for best scan quality */
+                object-fit: contain;
             }
             .label-barcode-only .lbl-tag {
                 font-size: calc(9pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
@@ -802,7 +803,7 @@
         body.size-roll-133x19 .label-barcode-only .lbl-barcode-img img {
             height: calc(24px * var(--custom-barcode-scale));
             width: 100%;
-            object-fit: fill;
+            object-fit: contain;
         }
 
         body.size-roll-133x19 .label-classic .lbl-right,
@@ -953,7 +954,7 @@
             .label-modern .lbl-asset-name { font-size: calc(8pt * var(--custom-font-scale)); }
             .label-modern .lbl-category,
             .label-modern .lbl-location { font-size: calc(6pt * var(--custom-font-scale)); }
-            .label-modern .lbl-barcode-inline img { height: calc(0.3in * var(--custom-barcode-scale)); width: 100%; object-fit: fill; }
+            .label-modern .lbl-barcode-inline img { height: calc(0.3in * var(--custom-barcode-scale)); width: 100%; object-fit: contain; }
             .label-modern .lbl-tag { font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
 
             /* ── QR ONLY print ─────────────────────────── */

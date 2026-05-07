@@ -18,7 +18,8 @@ export default function ScanAssetScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualTag, setManualTag] = useState("");
+  const [manualValue, setManualValue] = useState("");
+  const [searchMode, setSearchMode] = useState<"tag" | "id">("tag");
   const [cameraReady, setCameraReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const processingRef = useRef(false);
@@ -27,6 +28,13 @@ export default function ScanAssetScreen() {
     router.push({
       pathname: "/(app)/asset-detail",
       params: { asset_tag: assetTag },
+    });
+  }, []);
+
+  const navigateToDetailById = useCallback((assetId: string) => {
+    router.push({
+      pathname: "/(app)/asset-detail",
+      params: { asset_id: assetId },
     });
   }, []);
 
@@ -59,12 +67,16 @@ export default function ScanAssetScreen() {
   );
 
   const handleManualSubmit = () => {
-    const tag = manualTag.trim();
-    if (!tag) {
-      Alert.alert("Required", "Please enter an asset tag.");
+    const value = manualValue.trim();
+    if (!value) {
+      Alert.alert("Required", searchMode === "tag" ? "Please enter an asset tag." : "Please enter an asset ID.");
       return;
     }
-    navigateToDetail(tag);
+    if (searchMode === "id") {
+      navigateToDetailById(value);
+    } else {
+      navigateToDetail(value);
+    }
   };
 
   /* ── Error screen ── */
@@ -77,7 +89,7 @@ export default function ScanAssetScreen() {
           <Text style={s.btnText}>Retry</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.btn} onPress={() => setShowManualEntry(true)}>
-          <Text style={s.btnText}>Enter Tag Manually</Text>
+          <Text style={s.btnText}>Find Asset Manually</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={s.linkText}>Go Back</Text>
@@ -121,15 +133,41 @@ export default function ScanAssetScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={s.card}>
-          <Text style={s.title}>Enter Asset Tag</Text>
-          <Text style={s.subtitle}>Type the asset tag printed below the barcode</Text>
+          <Text style={s.title}>Find Asset</Text>
+
+          {/* Mode toggle */}
+          <View style={s.toggleRow}>
+            <TouchableOpacity
+              style={[s.toggleBtn, searchMode === "tag" && s.toggleBtnActive]}
+              onPress={() => { setSearchMode("tag"); setManualValue(""); }}
+            >
+              <Text style={[s.toggleBtnText, searchMode === "tag" && s.toggleBtnTextActive]}>
+                Asset Tag
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.toggleBtn, searchMode === "id" && s.toggleBtnActive]}
+              onPress={() => { setSearchMode("id"); setManualValue(""); }}
+            >
+              <Text style={[s.toggleBtnText, searchMode === "id" && s.toggleBtnTextActive]}>
+                Asset ID
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={s.subtitle}>
+            {searchMode === "tag"
+              ? "Type the asset tag printed below the barcode"
+              : "Enter the numeric/UUID asset ID"}
+          </Text>
+
           <TextInput
             style={s.input}
-            value={manualTag}
-            onChangeText={setManualTag}
-            placeholder="e.g. ABC-0001-26"
+            value={manualValue}
+            onChangeText={setManualValue}
+            placeholder={searchMode === "tag" ? "e.g. ABC-0001-26" : "e.g. 1042 or UUID"}
             placeholderTextColor="#9CA3AF"
-            autoCapitalize="characters"
+            autoCapitalize={searchMode === "tag" ? "characters" : "none"}
             autoCorrect={false}
             autoFocus
             returnKeyType="search"
@@ -141,7 +179,7 @@ export default function ScanAssetScreen() {
           <TouchableOpacity
             onPress={() => {
               setShowManualEntry(false);
-              setManualTag("");
+              setManualValue("");
             }}
           >
             <Text style={s.linkText}>Back to Scanner</Text>
@@ -265,6 +303,31 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 16,
     width: "100%",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 16,
+    width: "100%",
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  toggleBtnActive: {
+    backgroundColor: "#6366F1",
+  },
+  toggleBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  toggleBtnTextActive: {
+    color: "#FFF",
   },
 
   topBar: {

@@ -5435,13 +5435,28 @@ def print_asset_labels_bulk(request):
     refresh_report = None
 
     from django.core.files.storage import default_storage
+    from PIL import Image
     from .code_generators import generate_codes_for_asset
 
-    def _file_missing(field):
+    def _file_missing_or_low_res(field, kind):
         if not field:
             return True
         try:
-            return not default_storage.exists(field.name)
+            if not default_storage.exists(field.name):
+                return True
+
+            min_dims = {
+                'barcode': (700, 120),
+                'qr': (220, 220),
+                'label': (700, 300),
+            }
+            min_w, min_h = min_dims.get(kind, (1, 1))
+
+            with default_storage.open(field.name, 'rb') as f:
+                with Image.open(f) as img:
+                    w, h = img.size
+
+            return w < min_w or h < min_h
         except Exception:
             return True
 
@@ -5450,9 +5465,9 @@ def print_asset_labels_bulk(request):
         failed = 0
         for asset in target_assets:
             try:
-                missing_b = _file_missing(asset.barcode_image)
-                missing_q = _file_missing(asset.qr_code_image)
-                missing_l = _file_missing(asset.label_image)
+                missing_b = _file_missing_or_low_res(asset.barcode_image, 'barcode')
+                missing_q = _file_missing_or_low_res(asset.qr_code_image, 'qr')
+                missing_l = _file_missing_or_low_res(asset.label_image, 'label')
                 if not (missing_b or missing_q or missing_l):
                     continue
                 if missing_b:

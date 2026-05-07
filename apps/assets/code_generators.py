@@ -18,6 +18,7 @@ class AssetCodeGenerator:
     """Generates barcodes and QR codes for assets"""
     
     BARCODE_FORMAT = 'code128'  # Most common format
+    PRINT_DPI = 600
     QR_VERSION = 1  # Auto-detect size
     QR_ERROR_CORRECTION = qrcode.constants.ERROR_CORRECT_M  # Medium error correction for small labels
 
@@ -53,7 +54,7 @@ class AssetCodeGenerator:
         return AssetCodeGenerator._load_font(min_size, bold=bold)
     
     @staticmethod
-    def generate_barcode(asset_tag, dpi=72):
+    def generate_barcode(asset_tag, dpi=300):
         """
         Generate a barcode image from asset tag.
         
@@ -77,8 +78,8 @@ class AssetCodeGenerator:
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
                 'dpi': safe_dpi,
-                'module_width': 0.3,       # Wider bars for small labels
-                'module_height': 12.0,     # Taller bars for reliable scanning
+                'module_width': 0.34 if safe_dpi >= 600 else 0.3,
+                'module_height': 18.0 if safe_dpi >= 600 else 12.0,
                 'write_text': False,       # No text — tag shown separately in label
                 'quiet_zone': 2.0,         # Proper quiet zone on sides
                 'font_size': 0,            # Ensure no text even on fallback
@@ -94,7 +95,7 @@ class AssetCodeGenerator:
 
     
     @staticmethod
-    def generate_qr_code(asset_tag, dpi=72):
+    def generate_qr_code(asset_tag, dpi=300):
         """
         Generate a QR code image from asset tag.
         
@@ -107,7 +108,7 @@ class AssetCodeGenerator:
         """
         try:
             # Higher box_size for print quality, standard 4-module quiet zone
-            box_size = 12 if dpi >= 300 else 10
+            box_size = 16 if dpi >= 600 else (12 if dpi >= 300 else 10)
             qr = qrcode.QRCode(
                 version=AssetCodeGenerator.QR_VERSION,
                 error_correction=AssetCodeGenerator.QR_ERROR_CORRECTION,
@@ -252,7 +253,7 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_barcode(asset_tag, dpi=300)
+            img = AssetCodeGenerator.generate_barcode(asset_tag, dpi=AssetCodeGenerator.PRINT_DPI)
 
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
@@ -284,7 +285,7 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_qr_code(asset_tag, dpi=300)
+            img = AssetCodeGenerator.generate_qr_code(asset_tag, dpi=AssetCodeGenerator.PRINT_DPI)
 
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
@@ -316,7 +317,7 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_label(asset_tag, company_name=company_name, include_text=True, dpi=300)
+            img = AssetCodeGenerator.generate_label(asset_tag, company_name=company_name, include_text=True, dpi=AssetCodeGenerator.PRINT_DPI)
 
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
