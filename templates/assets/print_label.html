@@ -502,7 +502,8 @@
             .label .lbl-right img,
             .label .lbl-barcode-img img,
             .label .lbl-barcode-inline img {
-                image-rendering: pixelated !important;
+                image-rendering: -webkit-optimize-contrast !important;
+                image-rendering: crisp-edges !important;
             }
 
             .label .lbl-tag,
@@ -1286,13 +1287,13 @@ function updateBatchParam(batchNum) {
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
-                {% if asset.qr_code_image %}
-                <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
+                {% if asset.qr_svg_data or asset.qr_code_image %}
+                <img src="{% if asset.qr_svg_data %}{{ asset.qr_svg_data }}{% else %}{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="QR">
                 {% endif %}
             </div>
             <div class="lbl-right">
-                {% if asset.barcode_image %}
-                <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
+                {% if asset.barcode_svg_data or asset.barcode_image %}
+                <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
                 {% endif %}
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
@@ -1302,8 +1303,8 @@ function updateBatchParam(batchNum) {
     {# ── COMPACT ─────────────────────────────────── #}
     <div class="label label-compact" data-design="COMPACT" {% if design != 'COMPACT' %}style="display:none"{% endif %}>
         <div class="lbl-qr">
-            {% if asset.qr_code_image %}
-            <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
+            {% if asset.qr_svg_data or asset.qr_code_image %}
+            <img src="{% if asset.qr_svg_data %}{{ asset.qr_svg_data }}{% else %}{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="QR">
             {% endif %}
         </div>
         <div class="lbl-divider"></div>
@@ -1320,13 +1321,13 @@ function updateBatchParam(batchNum) {
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
-                {% if asset.qr_code_image %}
-                <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
+                {% if asset.qr_svg_data or asset.qr_code_image %}
+                <img src="{% if asset.qr_svg_data %}{{ asset.qr_svg_data }}{% else %}{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="QR">
                 {% endif %}
             </div>
             <div class="lbl-right">
-                {% if asset.barcode_image %}
-                <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
+                {% if asset.barcode_svg_data or asset.barcode_image %}
+                <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
                 {% endif %}
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
@@ -1337,8 +1338,8 @@ function updateBatchParam(batchNum) {
     <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
         <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
-            {% if asset.barcode_image %}
-            <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
+            {% if asset.barcode_svg_data or asset.barcode_image %}
+            <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
             {% endif %}
         </div>
         <div class="lbl-tag">{{ asset.asset_tag }}</div>
@@ -1351,8 +1352,8 @@ function updateBatchParam(batchNum) {
         </div>
         <div class="lbl-modern-body">
             <div class="lbl-qr">
-                {% if asset.qr_code_image %}
-                <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
+                {% if asset.qr_svg_data or asset.qr_code_image %}
+                <img src="{% if asset.qr_svg_data %}{{ asset.qr_svg_data }}{% else %}{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="QR">
                 {% endif %}
             </div>
             <div class="lbl-modern-info">
@@ -1360,8 +1361,8 @@ function updateBatchParam(batchNum) {
                 {% if asset.category %}<div class="lbl-category">{{ asset.category.name }}</div>{% endif %}
                 {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
                 <div class="lbl-barcode-inline">
-                    {% if asset.barcode_image %}
-                    <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="Barcode">
+                    {% if asset.barcode_svg_data or asset.barcode_image %}
+                    <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
                     {% endif %}
                 </div>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
@@ -1373,8 +1374,8 @@ function updateBatchParam(batchNum) {
     <div class="label label-qr-only" data-design="QR_ONLY" {% if design != 'QR_ONLY' %}style="display:none"{% endif %}>
         <div class="org-name org-text">{{ org.name }}</div>
         <div class="lbl-qr-main">
-            {% if asset.qr_code_image %}
-            <img src="{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="QR">
+            {% if asset.qr_svg_data or asset.qr_code_image %}
+            <img src="{% if asset.qr_svg_data %}{{ asset.qr_svg_data }}{% else %}{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="QR">
             {% endif %}
         </div>
         <div class="lbl-tag-bottom">{{ asset.asset_tag }}</div>

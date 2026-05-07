@@ -5,11 +5,13 @@ Handles creating, storing, and serving barcode/QR codes for asset identification
 
 import io
 import os
+import base64
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
+import qrcode.image.svg
 import barcode
-from barcode.writer import ImageWriter
+from barcode.writer import ImageWriter, SVGWriter
 from django.core.files.base import ContentFile
 from django.conf import settings
 
@@ -123,6 +125,50 @@ class AssetCodeGenerator:
             return img.convert('RGB')
         except Exception as e:
             raise ValueError(f"Failed to generate QR code: {str(e)}")
+
+    @staticmethod
+    def generate_barcode_svg_data_uri(asset_tag):
+        """Generate a lossless SVG barcode data URI for ultra-sharp browser printing."""
+        try:
+            barcode_instance = barcode.get(
+                AssetCodeGenerator.BARCODE_FORMAT,
+                asset_tag,
+                writer=SVGWriter()
+            )
+
+            buffer = io.BytesIO()
+            barcode_instance.write(buffer, {
+                'module_width': 0.34,
+                'module_height': 18.0,
+                'write_text': False,
+                'quiet_zone': 2.0,
+                'font_size': 0,
+            })
+            svg_bytes = buffer.getvalue()
+            return f"data:image/svg+xml;base64,{base64.b64encode(svg_bytes).decode('ascii')}"
+        except Exception as e:
+            raise ValueError(f"Failed to generate barcode SVG: {str(e)}")
+
+    @staticmethod
+    def generate_qr_svg_data_uri(asset_tag):
+        """Generate a lossless SVG QR data URI for ultra-sharp browser printing."""
+        try:
+            qr = qrcode.QRCode(
+                version=AssetCodeGenerator.QR_VERSION,
+                error_correction=AssetCodeGenerator.QR_ERROR_CORRECTION,
+                box_size=16,
+                border=4,
+            )
+            qr.add_data(asset_tag)
+            qr.make(fit=True)
+
+            img = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+            buffer = io.BytesIO()
+            img.save(buffer)
+            svg_bytes = buffer.getvalue()
+            return f"data:image/svg+xml;base64,{base64.b64encode(svg_bytes).decode('ascii')}"
+        except Exception as e:
+            raise ValueError(f"Failed to generate QR SVG: {str(e)}")
     
     @staticmethod
     def generate_label(asset_tag, company_name=None, include_text=True, width=260, height=150, dpi=72):

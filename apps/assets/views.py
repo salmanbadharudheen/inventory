@@ -2155,7 +2155,7 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         from datetime import date
         from django.core.files.storage import default_storage
-        from .code_generators import generate_codes_for_asset
+        from .code_generators import generate_codes_for_asset, AssetCodeGenerator
 
         asset = self.object
 
@@ -5436,7 +5436,7 @@ def print_asset_labels_bulk(request):
 
     from django.core.files.storage import default_storage
     from PIL import Image
-    from .code_generators import generate_codes_for_asset
+    from .code_generators import generate_codes_for_asset, AssetCodeGenerator
 
     def _file_missing_or_low_res(field, kind):
         if not field:
@@ -5507,6 +5507,18 @@ def print_asset_labels_bulk(request):
         except Exception as e:
             print(f"[print_asset_labels_bulk] auto-heal skipped: {e}")
 
+    # Prefer SVG (vector) codes on print page for scanner-grade sharpness.
+    for asset in assets:
+        asset.barcode_svg_data = None
+        asset.qr_svg_data = None
+        try:
+            asset.barcode_svg_data = AssetCodeGenerator.generate_barcode_svg_data_uri(asset.asset_tag)
+        except Exception as e:
+            print(f"[print_asset_labels_bulk] barcode SVG fallback for {asset.asset_tag}: {e}")
+        try:
+            asset.qr_svg_data = AssetCodeGenerator.generate_qr_svg_data_uri(asset.asset_tag)
+        except Exception as e:
+            print(f"[print_asset_labels_bulk] QR SVG fallback for {asset.asset_tag}: {e}")
     return render(request, 'assets/print_label.html', {
         'org': org,
         'assets': assets,
