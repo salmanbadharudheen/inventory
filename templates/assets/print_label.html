@@ -468,12 +468,16 @@
                 overflow:  hidden !important;
                 margin:  0 !important;
                 padding: 0 !important;
+                box-sizing: border-box !important;
+                border: 0.55mm solid #000 !important;
+                outline: 0.15mm solid #000 !important;
                 /* advance the sticker roll after every label */
                 page-break-after:  always !important;
                 break-after: page  !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 display: flex !important;
+                opacity: 1 !important;
             }
             .label:last-child {
                 page-break-after: auto !important;
@@ -494,6 +498,32 @@
             }
             .label .lbl-qr img {
                 image-rendering: pixelated !important; /* QR stays pixel-perfect */
+            }
+            .label .lbl-right img,
+            .label .lbl-barcode-img img,
+            .label .lbl-barcode-inline img {
+                image-rendering: pixelated !important;
+            }
+
+            .label .lbl-tag,
+            .label .lbl-tag-bottom,
+            .label .org-text,
+            .label .lbl-asset-name,
+            .label .lbl-category,
+            .label .lbl-location {
+                text-rendering: geometricPrecision !important;
+                -webkit-font-smoothing: none !important;
+                font-smooth: never !important;
+                line-height: 1.05 !important;
+                letter-spacing: 0.02em !important;
+                font-weight: 700 !important;
+            }
+
+            .label .lbl-qr img,
+            .label .lbl-qr-main img {
+                border: 0.3mm solid #000 !important;
+                background: #fff !important;
+                padding: 0.2mm !important;
             }
 
             /* Force high-contrast black print to avoid faded color labels */
