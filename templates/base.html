@@ -704,9 +704,9 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="{% if request.user.is_authenticated and request.user.is_superuser and '/users/admin/organizations/' in request.path %}no-sidebar {% endif %}{% if request.user.is_authenticated and request.user.is_superuser and '/users/admin/' in request.path %}owner-portal{% endif %}">
+<body class="{% if request.user.is_authenticated and request.user.is_superuser and '/users/admin/' in request.path %}no-sidebar owner-portal{% endif %}">
     <!-- Sidebar Navigation -->
-    {% if not request.user.is_authenticated or not request.user.is_superuser or '/users/admin/organizations/' not in request.path %}
+    {% if not request.user.is_authenticated or not request.user.is_superuser or '/users/admin/' not in request.path %}
     <aside class="sidebar" id="sidebar">
         <div class="brand">
             <i data-lucide="box"></i>
@@ -867,7 +867,7 @@
         <!-- Top Navigation Bar -->
         <div class="top-bar">
             <div class="top-bar-left">
-                {% if not request.user.is_authenticated or not request.user.is_superuser or '/users/admin/organizations/' not in request.path %}
+                {% if not request.user.is_authenticated or not request.user.is_superuser or '/users/admin/' not in request.path %}
                 <button class="menu-toggle" id="menuToggle" title="Toggle Menu" aria-label="Toggle navigation menu">
                     <span></span>
                     <span></span>
