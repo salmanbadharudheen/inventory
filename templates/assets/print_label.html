@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -62,6 +62,8 @@
         }
         .btn-print { background: #2563eb; color: #fff; }
         .btn-print:hover { background: #1d4ed8; }
+        .btn-tag-print { background: #16a34a; color: #fff; }
+        .btn-tag-print:hover { background: #15803d; }
         .btn-back { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1 !important; }
         .btn-back:hover { background: #e2e8f0; }
         .toolbar .count {
@@ -1052,6 +1054,9 @@
     </button>
     <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
+    <button class="btn btn-tag-print" id="btn-print-and-tag" onclick="doPrintAndTag();" disabled
+        style="opacity:0.5; cursor:not-allowed;" title="Print labels and mark all shown assets as Tagged">&#x1F5A8; Print &amp; Tag</button>
+    <span id="tag-status" style="font-size:0.78rem;font-weight:600;display:none;"></span>
 </div>
 
 {% if refresh_report %}
@@ -1499,6 +1504,38 @@ function doPrint() {
     setTimeout(cleanupCopies, 1000);
 }
 
+
+async function doPrintAndTag() {
+    var btn2 = document.getElementById('btn-print-and-tag');
+    var statusEl = document.getElementById('tag-status');
+    // Trigger browser print first
+    doPrint();
+    // After print dialog, call the tag endpoint
+    var assetIds = {{ asset_ids_json|safe }};
+    if (!assetIds || !assetIds.length) return;
+    if (statusEl) { statusEl.style.display = 'inline'; statusEl.textContent = 'Tagging…'; statusEl.style.color = '#b45309'; }
+    if (btn2) { btn2.disabled = true; btn2.style.opacity = '0.5'; }
+    try {
+        var csrf = document.cookie.match(/csrftoken=([^;]+)/);
+        var csrfToken = csrf ? csrf[1] : '';
+        var resp = await fetch('{% url "mark-assets-tagged" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ asset_ids: assetIds }),
+        });
+        var data = await resp.json();
+        if (data.success) {
+            if (statusEl) { statusEl.textContent = '✅ ' + data.updated + ' asset(s) marked as Tagged'; statusEl.style.color = '#16a34a'; }
+        } else {
+            if (statusEl) { statusEl.textContent = '❌ Tag failed: ' + (data.error || 'unknown error'); statusEl.style.color = '#b91c1c'; }
+            if (btn2) { btn2.disabled = false; btn2.style.opacity = '1'; }
+        }
+    } catch(e) {
+        if (statusEl) { statusEl.textContent = '❌ Network error'; statusEl.style.color = '#b91c1c'; }
+        if (btn2) { btn2.disabled = false; btn2.style.opacity = '1'; }
+    }
+}
+
 async function sendToExternalPrintApp() {
     var statusEl = document.getElementById('external-print-status');
     var endpointInput = document.getElementById('external-bridge-url');
@@ -1587,10 +1624,12 @@ async function sendToExternalPrintApp() {
     var imgs = Array.from(document.querySelectorAll('.label img'));
     var status = document.getElementById('load-status');
     var btn    = document.getElementById('btn-print-all');
+    var btn2   = document.getElementById('btn-print-and-tag');
 
     function ready() {
         if (status) { status.textContent = '✅ Ready to print'; status.style.color = '#16a34a'; }
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+        if (btn2) { btn2.disabled = false; btn2.style.opacity = '1'; btn2.style.cursor = 'pointer'; }
         // Auto-open print dialog if ?autoprint=1 is in the URL
         if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
             setTimeout(function() { doPrint(); }, 300);

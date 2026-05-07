@@ -1,11 +1,11 @@
-from django.urls import path
+﻿from django.urls import path
 from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetDeleteView, AssetImportView, 
     BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
-    label_print_center, print_asset_labels_bulk,
+    label_print_center, print_asset_labels_bulk, mark_assets_tagged,
     asset_attachment_upload, asset_attachment_delete,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
@@ -74,6 +74,7 @@ urlpatterns = [
     path('barcodes/download/batch/', download_barcode_batch, name='download-barcode-batch'),
     path('labels/print/', label_print_center, name='label-print-center'),
     path('labels/print/bulk/', print_asset_labels_bulk, name='print-asset-labels-bulk'),
+    path('labels/print/tag/', mark_assets_tagged, name='mark-assets-tagged'),
 
     # Asset Attachments
     path('<uuid:pk>/attachments/upload/', asset_attachment_upload, name='asset-attachment-upload'),

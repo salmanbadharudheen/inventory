@@ -2,15 +2,14 @@ import os
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.core.files.uploadedfile import UploadedFile
 from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 from django.utils.translation import gettext_lazy as _
 
 
-MAX_IMAGE_UPLOAD_BYTES = 1 * 1024 * 1024   # 1 MB
-MAX_DOCUMENT_UPLOAD_BYTES = 1 * 1024 * 1024   # 1 MB
+MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB
+MAX_DOCUMENT_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 ALLOWED_DOCUMENT_EXTENSIONS = {
@@ -18,7 +17,19 @@ ALLOWED_DOCUMENT_EXTENSIONS = {
     '.jpg', '.jpeg', '.png', '.webp'
 }
 
+LABEL_TYPE_CHOICES = [
+    ('RFID', 'RFID'),
+    ('QR_CODE', 'QR Code'),
+    ('BARCODE', 'Barcode'),
+]
+
 class AssetForm(forms.ModelForm):
+    label_type = forms.MultipleChoiceField(
+        choices=LABEL_TYPE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label='Label Type',
+    )
     class Meta:
         model = Asset
         exclude = ['organization', 'created_by', 'is_deleted', 'custom_fields', 'asset_tag']
@@ -37,8 +48,10 @@ class AssetForm(forms.ModelForm):
             'maintenance_start_date': forms.DateInput(attrs={'type': 'date'}),
             'maintenance_end_date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
+            'tagging_status': forms.Select(attrs={'class': 'form-control'}),
             'useful_life_years': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
             'quantity': forms.NumberInput(attrs={'min': '1', 'value': '1'}),
+            'custom_asset_tag': forms.TextInput(attrs={'placeholder': 'e.g. TAG-123'}),
             'asset_code': forms.TextInput(attrs={'placeholder': 'e.g. CODE-456'}),
             'description': forms.Textarea(attrs={'rows': 3}),
             'short_description': forms.TextInput(attrs={'placeholder': 'Brief summary'}),
@@ -50,9 +63,18 @@ class AssetForm(forms.ModelForm):
         try:
             self.request = kwargs.pop('request', None)
             super().__init__(*args, **kwargs)
-            
-            # Style all fields
+
+            # Set initial for label_type (multi-select from comma-separated string)
+            if not self.instance.pk:
+                self.initial['label_type'] = ['QR_CODE', 'BARCODE']
+            else:
+                stored = self.instance.label_type or ''
+                self.initial['label_type'] = [v.strip() for v in stored.split(',') if v.strip()]
+
+            # Style all fields (skip CheckboxSelectMultiple)
             for field_name, field in self.fields.items():
+                if isinstance(field.widget, forms.CheckboxSelectMultiple):
+                    continue
                 field.widget.attrs['class'] = 'form-control'
                 if field.required:
                     field.widget.attrs['class'] += ' required'
@@ -101,20 +123,12 @@ class AssetForm(forms.ModelForm):
             print(traceback.format_exc())
             raise
 
+    def clean_label_type(self):
+        values = self.cleaned_data.get('label_type', [])
+        return ','.join(values)
+
     def clean(self):
         cleaned_data = super().clean()
-
-        # Validate asset_code uniqueness per organization
-        asset_code = cleaned_data.get('asset_code')
-        if asset_code:
-            qs = Asset.objects.filter(
-                organization=self.request.user.organization,
-                asset_code=asset_code,
-            )
-            if self.instance.pk:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise ValidationError({'asset_code': _('An asset with this Asset Code already exists.')})
 
         field_rules = {
             'image': (ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_UPLOAD_BYTES),
@@ -128,13 +142,6 @@ class AssetForm(forms.ModelForm):
         for field_name, (allowed_extensions, max_bytes) in field_rules.items():
             upload = cleaned_data.get(field_name)
             if not upload:
-                continue
-
-            # Only validate freshly uploaded files. When editing, an unchanged
-            # field returns the existing FieldFile, and accessing .size would
-            # try to stat the file on disk — raising FileNotFoundError if the
-            # underlying file is missing (e.g. lost between deploys).
-            if not isinstance(upload, UploadedFile):
                 continue
 
             extension = os.path.splitext(upload.name)[1].lower()
@@ -308,10 +315,8 @@ class AssetRemarksForm(forms.ModelForm):
 
 class AssetTransferForm(forms.ModelForm):
     """Form for creating and updating asset transfers"""
-
-    # Not a model field — holds comma-separated asset UUIDs from the JS chip picker.
-    asset_ids = forms.CharField(required=False, widget=forms.HiddenInput())
-
+    
+    
     class Meta:
         model = AssetTransfer
         fields = [
@@ -327,6 +332,7 @@ class AssetTransferForm(forms.ModelForm):
             'transferred_to_custodian',
             'movement_reason',
             'requester_name',
+            'asset',
         ]
         widgets = {
             'transfer_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional transfer reference'}),
@@ -344,14 +350,18 @@ class AssetTransferForm(forms.ModelForm):
                 'placeholder': 'Specific reason for this movement'
             }),
             'requester_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Requester name (free text)'}),
+            'asset': forms.HiddenInput(),
         }
     
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         
+        # Filter by organization
         if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
+            self.fields['asset'].queryset = Asset.objects.filter(organization=org)
+            # Populate the 'to' selects
             self.fields['transferred_to_region'].queryset = Region.objects.filter(organization=org)
             self.fields['transferred_to_site'].queryset = Site.objects.filter(region__organization=org)
             # Buildings are linked to Locations -> derive buildings available via locations
@@ -364,6 +374,7 @@ class AssetTransferForm(forms.ModelForm):
         
         # Make all fields optional (bulk form handles multiple assets via JS)
         self.fields['transfer_no'].required = False
+        self.fields['asset'].required = False
         self.fields['transfer_description'].required = False
         self.fields['transferred_to_region'].required = False
         self.fields['transferred_to_site'].required = False
@@ -412,16 +423,6 @@ class AssetDisposalForm(forms.ModelForm):
             'data-placeholder': 'Search and select an asset...'
         })
     )
-
-    assets = forms.ModelMultipleChoiceField(
-        queryset=Asset.objects.all(),
-        required=False,
-        widget=forms.SelectMultiple(attrs={
-            'class': 'form-control',
-            'size': 10,
-            'data-placeholder': 'Select one or more assets...'
-        })
-    )
     
     class Meta:
         model = AssetDisposal
@@ -441,68 +442,15 @@ class AssetDisposalForm(forms.ModelForm):
         # Filter assets by organization - supports searching by asset_tag and name
         if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
-            allowed_assets = Asset.objects.filter(
+            self.fields['asset'].queryset = Asset.objects.filter(
                 organization=org,
                 status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
             ).order_by('asset_tag')
-            self.fields['asset'].queryset = allowed_assets
-            self.fields['assets'].queryset = allowed_assets
-
-            self.fields['asset'].label_from_instance = lambda a: f"{a.asset_tag} - {a.name}"
-            self.fields['assets'].label_from_instance = lambda a: f"{a.asset_tag} - {a.name}"
         
         self.fields['disposal_date'].required = False
         self.fields['estimated_salvage_value'].required = False
         self.fields['reason'].required = False
         self.fields['notes'].required = False
-
-        # Bulk disposal flow passes selected asset IDs via query/post payload.
-        bulk_asset_ids = ''
-        if self.request:
-            bulk_asset_ids = self.request.POST.get('asset_ids') or self.request.GET.get('asset_ids', '')
-        if bulk_asset_ids:
-            self.fields['asset'].required = False
-
-        # Multi-select is now the preferred path, so the single asset selector is optional.
-        self.fields['asset'].required = False
-
-    def clean(self):
-        cleaned_data = super().clean()
-        asset = cleaned_data.get('asset')
-        assets = list(cleaned_data.get('assets') or [])
-
-        if asset and not assets:
-            assets = [asset]
-
-        if not assets:
-            self.add_error('assets', 'Please select at least one asset for disposal.')
-            return cleaned_data
-
-        # Allow retry only after a request is responded (e.g., rejected/cancelled).
-        # Block parallel in-progress requests for the same asset.
-        in_progress_statuses = [
-            AssetDisposal.Status.PENDING,
-            AssetDisposal.Status.MANAGER_APPROVED,
-        ]
-
-        for selected_asset in assets:
-            existing_qs = AssetDisposal.objects.filter(
-                asset=selected_asset,
-                status__in=in_progress_statuses,
-            )
-
-            if self.request and getattr(self.request.user, 'organization', None):
-                existing_qs = existing_qs.filter(organization=self.request.user.organization)
-
-            if self.instance and self.instance.pk:
-                existing_qs = existing_qs.exclude(pk=self.instance.pk)
-
-            if existing_qs.exists():
-                self.add_error('assets', f'A disposal request is already pending for {selected_asset.asset_tag}.')
-
-        cleaned_data['selected_assets'] = assets
-
-        return cleaned_data
     
     def __str__(self):
         """Display asset with tag and name for better searchability"""

@@ -202,90 +202,62 @@ class AssetRemarks(TenantAwareModel):
 
 def generate_asset_tag(organization, category, company=None):
     """
-    Generate structured asset tag based on organization's tag configuration.
-    Default format: CO-CAT-XXXX-YY  (company-category-hex-year)
-    Customizable via Organization settings.
+    Generate structured asset tag with format: CO-CAT-XXXX-YY
+    Where:
+    - CO: First 2 letters of company name (uppercase)
+    - CAT: Category code (3 letters)
+    - XXXX: Sequential hexadecimal counter (4 digits)
+    - YY: Year suffix (last 2 digits)
+    
+    Example: SH-LAP-001A-26 (Shamal, Laptop, 26th asset, Year 2026)
     """
     from datetime import date
-
-    sep = getattr(organization, 'tag_separator', '-') or '-'
-    include_company = getattr(organization, 'tag_include_company', True)
-    include_category = getattr(organization, 'tag_include_category', True)
-    include_year = getattr(organization, 'tag_include_year', True)
-    seq_format = getattr(organization, 'tag_sequence_format', 'HEX4') or 'HEX4'
-    fixed_prefix = (getattr(organization, 'tag_prefix', '') or '').strip().upper()
-
-    # Build prefix parts (for DB lookup)
-    prefix_parts = []
-    if fixed_prefix:
-        prefix_parts.append(fixed_prefix)
-    elif include_company:
-        # Derive 2-letter code from the ORGANIZATION name (was company name).
-        # Falls back to company name only if the organization has no usable
-        # alphabetic characters, then to 'XX' as a final safety net.
-        org_name = getattr(organization, 'name', '') or ''
-        alpha_chars = ''.join(c for c in org_name if c.isalpha()).upper()
-        if not alpha_chars and company and getattr(company, 'name', ''):
-            alpha_chars = ''.join(c for c in company.name if c.isalpha()).upper()
-        if alpha_chars:
-            company_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
-        else:
-            company_code = 'XX'
-        prefix_parts.append(company_code)
-
-    if include_category:
-        category_code = category.code[:3].upper() if category.code else 'XXX'
-        prefix_parts.append(category_code)
-
-    prefix = sep.join(prefix_parts)
-
-    year_suffix = str(date.today().year)[-2:] if include_year else ''
-
-    # How many prefix parts + 1 (sequence) + optional year
-    total_parts = len(prefix_parts) + 1 + (1 if include_year else 0)
-
-    # Determine sequence index in the split parts
-    seq_index = len(prefix_parts)
-
-    # Find existing assets with this prefix
-    qs = Asset.objects.filter(organization=organization, asset_tag__startswith=prefix)
-    if include_year:
-        qs = qs.filter(asset_tag__endswith=f"{sep}{year_suffix}")
-    tags = qs.values_list('asset_tag', flat=True)
-
+    
+    # Get company code: first 2 letters from company name
+    if company and company.name:
+        # Extract only alphabetic characters from company name
+        alpha_chars = ''.join(c for c in company.name if c.isalpha()).upper()
+        company_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
+    else:
+        company_code = 'XX'  # Default if no company
+    
+    # Get category code (3 letters, already auto-generated)
+    category_code = category.code[:3].upper() if category.code else 'XXX'
+    
+    # Get year suffix (last 2 digits)
+    year_suffix = str(date.today().year)[-2:]
+    
+    # Build prefix: CO-CAT
+    prefix = f"{company_code}-{category_code}"
+    
+    # Find existing assets with this prefix and year
+    pattern = f"{prefix}-%-{year_suffix}"
+    assets = Asset.objects.filter(
+        organization=organization,
+        asset_tag__startswith=prefix,
+        asset_tag__endswith=f"-{year_suffix}"
+    ).values_list('asset_tag', flat=True)
+    
+    # Extract hex counters and find max
     max_num = 0
-    for tag in tags:
+    for tag in assets:
         try:
-            parts = tag.split(sep)
-            if len(parts) == total_parts:
-                counter_str = parts[seq_index]
-                if seq_format.startswith('HEX'):
-                    num = int(counter_str, 16)
-                else:
-                    num = int(counter_str)
+            # tag format: CO-CAT-XXXX-YY
+            parts = tag.split('-')
+            if len(parts) == 4:
+                hex_counter = parts[2]  # XXXX part
+                num = int(hex_counter, 16)  # Convert hex to int
                 if num > max_num:
                     max_num = num
         except (ValueError, IndexError):
             continue
-
+    
+    # Increment and format as 4-digit hex (uppercase)
     next_num = max_num + 1
-
-    # Format sequence
-    fmt_map = {
-        'HEX4': lambda n: f"{n:04X}",
-        'HEX6': lambda n: f"{n:06X}",
-        'NUM4': lambda n: f"{n:04d}",
-        'NUM5': lambda n: f"{n:05d}",
-        'NUM6': lambda n: f"{n:06d}",
-    }
-    hex_counter = fmt_map.get(seq_format, fmt_map['HEX4'])(next_num)
-
-    # Build final tag
-    all_parts = prefix_parts + [hex_counter]
-    if include_year:
-        all_parts.append(year_suffix)
-
-    return sep.join(all_parts)
+    hex_counter = f"{next_num:04X}"  # 4-digit uppercase hex
+    
+    # Build final asset tag: CO-CAT-XXXX-YY
+    return f"{prefix}-{hex_counter}-{year_suffix}"
 
 class Asset(TenantAwareModel):
     class Type(models.TextChoices):
@@ -309,8 +281,9 @@ class Asset(TenantAwareModel):
         RETIRED = 'RETIRED', _('Retired')
 
     class LabelType(models.TextChoices):
-        METAL = 'METAL', _('Metal')
-        NON_METAL = 'NON_METAL', _('Non-Metal')
+        RFID = 'RFID', _('RFID')
+        QR_CODE = 'QR_CODE', _('QR Code')
+        BARCODE = 'BARCODE', _('Barcode')
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
@@ -320,11 +293,18 @@ class Asset(TenantAwareModel):
     short_description = models.CharField(max_length=150, blank=True, verbose_name="Short Description")
     
     asset_tag = models.CharField(max_length=100, help_text="Unique Asset ID (Autogenerated)", verbose_name="Asset ID")
-    asset_code = models.CharField(max_length=100, verbose_name="Asset Code")
+    custom_asset_tag = models.CharField(max_length=100, blank=True, null=True, verbose_name="Asset Tag")
+    asset_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Asset Code")
     erp_asset_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="ERP Asset Number")
     
     quantity = models.PositiveIntegerField(default=1, verbose_name="Quantity")
-    label_type = models.CharField(max_length=50, choices=LabelType.choices, default=LabelType.NON_METAL, verbose_name="Label Type")
+    label_type = models.CharField(max_length=200, default="QR_CODE,BARCODE", blank=True, verbose_name="Label Type")
+    tagging_status = models.CharField(
+        max_length=10,
+        choices=[('TAGGED', 'Tagged'), ('UNTAGGED', 'Untagged')],
+        default='UNTAGGED',
+        verbose_name="Label Status",
+    )
     
     serial_number = models.CharField(max_length=100, blank=True, null=True)
     
@@ -641,7 +621,7 @@ class Asset(TenantAwareModel):
         super().save(*args, **kwargs)
         
         # Generate barcode/QR code after asset is saved (so we have the asset_tag)
-        if self.asset_tag and (not self.barcode_image or not self.qr_code_image):
+        if self.asset_tag and not self.barcode_image:
             try:
                 from .code_generators import generate_codes_for_asset
                 generate_codes_for_asset(self)
@@ -651,9 +631,13 @@ class Asset(TenantAwareModel):
     def __str__(self):
         return f"{self.name} ({self.asset_tag})"
 
+    def get_label_type_display(self):
+        label_map = {'RFID': 'RFID', 'QR_CODE': 'QR Code', 'BARCODE': 'Barcode'}
+        values = [v.strip() for v in (self.label_type or '').split(',') if v.strip()]
+        return ', '.join(label_map.get(v, v) for v in values) or '—'
+
     class Meta:
         unique_together = [('organization', 'asset_tag')]
-        unique_together = [('organization', 'asset_tag'), ('organization', 'asset_code')]
         indexes = [
             models.Index(fields=['asset_tag']),
             models.Index(fields=['serial_number']),
@@ -1189,13 +1173,6 @@ class AssetDisposal(TenantAwareModel):
     notes = models.TextField(
         blank=True,
         help_text="Additional notes or comments"
-    )
-
-    # Snapshot of asset data at time of disposal approval
-    asset_snapshot = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Full asset details captured at the time of disposal approval"
     )
 
     # Tracking

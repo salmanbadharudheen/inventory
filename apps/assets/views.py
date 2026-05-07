@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+﻿from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
@@ -14,6 +14,8 @@ from django.db import transaction, models
 from apps.locations.models import (Branch, Building, Floor, Room, 
                                    Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
+from django.views.decorators.http import require_POST
+import json
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.utils import timezone
 from decimal import Decimal
@@ -5531,4 +5533,24 @@ def print_asset_labels_bulk(request):
         'batch_end': min(batch_end, total_count),
         'remaining': max(0, total_count - batch_end),
         'refresh_report': refresh_report,
+        'asset_ids_json': json.dumps([str(a.id) for a in assets]),
     })
+
+
+@login_required
+@require_POST
+def mark_assets_tagged(request):
+    """Mark a list of assets as TAGGED (tagging_status='TAGGED')."""
+    try:
+        body = json.loads(request.body)
+        asset_ids = body.get('asset_ids', [])
+        if not asset_ids:
+            return JsonResponse({'success': False, 'error': 'No asset IDs provided.'}, status=400)
+        updated = Asset.objects.filter(
+            id__in=asset_ids,
+            organization=request.user.organization,
+            is_deleted=False,
+        ).update(tagging_status='TAGGED')
+        return JsonResponse({'success': True, 'updated': updated})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

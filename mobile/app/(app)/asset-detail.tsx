@@ -331,6 +331,9 @@ export default function AssetDetailScreen() {
           {a.asset_type ? (
             <InfoRow label="Type" value={a.asset_type.replace(/_/g, " ")} />
           ) : null}
+          {a.label_type ? (
+            <InfoRow label="Label Status" value={a.label_type.replace(/_/g, " ")} />
+          ) : null}
           <InfoRow label="Quantity" value={String(a.quantity)} />
         </View>
 

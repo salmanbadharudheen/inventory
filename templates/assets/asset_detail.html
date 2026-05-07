@@ -51,6 +51,7 @@
                     <div class="detail-item"><span class="detail-label">Serial Number</span><span class="detail-value">{{ asset.serial_number|default:"-" }}</span></div>
                     <div class="detail-item"><span class="detail-label">Quantity</span><span class="detail-value">{{ asset.quantity }}</span></div>
                     <div class="detail-item"><span class="detail-label">Label Type</span><span class="detail-value">{{ asset.get_label_type_display }}</span></div>
+                    <div class="detail-item"><span class="detail-label">Label Status</span><span class="detail-value">{{ asset.get_tagging_status_display }}</span></div>
                 </div>
                 {% if asset.description or asset.short_description %}
                 <div style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">

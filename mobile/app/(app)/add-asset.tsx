@@ -31,6 +31,8 @@ import type {
   LookupItem,
   AssetCondition,
   AssetType,
+  LabelType,
+  LabelStatus,
 } from "../../src/types/api";
 
 /* ───── colours (shared w/ dashboard) ───── */
@@ -62,6 +64,17 @@ const ASSET_TYPES: { value: AssetType; label: string }[] = [
   { value: "CAPEX", label: "CAPEX" },
 ];
 
+const LABEL_TYPES: { value: LabelType; label: string }[] = [
+  { value: "RFID", label: "RFID" },
+  { value: "QR_CODE", label: "QR Code" },
+  { value: "BARCODE", label: "Barcode" },
+];
+
+const LABEL_STATUSES: { value: LabelStatus; label: string }[] = [
+  { value: "TAGGED", label: "Tagged" },
+  { value: "UNTAGGED", label: "Untagged" },
+];
+
 /* ───── helpers ───── */
 type Section = "basic" | "classification" | "location" | "financial" | "notes";
 
@@ -83,6 +96,8 @@ export default function AddAssetScreen() {
   const [quantity, setQuantity] = useState("1");
   const [condition, setCondition] = useState<AssetCondition>("NEW");
   const [assetType, setAssetType] = useState<AssetType>("TAGGABLE");
+  const [labelType, setLabelType] = useState<LabelType>("QR_CODE");
+  const [taggingStatus, setTaggingStatus] = useState<LabelStatus>("UNTAGGED");
   const [brandText, setBrandText] = useState("");
   const [modelText, setModelText] = useState("");
 
@@ -188,6 +203,8 @@ export default function AddAssetScreen() {
       category: categoryId!,
       condition,
       asset_type: assetType,
+      label_type: labelType,
+      tagging_status: taggingStatus,
     };
     if (description.trim()) p.description = description.trim();
     if (shortDesc.trim()) p.short_description = shortDesc.trim();
@@ -342,6 +359,20 @@ export default function AddAssetScreen() {
                 items={CONDITIONS}
                 selected={condition}
                 onSelect={(v) => setCondition(v as AssetCondition)}
+              />
+
+              <Label text="Label Type" />
+              <ChipRow
+                items={LABEL_TYPES}
+                selected={labelType}
+                onSelect={(v) => setLabelType(v as LabelType)}
+              />
+
+              <Label text="Label Status" />
+              <ChipRow
+                items={LABEL_STATUSES}
+                selected={taggingStatus}
+                onSelect={(v) => setTaggingStatus(v as LabelStatus)}
               />
 
               <Label text="Asset Type" />
