@@ -319,6 +319,16 @@
         color: #7f1d1d;
     }
     
+    .status-completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-cancelled {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    
     .approval-item-actions {
         display: flex;
         gap: 0.8rem;
@@ -518,16 +528,16 @@
                             </div>
                         </div>
                         <div class="approval-item-status">
-                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'MANAGER_APPROVED' %}status-manager-approved{% elif approval.status == 'APPROVED' %}status-approved{% elif approval.status == 'REJECTED' %}status-rejected{% endif %}">
+                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'MANAGER_APPROVED' or approval.status == 'CHECKER_APPROVED' %}status-manager-approved{% elif approval.status == 'APPROVED' or approval.status == 'COMPLETED' %}status-approved{% elif approval.status == 'REJECTED' or approval.status == 'CHECKER_REJECTED' or approval.status == 'SENIOR_REJECTED' %}status-rejected{% elif approval.status == 'CANCELLED' %}status-cancelled{% endif %}">
                                 {{ approval.get_status_display }}
                             </span>
                         </div>
                         <div class="approval-item-actions">
-                            <a href="{% if approval.type == 'disposal' %}{% url 'disposal-detail' approval.pk %}{% else %}{% url 'approval-request-detail' approval.pk %}{% endif %}" class="btn-action btn-view">
+                            <a href="{{ approval.detail_url }}" class="btn-action btn-view">
                                 <i class="fas fa-eye"></i> View
                             </a>
-                            {% if approval.can_approve %}
-                                <a href="{% if approval.type == 'disposal' %}{% if approval.status == 'PENDING' %}{% url 'disposal-manager-approve' approval.pk %}{% else %}{% url 'disposal-approve' approval.pk %}{% endif %}{% else %}{% url 'approval-request-approve' approval.pk %}{% endif %}" class="btn-action btn-approve">
+                            {% if approval.can_approve and approval.review_url %}
+                                <a href="{{ approval.review_url }}" class="btn-action btn-approve">
                                     <i class="fas fa-check"></i> Review
                                 </a>
                             {% endif %}
@@ -566,7 +576,7 @@
                             </div>
                         </div>
                         <div class="approval-item-status">
-                            <span class="status-badge {% if disposal.status == 'PENDING' %}status-pending{% elif disposal.status == 'MANAGER_APPROVED' %}status-manager-approved{% elif disposal.status == 'APPROVED' %}status-approved{% elif disposal.status == 'REJECTED' %}status-rejected{% endif %}">
+                            <span class="status-badge {% if disposal.status == 'PENDING' %}status-pending{% elif disposal.status == 'MANAGER_APPROVED' %}status-manager-approved{% elif disposal.status == 'APPROVED' or disposal.status == 'COMPLETED' %}status-approved{% elif disposal.status == 'REJECTED' %}status-rejected{% elif disposal.status == 'CANCELLED' %}status-cancelled{% endif %}">
                                 {{ disposal.get_status_display }}
                             </span>
                         </div>
@@ -574,11 +584,19 @@
                             <a href="{% url 'disposal-detail' disposal.pk %}" class="btn-action btn-view">
                                 <i class="fas fa-eye"></i> View
                             </a>
-                            {% if user.role in 'SENIOR_MANAGER,CHECKER' and disposal.status == 'PENDING' %}
+                            {% if user.role == 'SENIOR_MANAGER' and disposal.status == 'PENDING' %}
                                 <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action btn-approve">
                                     <i class="fas fa-check-double"></i> Manager Review
                                 </a>
-                            {% elif user.is_superuser or user.role == 'ADMIN' and disposal.status == 'MANAGER_APPROVED' %}
+                            {% elif user.role == 'CHECKER' and disposal.status == 'PENDING' %}
+                                <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check-double"></i> Manager Review
+                                </a>
+                            {% elif user.is_superuser and disposal.status == 'MANAGER_APPROVED' %}
+                                <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check"></i> Admin Approve
+                                </a>
+                            {% elif user.role == 'ADMIN' and disposal.status == 'MANAGER_APPROVED' %}
                                 <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action btn-approve">
                                     <i class="fas fa-check"></i> Admin Approve
                                 </a>
@@ -619,7 +637,7 @@
                             </div>
                         </div>
                         <div class="approval-item-status">
-                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'APPROVED' %}status-approved{% elif approval.status == 'REJECTED' %}status-rejected{% endif %}">
+                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'CHECKER_APPROVED' %}status-manager-approved{% elif approval.status == 'APPROVED' %}status-approved{% elif approval.status == 'CHECKER_REJECTED' or approval.status == 'SENIOR_REJECTED' or approval.status == 'REJECTED' %}status-rejected{% endif %}">
                                 {{ approval.get_status_display }}
                             </span>
                         </div>
@@ -627,9 +645,9 @@
                             <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-action btn-view">
                                 <i class="fas fa-eye"></i> View
                             </a>
-                            {% if approval.status == 'PENDING' %}
-                                <a href="{% url 'approval-request-approve' approval.pk %}" class="btn-action btn-approve">
-                                    <i class="fas fa-check"></i> Approve
+                            {% if approval.status == 'PENDING' or approval.status == 'CHECKER_APPROVED' %}
+                                <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-action btn-approve">
+                                    <i class="fas fa-check"></i> Review
                                 </a>
                             {% endif %}
                         </div>
