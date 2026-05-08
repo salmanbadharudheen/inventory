@@ -1,685 +1,594 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Approvals Dashboard{% endblock %}
 
 {% block content %}
 <style>
-    * {
-        box-sizing: border-box;
-    }
-    
-    body {
-        background: #f8fafc;
-    }
-    
-    .approval-container {
-        padding: 2rem 0;
-    }
-    
-    /* ===== HEADER SECTION ===== */
-    .approval-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: white;
-        padding: 3rem 2.5rem;
-        border-radius: 16px;
-        margin-bottom: 3rem;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
-    }
-    
-    .approval-header::before {
-        content: '';
-        position: absolute;
-        top: -100px;
-        right: -100px;
-        width: 400px;
-        height: 400px;
-        background: rgba(59, 130, 246, 0.1);
-        border-radius: 50%;
-    }
-    
-    .approval-header::after {
-        content: '';
-        position: absolute;
-        bottom: -50px;
-        left: -50px;
-        width: 300px;
-        height: 300px;
-        background: rgba(34, 197, 94, 0.1);
-        border-radius: 50%;
-    }
-    
-    .approval-header-content {
-        position: relative;
-        z-index: 1;
-    }
-    
-    .approval-header h1 {
-        margin: 0;
-        font-weight: 800;
-        font-size: 2.8rem;
-        display: flex;
-        align-items: center;
-        gap: 1.2rem;
-        margin-bottom: 2rem;
-        letter-spacing: -0.6px;
-    }
-    
-    .approval-header h1 i {
-        font-size: 3.2rem;
-        opacity: 0.9;
-    }
-    
-    .stat-cards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 1.5rem;
-    }
-    
-    .stat-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        padding: 1.8rem;
-        border-radius: 12px;
-        text-align: center;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-    }
-    
-    .stat-card:hover {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 255, 255, 0.3);
-        transform: translateY(-4px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    }
-    
-    .stat-number {
-        font-size: 2.8rem;
-        font-weight: 900;
-        display: block;
-        color: #fff;
-        letter-spacing: -1px;
-    }
-    
-    .stat-label {
-        font-size: 0.95rem;
-        opacity: 0.9;
-        margin-top: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
-    
-    /* ===== TABS SECTION ===== */
-    .tabs-container {
-        margin-bottom: 2rem;
-    }
-    
-    .nav-tabs {
-        background: white;
-        border: none;
-        padding: 1.2rem 1.5rem;
-        border-radius: 12px 12px 0 0;
-        gap: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        display: flex;
-        flex-wrap: wrap;
-    }
-    
-    .nav-tabs .nav-link {
-        color: #64748b;
-        border: none;
-        padding: 0.95rem 2rem;
-        font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-        border-radius: 10px;
-        position: relative;
-        margin: 0;
-    }
-    
-    .nav-tabs .nav-link:hover {
-        color: #1e293b;
-        background: #f1f5f9;
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: white;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        font-weight: 700;
-        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-    }
-    
-    .badge-count {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 28px;
-        height: 28px;
-        background: #ef4444;
-        color: white;
-        border-radius: 50%;
-        font-weight: 800;
-        font-size: 0.75rem;
-        margin-left: 0.6rem;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    }
-    
-    /* ===== TAB CONTENT ===== */
-    .tab-content-wrapper {
-        background: white;
-        border-radius: 0 0 12px 12px;
-        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
-        overflow: hidden;
-        border: 1px solid #e2e8f0;
-        border-top: none;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 5rem 2rem;
-        color: #94a3b8;
-    }
-    
-    .empty-state-icon {
-        font-size: 5rem;
-        margin-bottom: 1.5rem;
-        opacity: 0.5;
-    }
-    
-    .empty-state p {
-        font-size: 1.1rem;
-        margin: 0;
-        font-weight: 500;
-    }
-    
-    /* ===== APPROVAL ITEMS ===== */
-    .approval-item {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        gap: 2rem;
-        align-items: center;
-        padding: 1.8rem 2rem;
-        border-bottom: 1px solid #e2e8f0;
-        transition: all 0.2s ease;
-    }
-    
-    .approval-item:last-child {
-        border-bottom: none;
-    }
-    
-    .approval-item:hover {
-        background: linear-gradient(90deg, #f8fafc 0%, transparent 100%);
-    }
-    
-    .approval-item-left {
-        display: flex;
-        flex-direction: column;
-        gap: 0.8rem;
-    }
-    
-    .approval-item-type {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.6rem;
-        font-size: 0.7rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        padding: 0.6rem 1.2rem;
-        border-radius: 8px;
-        width: fit-content;
-    }
-    
-    .approval-item-type.disposal {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-    
-    .approval-item-type.asset {
-        background: #bfdbfe;
-        color: #1e40af;
-    }
-    
-    .approval-item-type.transfer {
-        background: #ddd6fe;
-        color: #6d28d9;
-    }
-    
-    .approval-item-title {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #0f172a;
-        margin: 0;
-        letter-spacing: -0.4px;
-    }
-    
-    .approval-item-meta {
-        font-size: 0.9rem;
-        color: #64748b;
-        display: flex;
-        gap: 2rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-    
-    .approval-item-meta span {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-    }
-    
-    .approval-item-meta i {
-        opacity: 0.7;
-        width: 16px;
-    }
-    
-    .approval-item-status {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 150px;
-    }
-    
-    .status-badge {
-        padding: 0.7rem 1.4rem;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.7px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        width: 100%;
-        text-align: center;
-    }
-    
-    .status-pending {
-        background: #fef08a;
-        color: #713f12;
-    }
-    
-    .status-manager-approved {
-        background: #bae6fd;
-        color: #0c2d6b;
-    }
-    
-    .status-approved {
-        background: #bbf7d0;
-        color: #003d20;
-    }
-    
-    .status-rejected {
-        background: #fecaca;
-        color: #7f1d1d;
-    }
-    
-    .status-completed {
-        background: #d1fae5;
-        color: #065f46;
-    }
-    
-    .status-cancelled {
-        background: #e5e7eb;
-        color: #374151;
-    }
-    
-    .approval-item-actions {
-        display: flex;
-        gap: 0.8rem;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-    
-    .btn-action {
-        padding: 0.7rem 1.4rem;
-        border-radius: 10px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        border: none;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.6rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    .btn-view {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-    }
-    
-    .btn-view:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        text-decoration: none;
-        color: white;
-        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
-        transform: translateY(-2px);
-    }
-    
-    .btn-approve {
-        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-        color: white;
-    }
-    
-    .btn-approve:hover {
-        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-        text-decoration: none;
-        color: white;
-        box-shadow: 0 12px 24px rgba(34, 197, 94, 0.3);
-        transform: translateY(-2px);
-    }
-    
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 1024px) {
-        .approval-item {
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-        }
-        
-        .approval-item-status,
-        .approval-item-actions {
-            justify-content: flex-start;
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .approval-header {
-            padding: 2rem 1.5rem;
-        }
-        
-        .approval-header h1 {
-            font-size: 2rem;
-        }
-        
-        .stat-cards-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-        
-        .nav-tabs {
-            padding: 1rem;
-        }
-        
-        .nav-tabs .nav-link {
-            padding: 0.8rem 1.2rem;
-            font-size: 0.9rem;
-        }
-        
-        .approval-item {
-            padding: 1.5rem;
-        }
-        
-        .approval-item-meta {
-            gap: 1rem;
-            font-size: 0.85rem;
-        }
-        
-        .approval-item-actions {
-            width: 100%;
-            flex-direction: column;
-        }
-        
-        .btn-action {
-            width: 100%;
-            justify-content: center;
-        }
-    }
+/* ========== APPROVALS PAGE REDESIGN ========== */
+.page-wrapper {
+    background: #f1f5f9;
+    min-height: 100vh;
+    padding: 2rem 0 3rem;
+}
+
+/* ---- PAGE HEADER ---- */
+.page-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    box-shadow: 0 8px 32px rgba(15,23,42,0.18);
+}
+.page-header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #fff;
+}
+.page-header-title i {
+    font-size: 2rem;
+    color: #60a5fa;
+}
+.page-header-title h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+.page-header-title p {
+    margin: 0.2rem 0 0;
+    font-size: 0.9rem;
+    color: #94a3b8;
+}
+
+/* ---- STAT CARDS ---- */
+.stats-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.stat-pill {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 0.8rem 1.4rem;
+    text-align: center;
+    min-width: 100px;
+}
+.stat-pill .num {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #fff;
+    display: block;
+    line-height: 1;
+}
+.stat-pill .lbl {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #94a3b8;
+    margin-top: 0.3rem;
+    display: block;
+}
+.stat-pill.pending .num { color: #fbbf24; }
+.stat-pill.approved .num { color: #34d399; }
+.stat-pill.rejected .num { color: #f87171; }
+.stat-pill.disposal .num { color: #60a5fa; }
+
+/* ---- TAB NAV ---- */
+.tab-nav-bar {
+    background: #fff;
+    border-radius: 14px 14px 0 0;
+    padding: 1rem 1.2rem 0;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    gap: 0.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.tab-nav-btn {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+}
+.tab-nav-btn:hover { color: #1e293b; background: #f8fafc; }
+.tab-nav-btn.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background: #eff6ff;
+}
+.tab-nav-btn .tab-count {
+    background: #ef4444;
+    color: #fff;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 0.15rem 0.55rem;
+    min-width: 22px;
+    text-align: center;
+}
+
+/* ---- TABLE PANEL ---- */
+.panel {
+    background: #fff;
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    margin-bottom: 2rem;
+}
+
+/* ---- FILTER BAR ---- */
+.filter-bar {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    background: #f8fafc;
+}
+.filter-bar input[type=search] {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.55rem 1rem 0.55rem 2.4rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 0.75rem center;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.filter-bar input[type=search]:focus { border-color: #2563eb; }
+.filter-bar select {
+    padding: 0.55rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #fff;
+    color: #374151;
+    outline: none;
+    cursor: pointer;
+}
+
+/* ---- TABLE ---- */
+.approvals-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+.approvals-table thead th {
+    background: #f8fafc;
+    padding: 0.85rem 1.2rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #64748b;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+.approvals-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
+}
+.approvals-table tbody tr:last-child { border-bottom: none; }
+.approvals-table tbody tr:hover { background: #f8fafc; }
+.approvals-table td {
+    padding: 1rem 1.2rem;
+    vertical-align: middle;
+    color: #1e293b;
+}
+
+/* ---- TYPE BADGE ---- */
+.type-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+.type-tag.disposal { background: #fee2e2; color: #991b1b; }
+.type-tag.asset    { background: #dbeafe; color: #1e40af; }
+
+/* ---- ASSET INFO ---- */
+.asset-info strong {
+    display: block;
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.92rem;
+}
+.asset-info small {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+/* ---- STATUS BADGE ---- */
+.s-badge {
+    display: inline-block;
+    padding: 0.35rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.s-pending        { background: #fef9c3; color: #713f12; border: 1px solid #fde047; }
+.s-manager-approved { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.s-approved, .s-completed { background: #dcfce7; color: #14532d; border: 1px solid #86efac; }
+.s-rejected       { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
+.s-cancelled      { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+/* ---- ACTION BUTTONS ---- */
+.btn-tbl {
+    padding: 0.4rem 0.9rem;
+    border-radius: 7px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.btn-tbl-view    { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.btn-tbl-view:hover { background: #dbeafe; color: #1d4ed8; text-decoration: none; }
+.btn-tbl-review  { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+.btn-tbl-review:hover { background: #dcfce7; color: #15803d; text-decoration: none; }
+.btn-tbl-approve { background: #16a34a; color: #fff; border: 1px solid #16a34a; }
+.btn-tbl-approve:hover { background: #15803d; color: #fff; text-decoration: none; }
+
+/* ---- EMPTY STATE ---- */
+.empty-panel {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #94a3b8;
+}
+.empty-panel .empty-icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.5; }
+.empty-panel p { font-size: 1rem; font-weight: 500; margin: 0; }
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 768px) {
+    .page-header { flex-direction: column; }
+    .approvals-table { display: block; overflow-x: auto; }
+    .page-header-title h1 { font-size: 1.4rem; }
+}
 </style>
 
-<div class="container-fluid approval-container">
-    <!-- Header with Stats -->
-    <div class="approval-header">
-        <div class="approval-header-content">
-            <h1>
-                <i class="fas fa-clipboard-check"></i>
-                Approvals Dashboard
-            </h1>
-            <div class="stat-cards-grid">
-                <div class="stat-card">
-                    <span class="stat-number">{{ total_pending }}</span>
-                    <span class="stat-label">Pending</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-number">{{ total_approved }}</span>
-                    <span class="stat-label">Approved</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-number">{{ total_rejected }}</span>
-                    <span class="stat-label">Rejected</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-number">{{ disposal_pending }}</span>
-                    <span class="stat-label">Disposals</span>
-                </div>
+<div class="page-wrapper">
+<div class="container-fluid">
+
+    <!-- ===== PAGE HEADER ===== -->
+    <div class="page-header">
+        <div class="page-header-title">
+            <i class="fas fa-clipboard-check"></i>
+            <div>
+                <h1>Approvals Dashboard</h1>
+                <p>Review and manage pending approval requests</p>
+            </div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-pill pending">
+                <span class="num">{{ total_pending }}</span>
+                <span class="lbl">Pending</span>
+            </div>
+            <div class="stat-pill approved">
+                <span class="num">{{ total_approved }}</span>
+                <span class="lbl">Approved</span>
+            </div>
+            <div class="stat-pill rejected">
+                <span class="num">{{ total_rejected }}</span>
+                <span class="lbl">Rejected</span>
+            </div>
+            <div class="stat-pill disposal">
+                <span class="num">{{ disposals|length }}</span>
+                <span class="lbl">Disposals</span>
             </div>
         </div>
     </div>
 
-    <!-- Tabs for different approval types -->
-    <div class="tabs-container">
-        <ul class="nav nav-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-tab-pane" type="button" role="tab">
-                    <i class="fas fa-list"></i> All Approvals
-                    {% if total_pending > 0 %}
-                        <span class="badge-count">{{ total_pending }}</span>
-                    {% endif %}
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="disposal-tab" data-bs-toggle="tab" data-bs-target="#disposal-tab-pane" type="button" role="tab">
-                    <i class="fas fa-trash-alt"></i> Asset Disposals
-                    {% if disposal_pending > 0 %}
-                        <span class="badge-count">{{ disposal_pending }}</span>
-                    {% endif %}
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="asset-tab" data-bs-toggle="tab" data-bs-target="#asset-tab-pane" type="button" role="tab">
-                    <i class="fas fa-cube"></i> Asset Approvals
-                    {% if asset_pending > 0 %}
-                        <span class="badge-count">{{ asset_pending }}</span>
-                    {% endif %}
-                </button>
-            </li>
-        </ul>
+    <!-- ===== TAB NAV ===== -->
+    <div class="tab-nav-bar">
+        <button class="tab-nav-btn active" onclick="switchTab('all', this)">
+            <i class="fas fa-layer-group"></i> All
+            {% if all_approvals %}
+                <span class="tab-count">{{ all_approvals|length }}</span>
+            {% endif %}
+        </button>
+        <button class="tab-nav-btn" onclick="switchTab('disposal', this)">
+            <i class="fas fa-trash-alt"></i> Disposals
+            {% if disposal_pending > 0 %}
+                <span class="tab-count">{{ disposal_pending }}</span>
+            {% endif %}
+        </button>
+        <button class="tab-nav-btn" onclick="switchTab('asset', this)">
+            <i class="fas fa-cube"></i> Asset Requests
+            {% if asset_pending > 0 %}
+                <span class="tab-count">{{ asset_pending }}</span>
+            {% endif %}
+        </button>
     </div>
 
-    <!-- Tab Content -->
-    <div class="tab-content">
-        <!-- All Approvals Tab -->
-        <div class="tab-pane fade show active" id="all-tab-pane" role="tabpanel">
-            <div class="tab-content-wrapper">
-                {% if all_approvals %}
-                    {% for approval in all_approvals %}
-                    <div class="approval-item">
-                        <div class="approval-item-left">
-                            <span class="approval-item-type {% if approval.type == 'disposal' %}disposal{% else %}asset{% endif %}">
-                                {% if approval.type == 'disposal' %}
-                                    <i class="fas fa-trash-alt"></i> Disposal
-                                {% else %}
-                                    <i class="fas fa-cube"></i> Asset
-                                {% endif %}
-                            </span>
-                            <h3 class="approval-item-title">
-                                {% if approval.type == 'disposal' %}
-                                    {{ approval.asset.asset_tag }} - {{ approval.asset.name|truncatewords:4 }}
-                                {% else %}
-                                    {{ approval.asset_name|truncatewords:5 }}
-                                {% endif %}
-                            </h3>
-                            <div class="approval-item-meta">
-                                {% if approval.type == 'disposal' %}
-                                    <span><i class="fas fa-circle-question"></i> {{ approval.get_disposal_method_display }}</span>
-                                    <span><i class="fas fa-calendar"></i> {{ approval.created_at|date:"M d, Y" }}</span>
-                                    <span><i class="fas fa-user"></i> {{ approval.requested_by.get_full_name|default:approval.requested_by.username }}</span>
-                                {% else %}
-                                    <span><i class="fas fa-cogs"></i> {{ approval.request_type }}</span>
-                                    <span><i class="fas fa-calendar"></i> {{ approval.created_at|date:"M d, Y" }}</span>
-                                    <span><i class="fas fa-user"></i> {{ approval.requester.get_full_name|default:approval.requester.username }}</span>
-                                {% endif %}
-                            </div>
+    <!-- ===== ALL TAB ===== -->
+    <div id="tab-all" class="panel">
+        <div class="filter-bar">
+            <input type="search" id="search-all" placeholder="Search by asset, requester..." oninput="filterTable('tbl-all', this.value, 'sel-all')" />
+            <select id="sel-all" onchange="filterTable('tbl-all', document.getElementById('search-all').value, 'sel-all')">
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="MANAGER_APPROVED">Manager Approved</option>
+                <option value="CHECKER_APPROVED">Checker Approved</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+            </select>
+        </div>
+        {% if all_approvals %}
+        <table class="approvals-table" id="tbl-all">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Asset</th>
+                    <th>Requested By</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for approval in all_approvals %}
+                <tr data-status="{{ approval.status }}">
+                    <td>
+                        {% if approval.type == 'disposal' %}
+                            <span class="type-tag disposal"><i class="fas fa-trash-alt"></i> Disposal</span>
+                        {% else %}
+                            <span class="type-tag asset"><i class="fas fa-cube"></i> Asset</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="asset-info">
+                            {% if approval.type == 'disposal' %}
+                                <strong>{{ approval.asset.name|default:"â€”"|truncatewords:5 }}</strong>
+                                <small>{{ approval.asset.asset_tag }} &bull; {{ approval.get_disposal_method_display }}</small>
+                            {% else %}
+                                <strong>{{ approval.asset_name|default:"â€”"|truncatewords:5 }}</strong>
+                                <small>{{ approval.request_type }}</small>
+                            {% endif %}
                         </div>
-                        <div class="approval-item-status">
-                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'MANAGER_APPROVED' or approval.status == 'CHECKER_APPROVED' %}status-manager-approved{% elif approval.status == 'APPROVED' or approval.status == 'COMPLETED' %}status-approved{% elif approval.status == 'REJECTED' or approval.status == 'CHECKER_REJECTED' or approval.status == 'SENIOR_REJECTED' %}status-rejected{% elif approval.status == 'CANCELLED' %}status-cancelled{% endif %}">
-                                {{ approval.get_status_display }}
-                            </span>
-                        </div>
-                        <div class="approval-item-actions">
-                            <a href="{{ approval.detail_url }}" class="btn-action btn-view">
-                                <i class="fas fa-eye"></i> View
-                            </a>
+                    </td>
+                    <td>
+                        {% if approval.type == 'disposal' %}
+                            {{ approval.requested_by.get_full_name|default:approval.requested_by.username }}
+                        {% else %}
+                            {{ approval.requester.get_full_name|default:approval.requester.username }}
+                        {% endif %}
+                    </td>
+                    <td style="white-space:nowrap; color:#64748b;">{{ approval.created_at|date:"d M Y" }}</td>
+                    <td>
+                        <span class="s-badge {% if approval.status == 'PENDING' %}s-pending{% elif approval.status == 'MANAGER_APPROVED' or approval.status == 'CHECKER_APPROVED' %}s-manager-approved{% elif approval.status == 'APPROVED' or approval.status == 'COMPLETED' %}s-approved{% elif approval.status == 'REJECTED' or approval.status == 'CHECKER_REJECTED' or approval.status == 'SENIOR_REJECTED' %}s-rejected{% elif approval.status == 'CANCELLED' %}s-cancelled{% endif %}">
+                            {{ approval.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                            <a href="{{ approval.detail_url }}" class="btn-tbl btn-tbl-view"><i class="fas fa-eye"></i> View</a>
                             {% if approval.can_approve and approval.review_url %}
-                                <a href="{{ approval.review_url }}" class="btn-action btn-approve">
-                                    <i class="fas fa-check"></i> Review
-                                </a>
+                                <a href="{{ approval.review_url }}" class="btn-tbl btn-tbl-approve"><i class="fas fa-check"></i> Approve</a>
                             {% endif %}
                         </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📋</div>
-                        <p>No approvals to display</p>
-                    </div>
-                {% endif %}
-            </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-panel">
+            <div class="empty-icon">ðŸ“‹</div>
+            <p>No approval requests found</p>
         </div>
+        {% endif %}
+    </div>
 
-        <!-- Asset Disposals Tab -->
-        <div class="tab-pane fade" id="disposal-tab-pane" role="tabpanel">
-            <div class="tab-content-wrapper">
-                {% if disposals %}
-                    {% for disposal in disposals %}
-                    <div class="approval-item">
-                        <div class="approval-item-left">
-                            <span class="approval-item-type disposal">
-                                <i class="fas fa-trash-alt"></i> Disposal
-                            </span>
-                            <h3 class="approval-item-title">
-                                {{ disposal.asset.asset_tag }} - {{ disposal.asset.name|truncatewords:4 }}
-                            </h3>
-                            <div class="approval-item-meta">
-                                <span><i class="fas fa-circle-question"></i> {{ disposal.get_disposal_method_display }}</span>
-                                <span><i class="fas fa-calendar"></i> {{ disposal.created_at|date:"M d, Y" }}</span>
-                                <span><i class="fas fa-user"></i> {{ disposal.requested_by.get_full_name|default:disposal.requested_by.username }}</span>
-                                {% if disposal.manager_approved_by %}
-                                    <span style="color: #059669;"><i class="fas fa-check"></i> Manager: {{ disposal.manager_approved_by.get_full_name|truncatewords:2 }}</span>
+    <!-- ===== DISPOSAL TAB ===== -->
+    <div id="tab-disposal" class="panel" style="display:none;">
+        <div class="filter-bar">
+            <input type="search" id="search-disposal" placeholder="Search disposals..." oninput="filterTable('tbl-disposal', this.value, 'sel-disposal')" />
+            <select id="sel-disposal" onchange="filterTable('tbl-disposal', document.getElementById('search-disposal').value, 'sel-disposal')">
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="MANAGER_APPROVED">Manager Approved</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+            </select>
+        </div>
+        {% if disposals %}
+        <table class="approvals-table" id="tbl-disposal">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Method</th>
+                    <th>Requested By</th>
+                    <th>Manager</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disposal in disposals %}
+                <tr data-status="{{ disposal.status }}">
+                    <td>
+                        <div class="asset-info">
+                            <strong>{{ disposal.asset.name|default:"â€”"|truncatewords:5 }}</strong>
+                            <small>{{ disposal.asset.asset_tag }}</small>
+                        </div>
+                    </td>
+                    <td style="color:#64748b;">{{ disposal.get_disposal_method_display }}</td>
+                    <td>{{ disposal.requested_by.get_full_name|default:disposal.requested_by.username }}</td>
+                    <td style="color:#64748b;">
+                        {% if disposal.manager_approved_by %}
+                            <span style="color:#16a34a;"><i class="fas fa-check"></i> {{ disposal.manager_approved_by.get_full_name|truncatewords:2 }}</span>
+                        {% else %}
+                            <span style="color:#94a3b8;">â€”</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space:nowrap; color:#64748b;">{{ disposal.created_at|date:"d M Y" }}</td>
+                    <td>
+                        <span class="s-badge {% if disposal.status == 'PENDING' %}s-pending{% elif disposal.status == 'MANAGER_APPROVED' %}s-manager-approved{% elif disposal.status == 'APPROVED' or disposal.status == 'COMPLETED' %}s-approved{% elif disposal.status == 'REJECTED' %}s-rejected{% elif disposal.status == 'CANCELLED' %}s-cancelled{% endif %}">
+                            {{ disposal.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                            <a href="{% url 'disposal-detail' disposal.pk %}" class="btn-tbl btn-tbl-view"><i class="fas fa-eye"></i> View</a>
+                            {% if disposal.status == 'PENDING' %}
+                                {% if user.role == 'SENIOR_MANAGER' or user.role == 'CHECKER' %}
+                                    <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-tbl btn-tbl-approve"><i class="fas fa-check-double"></i> Review</a>
                                 {% endif %}
-                            </div>
-                        </div>
-                        <div class="approval-item-status">
-                            <span class="status-badge {% if disposal.status == 'PENDING' %}status-pending{% elif disposal.status == 'MANAGER_APPROVED' %}status-manager-approved{% elif disposal.status == 'APPROVED' or disposal.status == 'COMPLETED' %}status-approved{% elif disposal.status == 'REJECTED' %}status-rejected{% elif disposal.status == 'CANCELLED' %}status-cancelled{% endif %}">
-                                {{ disposal.get_status_display }}
-                            </span>
-                        </div>
-                        <div class="approval-item-actions">
-                            <a href="{% url 'disposal-detail' disposal.pk %}" class="btn-action btn-view">
-                                <i class="fas fa-eye"></i> View
-                            </a>
-                            {% if user.role == 'SENIOR_MANAGER' and disposal.status == 'PENDING' %}
-                                <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action btn-approve">
-                                    <i class="fas fa-check-double"></i> Manager Review
-                                </a>
-                            {% elif user.role == 'CHECKER' and disposal.status == 'PENDING' %}
-                                <a href="{% url 'disposal-manager-approve' disposal.pk %}" class="btn-action btn-approve">
-                                    <i class="fas fa-check-double"></i> Manager Review
-                                </a>
-                            {% elif user.is_superuser and disposal.status == 'MANAGER_APPROVED' %}
-                                <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action btn-approve">
-                                    <i class="fas fa-check"></i> Admin Approve
-                                </a>
-                            {% elif user.role == 'ADMIN' and disposal.status == 'MANAGER_APPROVED' %}
-                                <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-action btn-approve">
-                                    <i class="fas fa-check"></i> Admin Approve
-                                </a>
+                            {% elif disposal.status == 'MANAGER_APPROVED' %}
+                                {% if user.is_superuser or user.role == 'ADMIN' %}
+                                    <a href="{% url 'disposal-approve' disposal.pk %}" class="btn-tbl btn-tbl-approve"><i class="fas fa-check"></i> Approve</a>
+                                {% endif %}
                             {% endif %}
                         </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🗑️</div>
-                        <p>No disposal approvals</p>
-                    </div>
-                {% endif %}
-            </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-panel">
+            <div class="empty-icon">ðŸ—‘ï¸</div>
+            <p>No disposal requests found</p>
         </div>
+        {% endif %}
+    </div>
 
-        <!-- Asset Approvals Tab -->
-        <div class="tab-pane fade" id="asset-tab-pane" role="tabpanel">
-            <div class="tab-content-wrapper">
-                {% if asset_approvals %}
-                    {% for approval in asset_approvals %}
-                    <div class="approval-item">
-                        <div class="approval-item-left">
-                            <span class="approval-item-type asset">
-                                <i class="fas fa-cube"></i> {{ approval.get_request_type_display }}
-                            </span>
-                            <h3 class="approval-item-title">
-                                {% if approval.asset %}
-                                    {{ approval.asset.asset_tag }} - {{ approval.asset.name|truncatewords:4 }}
-                                {% else %}
-                                    {{ approval.data.asset_name|default:'Pending Asset Creation'|truncatewords:5 }}
-                                {% endif %}
-                            </h3>
-                            <div class="approval-item-meta">
-                                <span><i class="fas fa-cogs"></i> {{ approval.get_request_type_display }}</span>
-                                <span><i class="fas fa-calendar"></i> {{ approval.created_at|date:"M d, Y" }}</span>
-                                <span><i class="fas fa-user"></i> {{ approval.requester.get_full_name|default:approval.requester.username }}</span>
-                            </div>
+    <!-- ===== ASSET REQUESTS TAB ===== -->
+    <div id="tab-asset" class="panel" style="display:none;">
+        <div class="filter-bar">
+            <input type="search" id="search-asset" placeholder="Search asset requests..." oninput="filterTable('tbl-asset', this.value, 'sel-asset')" />
+            <select id="sel-asset" onchange="filterTable('tbl-asset', document.getElementById('search-asset').value, 'sel-asset')">
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="CHECKER_APPROVED">Checker Approved</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+            </select>
+        </div>
+        {% if asset_approvals %}
+        <table class="approvals-table" id="tbl-asset">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Request Type</th>
+                    <th>Requested By</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for approval in asset_approvals %}
+                <tr data-status="{{ approval.status }}">
+                    <td>
+                        <div class="asset-info">
+                            {% if approval.asset %}
+                                <strong>{{ approval.asset.name|default:"â€”"|truncatewords:5 }}</strong>
+                                <small>{{ approval.asset.asset_tag }}</small>
+                            {% else %}
+                                <strong>{{ approval.data.asset_name|default:"New Asset"|truncatewords:5 }}</strong>
+                                <small>Pending creation</small>
+                            {% endif %}
                         </div>
-                        <div class="approval-item-status">
-                            <span class="status-badge {% if approval.status == 'PENDING' %}status-pending{% elif approval.status == 'CHECKER_APPROVED' %}status-manager-approved{% elif approval.status == 'APPROVED' %}status-approved{% elif approval.status == 'CHECKER_REJECTED' or approval.status == 'SENIOR_REJECTED' or approval.status == 'REJECTED' %}status-rejected{% endif %}">
-                                {{ approval.get_status_display }}
-                            </span>
-                        </div>
-                        <div class="approval-item-actions">
-                            <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-action btn-view">
-                                <i class="fas fa-eye"></i> View
-                            </a>
+                    </td>
+                    <td style="color:#64748b;">{{ approval.get_request_type_display }}</td>
+                    <td>{{ approval.requester.get_full_name|default:approval.requester.username }}</td>
+                    <td style="white-space:nowrap; color:#64748b;">{{ approval.created_at|date:"d M Y" }}</td>
+                    <td>
+                        <span class="s-badge {% if approval.status == 'PENDING' %}s-pending{% elif approval.status == 'CHECKER_APPROVED' %}s-manager-approved{% elif approval.status == 'APPROVED' %}s-approved{% elif approval.status == 'CHECKER_REJECTED' or approval.status == 'SENIOR_REJECTED' or approval.status == 'REJECTED' %}s-rejected{% endif %}">
+                            {{ approval.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                            <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-tbl btn-tbl-view"><i class="fas fa-eye"></i> View</a>
                             {% if approval.status == 'PENDING' or approval.status == 'CHECKER_APPROVED' %}
-                                <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-action btn-approve">
-                                    <i class="fas fa-check"></i> Review
-                                </a>
+                                <a href="{% url 'approval-request-detail' approval.pk %}" class="btn-tbl btn-tbl-review"><i class="fas fa-check"></i> Review</a>
                             {% endif %}
                         </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-state-icon">✓</div>
-                        <p>No asset approvals</p>
-                    </div>
-                {% endif %}
-            </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-panel">
+            <div class="empty-icon">âœ…</div>
+            <p>No asset approval requests found</p>
         </div>
+        {% endif %}
     </div>
-</div>
 
-    <!-- Footer -->
-    <div style="margin-top: 3rem; text-align: center; color: #94a3b8; font-size: 0.9rem;">
-        <p><i class="fas fa-sync-alt"></i> Last updated: <strong id="update-time">just now</strong></p>
-    </div>
-</div>
+</div><!-- /container-fluid -->
+</div><!-- /page-wrapper -->
+
 <script>
-    // Update the "last updated" time
-    function updateTimestamp() {
-        const timeEl = document.getElementById('update-time');
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        timeEl.textContent = `${hours}:${minutes}`;
-    }
-    
-    updateTimestamp();
-    setInterval(updateTimestamp, 60000); // Update every minute
+function switchTab(name, btn) {
+    // Hide all panels
+    ['all','disposal','asset'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        if (el) el.style.display = 'none';
+    });
+    // Remove active from all buttons
+    document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
+    // Show selected
+    const panel = document.getElementById('tab-' + name);
+    if (panel) panel.style.display = 'block';
+    btn.classList.add('active');
+}
+
+function filterTable(tableId, searchVal, selectId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const statusVal = document.getElementById(selectId) ? document.getElementById(selectId).value : '';
+    const search = searchVal.toLowerCase();
+    table.querySelectorAll('tbody tr').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const status = row.dataset.status || '';
+        const matchSearch = !search || text.includes(search);
+        const matchStatus = !statusVal || status === statusVal;
+        row.style.display = matchSearch && matchStatus ? '' : 'none';
+    });
+}
 </script>
 {% endblock %}
