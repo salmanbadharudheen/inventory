@@ -167,7 +167,7 @@ def lookup_asset(request):
 
     custodian = None
     if hasattr(asset, 'custodian') and asset.custodian:
-        custodian = {'id': asset.custodian.id, 'name': asset.custodian.name}
+        custodian = {'id': asset.custodian.id, 'name': str(asset.custodian)}
 
     current = {
         'id': str(asset.id),
@@ -1084,7 +1084,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     asset.department.name if asset.department else '',
                     asset.cost_center or '',
                     assigned,
-                    asset.custodian.name if asset.custodian else '',
+                    str(asset.custodian) if asset.custodian else '',
                     asset.employee_number or '',
                     asset.supplier.name if asset.supplier else '',
                     asset.vendor.name if asset.vendor else '',
