@@ -6,6 +6,9 @@ from .models import (Asset, AssetAttachment, Vendor, Category, SubCategory,
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024   # 5 MB
@@ -103,6 +106,12 @@ class AssetForm(forms.ModelForm):
                 self.fields['location'].queryset = Location.objects.filter(site__region__organization=org)
                 self.fields['sub_location'].queryset = SubLocation.objects.filter(location__site__region__organization=org)
                 self.fields['asset_remarks'].queryset = AssetRemarks.objects.filter(organization=org)
+
+                # Filter assigned_to users by organization
+                if 'assigned_to' in self.fields:
+                    self.fields['assigned_to'].queryset = User.objects.filter(
+                        organization=org, is_active=True
+                    ).order_by('first_name', 'last_name', 'username')
                 
                 # Optimized Parent field for AJAX - prevent loading all assets
                 if 'parent' in self.fields:
@@ -112,11 +121,19 @@ class AssetForm(forms.ModelForm):
                         try:
                             parent_id = self.data.get('parent')
                             if parent_id:
-                                self.fields['parent'].queryset = Asset.objects.filter(id=parent_id)
+                                self.fields['parent'].queryset = Asset.objects.filter(
+                                    id=parent_id,
+                                    organization=org,
+                                    is_deleted=False
+                                )
                         except (ValueError, TypeError):
                             pass  # invalid input from the client; ignore and fallback to empty queryset
                     elif self.instance.pk and self.instance.parent:
-                        self.fields['parent'].queryset = Asset.objects.filter(pk=self.instance.parent.pk)
+                        self.fields['parent'].queryset = Asset.objects.filter(
+                            pk=self.instance.parent.pk,
+                            organization=org,
+                            is_deleted=False
+                        )
         except Exception:
             import traceback
             print("ERROR in AssetForm.__init__:")
@@ -456,7 +473,7 @@ class AssetDisposalForm(forms.ModelForm):
     
     # Searchable asset field using ModelChoiceField with custom widget
     asset = forms.ModelChoiceField(
-        queryset=Asset.objects.all(),
+        queryset=Asset.objects.none(),
         widget=forms.Select(attrs={
             'class': 'form-control searchable-select',
             'required': True,

@@ -442,10 +442,23 @@
             transform: rotate(180deg);
         }
 
+        .user-name-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.2;
+        }
+
         .user-name {
             font-weight: 600;
             color: var(--text-primary);
             font-size: 0.9rem;
+        }
+
+        .user-org {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-weight: 400;
         }
 
         .user-dropdown-menu {
@@ -799,13 +812,18 @@
                     {% else %}
                     <button id="userDropdownBtn" class="user-dropdown-toggle" aria-haspopup="true" aria-expanded="false" title="User menu">
                         <div class="user-avatar" title="{{ user.username }}">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</div>
-                        <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                        <div class="user-name-block">
+                            <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                            {% if user.organization %}
+                            <span class="user-org">{{ user.organization.name }}</span>
+                            {% endif %}
+                        </div>
                         <i data-lucide="chevron-down"></i>
                     </button>
                     {% endif %}
 
                     <div class="user-dropdown-menu" id="userDropdownMenu" role="menu" aria-labelledby="userDropdownBtn" style="display:none;">
-                        <a href="{% url 'user-list' %}" class="dropdown-item" role="menuitem">
+                        <a href="{% url 'user-profile' %}" class="dropdown-item" role="menuitem">
                             <i data-lucide="user"></i>
                             <span>My Profile</span>
                         </a>
