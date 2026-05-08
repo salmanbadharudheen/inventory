@@ -3946,8 +3946,6 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
                 'notes': asset.notes,
                 'condition': asset.condition if hasattr(asset, 'condition') else None,
             }
-            self.object.asset_snapshot = snapshot
-            self.object.save(update_fields=['asset_snapshot'])
 
             # Mark the asset as retired and soft-deleted
             asset.status = Asset.Status.RETIRED
