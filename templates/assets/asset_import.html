@@ -1,97 +1,225 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block page_title %}Bulk Asset Import{% endblock %}
+{% block page_title %}Import Assets{% endblock %}
 
 {% block content %}
-<div style="max-width: 900px; margin: 0 auto;">
-    <div class="card">
-        <h3>Import Assets from Excel or CSV</h3>
-        <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-            Upload an Excel (.xlsx) or CSV file to create multiple assets at once.
-            Ensure your file headers match the system fields.
-        </p>
+<style>
+.imp-page { max-width: 600px; margin: 0 auto; padding: 32px 16px; font-family: 'Inter', system-ui, sans-serif; }
 
-        <div
-            style="background: #F8FAFC; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px dashed var(--border-color);">
-            <h4 style="margin-bottom: 0.5rem;">Import Guidelines:</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                <div>
-                    <h5 style="margin-bottom: 0.5rem; font-size: 0.9rem;">Required Fields:</h5>
-                    <ul
-                        style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
-                        <li><strong>name</strong>: Asset name</li>
-                        <li><strong>category</strong>: Code or Name of Category</li>
-                    </ul>
+/* Header */
+.imp-header { margin-bottom: 28px; }
+.imp-back { display: inline-flex; align-items: center; gap: 6px; color: #6366f1; text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 16px; padding: 4px 8px; border-radius: 6px; transition: background .15s; }
+.imp-back:hover { background: #eef2ff; }
+.imp-title { font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 4px; }
+.imp-sub   { font-size: 13px; color: #6b7280; margin: 0; }
 
-                    <h5 style="margin-top: 1rem; margin-bottom: 0.5rem; font-size: 0.9rem;">Identification:</h5>
-                    <ul
-                        style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
-                        <li><strong>serial_number</strong>: Manufacturer S/N</li>
-                        <li><strong>asset_code</strong>, <strong>erp_asset_number</strong></li>
-                        <li><strong>is_tagged</strong>: <code>yes</code> / <code>no</code> (default: no)</li>
-                        <li><strong>label_type</strong>: <code>METAL</code> or <code>NON_METAL</code> (only if tagged)</li>
-                    </ul>
-                </div>
-                <div>
-                    <h5 style="margin-bottom: 0.5rem; font-size: 0.9rem;">Master Data & Location:</h5>
-                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                        Looked up by name (case-insensitive).
-                    </p>
-                    <ul
-                        style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); font-size: 0.85rem;">
-                        <li><strong>branch, building, floor, room</strong></li>
-                        <li><strong>region, site, location, sub_location</strong></li>
-                        <li><strong>brand, group, company, supplier</strong></li>
-                        <li><strong>custodian</strong>: Use Employee ID or Username</li>
-                    </ul>
-                </div>
-            </div>
+/* Steps */
+.imp-steps { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+.imp-step  { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #9ca3af; }
+.imp-step.active { color: #6366f1; }
+.imp-step.done   { color: #10b981; }
+.imp-step-num { width: 22px; height: 22px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.imp-step.active .imp-step-num { background: #6366f1; color: #fff; }
+.imp-step.done   .imp-step-num { background: #10b981; color: #fff; }
+.imp-step-line { flex: 1; height: 1px; background: #e5e7eb; margin: 0 8px; min-width: 20px; }
 
-            <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                <a href="{% url 'asset-import-sample-excel' %}" class="btn btn-sm"
-                    style="background: white; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;">
-                    <i data-lucide="download"></i> Download Excel Template
-                </a>
-                <a href="{% url 'asset-import-sample' %}" class="btn btn-sm"
-                    style="background: white; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;">
-                    <i data-lucide="download"></i> Download CSV Template
-                </a>
-            </div>
+/* Card */
+.imp-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 16px; }
+.imp-card-head { padding: 18px 22px; border-bottom: 1px solid #f3f4f6; }
+.imp-card-title { font-size: 14px; font-weight: 700; color: #111827; margin: 0 0 2px; }
+.imp-card-sub   { font-size: 12px; color: #9ca3af; margin: 0; }
+.imp-card-body  { padding: 22px; }
+
+/* Template downloads */
+.imp-templates { display: flex; gap: 10px; }
+.imp-tpl-btn { flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; text-decoration: none; color: #374151; font-size: 13px; font-weight: 600; transition: background .15s, border-color .15s; }
+.imp-tpl-btn:hover { background: #eef2ff; border-color: #c7d2fe; color: #4f46e5; }
+.imp-tpl-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.imp-tpl-icon.excel { background: #dcfce7; color: #16a34a; }
+.imp-tpl-icon.csv   { background: #e0f2fe; color: #0369a1; }
+.imp-tpl-label { font-size: 11px; font-weight: 500; color: #9ca3af; margin-top: 1px; }
+
+/* Drop zone */
+.imp-dropzone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 32px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+.imp-dropzone:hover, .imp-dropzone.dragover { border-color: #6366f1; background: #eef2ff; }
+.imp-dropzone.has-file { border-color: #10b981; background: #f0fdf4; }
+.imp-dz-icon { width: 44px; height: 44px; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; color: #9ca3af; transition: background .2s, color .2s; }
+.imp-dropzone.has-file .imp-dz-icon { background: #dcfce7; color: #16a34a; }
+.imp-dz-title { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.imp-dz-sub   { font-size: 12px; color: #9ca3af; }
+.imp-dz-file  { font-size: 13px; font-weight: 600; color: #15803d; margin-top: 6px; display: none; }
+.imp-dropzone.has-file .imp-dz-file { display: block; }
+.imp-dropzone.has-file .imp-dz-sub { display: none; }
+.imp-file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.imp-browse { display: inline-block; margin-top: 10px; padding: 6px 14px; background: #6366f1; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.imp-dropzone.has-file .imp-browse { background: #10b981; }
+
+/* Error */
+.imp-error { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; }
+
+/* Tips */
+.imp-tips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.imp-tip  { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; background: #f9fafb; border-radius: 8px; font-size: 12px; color: #6b7280; }
+.imp-tip-dot { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; flex-shrink: 0; margin-top: 4px; }
+.imp-tip strong { color: #374151; }
+
+/* Actions */
+.imp-actions { display: flex; gap: 10px; margin-top: 4px; }
+.imp-btn-primary { flex: 1; padding: 12px; background: #6366f1; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.imp-btn-primary:hover { background: #4f46e5; }
+.imp-btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
+.imp-btn-cancel { padding: 12px 20px; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; }
+.imp-btn-cancel:hover { background: #e5e7eb; }
+</style>
+
+<div class="imp-page">
+
+  <!-- Header -->
+  <div class="imp-header">
+    <a href="{% url 'asset-list' %}" class="imp-back">
+      ← Back to Assets
+    </a>
+    <h1 class="imp-title">Import Assets</h1>
+    <p class="imp-sub">Upload a spreadsheet to create multiple assets at once</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="imp-steps">
+    <div class="imp-step done">
+      <div class="imp-step-num">✓</div>
+      <span>Get Template</span>
+    </div>
+    <div class="imp-step-line"></div>
+    <div class="imp-step active">
+      <div class="imp-step-num">2</div>
+      <span>Upload File</span>
+    </div>
+    <div class="imp-step-line"></div>
+    <div class="imp-step">
+      <div class="imp-step-num">3</div>
+      <span>Done</span>
+    </div>
+  </div>
+
+  {% if form.non_field_errors %}
+  <div class="imp-error">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <!-- Step 1: Download template -->
+  <div class="imp-card" style="margin-bottom: 16px;">
+    <div class="imp-card-head">
+      <p class="imp-card-title">Step 1 — Download a Template</p>
+      <p class="imp-card-sub">Fill it in with your asset data, then upload below</p>
+    </div>
+    <div class="imp-card-body">
+      <div class="imp-templates">
+        <a href="{% url 'asset-import-sample-excel' %}" class="imp-tpl-btn">
+          <div class="imp-tpl-icon excel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div>
+            <div>Excel Template</div>
+            <div class="imp-tpl-label">.xlsx format</div>
+          </div>
+        </a>
+        <a href="{% url 'asset-import-sample' %}" class="imp-tpl-btn">
+          <div class="imp-tpl-icon csv">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div>
+            <div>CSV Template</div>
+            <div class="imp-tpl-label">.csv format</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Upload -->
+  <div class="imp-card">
+    <div class="imp-card-head">
+      <p class="imp-card-title">Step 2 — Upload Your File</p>
+      <p class="imp-card-sub">Accepts .xlsx and .csv — only <strong>name</strong> and <strong>category</strong> are required</p>
+    </div>
+    <div class="imp-card-body">
+      <form method="post" enctype="multipart/form-data" id="imp-form">
+        {% csrf_token %}
+
+        {% if form.import_file.errors %}
+        <div class="imp-error">{{ form.import_file.errors }}</div>
+        {% endif %}
+
+        <!-- Drop zone -->
+        <div class="imp-dropzone" id="imp-dropzone">
+          <input type="file" name="{{ form.import_file.html_name }}" id="{{ form.import_file.id_for_label }}"
+                 class="imp-file-input" accept=".xlsx,.csv" id="imp-file-input">
+          <div class="imp-dz-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          </div>
+          <div class="imp-dz-title">Drop your file here</div>
+          <div class="imp-dz-sub">or</div>
+          <div class="imp-browse">Browse file</div>
+          <div class="imp-dz-file" id="imp-filename"></div>
         </div>
 
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
+        <!-- Tips -->
+        <div class="imp-tips" style="margin-top: 16px;">
+          <div class="imp-tip"><div class="imp-tip-dot"></div><span><strong>name</strong> and <strong>category</strong> are required columns</span></div>
+          <div class="imp-tip"><div class="imp-tip-dot"></div><span>Location fields matched by name (case-insensitive)</span></div>
+          <div class="imp-tip"><div class="imp-tip-dot"></div><span><strong>custodian</strong>: use Employee ID or Username</span></div>
+          <div class="imp-tip"><div class="imp-tip-dot"></div><span>Unknown rows are skipped with an error report</span></div>
+        </div>
 
-            {% if form.non_field_errors %}
-            <div style="background: #FEF2F2; color: #991B1B; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
-                {{ form.non_field_errors }}
-            </div>
-            {% endif %}
-
-            <div style="margin-bottom: 2rem;">
-                <label for="{{ form.import_file.id_for_label }}"
-                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-                    {{ form.import_file.label }}
-                </label>
-                {{ form.import_file }}
-                {% if form.import_file.errors %}
-                <div style="color: red; font-size: 0.875rem; margin-top: 0.25rem;">
-                    {{ form.import_file.errors }}
-                </div>
-                {% endif %}
-                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                    {{ form.import_file.help_text }}
-                </p>
-            </div>
-
-            <div style="display: flex; gap: 1rem;">
-                <button type="submit" class="btn btn-primary">
-                    <i data-lucide="upload"></i> Upload & Import
-                </button>
-                <a href="{% url 'asset-list' %}" class="btn" style="background: var(--bg-body);">Cancel</a>
-            </div>
-        </form>
+        <!-- Actions -->
+        <div class="imp-actions" style="margin-top: 20px;">
+          <button type="submit" class="imp-btn-primary" id="imp-submit" disabled>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Upload &amp; Import
+          </button>
+          <a href="{% url 'asset-list' %}" class="imp-btn-cancel">Cancel</a>
+        </div>
+      </form>
     </div>
+  </div>
+
 </div>
+
+<script>
+(function () {
+  const dropzone  = document.getElementById('imp-dropzone');
+  const fileInput = document.getElementById('imp-file-input');
+  const filename  = document.getElementById('imp-filename');
+  const submitBtn = document.getElementById('imp-submit');
+
+  function setFile(file) {
+    if (!file) return;
+    filename.textContent = file.name;
+    dropzone.classList.add('has-file');
+    submitBtn.disabled = false;
+  }
+
+  fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      setFile(file);
+    }
+  });
+
+  document.getElementById('imp-form').addEventListener('submit', function () {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Importing...';
+  });
+})();
+</script>
+
 {% endblock %}

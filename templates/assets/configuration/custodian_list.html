@@ -5,9 +5,11 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <h2>Custodians</h2>
+    {% if not user.is_data_entry %}
     <a href="{% url 'custodian-create' %}" class="btn btn-primary">
         <i data-lucide="plus"></i> Add New Custodian
     </a>
+    {% endif %}
 </div>
 
 <div class="card" style="padding: 0;">
@@ -36,9 +38,13 @@
                 <td style="padding:1rem;">{{ custodian.department_name|default:"-" }}</td>
                 <td style="padding:1rem;">{{ custodian.phone|default:"-" }}</td>
                 <td style="padding:1rem;">
+                    {% if not user.is_data_entry %}
                     <a href="{% url 'custodian-edit' custodian.pk %}" class="btn" style="padding: 0.25rem 0.5rem;">
                         <i data-lucide="edit-2" style="width: 16px;"></i>
                     </a>
+                    {% else %}
+                    <span style="color: var(--text-secondary);">-</span>
+                    {% endif %}
                 </td>
             </tr>
 

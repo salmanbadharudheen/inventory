@@ -1,330 +1,494 @@
 {% extends 'base.html' %}
 
-{% block page_title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer Request{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer{% endblock %}
 
 {% block content %}
-<div class="asset-container">
-    <div class="form-container">
-        <div class="form-header">
-          <h1 class="form-title">{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer Request</h1>
-          <p class="form-subtitle">Create a request to move an asset between locations</p>
+<style>
+/* ── Transfer Form – Minimal Single-Card Design ───────── */
+.tf-page { max-width: 720px; margin: 0 auto; padding: 24px 16px; font-family: 'Inter', system-ui, sans-serif; }
+
+/* Header */
+.tf-back { display:inline-flex; align-items:center; gap:6px; color:#6366f1; text-decoration:none; font-size:13px; font-weight:600; padding:4px 8px; border-radius:6px; margin-bottom:12px; transition:background .15s; }
+.tf-back:hover { background:#eef2ff; }
+.tf-title { font-size:22px; font-weight:700; color:#111827; margin:0 0 4px; }
+.tf-subtitle { font-size:13px; color:#6b7280; margin:0 0 24px; }
+
+/* Info banner */
+.tf-info { display:flex; gap:10px; padding:12px 14px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:10px; margin-bottom:20px; font-size:12.5px; color:#3730a3; line-height:1.5; }
+.tf-info svg { flex-shrink:0; margin-top:1px; }
+
+/* Card */
+.tf-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:24px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+
+/* Section title */
+.tf-section { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.tf-section-num { width:24px; height:24px; border-radius:50%; background:#6366f1; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+.tf-section-num.muted { background:#e5e7eb; color:#9ca3af; }
+.tf-section-num.done  { background:#10b981; }
+.tf-section-title { font-size:14px; font-weight:700; color:#111827; margin:0; }
+.tf-section-sub { font-size:12px; color:#9ca3af; margin:0; }
+
+/* Search bar */
+.tf-search-row { display:flex; gap:8px; }
+.tf-search-input { flex:1; padding:11px 14px; border:1px solid #e5e7eb; border-radius:10px; font-size:14px; outline:none; transition:border-color .15s, box-shadow .15s; background:#fff; }
+.tf-search-input:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+.tf-search-btn { padding:11px 18px; background:#6366f1; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; transition:background .15s; }
+.tf-search-btn:hover { background:#4f46e5; }
+.tf-search-btn:disabled { background:#a5b4fc; cursor:not-allowed; }
+.tf-feedback { margin-top:8px; font-size:13px; min-height:18px; display:flex; align-items:center; gap:6px; }
+.tf-hint { margin-top:10px; padding:9px 12px; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; font-size:12px; color:#92400e; display:flex; align-items:center; gap:6px; }
+
+/* Asset chip (selected) */
+.tf-asset-chip { margin-top:10px; display:inline-flex; align-items:center; gap:8px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:999px; padding:6px 8px 6px 12px; font-size:13px; color:#15803d; animation:tfSlideIn .2s ease; max-width:100%; }
+.tf-asset-chip + .tf-asset-chip { margin-left:6px; }
+.tf-asset-chip.pending { background:#fef9c3; border-color:#fde68a; color:#92400e; }
+.tf-chip-label { display:inline-flex; align-items:center; gap:6px; min-width:0; }
+.tf-chip-tag  { font-weight:700; }
+.tf-chip-name { color:#166534; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px; }
+@keyframes tfSlideIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+.tf-remove-btn { background:transparent; border:none; cursor:pointer; color:#9ca3af; font-size:18px; line-height:1; padding:0 4px; border-radius:50%; transition:color .15s, background .15s; flex-shrink:0; }
+.tf-remove-btn:hover { color:#dc2626; background:#fef2f2; }
+
+/* Destination fields */
+.tf-dest-wrap { position:relative; }
+.tf-dest-wrap.locked { opacity:.45; pointer-events:none; }
+
+.tf-divider { display:flex; align-items:center; gap:10px; margin:18px 0 12px; color:#9ca3af; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.tf-divider::before,.tf-divider::after { content:''; flex:1; height:1px; background:#f3f4f6; }
+
+.tf-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.tf-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
+.tf-grid.col1  { grid-template-columns:1fr; }
+@media(max-width:600px){ .tf-grid,.tf-grid.cols3{ grid-template-columns:1fr; } }
+
+.tf-field { display:flex; flex-direction:column; gap:4px; }
+.tf-label { font-size:12px; font-weight:600; color:#374151; }
+.tf-control { padding:9px 11px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; background:#fff; color:#111827; outline:none; transition:border-color .15s, box-shadow .15s; width:100%; box-sizing:border-box; }
+.tf-control:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+.tf-control:disabled { background:#f9fafb; color:#9ca3af; cursor:not-allowed; }
+.tf-control select { appearance:none; }
+textarea.tf-control { resize:vertical; min-height:64px; }
+
+/* Actions */
+.tf-actions { display:flex; gap:10px; margin-top:8px; }
+.tf-btn-primary { flex:1; padding:12px 18px; background:#6366f1; color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; transition:background .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.tf-btn-primary:hover { background:#4f46e5; }
+.tf-btn-primary:disabled { background:#c7d2fe; cursor:not-allowed; }
+.tf-btn-cancel  { padding:12px 20px; background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; border-radius:10px; font-size:13px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; transition:background .15s; }
+.tf-btn-cancel:hover { background:#e5e7eb; }
+
+/* Errors */
+.tf-error { background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:13px; }
+.tf-field-error { font-size:11.5px; color:#dc2626; margin-top:2px; }
+</style>
+
+<div class="tf-page">
+
+  <a href="{% url 'transfer-list' %}" class="tf-back">← Back to Transfers</a>
+  <h1 class="tf-title">{% if form.instance.pk %}Edit Transfer{% else %}New Asset Transfer{% endif %}</h1>
+  <p class="tf-subtitle">Move an asset to a new location, department, or custodian</p>
+
+  <div class="tf-info">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+    <span><strong>Heads up:</strong> Whatever you fill in below replaces the asset's current values. Fields you leave blank will be <em>cleared</em> on the asset — so when changing a region, set the new building/floor/room too.</span>
+  </div>
+
+  <form method="post" id="tf-form">
+    {% csrf_token %}
+    {{ form.asset }}
+
+    {% if form.non_field_errors %}
+    <div class="tf-error">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+    {% endif %}
+
+    <!-- Step 1: pick the asset -->
+    <div class="tf-card">
+      <div class="tf-section">
+        <div class="tf-section-num" id="step1-badge">1</div>
+        <div>
+          <p class="tf-section-title">Pick the asset</p>
+          <p class="tf-section-sub">Search by asset tag, code, or custom tag</p>
+        </div>
+      </div>
+
+      <div class="tf-search-row">
+        <input type="text" id="asset-tag-input" class="tf-search-input"
+               placeholder="e.g. AME-FFE-0065 — press Enter or click Add" autocomplete="off" />
+        <button type="button" id="asset-add-btn" class="tf-search-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </button>
+      </div>
+      <div class="tf-feedback" id="asset-lookup-result"></div>
+
+      <div class="tf-hint" id="asset-selection-hint" style="display:none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Add an asset to unlock the destination fields below.
+      </div>
+
+      <div id="asset-list"></div>
+    </div>
+
+    <!-- Step 2: destination -->
+    <div class="tf-card">
+      <div class="tf-section">
+        <div class="tf-section-num muted" id="step2-badge">2</div>
+        <div>
+          <p class="tf-section-title">Move to</p>
+          <p class="tf-section-sub">Set the new location, department, or custodian</p>
+        </div>
+      </div>
+
+      <div class="tf-dest-wrap locked" id="dest-wrap">
+        <div class="tf-divider">Location</div>
+        <div class="tf-grid">
+          <div class="tf-field"><label class="tf-label">Region</label>{{ form.transferred_to_region }}</div>
+          <div class="tf-field"><label class="tf-label">Site</label>{{ form.transferred_to_site }}</div>
+        </div>
+        <div class="tf-grid cols3" style="margin-top:12px;">
+          <div class="tf-field"><label class="tf-label">Building</label>{{ form.transferred_to_building }}</div>
+          <div class="tf-field"><label class="tf-label">Floor</label>{{ form.transferred_to_floor }}</div>
+          <div class="tf-field"><label class="tf-label">Room</label>{{ form.transferred_to_room }}</div>
+        </div>
+        <div class="tf-grid col1" style="margin-top:12px;">
+          <div class="tf-field"><label class="tf-label">Location</label>{{ form.transferred_to_location }}</div>
         </div>
 
-        <div class="card form-card">
-          <h2 style="display:none">Asset Transfer Request</h2>
+        <div class="tf-divider">Organisation</div>
+        <div class="tf-grid cols3">
+          <div class="tf-field"><label class="tf-label">Company</label>{{ form.transferred_to_company }}</div>
+          <div class="tf-field"><label class="tf-label">Department</label>{{ form.transferred_to_department }}</div>
+          <div class="tf-field"><label class="tf-label">Custodian</label>{{ form.transferred_to_custodian }}</div>
+        </div>
 
-                  <form method="post" id="simple-transfer-form" class="asset-form">
-                    {% csrf_token %}
+        <div class="tf-divider">Optional details</div>
+        <div class="tf-grid">
+          <div class="tf-field"><label class="tf-label">Reason</label>{{ form.movement_reason }}</div>
+          <div class="tf-field"><label class="tf-label">Requested by</label>{{ form.requester_name }}</div>
+        </div>
+        <div class="tf-grid col1" style="margin-top:12px;">
+          <div class="tf-field"><label class="tf-label">Note (optional)</label>{{ form.transfer_description }}</div>
+        </div>
+      </div>
+    </div>
 
-                    {% if form.non_field_errors %}
-                    <div style="background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;">
-                      {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-                    </div>
-                    {% endif %}
+    <!-- Submit -->
+    <div class="tf-actions">
+      <button type="submit" class="tf-btn-primary" id="tf-submit-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        {% if form.instance.pk %}Update Transfer{% else %}Transfer Asset{% endif %}
+      </button>
+      <a href="{% url 'transfer-list' %}" class="tf-btn-cancel">Cancel</a>
+    </div>
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Transfer No</label>
-                        {{ form.transfer_no }}
-                        {% if form.transfer_no.errors %}<div class="form-error">{{ form.transfer_no.errors }}</div>{% endif %}
-                      </div>
-                    </div>
+    {# Hidden — kept submitting as part of form for compatibility #}
+    <input type="hidden" name="transfer_no" value="">
+  </form>
+</div>
 
-                    <div class="form-row">
-                      <div class="form-group full-width">
-                        <label class="form-label">Transfer Description</label>
-                        {{ form.transfer_description }}
-                        {% if form.transfer_description.errors %}<div class="form-error">{{ form.transfer_description.errors }}</div>{% endif %}
-                      </div>
-                    </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Region To</label>
-                        {{ form.transferred_to_region }}
-                      </div>
-                      <div class="form-group">
-                        <label class="form-label">Site To</label>
-                        {{ form.transferred_to_site }}
-                      </div>
-                    </div>
+  /* ── Helpers ─────────────────────────────────────────── */
+  async function fetchJson(url) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return [];
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) return [];
+      return await r.json();
+    } catch (e) { return []; }
+  }
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Building To</label>
-                        {{ form.transferred_to_building }}
-                      </div>
-                      <div class="form-group">
-                        <label class="form-label">Floor To</label>
-                        {{ form.transferred_to_floor }}
-                      </div>
-                    </div>
+  async function lookupByTag(tag) {
+    try {
+      const normalizedTag = normalizeTag(tag);
+      if (lookupCache.has(normalizedTag)) {
+        return lookupCache.get(normalizedTag);
+      }
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Room To</label>
-                        {{ form.transferred_to_room }}
-                      </div>
-                    </div>
+      const url = new URL('{% url "asset-lookup" %}', window.location.origin);
+      url.searchParams.set('asset_tag', normalizedTag);
+      url.searchParams.set('include_options', '0');
+      const r = await fetchWithTimeout(url.toString(), { credentials: 'same-origin' }, 5000);
+      if (!r.ok) {
+        // Try to get a json error message, fall back gracefully
+        try { const e = await r.json(); return { _error: e.error || ('HTTP ' + r.status) }; } catch(_){}
+        return { _error: 'HTTP ' + r.status };
+      }
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) return { _error: 'Server returned non-JSON response. Please log in again.' };
+      const data = await r.json();
+      if (data.asset) {
+        lookupCache.set(normalizedTag, data.asset);
+        return data.asset;
+      }
+      return { _error: data.error || 'Asset not found' };
+    } catch (e) {
+      if (e && e.name === 'AbortError') {
+        return { _error: 'Lookup timed out. Please try again.' };
+      }
+      return { _error: 'Network error: ' + e.message };
+    }
+  }
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Company</label>
-                        {{ form.transferred_to_company }}
-                      </div>
-                      <div class="form-group">
-                        <label class="form-label">Department</label>
-                        {{ form.transferred_to_department }}
-                      </div>
-                    </div>
+  /* ── DOM references ──────────────────────────────────── */
+  const regionSel   = document.getElementById('{{ form.transferred_to_region.id_for_label }}');
+  const siteSel     = document.getElementById('{{ form.transferred_to_site.id_for_label }}');
+  const buildSel    = document.getElementById('{{ form.transferred_to_building.id_for_label }}');
+  const floorSel    = document.getElementById('{{ form.transferred_to_floor.id_for_label }}');
+  const roomSel     = document.getElementById('{{ form.transferred_to_room.id_for_label }}');
+  const locSel      = document.getElementById('{{ form.transferred_to_location.id_for_label }}');
+  const compSel     = document.getElementById('{{ form.transferred_to_company.id_for_label }}');
+  const deptSel     = document.getElementById('{{ form.transferred_to_department.id_for_label }}');
+  const custSel     = document.getElementById('{{ form.transferred_to_custodian.id_for_label }}');
+  const movInput    = document.getElementById('{{ form.movement_reason.id_for_label }}');
+  const reqInput    = document.getElementById('{{ form.requester_name.id_for_label }}');
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Custodian</label>
-                        {{ form.transferred_to_custodian }}
-                      </div>
-                    </div>
+  const hiddenAsset       = document.querySelector('input[name="asset"][type="hidden"]') || document.getElementById('{{ form.asset.auto_id }}') || document.querySelector('input[name="asset"]');
+  const assetTagInput     = document.getElementById('asset-tag-input');
+  const assetAddBtn       = document.getElementById('asset-add-btn');
+  const assetResult       = document.getElementById('asset-lookup-result');
+  const assetSelHint      = document.getElementById('asset-selection-hint');
+  const assetListEl       = document.getElementById('asset-list');
+  const destWrap          = document.getElementById('dest-wrap');
+  const step1Badge        = document.getElementById('step1-badge');
+  const step2Badge        = document.getElementById('step2-badge');
+  const step3Badge        = document.getElementById('step3-badge');
 
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label class="form-label">Movement Reason</label>
-                        {{ form.movement_reason }}
-                      </div>
-                      <div class="form-group">
-                        <label class="form-label">Request By</label>
-                        {{ form.requester_name }}
-                      </div>
-                    </div>
+  /* All controls that sit inside dest-wrap so we can disable them */
+  const destControls = [regionSel, siteSel, buildSel, floorSel, roomSel,
+                        locSel, compSel, deptSel, custSel, movInput, reqInput];
 
-                    <div class="form-row">
-                      <div class="form-group full-width">
-                        <label class="form-label">Assets (search by tag, code or name)</label>
-                        <div style="display:flex;gap:8px;">
-                          <input type="text" id="asset-tag-input" class="form-control" placeholder="e.g. ASSET-001 or asset code, then press Enter" />
-                          <button type="button" id="asset-add-btn" class="btn-default">Add</button>
-                        </div>
-                        {{ form.asset_ids }}
-                        <div id="asset-lookup-result" style="margin-top:6px;font-size:13px;"></div>
-                        <div id="asset-list" style="margin-top:8px;display:flex;flex-direction:column;gap:10px;"></div>
-                      </div>
-                    </div>
+  let selectedAssets = [];
+  const lookupCache = new Map();
 
-                    <div class="form-actions">
-                      <button type="submit" class="btn btn-primary">Submit</button>
-                      <a href="{% url 'transfer-list' %}" class="btn-default">Cancel</a>
-                    </div>
-                  </form>
-                </div>
+  if (!hiddenAsset) {
+    console.error('DEBUG: Hidden asset field not found');
+    console.error('Tried: input[name="asset"][type="hidden"], id_asset, input[name="asset"]');
+    console.error('Form fields:', document.querySelectorAll('input[type="hidden"]').length);
+    if (assetResult) {
+      assetResult.style.color = '#dc2626';
+      assetResult.textContent = 'Internal form error: hidden asset field is missing. Please reload the page.';
+    }
+    return;
+  }
 
-                <script>
-                document.addEventListener('DOMContentLoaded', function(){
-                  // Helpers for AJAX
-                  async function fetchJson(url){
-                    try{ const r = await fetch(url); if(!r.ok) return []; return await r.json(); }catch(e){return []}
-                  }
+  function normalizeTag(value) {
+    return (value || '').trim().toUpperCase();
+  }
 
-                  const regionSelect = document.getElementById('{{ form.transferred_to_region.id_for_label }}');
-                  const siteSelect = document.getElementById('{{ form.transferred_to_site.id_for_label }}');
-                  const buildingSelect = document.getElementById('{{ form.transferred_to_building.id_for_label }}');
-                  const floorSelect = document.getElementById('{{ form.transferred_to_floor.id_for_label }}');
-                  const roomSelect = document.getElementById('{{ form.transferred_to_room.id_for_label }}');
+  async function fetchWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
-                  if(regionSelect){
-                    regionSelect.addEventListener('change', async function(){
-                      const regionId = this.value;
-                      // Load sites
-                      siteSelect.innerHTML = '<option value="">---------</option>';
-                      buildingSelect.innerHTML = '<option value="">---------</option>';
-                      floorSelect.innerHTML = '<option value="">---------</option>';
-                      roomSelect.innerHTML = '<option value="">---------</option>';
-                      if(!regionId) return;
-                      const url = new URL('{% url "get-sites" %}', window.location.origin);
-                      url.searchParams.set('region_id', regionId);
-                      const sites = await fetchJson(url.toString());
-                      sites.forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.name; siteSelect.appendChild(o); });
-                    });
-                  }
+  /* ── Add tf-control class to Django-rendered form controls ── */
+  document.querySelectorAll('#tf-form select, #tf-form input:not([type=hidden]), #tf-form textarea').forEach(el => {
+    el.classList.add('tf-control');
+  });
 
-                  if(siteSelect){
-                    siteSelect.addEventListener('change', async function(){
-                      const siteId = this.value;
-                      buildingSelect.innerHTML = '<option value="">---------</option>';
-                      floorSelect.innerHTML = '<option value="">---------</option>';
-                      roomSelect.innerHTML = '<option value="">---------</option>';
-                      if(!siteId) return;
-                      const url = new URL('{% url "get-buildings-by-site" %}', window.location.origin);
-                      url.searchParams.set('site_id', siteId);
-                      const buildings = await fetchJson(url.toString());
-                      buildings.forEach(b=>{ const o=document.createElement('option'); o.value=b.id; o.textContent=b.name; buildingSelect.appendChild(o); });
-                    });
-                  }
+  /* ── Lock / unlock destination ───────────────────────── */
+  function setDestLocked(locked) {
+    try { destControls.forEach(el => { try { if (el) el.disabled = locked; } catch(_){} }); } catch(_) {}
+    try { if (destWrap) destWrap.classList.toggle('locked', locked); } catch(_) {}
+    try { if (assetSelHint) assetSelHint.style.display = locked ? 'flex' : 'none'; } catch(_) {}
+    try { if (step2Badge) step2Badge.className = 'tf-section-num' + (locked ? ' muted' : ''); } catch(_) {}
+    try { if (step3Badge) step3Badge.className = 'tf-section-num' + (locked ? ' muted' : ''); } catch(_) {}
+  }
 
-                  if(buildingSelect){
-                    buildingSelect.addEventListener('change', async function(){
-                      const bldg = this.value;
-                      floorSelect.innerHTML = '<option value="">---------</option>';
-                      roomSelect.innerHTML = '<option value="">---------</option>';
-                      if(!bldg) return;
-                      const url = new URL('{% url "get-floors" %}', window.location.origin);
-                      url.searchParams.set('building_id', bldg);
-                      const floors = await fetchJson(url.toString());
-                      floors.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=f.name; floorSelect.appendChild(o); });
-                    });
-                  }
+  /* ── Reset a select to blank ─────────────────────────── */
+  function resetSel(sel) { if (sel) sel.innerHTML = '<option value="">---------</option>'; }
 
-                  if(floorSelect){
-                    floorSelect.addEventListener('change', async function(){
-                      const fid = this.value;
-                      roomSelect.innerHTML = '<option value="">---------</option>';
-                      if(!fid) return;
-                      const url = new URL('{% url "get-rooms" %}', window.location.origin);
-                      url.searchParams.set('floor_id', fid);
-                      const rooms = await fetchJson(url.toString());
-                      rooms.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=r.name; roomSelect.appendChild(o); });
-                    });
-                  }
+  /* ── Region → Sites ──────────────────────────────────── */
+  regionSel && regionSel.addEventListener('change', async function () {
+    resetSel(siteSel); resetSel(buildSel); resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
+    if (compSel) compSel.value = ''; if (deptSel) deptSel.value = ''; if (custSel) custSel.value = '';
+    const rid = this.value; if (!rid) return;
+    const url = new URL('{% url "get-sites" %}', window.location.origin);
+    url.searchParams.set('region_id', rid);
+    const sites = await fetchJson(url.toString());
+    sites.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; siteSel.appendChild(o); });
+  });
 
-                  // Asset lookup by tag -> populate hidden asset field
-                  const assetTagInput = document.getElementById('asset-tag-input');
-                  const assetAddBtn = document.getElementById('asset-add-btn');
-                  const hiddenAsset = document.getElementById('{{ form.asset_ids.id_for_label }}');
-                  const assetResult = document.getElementById('asset-lookup-result');
-                  const assetList = document.getElementById('asset-list');
-                  let selectedAssets = [];
+  /* ── Site → Buildings ────────────────────────────────── */
+  siteSel && siteSel.addEventListener('change', async function () {
+    resetSel(buildSel); resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
+    const sid = this.value; if (!sid) return;
+    const url = new URL('{% url "get-buildings-by-site" %}', window.location.origin);
+    url.searchParams.set('site_id', sid);
+    const buildings = await fetchJson(url.toString());
+    buildings.forEach(b => { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; buildSel.appendChild(o); });
+  });
 
-                  function locationLabel(obj){ return obj ? obj.name : null; }
+  /* ── Building → Floors + Locations ──────────────────── */
+  buildSel && buildSel.addEventListener('change', async function () {
+    resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
+    const bid = this.value; if (!bid) return;
+    const [floors, locs] = await Promise.all([
+      fetchJson(new URL('{% url "get-floors" %}', window.location.origin).href + '?building_id=' + bid),
+      fetchJson(new URL('{% url "get-locations" %}', window.location.origin).href + '?building_id=' + bid),
+    ]);
+    floors.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; floorSel.appendChild(o); });
+    locs.forEach(l   => { const o = document.createElement('option'); o.value = l.id; o.textContent = l.name; locSel.appendChild(o); });
+  });
 
-                  function buildLocationCard(a){
-                    const loc = a.locationData;
-                    const rows = [
-                      ['Asset Tag', a.tag],
-                      ['Asset Name', a.name],
-                      ['Department', locationLabel(loc.department)],
-                      ['Branch', locationLabel(loc.branch)],
-                      ['Region', locationLabel(loc.region)],
-                      ['Site', locationLabel(loc.site)],
-                      ['Building', locationLabel(loc.building)],
-                      ['Floor', locationLabel(loc.floor)],
-                      ['Room', locationLabel(loc.room)],
-                      ['Custodian', loc.custodian ? loc.custodian.name : null],
-                      ['Assigned To', loc.assigned_to ? loc.assigned_to.name : null],
-                      ['Status', loc.status],
-                    ].filter(r => r[1]);
+  /* ── Floor → Rooms ───────────────────────────────────── */
+  floorSel && floorSel.addEventListener('change', async function () {
+    resetSel(roomSel);
+    const fid = this.value; if (!fid) return;
+    const url = new URL('{% url "get-rooms" %}', window.location.origin);
+    url.searchParams.set('floor_id', fid);
+    const rooms = await fetchJson(url.toString());
+    rooms.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.textContent = r.name; roomSel.appendChild(o); });
+  });
 
-                    const card = document.createElement('div');
-                    card.style.cssText = 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;position:relative;';
+  /* ── Asset card builder ───────────────────────────────── */
+  function fieldVal(obj) { return obj ? obj.name : null; }
 
-                    // Remove button
-                    const rem = document.createElement('button');
-                    rem.type = 'button';
-                    rem.innerHTML = '&times;';
-                    rem.title = 'Remove asset';
-                    rem.style.cssText = 'position:absolute;top:8px;right:10px;background:transparent;border:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1;';
-                    rem.addEventListener('click', function(){
-                      selectedAssets = selectedAssets.filter(x => x.id !== a.id);
-                      hiddenAsset.value = selectedAssets.map(x => x.id).join(',');
-                      renderAssetChips();
-                    });
-                    card.appendChild(rem);
+  function buildCard(a) {
+    const isPending = Boolean(a.pending);
+    const card = document.createElement('div');
+    card.className = 'tf-asset-chip' + (isPending ? ' pending' : '');
 
-                    // Header
-                    const header = document.createElement('div');
-                    header.style.cssText = 'font-weight:700;color:#15803d;margin-bottom:8px;font-size:13px;display:flex;align-items:center;gap:6px;';
-                    header.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Current Location — ' + a.tag;
-                    card.appendChild(header);
+    const label = document.createElement('div');
+    label.className = 'tf-chip-label';
+    const nameTxt = a.name ? ' — ' + a.name : '';
+    label.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
+      '<span class="tf-chip-tag">' + a.tag + '</span>' +
+      '<span class="tf-chip-name">' + nameTxt + '</span>';
 
-                    // Grid of location fields
-                    const grid = document.createElement('div');
-                    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 14px;';
-                    rows.forEach(([label, val]) => {
-                      const item = document.createElement('div');
-                      item.style.cssText = 'font-size:12px;';
-                      item.innerHTML = '<span style="color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:10px;">' + label + '</span><br><span style="color:#111827;">' + val + '</span>';
-                      grid.appendChild(item);
-                    });
-                    card.appendChild(grid);
-                    return card;
-                  }
+    const rem = document.createElement('button');
+    rem.type = 'button';
+    rem.className = 'tf-remove-btn';
+    rem.title = 'Remove asset';
+    rem.innerHTML = '&times;';
+    rem.addEventListener('click', () => {
+      selectedAssets = selectedAssets.filter(x => x.id !== a.id);
+      hiddenAsset.value = selectedAssets.map(x => x.id).join(',');
+      renderCards();
+    });
 
-                  function renderAssetChips(){
-                    assetList.innerHTML = '';
-                    selectedAssets.forEach(a => assetList.appendChild(buildLocationCard(a)));
-                  }
+    card.appendChild(label);
+    card.appendChild(rem);
+    return card;
+  }
 
-                  async function lookupAndAdd(tag){
-                    assetResult.textContent = 'Searching...';
-                    assetResult.style.color = '#6b7280';
-                    if(!tag) return;
-                    const url = new URL('{% url "asset-lookup" %}', window.location.origin);
-                    url.searchParams.set('asset_tag', tag);
-                    try{
-                      const r = await fetch(url.toString());
-                      if(!r.ok){
-                        assetResult.textContent = 'Asset not found. Check the tag or code and try again.';
-                        assetResult.style.color = '#dc2626';
-                        return;
-                      }
-                      const data = await r.json();
-                      const found = data.asset;
-                      if(!found || !found.id){
-                        assetResult.textContent = 'Asset not found.';
-                        assetResult.style.color = '#dc2626';
-                        return;
-                      }
-                      if(selectedAssets.some(x=>x.id === found.id)){
-                        assetResult.textContent = 'Asset already added.';
-                        assetResult.style.color = '#d97706';
-                        return;
-                      }
-                      selectedAssets.push({ id: found.id, tag: found.asset_tag, name: found.name, locationData: found });
-                      hiddenAsset.value = selectedAssets.map(x=>x.id).join(',');
-                      assetResult.textContent = '\u2713 Added: ' + found.asset_tag + ' — ' + found.name;
-                      assetResult.style.color = '#059669';
-                      renderAssetChips();
-                      assetTagInput.value = '';
-                    }catch(e){
-                      assetResult.textContent = 'Lookup error. Please try again.';
-                      assetResult.style.color = '#dc2626';
-                    }
-                  }
+  function renderCards() {
+    try { assetListEl.innerHTML = ''; } catch(_) {}
+    selectedAssets.forEach(a => {
+      try { assetListEl.appendChild(buildCard(a)); } catch(e) { console.error('buildCard error:', e); }
+    });
+    const has = selectedAssets.length > 0;
+    try { if (step1Badge) step1Badge.className = 'tf-section-num' + (has ? ' done' : ''); } catch(_) {}
+    setDestLocked(!has);
+  }
 
-                  if(assetAddBtn){
-                    assetAddBtn.addEventListener('click', function(){
-                      const t = assetTagInput.value.trim();
-                      if(t) lookupAndAdd(t);
-                    });
-                  }
+  /* ── Feedback helper ─────────────────────────────────── */
+  function setFeedback(msg, type) {
+    const colors = { info:'#6b7280', success:'#059669', warn:'#d97706', error:'#dc2626' };
+    const icons  = {
+      info:    '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>',
+      success: '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+      warn:    '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      error:   '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    };
+    assetResult.style.color = colors[type] || '#6b7280';
+    assetResult.innerHTML = (icons[type] || '') + ' ' + msg;
+  }
 
-                  if(assetTagInput){
-                    assetTagInput.addEventListener('keypress', function(e){
-                      if(e.key === 'Enter'){
-                        e.preventDefault();
-                        const t = assetTagInput.value.trim();
-                        if(t) lookupAndAdd(t);
-                      }
-                    });
-                  }
+  /* ── Lookup & add asset ───────────────────────────────── */
+  async function lookupAndAdd(tag) {
+    const normalizedTag = normalizeTag(tag);
+    if (!normalizedTag) return;
 
-                  // Simple submit: ensure asset is set
-                  document.getElementById('simple-transfer-form').addEventListener('submit', function(e){
-                    const a = hiddenAsset.value;
-                    if(!a){ e.preventDefault(); alert('Please enter a valid asset tag (use the field above and leave to lookup).'); }
-                  });
-                });
-                </script>
+    if (selectedAssets.some(x => normalizeTag(x.tag) === normalizedTag)) {
+      setFeedback('Asset <strong>' + normalizedTag + '</strong> is already added.', 'warn');
+      return;
+    }
 
-            <style>
-  .form-card { max-width: 760px; margin: 20px auto; padding: 20px; }
-  .form-subtitle { margin-top: 6px; color: #6b7280; font-size: 14px; }
-  .form-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:12px; }
-  .form-group { display:flex; flex-direction:column; }
-  .form-label { font-weight:600; margin-bottom:6px; color:#374151; font-size:14px; }
-  .form-card .form-control, .form-card select, .form-card input, .form-card textarea { padding:10px; border:1px solid #e5e7eb; border-radius:6px; font-size:14px; }
-  .form-card .form-control:focus, .form-card select:focus, .form-card input:focus, .form-card textarea:focus { outline:none; box-shadow:0 0 0 4px rgba(99,102,241,0.08); border-color:#6366f1; }
-  .form-actions { display:flex; gap:12px; margin-top:18px; }
-  .btn-default { background:#f3f4f6; color:#111827; padding:8px 14px; border-radius:6px; text-decoration:none; }
-  @media (max-width:520px){ .form-row{ grid-template-columns:1fr; } .form-card{ padding:16px } }
-</style>
+    assetAddBtn.disabled = true;
+    const originalBtnLabel = assetAddBtn.innerHTML;
+    assetAddBtn.innerHTML = 'Searching...';
+    setFeedback('Searching for <strong>' + normalizedTag + '</strong>...', 'info');
+
+    let found;
+    try {
+      found = await lookupByTag(normalizedTag);
+    } catch (e) {
+      assetAddBtn.disabled = false;
+      assetAddBtn.innerHTML = originalBtnLabel;
+      setFeedback('Unexpected error: ' + e.message, 'error');
+      return;
+    }
+
+    assetAddBtn.disabled = false;
+    assetAddBtn.innerHTML = originalBtnLabel;
+
+    if (found && found._error) {
+      setFeedback(found._error, 'error');
+      return;
+    }
+
+    if (!found || !found.id) {
+      setFeedback('Asset <strong>' + normalizedTag + '</strong> not found. Check the tag or code and try again.', 'error');
+      return;
+    }
+
+    if (selectedAssets.some(x => x.id === found.id)) {
+      setFeedback('Asset <strong>' + (found.asset_tag || normalizedTag) + '</strong> is already added.', 'warn');
+      return;
+    }
+
+    selectedAssets.push({ id: found.id, tag: found.asset_tag || normalizedTag, name: found.name, locationData: found, pending: false });
+    hiddenAsset.value = selectedAssets.map(x => x.id).join(',');
+    setFeedback('Added: <strong>' + (found.asset_tag || normalizedTag) + '</strong> - ' + found.name, 'success');
+    renderCards();
+    assetTagInput.value = '';
+    assetTagInput.focus();
+  }
+
+  assetAddBtn.addEventListener('click', () => lookupAndAdd(assetTagInput.value.trim()));
+  assetTagInput.addEventListener('keypress', e => {
+    if (e.key === 'Enter') { e.preventDefault(); lookupAndAdd(assetTagInput.value.trim()); }
+  });
+
+  /* ── Submit guard ────────────────────────────────────── */
+  document.getElementById('tf-form').addEventListener('submit', function (e) {
+    // Always sync hidden field from in-memory array before submitting
+    if (selectedAssets.length > 0) {
+      hiddenAsset.value = selectedAssets.map(x => x.id).join(',');
+    }
+    // Allow submit if either the array or the hidden field carries any IDs.
+    const hiddenHasIds = (hiddenAsset.value || '').split(',').filter(Boolean).length > 0;
+    if (selectedAssets.length === 0 && !hiddenHasIds) {
+      e.preventDefault();
+      setFeedback('Please add at least one asset before submitting.', 'error');
+      assetTagInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      assetTagInput.focus();
+    }
+  });
+
+  /* ── Init ────────────────────────────────────────────── */
+  // Init: if editing an existing transfer, hidden field may already have asset IDs
+  // but we can't reconstruct card data from IDs alone — just unlock if value is set
+  const prefilledIds = (hiddenAsset && hiddenAsset.value) ? hiddenAsset.value.split(',').filter(Boolean) : [];
+  if (prefilledIds.length > 0) {
+    // Editing mode: unlock destination, show minimal badge
+    setDestLocked(false);
+    try { if (step1Badge) step1Badge.className = 'tf-section-num done'; } catch(_) {}
+  } else {
+    // New transfer: lock destination, show hint
+    setDestLocked(true);
+  }
+});
+</script>
 
 {% endblock %}
 

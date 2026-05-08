@@ -1,4 +1,4 @@
-﻿from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
@@ -4903,7 +4903,7 @@ def download_barcode_batch(request):
 
 
 class AssetReconciliationReportView(LoginRequiredMixin, View):
-    """Comprehensive Asset Reconciliation Report ΓÇö full-picture summary of the asset register."""
+    """Comprehensive Asset Reconciliation Report - full-picture summary of the asset register."""
     template_name = 'assets/reconciliation_report.html'
 
     def get(self, request):
@@ -5015,8 +5015,8 @@ class AssetReconciliationReportView(LoginRequiredMixin, View):
             })
 
         # --- Tagged vs Untagged ---
-        tagged_assets = [a for a in all_assets if a.is_tagged]
-        untagged_assets = [a for a in all_assets if not a.is_tagged]
+        tagged_assets = [a for a in all_assets if a.tagging_status == 'TAGGED']
+        untagged_assets = [a for a in all_assets if a.tagging_status != 'TAGGED']
         by_tagged = [
             {
                 'label': 'Tagged',

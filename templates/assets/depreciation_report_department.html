@@ -594,7 +594,11 @@
                         {% for dept in grouped_data %}
                         <tr>
                             <td>
+                                {% if dept.id %}
                                 <a href="?{% if query_params %}{{ query_params }}&{% endif %}depr_department={{ dept.id }}" style="text-decoration:none; color:var(--primary); font-weight:600;">{{ dept.name }}</a>
+                                {% else %}
+                                <span style="color: var(--text-secondary);">{{ dept.name }}</span>
+                                {% endif %}
                             </td>
                             <td style="text-align:center; font-weight:600;">{{ dept.count }}</td>
                             <td class="depr-right">AED {{ dept.total_cost|floatformat:2|intcomma }}</td>

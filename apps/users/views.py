@@ -42,16 +42,22 @@ class UserManagementRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return super().handle_no_permission()
 
 
-class ApprovalAccessMixin(LoginRequiredMixin):
-    """Mixin to ensure user has approval workflow access"""
+class ApprovalAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Mixin to ensure user has approval workflow access.
+
+    Data Entry users (EMPLOYEE) are explicitly excluded from asset request /
+    approval workflows. Only Checker, Senior Manager, Admin, or Superuser
+    can access these pages.
+    """
     def test_func(self):
-        """User must be employee, checker, senior manager, or admin"""
         user = self.request.user
-        return (user.role == User.Role.EMPLOYEE) or user.is_checker or user.is_senior_manager or user.is_superuser or user.role == User.Role.ADMIN
-    
+        if not user.is_authenticated:
+            return False
+        return user.is_checker or user.is_senior_manager or user.is_superuser or user.role == User.Role.ADMIN
+
     def handle_no_permission(self):
-        messages.error(self.request, "You don't have permission to access approval workflows.")
-        return super().handle_no_permission()
+        messages.error(self.request, "You don't have permission to access asset requests.")
+        return redirect('dashboard')
 
 
 class CheckerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):

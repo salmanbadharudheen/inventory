@@ -51,8 +51,11 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         
         for param, field in depr_filters.items():
             val = self.request.GET.get(param)
-            if val:
-                queryset = queryset.filter(**{field: val})
+            if val and val != 'None':
+                try:
+                    queryset = queryset.filter(**{field: int(val)})
+                except (ValueError, TypeError):
+                    pass
         
         return queryset.order_by('-purchase_date')
 

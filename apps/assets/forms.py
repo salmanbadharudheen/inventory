@@ -315,8 +315,14 @@ class AssetRemarksForm(forms.ModelForm):
 
 class AssetTransferForm(forms.ModelForm):
     """Form for creating and updating asset transfers"""
-    
-    
+
+    # `asset` is a free-form hidden field carrying either a single asset ID
+    # ("5") or a comma-separated list ("5,6,7"). The view parses this manually
+    # in form_valid() and creates one AssetTransfer per ID. Declared outside
+    # Meta.fields so the ModelForm machinery does NOT try to assign the raw
+    # string to the AssetTransfer.asset FK during _post_clean.
+    asset = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = AssetTransfer
         fields = [
@@ -327,12 +333,12 @@ class AssetTransferForm(forms.ModelForm):
             'transferred_to_building',
             'transferred_to_floor',
             'transferred_to_room',
+            'transferred_to_location',
             'transferred_to_company',
             'transferred_to_department',
             'transferred_to_custodian',
             'movement_reason',
             'requester_name',
-            'asset',
         ]
         widgets = {
             'transfer_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional transfer reference'}),
@@ -342,6 +348,7 @@ class AssetTransferForm(forms.ModelForm):
             'transferred_to_building': forms.Select(attrs={'class': 'form-control'}),
             'transferred_to_floor': forms.Select(attrs={'class': 'form-control'}),
             'transferred_to_room': forms.Select(attrs={'class': 'form-control'}),
+            'transferred_to_location': forms.Select(attrs={'class': 'form-control'}),
             'transferred_to_company': forms.Select(attrs={'class': 'form-control'}),
             'transferred_to_department': forms.Select(attrs={'class': 'form-control'}),
             'transferred_to_custodian': forms.Select(attrs={'class': 'form-control'}),
@@ -350,7 +357,6 @@ class AssetTransferForm(forms.ModelForm):
                 'placeholder': 'Specific reason for this movement'
             }),
             'requester_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Requester name (free text)'}),
-            'asset': forms.HiddenInput(),
         }
     
     def __init__(self, *args, **kwargs):
@@ -360,17 +366,50 @@ class AssetTransferForm(forms.ModelForm):
         # Filter by organization
         if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
-            self.fields['asset'].queryset = Asset.objects.filter(organization=org)
-            # Populate the 'to' selects
+            # `asset` is a free-form CharField now (parsed manually in view); no queryset to set.
+
+            # Populate base querysets
             self.fields['transferred_to_region'].queryset = Region.objects.filter(organization=org)
-            self.fields['transferred_to_site'].queryset = Site.objects.filter(region__organization=org)
-            # Buildings are linked to Locations -> derive buildings available via locations
-            self.fields['transferred_to_building'].queryset = Building.objects.filter(locations__site__region__organization=org).distinct()
-            self.fields['transferred_to_floor'].queryset = Floor.objects.filter(building__branch__organization=org)
-            self.fields['transferred_to_room'].queryset = Room.objects.filter(floor__building__branch__organization=org)
+            self.fields['transferred_to_site'].queryset = Site.objects.none()
+            self.fields['transferred_to_building'].queryset = Building.objects.none()
+            self.fields['transferred_to_floor'].queryset = Floor.objects.none()
+            self.fields['transferred_to_room'].queryset = Room.objects.none()
+            self.fields['transferred_to_location'].queryset = Location.objects.none()
             self.fields['transferred_to_company'].queryset = Company.objects.filter(organization=org)
             self.fields['transferred_to_department'].queryset = Department.objects.filter(branch__organization=org)
             self.fields['transferred_to_custodian'].queryset = Custodian.objects.filter(organization=org)
+
+            region_id = self.data.get('transferred_to_region') or getattr(self.instance, 'transferred_to_region_id', None)
+            if region_id:
+                self.fields['transferred_to_site'].queryset = Site.objects.filter(
+                    region_id=region_id,
+                    region__organization=org,
+                )
+
+            site_id = self.data.get('transferred_to_site') or getattr(self.instance, 'transferred_to_site_id', None)
+            if site_id:
+                self.fields['transferred_to_building'].queryset = Building.objects.filter(
+                    locations__site_id=site_id,
+                    locations__site__region__organization=org,
+                ).distinct()
+
+            building_id = self.data.get('transferred_to_building') or getattr(self.instance, 'transferred_to_building_id', None)
+            if building_id:
+                self.fields['transferred_to_floor'].queryset = Floor.objects.filter(
+                    building_id=building_id,
+                    building__branch__organization=org,
+                )
+                self.fields['transferred_to_location'].queryset = Location.objects.filter(
+                    building_id=building_id,
+                    site__region__organization=org,
+                )
+
+            floor_id = self.data.get('transferred_to_floor') or getattr(self.instance, 'transferred_to_floor_id', None)
+            if floor_id:
+                self.fields['transferred_to_room'].queryset = Room.objects.filter(
+                    floor_id=floor_id,
+                    floor__building__branch__organization=org,
+                )
         
         # Make all fields optional (bulk form handles multiple assets via JS)
         self.fields['transfer_no'].required = False
@@ -381,6 +420,7 @@ class AssetTransferForm(forms.ModelForm):
         self.fields['transferred_to_building'].required = False
         self.fields['transferred_to_floor'].required = False
         self.fields['transferred_to_room'].required = False
+        self.fields['transferred_to_location'].required = False
         self.fields['transferred_to_company'].required = False
         self.fields['transferred_to_department'].required = False
         self.fields['transferred_to_custodian'].required = False

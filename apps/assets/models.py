@@ -1069,6 +1069,71 @@ class AssetTransfer(TenantAwareModel):
         )
         return f"From {from_info} to {to_info}"
 
+    def apply_to_asset(self):
+        """Apply the destination fields of this transfer onto the underlying asset.
+
+        ALL mapped fields are overwritten — including blanks. If the user leaves a
+        destination field empty, the corresponding field on the asset is cleared.
+        This ensures e.g. when an asset moves from Dubai → Abu Dhabi (region change),
+        the old building/floor/room don't linger if the user didn't supply new ones.
+        """
+        if not self.asset_id:
+            return []
+
+        asset = self.asset
+        fields_to_update = []
+        mapping = (
+            ('transferred_to_user', 'assigned_to'),
+            ('transferred_to_department', 'department'),
+            ('transferred_to_location', 'location'),
+            ('transferred_to_region', 'region'),
+            ('transferred_to_site', 'site'),
+            ('transferred_to_building', 'building'),
+            ('transferred_to_floor', 'floor'),
+            ('transferred_to_room', 'room'),
+            ('transferred_to_company', 'company'),
+            ('transferred_to_custodian', 'custodian'),
+        )
+        for src, dest in mapping:
+            value = getattr(self, src, None)
+            setattr(asset, dest, value)
+            fields_to_update.append(dest)
+
+        # Branch cascades from new department or building; otherwise cleared.
+        dept = getattr(self, 'transferred_to_department', None)
+        bldg = getattr(self, 'transferred_to_building', None)
+        new_branch = None
+        if dept is not None and getattr(dept, 'branch', None) is not None:
+            new_branch = dept.branch
+        elif bldg is not None and getattr(bldg, 'branch', None) is not None:
+            new_branch = bldg.branch
+        asset.branch = new_branch
+        fields_to_update.append('branch')
+
+        unique_fields = list(dict.fromkeys(fields_to_update))
+        asset.save(update_fields=unique_fields)
+        return unique_fields
+
+    def snapshot_from_asset(self):
+        """Copy the asset's current location/ownership into the `transferred_from_*` fields."""
+        if not self.asset_id:
+            return
+        asset = self.asset
+        snapshot = {
+            'transferred_from_user': getattr(asset, 'assigned_to', None),
+            'transferred_from_department': getattr(asset, 'department', None),
+            'transferred_from_location': getattr(asset, 'location', None),
+            'transferred_from_region': getattr(asset, 'region', None),
+            'transferred_from_site': getattr(asset, 'site', None),
+            'transferred_from_building': getattr(asset, 'building', None),
+            'transferred_from_floor': getattr(asset, 'floor', None),
+            'transferred_from_room': getattr(asset, 'room', None),
+            'transferred_from_company': getattr(asset, 'company', None),
+            'transferred_from_custodian': getattr(asset, 'custodian', None),
+        }
+        for field, value in snapshot.items():
+            setattr(self, field, value)
+
 
 class AssetDisposal(TenantAwareModel):
     """

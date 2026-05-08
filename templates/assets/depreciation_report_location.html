@@ -594,7 +594,11 @@
                         {% for loc in grouped_data %}
                         <tr>
                             <td>
+                                {% if loc.id %}
                                 <a href="?{% if query_params %}{{ query_params }}&{% endif %}depr_location={{ loc.id }}" style="text-decoration:none; color:var(--primary); font-weight:600;">{{ loc.name }}</a>
+                                {% else %}
+                                <span style="color: var(--text-secondary);">{{ loc.name }}</span>
+                                {% endif %}
                             </td>
                             <td style="text-align:center; font-weight:600;">{{ loc.count }}</td>
                             <td class="depr-right">AED {{ loc.total_cost|floatformat:2|intcomma }}</td>

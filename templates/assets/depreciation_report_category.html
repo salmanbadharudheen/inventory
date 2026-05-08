@@ -606,7 +606,11 @@
                         {% for g in grouped_data %}
                         <tr>
                             <td>
+                                {% if g.id %}
                                 <a href="?{% if query_params %}{{ query_params }}&{% endif %}depr_category={{ g.id }}" style="text-decoration:none; color:var(--primary); font-weight:600;">{{ g.name }}</a>
+                                {% else %}
+                                <span style="color: var(--text-secondary);">{{ g.name }}</span>
+                                {% endif %}
                             </td>
                             <td style="text-align:center; font-weight:600;">{{ g.count }}</td>
                             <td class="depr-right">AED {{ g.total_cost|floatformat:2|intcomma }}</td>
