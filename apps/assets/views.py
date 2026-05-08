@@ -5552,3 +5552,131 @@ def mark_assets_tagged(request):
         return JsonResponse({'success': True, 'updated': updated})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+class ApprovalListView(ApprovalAccessMixin, TemplateView):
+    """Unified approvals dashboard showing both asset approvals and disposal requests."""
+    template_name = 'assets/approval_list.html'
+
+    def get_disposal_queryset(self):
+        """Get all disposal requests for the org. Action permissions are enforced in context/template."""
+        user = self.request.user
+        return AssetDisposal.objects.filter(
+            organization=user.organization
+        ).select_related('asset', 'requested_by', 'manager_approved_by').order_by('-created_at')
+
+    def get_asset_approval_queryset(self):
+        """Get relevant asset approval requests based on user role."""
+        user = self.request.user
+
+        if user.is_checker:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization,
+                status=ApprovalRequest.Status.PENDING,
+            ).order_by('-created_at')
+
+        if user.is_senior_manager:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization,
+                status__in=[ApprovalRequest.Status.PENDING, ApprovalRequest.Status.CHECKER_APPROVED],
+            ).order_by('-created_at')
+
+        if user.is_superuser or user.role == user.Role.ADMIN:
+            return ApprovalRequest.objects.filter(
+                organization=user.organization
+            ).order_by('-created_at')
+
+        return ApprovalRequest.objects.none()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        disposals = self.get_disposal_queryset()
+        asset_approvals = self.get_asset_approval_queryset()
+
+        all_approvals = []
+        for disposal in disposals:
+            disposal_detail_url = reverse('disposal-detail', kwargs={'pk': disposal.pk})
+            disposal_review_url = None
+            if user.role in [user.Role.SENIOR_MANAGER, user.Role.CHECKER] and disposal.status == AssetDisposal.Status.PENDING:
+                disposal_review_url = reverse('disposal-manager-approve', kwargs={'pk': disposal.pk})
+            elif (user.is_superuser or user.role == user.Role.ADMIN) and disposal.status == AssetDisposal.Status.MANAGER_APPROVED:
+                disposal_review_url = reverse('disposal-approve', kwargs={'pk': disposal.pk})
+
+            all_approvals.append({
+                'type': 'disposal',
+                'id': disposal.id,
+                'pk': disposal.pk,
+                'asset': disposal.asset,
+                'status': disposal.status,
+                'get_status_display': disposal.get_status_display(),
+                'created_at': disposal.created_at,
+                'requested_by': disposal.requested_by,
+                'get_disposal_method_display': disposal.get_disposal_method_display(),
+                'disposal_method': disposal.disposal_method,
+                'manager_approved_by': disposal.manager_approved_by,
+                'detail_url': disposal_detail_url,
+                'review_url': disposal_review_url,
+                'can_approve': disposal_review_url is not None,
+            })
+
+        for approval in asset_approvals:
+            approval_detail_url = reverse('approval-request-detail', kwargs={'pk': approval.pk})
+            can_review_asset = False
+            if approval.status == ApprovalRequest.Status.PENDING:
+                can_review_asset = user.is_checker or user.is_senior_manager or user.is_superuser or user.role == user.Role.ADMIN
+            elif approval.status == ApprovalRequest.Status.CHECKER_APPROVED:
+                can_review_asset = user.is_senior_manager or user.is_superuser or user.role == user.Role.ADMIN
+
+            all_approvals.append({
+                'type': 'asset',
+                'id': approval.id,
+                'pk': approval.pk,
+                'asset': approval.asset,
+                'asset_name': approval.asset.name if approval.asset else 'N/A',
+                'status': approval.status,
+                'get_status_display': approval.get_status_display(),
+                'created_at': approval.created_at,
+                'requester': approval.requester,
+                'request_type': approval.get_request_type_display(),
+                'detail_url': approval_detail_url,
+                'review_url': approval_detail_url if can_review_asset else None,
+                'can_approve': can_review_asset,
+            })
+
+        all_approvals.sort(key=lambda x: x['created_at'], reverse=True)
+
+        if user.role in [user.Role.SENIOR_MANAGER, user.Role.CHECKER]:
+            disposal_pending = disposals.filter(status=AssetDisposal.Status.PENDING).count()
+        elif user.is_superuser or user.role == user.Role.ADMIN:
+            disposal_pending = disposals.filter(status=AssetDisposal.Status.MANAGER_APPROVED).count()
+        else:
+            disposal_pending = disposals.filter(status=AssetDisposal.Status.PENDING).count()
+
+        if user.is_checker:
+            asset_pending = asset_approvals.filter(status=ApprovalRequest.Status.PENDING).count()
+        elif user.is_senior_manager or user.is_superuser or user.role == user.Role.ADMIN:
+            asset_pending = asset_approvals.filter(
+                status__in=[ApprovalRequest.Status.PENDING, ApprovalRequest.Status.CHECKER_APPROVED]
+            ).count()
+        else:
+            asset_pending = 0
+
+        context['disposals'] = disposals
+        context['asset_approvals'] = asset_approvals
+        context['all_approvals'] = all_approvals
+        context['disposal_pending'] = disposal_pending
+        context['asset_pending'] = asset_pending
+        context['total_pending'] = context['disposal_pending'] + context['asset_pending']
+        context['total_approved'] = disposals.filter(status=AssetDisposal.Status.APPROVED).count() + \
+            asset_approvals.filter(status=ApprovalRequest.Status.APPROVED).count()
+        context['total_rejected'] = disposals.filter(status=AssetDisposal.Status.REJECTED).count() + \
+            asset_approvals.filter(
+                status__in=[
+                    ApprovalRequest.Status.CHECKER_REJECTED,
+                    ApprovalRequest.Status.SENIOR_REJECTED,
+                    ApprovalRequest.Status.REJECTED,
+                ]
+            ).count()
+
+        return context
