@@ -5257,13 +5257,126 @@ class AssetReconciliationReportPDFView(LoginRequiredMixin, View):
             'by_department': by_department,
             'by_site': by_site,
         }
-        from xhtml2pdf import pisa
-        html_string = render_to_string('assets/reconciliation_report_pdf.html', context, request=request)
+        from fpdf import FPDF
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.set_margins(10, 10, 10)
+        pdf.add_page()
+        W = pdf.epw
+
+        def fmt(val):
+            try:
+                return f'{float(val):,.0f}'
+            except Exception:
+                return '0'
+
+        generated_str = timezone.now().strftime('%d %b %Y, %H:%M')
+        period_str = 'All time'
+        if date_from_str or date_to_str:
+            period_str = f"{date_from_str or 'Beginning'} to {date_to_str or 'Today'}"
+
+        # Header
+        pdf.set_fill_color(30, 58, 95)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.cell(W, 8, 'Asset Reconciliation Report', border=0, align='L', fill=True)
+        pdf.ln(8)
+        pdf.set_font('Helvetica', '', 8)
+        pdf.cell(W, 5, f'Org: {org}   |   Generated: {generated_str}   |   Period: {period_str}', border=0, align='L', fill=True)
+        pdf.ln(10)
+
+        # KPI Boxes
+        pdf.set_text_color(0, 0, 0)
+        kw = (W - 6) / 4
+        kpis = [
+            ('TOTAL ASSETS', str(total_count), 'items in register'),
+            ('ORIGINAL COST', f'AED {fmt(total_cost)}', 'purchase value'),
+            ('ACC. DEPRECIATION', f'AED {fmt(total_acc_dep)}', 'total written down'),
+            ('NET BOOK VALUE', f'AED {fmt(total_nbv)}', 'current carry value'),
+        ]
+        kpi_y = pdf.get_y()
+        for i, (lbl, val, sub) in enumerate(kpis):
+            x = 10 + i * (kw + 2)
+            pdf.set_fill_color(247, 250, 253)
+            pdf.set_draw_color(224, 232, 240)
+            pdf.rect(x, kpi_y, kw, 16, style='FD')
+            pdf.set_xy(x + 2, kpi_y + 1)
+            pdf.set_font('Helvetica', '', 6)
+            pdf.set_text_color(107, 114, 128)
+            pdf.cell(kw - 4, 4, lbl)
+            pdf.set_xy(x + 2, kpi_y + 6)
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.set_text_color(30, 58, 95)
+            pdf.cell(kw - 4, 6, val)
+            pdf.set_xy(x + 2, kpi_y + 12)
+            pdf.set_font('Helvetica', '', 6)
+            pdf.set_text_color(156, 163, 175)
+            pdf.cell(kw - 4, 4, sub)
+        pdf.set_xy(10, kpi_y + 20)
+
+        def section_title(title):
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_text_color(30, 58, 95)
+            pdf.set_draw_color(37, 99, 235)
+            pdf.cell(W, 6, title, border='B', align='L')
+            pdf.ln(7)
+            pdf.set_draw_color(0, 0, 0)
+
+        def fin_table(rows, col1='Name'):
+            c0 = 90
+            c1 = 22
+            cn = (W - c0 - c1) / 3
+            cols = [(col1, c0, 'L'), ('Count', c1, 'C'),
+                    ('Cost (AED)', cn, 'R'), ('Acc. Dep (AED)', cn, 'R'), ('NBV (AED)', cn, 'R')]
+            pdf.set_fill_color(30, 58, 95)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font('Helvetica', 'B', 7)
+            for cname, cw, calign in cols:
+                pdf.cell(cw, 6, cname, border=0, align=calign, fill=True)
+            pdf.ln()
+            for i, row in enumerate(rows):
+                if row.get('_total'):
+                    pdf.set_fill_color(232, 240, 250)
+                    pdf.set_text_color(30, 58, 95)
+                    pdf.set_font('Helvetica', 'B', 7)
+                elif i % 2:
+                    pdf.set_fill_color(240, 245, 251)
+                    pdf.set_text_color(55, 65, 81)
+                    pdf.set_font('Helvetica', '', 7)
+                else:
+                    pdf.set_fill_color(255, 255, 255)
+                    pdf.set_text_color(55, 65, 81)
+                    pdf.set_font('Helvetica', '', 7)
+                name = row.get('label') or row.get('name', '')
+                vals = [name, str(row.get('count', '')),
+                        fmt(row.get('cost', 0)), fmt(row.get('acc_dep', 0)), fmt(row.get('nbv', 0))]
+                for (_, cw, calign), v in zip(cols, vals):
+                    pdf.cell(cw, 5, v, border='B', align=calign, fill=True)
+                pdf.ln()
+            pdf.ln(3)
+
+        section_title('By Category')
+        fin_table(list(by_category) + [{'name': 'TOTAL', 'count': total_count, 'cost': total_cost, 'acc_dep': total_acc_dep, 'nbv': total_nbv, '_total': True}], 'Category')
+
+        section_title('By Status')
+        fin_table([r for r in by_status if r['count'] > 0], 'Status')
+
+        section_title('By Condition')
+        fin_table([r for r in by_condition if r['count'] > 0], 'Condition')
+
+        if pdf.get_y() > 150:
+            pdf.add_page()
+        section_title('By Department')
+        fin_table(by_department, 'Department')
+
+        if pdf.get_y() > 150:
+            pdf.add_page()
+        section_title('By Site')
+        fin_table(by_site, 'Site')
+
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="asset_reconciliation_report.pdf"'
-        pisa_status = pisa.CreatePDF(html_string, dest=response)
-        if pisa_status.err:
-            return HttpResponse('Error generating PDF. Please try again.', status=500)
+        response.write(bytes(pdf.output()))
         return response
 
 
