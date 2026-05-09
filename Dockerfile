@@ -20,4 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD python manage.py migrate --noinput && python load_initial_data.py && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --log-file -
+# Run collectstatic at build time (faster startup, Railway health check won't time out)
+RUN SECRET_KEY=build-only-dummy-key DJANGO_SETTINGS_MODULE=config.settings python manage.py collectstatic --noinput
+
+CMD python manage.py migrate --noinput && python load_initial_data.py && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --log-file -
