@@ -1,0 +1,283 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Asset Reconciliation Report</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 1.5cm 1.5cm 1.8cm 1.5cm;
+  }
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 9pt;
+    color: #222;
+    margin: 0;
+    padding: 0;
+  }
+  .header-bar {
+    background-color: #1e3a5f;
+    padding: 14pt 16pt;
+    margin-bottom: 10pt;
+  }
+  .header-title {
+    font-size: 16pt;
+    font-weight: bold;
+    color: #ffffff;
+    margin: 0 0 2pt 0;
+  }
+  .header-sub {
+    font-size: 8pt;
+    color: #a0bcd8;
+    margin: 0;
+  }
+  .header-meta-table { width: 100%; margin-top: 8pt; }
+  .header-meta-table td { color: #d0e4f5; font-size: 8pt; padding: 1pt 0; }
+  .header-meta-table .meta-label { color: #7aafd4; font-weight: bold; width: 90pt; }
+  .kpi-table { width: 100%; margin-bottom: 10pt; border-collapse: collapse; }
+  .kpi-table td {
+    width: 25%; padding: 8pt 10pt;
+    border: 1pt solid #e0e8f0;
+    border-top: 3pt solid #2563eb;
+    background-color: #f7fafd;
+    vertical-align: top;
+  }
+  .kpi-table td.orange { border-top-color: #f59e0b; }
+  .kpi-table td.red    { border-top-color: #ef4444; }
+  .kpi-table td.green  { border-top-color: #10b981; }
+  .kpi-label { font-size: 7pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5pt; margin-bottom: 4pt; }
+  .kpi-value { font-size: 13pt; font-weight: bold; color: #1e3a5f; }
+  .kpi-sub   { font-size: 7pt; color: #9ca3af; margin-top: 2pt; }
+  .section-title {
+    font-size: 10pt; font-weight: bold; color: #1e3a5f;
+    border-bottom: 1.5pt solid #2563eb;
+    padding-bottom: 3pt; margin-top: 12pt; margin-bottom: 6pt;
+  }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 8pt; }
+  .data-table th { background-color: #1e3a5f; color: #fff; padding: 5pt 7pt; text-align: left; font-size: 7.5pt; }
+  .data-table th.num { text-align: right; }
+  .data-table td { padding: 4pt 7pt; border-bottom: 0.5pt solid #e5e7eb; color: #374151; }
+  .data-table td.num { text-align: right; color: #1e3a5f; font-weight: bold; }
+  .data-table tr.alt td { background-color: #f0f5fb; }
+  .data-table tr.total td { background-color: #e8f0fa; font-weight: bold; border-top: 1pt solid #2563eb; color: #1e3a5f; }
+  .two-col-table { width: 100%; border-collapse: collapse; }
+  .two-col-table td { width: 50%; vertical-align: top; padding-right: 8pt; }
+  .two-col-table td:last-child { padding-right: 0; padding-left: 8pt; }
+  .movement-table { width: 100%; border-collapse: collapse; margin-bottom: 8pt; font-size: 8pt; }
+  .movement-table th { background-color: #1e3a5f; color: #fff; padding: 5pt 7pt; text-align: center; font-size: 7.5pt; }
+  .movement-table th:first-child { text-align: left; }
+  .movement-table td { padding: 5pt 7pt; border-bottom: 0.5pt solid #e5e7eb; text-align: center; }
+  .movement-table td:first-child { text-align: left; font-weight: bold; color: #374151; }
+  .movement-table tr.total-row td { background-color: #e8f0fa; font-weight: bold; border-top: 1pt solid #2563eb; color: #1e3a5f; }
+  .footer-note { font-size: 7pt; color: #9ca3af; text-align: center; margin-top: 14pt; border-top: 0.5pt solid #e5e7eb; padding-top: 5pt; }
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+  <p class="header-title">Asset Reconciliation Report</p>
+  <p class="header-sub">Full-picture summary of the asset register including costs, depreciation and net book values</p>
+  <table class="header-meta-table" cellpadding="0" cellspacing="0">
+    <tr>
+      <td class="meta-label">Organization:</td>
+      <td>{{ organization }}</td>
+      <td class="meta-label" style="padding-left:30pt;">Generated:</td>
+      <td>{{ generated_on|date:"d M Y, H:i" }}</td>
+      <td class="meta-label" style="padding-left:30pt;">Period:</td>
+      <td>{% if date_from or date_to %}{{ date_from|default:"Beginning" }} to {{ date_to|default:"Today" }}{% else %}All time{% endif %}</td>
+    </tr>
+  </table>
+</div>
+
+<table class="kpi-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      <div class="kpi-label">Total Assets</div>
+      <div class="kpi-value">{{ total_count }}</div>
+      <div class="kpi-sub">items in register</div>
+    </td>
+    <td class="orange">
+      <div class="kpi-label">Original Cost</div>
+      <div class="kpi-value">{{ currency }} {{ total_cost|floatformat:0 }}</div>
+      <div class="kpi-sub">purchase value</div>
+    </td>
+    <td class="red">
+      <div class="kpi-label">Acc. Depreciation</div>
+      <div class="kpi-value">{{ currency }} {{ total_acc_dep|floatformat:0 }}</div>
+      <div class="kpi-sub">total written down</div>
+    </td>
+    <td class="green">
+      <div class="kpi-label">Net Book Value</div>
+      <div class="kpi-value">{{ currency }} {{ total_nbv|floatformat:0 }}</div>
+      <div class="kpi-sub">current carry value</div>
+    </td>
+  </tr>
+</table>
+
+{% if opening_data or additions_data %}
+<div class="section-title">Period Movement</div>
+<table class="movement-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <th>Period</th>
+    <th>Count</th>
+    <th>Cost ({{ currency }})</th>
+    <th>Acc. Dep ({{ currency }})</th>
+    <th>NBV ({{ currency }})</th>
+  </tr>
+  {% if opening_data %}
+  <tr>
+    <td>Opening Balance</td>
+    <td>{{ opening_data.count }}</td>
+    <td>{{ opening_data.total_cost|floatformat:0 }}</td>
+    <td>{{ opening_data.acc_dep|floatformat:0 }}</td>
+    <td>{{ opening_data.nbv|floatformat:0 }}</td>
+  </tr>
+  {% endif %}
+  {% if additions_data %}
+  <tr>
+    <td>Additions in Period</td>
+    <td>{{ additions_data.count }}</td>
+    <td>{{ additions_data.total_cost|floatformat:0 }}</td>
+    <td>{{ additions_data.acc_dep|floatformat:0 }}</td>
+    <td>{{ additions_data.nbv|floatformat:0 }}</td>
+  </tr>
+  {% endif %}
+  <tr class="total-row">
+    <td>Closing Balance</td>
+    <td>{{ closing_data.count }}</td>
+    <td>{{ closing_data.total_cost|floatformat:0 }}</td>
+    <td>{{ closing_data.acc_dep|floatformat:0 }}</td>
+    <td>{{ closing_data.nbv|floatformat:0 }}</td>
+  </tr>
+</table>
+{% endif %}
+
+<div class="section-title">Breakdown by Category</div>
+<table class="data-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <th>Category</th>
+    <th class="num">Assets</th>
+    <th class="num">Cost ({{ currency }})</th>
+    <th class="num">Acc. Dep ({{ currency }})</th>
+    <th class="num">NBV ({{ currency }})</th>
+  </tr>
+  {% for row in by_category %}
+  <tr {% if forloop.counter|divisibleby:2 %}class="alt"{% endif %}>
+    <td>{{ row.name }}</td>
+    <td class="num">{{ row.count }}</td>
+    <td class="num">{{ row.cost|floatformat:0 }}</td>
+    <td class="num">{{ row.acc_dep|floatformat:0 }}</td>
+    <td class="num">{{ row.nbv|floatformat:0 }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5" style="color:#9ca3af;text-align:center;">No data</td></tr>
+  {% endfor %}
+  <tr class="total">
+    <td>Total</td>
+    <td class="num">{{ total_count }}</td>
+    <td class="num">{{ total_cost|floatformat:0 }}</td>
+    <td class="num">{{ total_acc_dep|floatformat:0 }}</td>
+    <td class="num">{{ total_nbv|floatformat:0 }}</td>
+  </tr>
+</table>
+
+<table class="two-col-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      <div class="section-title">By Lifecycle Status</div>
+      <table class="data-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <th>Status</th><th class="num">Count</th><th class="num">NBV ({{ currency }})</th>
+        </tr>
+        {% for row in by_status %}{% if row.count > 0 %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="alt"{% endif %}>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.nbv|floatformat:0 }}</td>
+        </tr>
+        {% endif %}{% endfor %}
+      </table>
+    </td>
+    <td>
+      <div class="section-title">By Condition</div>
+      <table class="data-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <th>Condition</th><th class="num">Count</th><th class="num">NBV ({{ currency }})</th>
+        </tr>
+        {% for row in by_condition %}{% if row.count > 0 %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="alt"{% endif %}>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.nbv|floatformat:0 }}</td>
+        </tr>
+        {% endif %}{% endfor %}
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table class="two-col-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      <div class="section-title">Tagged vs Untagged</div>
+      <table class="data-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <th>Tag Status</th><th class="num">Count</th><th class="num">Cost ({{ currency }})</th><th class="num">NBV ({{ currency }})</th>
+        </tr>
+        {% for row in by_tagged %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="alt"{% endif %}>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.cost|floatformat:0 }}</td>
+          <td class="num">{{ row.nbv|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </td>
+    <td>
+      <div class="section-title">By Department</div>
+      <table class="data-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <th>Department</th><th class="num">Count</th><th class="num">NBV ({{ currency }})</th>
+        </tr>
+        {% for row in by_department %}
+        <tr {% if forloop.counter|divisibleby:2 %}class="alt"{% endif %}>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.nbv|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </td>
+  </tr>
+</table>
+
+{% if by_site %}
+<div class="section-title">By Site / Location</div>
+<table class="data-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <th>Site</th>
+    <th class="num">Assets</th>
+    <th class="num">Cost ({{ currency }})</th>
+    <th class="num">Acc. Dep ({{ currency }})</th>
+    <th class="num">NBV ({{ currency }})</th>
+  </tr>
+  {% for row in by_site %}
+  <tr {% if forloop.counter|divisibleby:2 %}class="alt"{% endif %}>
+    <td>{{ row.label }}</td>
+    <td class="num">{{ row.count }}</td>
+    <td class="num">{{ row.cost|floatformat:0 }}</td>
+    <td class="num">{{ row.acc_dep|floatformat:0 }}</td>
+    <td class="num">{{ row.nbv|floatformat:0 }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<div class="footer-note">
+  Confidential &mdash; {{ organization }} &mdash; Generated {{ generated_on|date:"d M Y" }} &mdash; All values in {{ currency }}
+</div>
+
+</body>
+</html>
+

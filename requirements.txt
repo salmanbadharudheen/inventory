@@ -23,8 +23,18 @@ tzdata==2025.3
 uritemplate==4.2.0
 whitenoise==6.11.0
 
-# For PDF export
+# For PDF export (xhtml2pdf is the active backend; weasyprint kept for reference)
 weasyprint==61.0
+xhtml2pdf==0.2.17
+reportlab==4.5.0
+arabic-reshaper==3.0.0
+python-bidi==0.6.7
+pypdf==6.10.2
+pyhanko==0.35.1
+pyhanko-certvalidator==0.31.1
+asn1crypto==1.5.1
+svglib==1.6.0
+lxml==6.1.0
 
 # Cloud file storage (S3 / Cloudflare R2)
 django-storages==1.14.6

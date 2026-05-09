@@ -20,7 +20,8 @@ from .views import (
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
     AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferExportExcelView,
     AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
-    ReportsListView, MastersListView, MastersExportExcelView, AssetReconciliationReportView
+    ReportsListView, MastersListView, MastersExportExcelView, AssetReconciliationReportView,
+    AssetReconciliationReportPDFView
 )
 from .views_approval import (
     AssetApprovalRequestCreateView,
@@ -39,6 +40,7 @@ urlpatterns = [
     path('depreciation/location/', DepreciationReportLocationView.as_view(), name='depreciation-location'),
     path('depreciation/department/', DepreciationReportDepartmentView.as_view(), name='depreciation-department'),
     path('reconciliation/', AssetReconciliationReportView.as_view(), name='reconciliation-report'),
+    path('reconciliation/pdf/', AssetReconciliationReportPDFView.as_view(), name='reconciliation-report-pdf'),
     
     # Masters
     path('masters/', MastersListView.as_view(), name='masters-list'),
