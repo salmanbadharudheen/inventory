@@ -4,7 +4,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "python manage.py migrate --noinput && python load_initial_data.py && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --log-file -",
+    "startCommand": "python manage.py migrate --noinput && python load_initial_data.py && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --preload --access-logfile - --error-logfile -",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
