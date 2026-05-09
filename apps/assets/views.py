@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 import json
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
+from django.template.loader import render_to_string
 from django.utils import timezone
 from decimal import Decimal
 from datetime import date, datetime
@@ -25,6 +26,11 @@ from django.core.files.base import ContentFile
 from django.core.cache import cache
 from uuid import uuid4
 import openpyxl
+
+try:
+    from weasyprint import HTML as WeasyprintHTML
+except (ImportError, OSError):
+    WeasyprintHTML = None
 
 
 def invalidate_dashboard_cache_for_org(org):
@@ -5093,6 +5099,172 @@ class AssetReconciliationReportView(LoginRequiredMixin, View):
             'currency': 'AED',
         }
         return render(request, self.template_name, context)
+
+
+class AssetReconciliationReportPDFView(LoginRequiredMixin, View):
+    """PDF export of Asset Reconciliation Report."""
+
+    def get(self, request):
+        from django.db.models import Sum, Count, Q
+        from django.db.models.functions import Coalesce
+
+        org = request.user.organization
+        date_from_str = request.GET.get('date_from', '')
+        date_to_str = request.GET.get('date_to', '')
+
+        date_from = None
+        date_to = None
+        try:
+            if date_from_str:
+                date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+        try:
+            if date_to_str:
+                date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+        base_qs = Asset.objects.filter(organization=org, is_deleted=False)
+
+        if date_from:
+            period_qs = base_qs.filter(purchase_date__gte=date_from)
+        else:
+            period_qs = base_qs
+        if date_to:
+            period_qs = period_qs.filter(purchase_date__lte=date_to)
+        additions_qs = period_qs if (date_from or date_to) else base_qs.none()
+        if date_from:
+            opening_qs = base_qs.filter(Q(purchase_date__lt=date_from) | Q(purchase_date__isnull=True))
+        else:
+            opening_qs = base_qs.none()
+
+        def agg_financials(qs):
+            result = qs.aggregate(count=Count('id'), total_cost=Coalesce(Sum('purchase_price'), Decimal('0')))
+            assets_list = list(qs)
+            result['acc_dep'] = sum(a.accumulated_depreciation for a in assets_list)
+            result['nbv'] = sum(a.current_value for a in assets_list)
+            return result
+
+        all_assets = list(base_qs.select_related('category', 'department', 'site'))
+        total_count = len(all_assets)
+        total_cost = sum((a.purchase_price or Decimal('0')) for a in all_assets)
+        total_acc_dep = sum(a.accumulated_depreciation for a in all_assets)
+        total_nbv = sum(a.current_value for a in all_assets)
+
+        opening_data = agg_financials(opening_qs) if date_from else None
+        additions_data = agg_financials(additions_qs) if (date_from or date_to) else None
+        closing_data = agg_financials(base_qs.filter(purchase_date__lte=date_to) if date_to else base_qs)
+
+        by_category = []
+        cat_groups = base_qs.values('category__id', 'category__name').annotate(
+            count=Count('id'), total_cost=Coalesce(Sum('purchase_price'), Decimal('0'))
+        ).order_by('-total_cost')
+        for row in cat_groups:
+            cat_assets = [a for a in all_assets if a.category_id == row['category__id']]
+            by_category.append({
+                'name': row['category__name'] or 'Uncategorized',
+                'count': row['count'],
+                'cost': row['total_cost'] or Decimal('0'),
+                'acc_dep': sum(a.accumulated_depreciation for a in cat_assets),
+                'nbv': sum(a.current_value for a in cat_assets),
+            })
+
+        by_status = []
+        for code, label in Asset.Status.choices:
+            s_assets = [a for a in all_assets if a.status == code]
+            by_status.append({
+                'label': label, 'count': len(s_assets),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in s_assets),
+                'acc_dep': sum(a.accumulated_depreciation for a in s_assets),
+                'nbv': sum(a.current_value for a in s_assets),
+            })
+
+        by_condition = []
+        for code, label in Asset.Condition.choices:
+            c_assets = [a for a in all_assets if a.condition == code]
+            by_condition.append({
+                'label': label, 'count': len(c_assets),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in c_assets),
+                'acc_dep': sum(a.accumulated_depreciation for a in c_assets),
+                'nbv': sum(a.current_value for a in c_assets),
+            })
+
+        tagged_assets = [a for a in all_assets if a.tagging_status == 'TAGGED']
+        untagged_assets = [a for a in all_assets if a.tagging_status != 'TAGGED']
+        by_tagged = [
+            {'label': 'Tagged', 'count': len(tagged_assets),
+             'cost': sum((a.purchase_price or Decimal('0')) for a in tagged_assets),
+             'acc_dep': sum(a.accumulated_depreciation for a in tagged_assets),
+             'nbv': sum(a.current_value for a in tagged_assets)},
+            {'label': 'Untagged', 'count': len(untagged_assets),
+             'cost': sum((a.purchase_price or Decimal('0')) for a in untagged_assets),
+             'acc_dep': sum(a.accumulated_depreciation for a in untagged_assets),
+             'nbv': sum(a.current_value for a in untagged_assets)},
+        ]
+
+        by_department = []
+        dept_map = {}
+        for a in all_assets:
+            key = a.department_id
+            label = a.department.name if a.department else 'No Department'
+            if key not in dept_map:
+                dept_map[key] = {'label': label, 'assets': []}
+            dept_map[key]['assets'].append(a)
+        for entry in sorted(dept_map.values(), key=lambda x: -sum((a.purchase_price or 0) for a in x['assets'])):
+            a_list = entry['assets']
+            by_department.append({
+                'label': entry['label'], 'count': len(a_list),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in a_list),
+                'acc_dep': sum(a.accumulated_depreciation for a in a_list),
+                'nbv': sum(a.current_value for a in a_list),
+            })
+
+        by_site = []
+        site_map = {}
+        for a in all_assets:
+            key = a.site_id
+            label = a.site.name if a.site else 'No Site'
+            if key not in site_map:
+                site_map[key] = {'label': label, 'assets': []}
+            site_map[key]['assets'].append(a)
+        for entry in sorted(site_map.values(), key=lambda x: -sum((a.purchase_price or 0) for a in x['assets'])):
+            a_list = entry['assets']
+            by_site.append({
+                'label': entry['label'], 'count': len(a_list),
+                'cost': sum((a.purchase_price or Decimal('0')) for a in a_list),
+                'acc_dep': sum(a.accumulated_depreciation for a in a_list),
+                'nbv': sum(a.current_value for a in a_list),
+            })
+
+        context = {
+            'organization': str(org),
+            'generated_on': timezone.now(),
+            'currency': 'AED',
+            'date_from': date_from_str,
+            'date_to': date_to_str,
+            'total_count': total_count,
+            'total_cost': total_cost,
+            'total_acc_dep': total_acc_dep,
+            'total_nbv': total_nbv,
+            'opening_data': opening_data,
+            'additions_data': additions_data,
+            'closing_data': closing_data,
+            'by_category': by_category,
+            'by_status': by_status,
+            'by_condition': by_condition,
+            'by_tagged': by_tagged,
+            'by_department': by_department,
+            'by_site': by_site,
+        }
+        from xhtml2pdf import pisa
+        html_string = render_to_string('assets/reconciliation_report_pdf.html', context, request=request)
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="asset_reconciliation_report.pdf"'
+        pisa_status = pisa.CreatePDF(html_string, dest=response)
+        if pisa_status.err:
+            return HttpResponse('Error generating PDF. Please try again.', status=500)
+        return response
 
 
 # AJAX View to create category inline

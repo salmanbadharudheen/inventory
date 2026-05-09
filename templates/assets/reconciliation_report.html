@@ -17,10 +17,10 @@
         <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
         <span class="btn-label">Reports</span>
       </a>
-      <button onclick="window.print()" class="btn-export">
-        <i data-lucide="printer" style="width:16px;height:16px;"></i>
-        <span class="btn-label">Print / PDF</span>
-      </button>
+      <a href="{% url 'reconciliation-report-pdf' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn-export btn-pdf">
+        <i data-lucide="download" style="width:16px;height:16px;"></i>
+        <span class="btn-label">Download PDF</span>
+      </a>
     </div>
   </div>
 
@@ -438,7 +438,7 @@
     align-items: center;
     flex-shrink: 0;
   }
-  .btn-back, .btn-export {
+  .btn-back, .btn-export, .btn-print {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -457,6 +457,14 @@
   .btn-back:hover { border-color: #6366f1; color: #6366f1; }
   .btn-export { background: #6366f1; color: #fff; border-color: #6366f1; }
   .btn-export:hover { background: #4f46e5; }
+  .btn-pdf { background: linear-gradient(135deg, #111827 0%, #1f2937 100%); border-color: #111827; }
+  .btn-pdf:hover { background: linear-gradient(135deg, #000000 0%, #111827 100%); }
+  .btn-print {
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+  }
+  .btn-print:hover { border-color: #6366f1; color: #6366f1; }
 
   /* ===================== FILTER BAR ===================== */
   .filter-bar {
@@ -686,7 +694,7 @@
     .recon-wrap { padding: 0.75rem; gap: 0.875rem; }
     .recon-title { font-size: 1.1rem; }
     .recon-subtitle { font-size: 0.78rem; }
-    .btn-back, .btn-export { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
+    .btn-back, .btn-export, .btn-print { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
     .kpi-card { padding: 0.8rem 0.875rem; }
     .kpi-value { font-size: 1rem; }
     .kpi-label { font-size: 0.63rem; }
