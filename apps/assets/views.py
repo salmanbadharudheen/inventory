@@ -1077,8 +1077,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     row.append(float(opening_value - closing_value))
 
                 row.extend([
-                    float(asset.accumulated_depreciation),
-                    float(asset.current_value),
+                    float(asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation),
+                    float(closing_value),
                 ])
 
                 ws.append(row)
