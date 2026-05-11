@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, memo } from "react";
+import React, { useCallback, useEffect, useRef, useState, memo } from "react";
 import {
   View,
   Text,
@@ -11,10 +11,21 @@ import {
   Linking,
   Alert,
   Share,
+  Modal,
+  TextInput,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { lookupAssetByTag, getAssetDetail } from "../../src/services/asset-api";
-import type { AssetDetail } from "../../src/types/api";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import {
+  lookupAssetByTag,
+  getAssetDetail,
+  listAttachments,
+  uploadAttachment,
+  deleteAttachment,
+} from "../../src/services/asset-api";
+import type { AssetAttachment, AssetDetail, AttachmentType } from "../../src/types/api";
 import API from "../../src/config/api";
 
 const C = {
@@ -54,6 +65,15 @@ export default function AssetDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Attachments state
+  const [attachments, setAttachments] = useState<AssetAttachment[]>([]);
+  const [attLoading, setAttLoading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadType, setUploadType] = useState<AttachmentType>("PHOTO");
+  const [uploadDesc, setUploadDesc] = useState("");
+  const [pendingFile, setPendingFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   const load = useCallback(
     async (silent = false) => {
       try {
@@ -69,6 +89,9 @@ export default function AssetDetailScreen() {
           throw new Error("No asset identifier provided.");
         }
         setAsset(data);
+        // Load attachments in background
+        const atts = await listAttachments(data.id).catch(() => []);
+        setAttachments(atts);
       } catch (e: any) {
         setError(e.message ?? "Failed to load asset");
       } finally {
@@ -78,6 +101,113 @@ export default function AssetDetailScreen() {
     },
     [params.asset_tag, params.asset_id]
   );
+
+  /* ─── Attachment helpers ─── */
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const name = asset.fileName ?? `photo_${Date.now()}.jpg`;
+      const type = asset.mimeType ?? "image/jpeg";
+      setPendingFile({ uri: asset.uri, name, type });
+      setUploadType("PHOTO");
+      setShowUploadModal(true);
+    }
+  };
+
+  const pickCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please allow camera access.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const name = asset.fileName ?? `photo_${Date.now()}.jpg`;
+      const type = asset.mimeType ?? "image/jpeg";
+      setPendingFile({ uri: asset.uri, name, type });
+      setUploadType("PHOTO");
+      setShowUploadModal(true);
+    }
+  };
+
+  const pickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+        "image/*",
+      ],
+      copyToCacheDirectory: true,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      const doc = result.assets[0];
+      setPendingFile({ uri: doc.uri, name: doc.name, type: doc.mimeType ?? "application/octet-stream" });
+      setUploadType("OTHER");
+      setShowUploadModal(true);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!pendingFile || !asset) return;
+    setUploading(true);
+    try {
+      const att = await uploadAttachment(asset.id, pendingFile, uploadType, uploadDesc || undefined);
+      setAttachments((prev) => [att, ...prev]);
+      setShowUploadModal(false);
+      setPendingFile(null);
+      setUploadDesc("");
+    } catch (e: any) {
+      Alert.alert("Upload failed", e.message ?? "Unknown error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = (att: AssetAttachment) => {
+    Alert.alert("Delete attachment?", att.attachment_type_display + (att.description ? ` — ${att.description}` : ""), [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          if (!asset) return;
+          try {
+            await deleteAttachment(asset.id, att.id);
+            setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+          } catch (e: any) {
+            Alert.alert("Error", e.message ?? "Failed to delete");
+          }
+        },
+      },
+    ]);
+  };
+
+  const showAddOptions = () => {
+    Alert.alert("Add Attachment", "Choose a source", [
+      { text: "📷 Take Photo", onPress: pickCamera },
+      { text: "🖼️ Photo Library", onPress: pickImage },
+      { text: "📄 Document / File", onPress: pickDocument },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
 
   useEffect(() => {
     load();
@@ -424,6 +554,122 @@ export default function AssetDetailScreen() {
           <InfoRow label="Updated" value={formatDate(a.updated_at)} />
         </View>
 
+        {/* ── Attachments ── */}
+        <View style={styles.card}>
+          <View style={styles.attHeader}>
+            <Text style={styles.sectionTitle}>📎  Attachments</Text>
+            <TouchableOpacity style={styles.attAddBtn} onPress={showAddOptions} activeOpacity={0.75}>
+              <Text style={styles.attAddBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          {attachments.length === 0 ? (
+            <View style={styles.attEmpty}>
+              <Text style={styles.attEmptyText}>No attachments yet.</Text>
+              <Text style={styles.attEmptyHint}>Tap + Add to upload a photo or document.</Text>
+            </View>
+          ) : (
+            attachments.map((att) => (
+              <View key={att.id} style={styles.attRow}>
+                <Text style={styles.attTypeIcon}>
+                  {att.attachment_type === "PHOTO" ? "🖼️" : "📄"}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.attTypeLabel}>{att.attachment_type_display}</Text>
+                  {att.description ? (
+                    <Text style={styles.attDesc} numberOfLines={1}>{att.description}</Text>
+                  ) : null}
+                  <Text style={styles.attDate}>{formatDate(att.created_at)}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.attOpenBtn}
+                  onPress={() => openFile(att.file_url)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.attOpenText}>Open</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.attDeleteBtn}
+                  onPress={() => handleDelete(att)}
+                  activeOpacity={0.7}
+                  hitSlop={8}
+                >
+                  <Text style={styles.attDeleteText}>🗑️</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* ── Upload Modal ── */}
+        <Modal
+          visible={showUploadModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => { if (!uploading) { setShowUploadModal(false); setPendingFile(null); } }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Upload Attachment</Text>
+
+              {pendingFile ? (
+                <Text style={styles.modalFileName} numberOfLines={1}>
+                  📎 {pendingFile.name}
+                </Text>
+              ) : null}
+
+              {/* Type selector */}
+              <Text style={styles.modalLabel}>Type</Text>
+              <View style={styles.typeRow}>
+                {(["PHOTO", "INVOICE", "WARRANTY", "MANUAL", "OTHER"] as AttachmentType[]).map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.typeChip, uploadType === t && styles.typeChipActive]}
+                    onPress={() => setUploadType(t)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.typeChipText, uploadType === t && styles.typeChipTextActive]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Description */}
+              <Text style={styles.modalLabel}>Description (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={uploadDesc}
+                onChangeText={setUploadDesc}
+                placeholder="e.g. Annual maintenance contract"
+                placeholderTextColor={C.muted}
+                editable={!uploading}
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalCancelBtn, uploading && { opacity: 0.5 }]}
+                  onPress={() => { if (!uploading) { setShowUploadModal(false); setPendingFile(null); } }}
+                  disabled={uploading}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalUploadBtn, (!pendingFile || uploading) && { opacity: 0.5 }]}
+                  onPress={handleUpload}
+                  disabled={!pendingFile || uploading}
+                >
+                  {uploading ? (
+                    <ActivityIndicator color={C.white} size="small" />
+                  ) : (
+                    <Text style={styles.modalUploadText}>Upload</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* ── Scan Another button ── */}
         <TouchableOpacity
           style={styles.scanAnotherFull}
@@ -674,4 +920,111 @@ const styles = StyleSheet.create({
   },
   scanAnotherFullIcon: { fontSize: 20 },
   scanAnotherFullText: { color: C.white, fontSize: 16, fontWeight: "700" },
+
+  // Attachments section
+  attHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  attAddBtn: {
+    backgroundColor: C.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  attAddBtnText: { color: C.white, fontWeight: "700", fontSize: 13 },
+  attEmpty: { alignItems: "center", paddingVertical: 20 },
+  attEmptyText: { color: C.muted, fontSize: 14, fontWeight: "600" },
+  attEmptyHint: { color: C.muted, fontSize: 12, marginTop: 4 },
+  attRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+  },
+  attTypeIcon: { fontSize: 22 },
+  attTypeLabel: { fontSize: 13, fontWeight: "700", color: C.text },
+  attDesc: { fontSize: 12, color: C.muted, marginTop: 1 },
+  attDate: { fontSize: 11, color: C.muted, marginTop: 2 },
+  attOpenBtn: {
+    backgroundColor: C.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 7,
+  },
+  attOpenText: { color: C.primary, fontWeight: "700", fontSize: 12 },
+  attDeleteBtn: { padding: 4 },
+  attDeleteText: { fontSize: 16 },
+
+  // Upload modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBox: {
+    backgroundColor: C.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 36,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: C.text, marginBottom: 16 },
+  modalFileName: {
+    fontSize: 13,
+    color: C.muted,
+    backgroundColor: C.bg,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 14,
+  },
+  modalLabel: { fontSize: 12, fontWeight: "700", color: C.muted, marginBottom: 6, marginTop: 10 },
+  typeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  typeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.bg,
+  },
+  typeChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  typeChipText: { fontSize: 12, fontWeight: "600", color: C.muted },
+  typeChipTextActive: { color: C.white },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+    color: C.text,
+    backgroundColor: C.bg,
+    marginTop: 4,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 20,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: "center",
+  },
+  modalCancelText: { fontWeight: "700", color: C.text, fontSize: 14 },
+  modalUploadBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: C.primary,
+    alignItems: "center",
+  },
+  modalUploadText: { fontWeight: "700", color: C.white, fontSize: 14 },
 });

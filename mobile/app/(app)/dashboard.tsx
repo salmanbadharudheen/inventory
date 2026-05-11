@@ -1,4 +1,4 @@
-import React, { useCallback, useState, memo } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   ActivityIndicator,
   Platform,
   Dimensions,
+  TextInput,
+  Keyboard,
 } from "react-native";
 import { useAuth } from "../../src/context/auth-context";
-import { getDashboard, getCachedDashboard } from "../../src/services/dashboard-api";
+import { getDashboard } from "../../src/services/dashboard-api";
 import type { DashboardData } from "../../src/types/api";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -67,12 +69,22 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch dashboard data. The API service handles throttle + dedup internally.
-  const load = useCallback(async (silent = false, force = false) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<TextInput>(null);
+
+  const handleSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    Keyboard.dismiss();
+    router.push({ pathname: "/(app)/asset-detail", params: { asset_tag: q } });
+    setSearchQuery("");
+  };
+
+  const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       setError(null);
-      setData(await getDashboard(force));
+      setData(await getDashboard());
     } catch (e: any) {
       setError(e.message ?? "Failed to load");
     } finally {
@@ -81,23 +93,8 @@ export default function DashboardScreen() {
     }
   }, []);
 
-  // On focus: show cached data instantly, then fetch (throttled — safe to call repeatedly)
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        const cached = await getCachedDashboard();
-        if (cached && !cancelled) {
-          setData(cached);
-          setLoading(false);
-        }
-        if (!cancelled) load(!!cached);
-      })();
-      return () => { cancelled = true; };
-    }, [load])
-  );
-
-  const onRefresh = () => { setRefreshing(true); load(true, true); };
+  useEffect(() => { load(); }, [load]);
+  const onRefresh = () => { setRefreshing(true); load(true); };
 
   if (loading && !data) {
     return (
@@ -122,7 +119,6 @@ export default function DashboardScreen() {
   }
 
   const d = data!;
-  const safeNum = (v: any) => (typeof v === "number" && isFinite(v) ? v : 0);
   const initials = `${(user?.first_name?.[0] ?? "").toUpperCase()}${(user?.last_name?.[0] ?? "").toUpperCase()}`;
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "User";
 
@@ -155,27 +151,51 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Search bar */}
+            <View style={st.searchRow}>
+              <TextInput
+                ref={searchRef}
+                style={st.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search by Asset Tag or ID…"
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="search"
+                onSubmitEditing={handleSearch}
+              />
+              <TouchableOpacity
+                style={[st.searchBtn, !searchQuery.trim() && { opacity: 0.5 }]}
+                onPress={handleSearch}
+                activeOpacity={0.8}
+                disabled={!searchQuery.trim()}
+              >
+                <Text style={st.searchBtnText}>Search</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Big stat row */}
             <View style={st.heroStats}>
               <View style={st.heroStatMain}>
-                <Text style={st.heroStatNum}>{short(safeNum(d.total_assets))}</Text>
+                <Text style={st.heroStatNum}>{short(d.total_assets)}</Text>
                 <Text style={st.heroStatLabel}>Total Assets</Text>
               </View>
               <View style={st.heroStatDivider} />
               <View style={st.heroStatSide}>
                 <View style={st.heroStatMini}>
                   <View style={[st.miniDot, { backgroundColor: "#34D399" }]} />
-                  <Text style={st.miniNum}>{short(safeNum(d.active_assets))}</Text>
+                  <Text style={st.miniNum}>{short(d.active_assets)}</Text>
                   <Text style={st.miniLabel}>Active</Text>
                 </View>
                 <View style={st.heroStatMini}>
                   <View style={[st.miniDot, { backgroundColor: "#60A5FA" }]} />
-                  <Text style={st.miniNum}>{short(safeNum(d.assigned_assets))}</Text>
+                  <Text style={st.miniNum}>{short(d.assigned_assets)}</Text>
                   <Text style={st.miniLabel}>Assigned</Text>
                 </View>
                 <View style={st.heroStatMini}>
                   <View style={[st.miniDot, { backgroundColor: "#FBBF24" }]} />
-                  <Text style={st.miniNum}>{short(safeNum(d.in_repair_assets))}</Text>
+                  <Text style={st.miniNum}>{short(d.in_repair_assets)}</Text>
                   <Text style={st.miniLabel}>In Repair</Text>
                 </View>
               </View>
@@ -209,7 +229,7 @@ export default function DashboardScreen() {
           </View>
 
           {/* ── Status Overview ── */}
-          {(d.status_distribution ?? []).length > 0 && (
+          {d.status_distribution.length > 0 && (
             <View style={st.card}>
               <View style={st.cardHeader}>
                 <View style={[st.cardIconDot, { backgroundColor: C.primarySoft }]}>
@@ -217,11 +237,11 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={st.cardTitle}>Status Overview</Text>
               </View>
-              {(d.status_distribution ?? []).map((item, idx) => {
+              {d.status_distribution.map((item, idx) => {
                 const pct = d.total_assets > 0 ? (item.count / d.total_assets) * 100 : 0;
                 const th = STATUS_THEME[item.code] ?? STATUS_THEME.RETIRED;
                 return (
-                  <View key={item.code} style={[st.statusRow, idx === (d.status_distribution ?? []).length - 1 && { marginBottom: 0 }]}>
+                  <View key={item.code} style={[st.statusRow, idx === d.status_distribution.length - 1 && { marginBottom: 0 }]}>
                     <View style={st.statusLeft}>
                       <View style={[st.statusBadge, { backgroundColor: th.soft }]}>
                         <View style={[st.statusBadgeDot, { backgroundColor: th.fg }]} />
@@ -241,7 +261,7 @@ export default function DashboardScreen() {
           )}
 
           {/* ── Top Categories ── */}
-          {(d.category_breakdown ?? []).length > 0 && (
+          {d.category_breakdown.length > 0 && (
             <View style={st.card}>
               <View style={st.cardHeader}>
                 <View style={[st.cardIconDot, { backgroundColor: "#FEF3C7" }]}>
@@ -249,8 +269,8 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={st.cardTitle}>Top Categories</Text>
               </View>
-              {(d.category_breakdown ?? []).map((c, i) => (
-                <View key={i} style={[st.catRow, i === (d.category_breakdown ?? []).length - 1 && { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              {d.category_breakdown.map((c, i) => (
+                <View key={i} style={[st.catRow, i === d.category_breakdown.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 }]}>
                   <View style={[st.catRank, i === 0 ? { backgroundColor: C.primary } : i === 1 ? { backgroundColor: C.heroAccent } : {}]}>
                     <Text style={[st.catRankText, (i === 0 || i === 1) && { color: "#FFF" }]}>{i + 1}</Text>
                   </View>
@@ -264,7 +284,7 @@ export default function DashboardScreen() {
           )}
 
           {/* ── Recent Assets ── */}
-          {(d.recent_assets ?? []).length > 0 && (
+          {d.recent_assets.length > 0 && (
             <View style={st.card}>
               <View style={st.cardHeader}>
                 <View style={[st.cardIconDot, { backgroundColor: C.successSoft }]}>
@@ -272,10 +292,10 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={st.cardTitle}>Recently Added</Text>
               </View>
-              {(d.recent_assets ?? []).map((a, i) => {
+              {d.recent_assets.map((a, i) => {
                 const th = STATUS_THEME[a.status] ?? STATUS_THEME.RETIRED;
                 return (
-                  <View key={a.id} style={[st.assetRow, i === (d.recent_assets ?? []).length - 1 && { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                  <View key={a.id} style={[st.assetRow, i === d.recent_assets.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 }]}>
                     <View style={[st.assetIcon, { backgroundColor: th.soft }]}>
                       <Text style={[st.assetIconText, { color: th.fg }]}>
                         {(a.name?.[0] ?? "A").toUpperCase()}
@@ -305,14 +325,14 @@ export default function DashboardScreen() {
               <Text style={st.cardTitle}>Master Data</Text>
             </View>
             <View style={st.masterGrid}>
-              <MasterTile label="Groups" value={safeNum(d.master_data?.groups)} color="#818CF8" />
-              <MasterTile label="Sub-groups" value={safeNum(d.master_data?.sub_groups)} color="#A78BFA" />
-              <MasterTile label="Categories" value={safeNum(d.master_data?.categories)} color="#F472B6" />
-              <MasterTile label="Sub-cat." value={safeNum(d.master_data?.sub_categories)} color="#FB923C" />
-              <MasterTile label="Regions" value={safeNum(d.master_data?.regions)} color="#34D399" />
-              <MasterTile label="Sites" value={safeNum(d.master_data?.sites)} color="#60A5FA" />
-              <MasterTile label="Buildings" value={safeNum(d.master_data?.buildings)} color="#FBBF24" />
-              <MasterTile label="Floors" value={safeNum(d.master_data?.floors)} color="#F87171" />
+              <MasterTile label="Groups" value={d.master_data.groups} color="#818CF8" />
+              <MasterTile label="Sub-groups" value={d.master_data.sub_groups} color="#A78BFA" />
+              <MasterTile label="Categories" value={d.master_data.categories} color="#F472B6" />
+              <MasterTile label="Sub-cat." value={d.master_data.sub_categories} color="#FB923C" />
+              <MasterTile label="Regions" value={d.master_data.regions} color="#34D399" />
+              <MasterTile label="Sites" value={d.master_data.sites} color="#60A5FA" />
+              <MasterTile label="Buildings" value={d.master_data.buildings} color="#FBBF24" />
+              <MasterTile label="Floors" value={d.master_data.floors} color="#F87171" />
             </View>
           </View>
         </View>
@@ -332,7 +352,7 @@ export default function DashboardScreen() {
 
 /* ────── sub-components ────── */
 
-const MasterTile = memo(function MasterTile({ label, value, color }: { label: string; value: number; color: string }) {
+function MasterTile({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <View style={st.masterTile}>
       <View style={[st.masterDot, { backgroundColor: color + "30" }]}>
@@ -341,7 +361,7 @@ const MasterTile = memo(function MasterTile({ label, value, color }: { label: st
       <Text style={st.masterLabel}>{label}</Text>
     </View>
   );
-});
+}
 
 /* ────── styles ────── */
 const st = StyleSheet.create({
@@ -382,6 +402,34 @@ const st = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.15)",
   },
   logoutText: { color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: "600" },
+
+  /* ── search bar ── */
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: "#FFF",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  searchBtn: {
+    height: 44,
+    paddingHorizontal: 18,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchBtnText: { color: C.heroBg, fontWeight: "800", fontSize: 14 },
 
   heroStats: { flexDirection: "row", alignItems: "center" },
   heroStatMain: { alignItems: "center", paddingRight: 24 },

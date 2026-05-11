@@ -117,9 +117,6 @@ export type AssetCondition = "NEW" | "USED" | "DAMAGED" | "UNDER_REPAIR";
 
 export type AssetType = "TAGGABLE" | "BUILDING_IMPROVEMENTS" | "NTA" | "CAPEX";
 
-export type LabelType = "RFID" | "QR_CODE" | "BARCODE";
-export type LabelStatus = "TAGGED" | "UNTAGGED";
-
 export type DepreciationMethod =
   | "STRAIGHT_LINE"
   | "DOUBLE_DECLINING"
@@ -129,8 +126,6 @@ export type DepreciationMethod =
 export interface AssetCreatePayload {
   name: string;
   category: number;
-  label_type?: LabelType;
-  tagging_status?: LabelStatus;
   description?: string;
   short_description?: string;
   serial_number?: string;
@@ -178,17 +173,17 @@ export interface AssetDetail {
   id: string;
   name: string;
   asset_tag: string;
+  custom_asset_tag: string;
   asset_code: string;
   erp_asset_number: string;
   description: string;
   short_description: string;
   serial_number: string;
   quantity: number;
-  label_type: LabelType;
-  tagging_status: LabelStatus;
   status: AssetStatus;
   condition: AssetCondition;
   asset_type: AssetType;
+  label_type: string;
   brand: string;
   model: string;
   category: number;
@@ -216,15 +211,26 @@ export interface AssetDetail {
   po_number: string;
   notes: string;
   image: string | null;
-  barcode_image: string | null;
-  qr_code_image: string | null;
   po_file: string | null;
   invoice_file: string | null;
   delivery_note_file: string | null;
   insurance_file: string | null;
   amc_file: string | null;
+  barcode_image: string | null;
+  qr_code_image: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type AttachmentType = 'INVOICE' | 'MANUAL' | 'WARRANTY' | 'PHOTO' | 'OTHER';
+
+export interface AssetAttachment {
+  id: number;
+  file_url: string;
+  attachment_type: AttachmentType;
+  attachment_type_display: string;
+  description: string;
+  created_at: string;
 }
 
 export interface AssetCreateResponse {

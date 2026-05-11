@@ -5664,9 +5664,9 @@ def asset_attachment_upload(request, pk):
     if not uploaded_file:
         return JsonResponse({'error': 'No file provided'}, status=400)
 
-    # Basic validation: max 20 MB
-    if uploaded_file.size > 20 * 1024 * 1024:
-        return JsonResponse({'error': 'File too large (max 20 MB)'}, status=400)
+    # Basic validation: max 1 MB
+    if uploaded_file.size > 1 * 1024 * 1024:
+        return JsonResponse({'error': 'File too large (max 1 MB)'}, status=400)
 
     attachment_type = request.POST.get('attachment_type', 'OTHER')
     valid_types = {t[0] for t in AssetAttachment.Type.choices}

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from apps.users.models import User
-from apps.assets.models import Asset, Group, SubGroup, Category, SubCategory, Company, Supplier, Brand, Custodian, Vendor, AssetRemarks
+from apps.assets.models import Asset, AssetAttachment, Group, SubGroup, Category, SubCategory, Company, Supplier, Brand, Custodian, Vendor, AssetRemarks
 from apps.locations.models import Branch, Department, Building, Floor, Room, Region, Site, Location, SubLocation
 
 
@@ -235,11 +235,10 @@ class AssetReadSerializer(serializers.ModelSerializer):
             'maintenance_required', 'maintenance_frequency_days', 'next_maintenance_date',
             # status & notes
             'status', 'notes',
+            # document files
+            'po_file', 'invoice_file', 'delivery_note_file', 'insurance_file', 'amc_file',
             # images
             'image', 'barcode_image', 'qr_code_image',
-            # documents
-            'po_file', 'invoice_file', 'delivery_note_file',
-            'insurance_file', 'amc_file',
             # meta
             'created_at', 'updated_at',
         ]
@@ -310,3 +309,21 @@ class AssetCreateSerializer(serializers.ModelSerializer):
         if qs.exists():
                 raise serializers.ValidationError('An asset with this Asset Code already exists.')
         return value
+
+
+class AssetAttachmentSerializer(serializers.ModelSerializer):
+    """Serializer for AssetAttachment – used for listing and upload responses."""
+    file_url = serializers.SerializerMethodField()
+    attachment_type_display = serializers.CharField(source='get_attachment_type_display', read_only=True)
+
+    class Meta:
+        model = AssetAttachment
+        fields = ['id', 'file', 'file_url', 'attachment_type', 'attachment_type_display', 'description', 'created_at']
+        read_only_fields = ['id', 'file_url', 'attachment_type_display', 'created_at']
+        extra_kwargs = {'file': {'write_only': True}}
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None

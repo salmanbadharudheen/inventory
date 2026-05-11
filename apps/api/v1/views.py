@@ -19,7 +19,7 @@ from .serializers import (
     ChangePasswordSerializer,
     AssetCreateSerializer,
     AssetReadSerializer,
-    AssetListSerializer,
+    AssetAttachmentSerializer,
     CategoryLookupSerializer,
     SubCategoryLookupSerializer,
     GroupLookupSerializer,
@@ -32,14 +32,6 @@ from .serializers import (
     BranchLookupSerializer,
     DepartmentLookupSerializer,
 )
-from django.template.loader import render_to_string
-from django.http import HttpResponse
-from apps.assets.models import AssetTransfer
-
-try:
-    from weasyprint import HTML as WeasyprintHTML
-except (ImportError, OSError):
-    WeasyprintHTML = None
 
 
 class LoginAPIView(APIView):
@@ -375,41 +367,13 @@ class DashboardAPIView(APIView):
 
     GET /api/v1/dashboard/
     Headers: Authorization: Bearer <access_token>
-
-    Optimised for 400K+ assets: all counts and financial totals are computed
-    in a **single SQL query** using conditional aggregation.  Depreciation is
-    estimated via pure SQL (straight-line approximation) – no Python loops.
     """
     permission_classes = [IsAuthenticated]
-
-    EMPTY_DASHBOARD = {
-        'total_assets': 0,
-        'active_assets': 0,
-        'assigned_assets': 0,
-        'in_repair_assets': 0,
-        'in_storage_assets': 0,
-        'show_financial': False,
-        'total_value': '0.00',
-        'total_nbv': '0.00',
-        'total_depreciation': '0.00',
-        'depreciation_percentage': 0,
-        'category_breakdown': [],
-        'status_distribution': [],
-        'recent_assets': [],
-        'master_data': {
-            'groups': 0, 'sub_groups': 0,
-            'categories': 0, 'sub_categories': 0,
-            'regions': 0, 'sites': 0,
-            'buildings': 0, 'floors': 0,
-        },
-    }
 
     def get(self, request):
         from apps.assets.models import Asset, Group, SubGroup, Category, SubCategory
         from apps.locations.models import Region, Site, Building, Floor
         from apps.users.models import User
-        from django.db.models import F, Value, DecimalField, IntegerField
-        from django.db.models.functions import Coalesce as CoalesceFunc, Greatest
 
         user = request.user
         show_financial = user.role in [
@@ -417,9 +381,22 @@ class DashboardAPIView(APIView):
         ] or user.is_superuser
 
         if not (user.is_authenticated and hasattr(user, 'organization') and user.organization):
-            empty = dict(self.EMPTY_DASHBOARD)
-            empty['show_financial'] = show_financial
-            return Response(empty)
+            return Response({
+                'total_assets': 0,
+                'active_assets': 0,
+                'assigned_assets': 0,
+                'in_repair_assets': 0,
+                'in_storage_assets': 0,
+                'show_financial': show_financial,
+                'total_value': '0.00',
+                'total_nbv': '0.00',
+                'total_depreciation': '0.00',
+                'depreciation_percentage': 0,
+                'category_breakdown': [],
+                'status_distribution': [],
+                'recent_assets': [],
+                'master_data': {},
+            })
 
         org = user.organization
         cache_key = f'api_dashboard_{org.id}'
@@ -430,88 +407,29 @@ class DashboardAPIView(APIView):
 
         qs = Asset.objects.filter(organization=org, is_deleted=False)
 
-        # ── 1) Single query: all counts + financial totals ────────────
-        from django.db.models import Q
-        today = timezone.now().date()
-
+        total_assets = qs.count()
         agg = qs.aggregate(
-            total_assets=Count('id'),
-            active_assets=Count('id', filter=Q(status=Asset.Status.ACTIVE)),
-            assigned_assets=Count('id', filter=Q(assigned_to__isnull=False)),
-            in_repair_assets=Count('id', filter=Q(status=Asset.Status.UNDER_MAINTENANCE)),
-            in_storage_assets=Count('id', filter=Q(status=Asset.Status.IN_STORAGE)),
-            total_purchase=Coalesce(Sum('purchase_price'), Decimal('0')),
+            total_purchase=Coalesce(Sum('purchase_price'), Decimal('0'))
         )
-
-        total_assets = agg['total_assets']
         total_purchase = agg['total_purchase']
 
-        # ── 2) Depreciation via SQL (straight-line approximation) ─────
-        # years_passed = (today - purchase_date).days / 365.25
-        # annual_dep   = (purchase_price - salvage_value) / useful_life_years
-        # acc_dep      = min(annual_dep * years_passed, purchase_price - salvage_value)
-        # We compute SUM(acc_dep) and SUM(nbv) entirely in SQL.
-        from django.db.models import ExpressionWrapper, Case, When
-        from django.db.models.functions import Cast
+        # Depreciation
+        assets_with_price = qs.filter(purchase_price__isnull=False)
+        total_nbv = Decimal('0')
+        total_dep = Decimal('0')
+        for asset in assets_with_price.only('purchase_price', 'purchase_date', 'useful_life_years', 'depreciation_method').iterator(chunk_size=500):
+            total_nbv += asset.current_value
+            total_dep += asset.accumulated_depreciation
 
-        dep_qs = qs.filter(
-            purchase_price__isnull=False,
-            purchase_date__isnull=False,
-            useful_life_years__isnull=False,
-            useful_life_years__gt=0,
-        )
-
-        # PostgreSQL: (CURRENT_DATE - date_column) returns integer days
-        from django.db.models import Func
-
-        class DaysSince(Func):
-            """Return integer days between purchase_date and today (PostgreSQL)."""
-            function = ''
-            template = "(CURRENT_DATE - %(expressions)s)"
-            output_field = IntegerField()
-
-        dep_agg = dep_qs.annotate(
-            _days_passed=DaysSince(F('purchase_date')),
-        ).annotate(
-            _years_passed=ExpressionWrapper(
-                F('_days_passed') * Value(1.0) / Value(365.25),
-                output_field=DecimalField(max_digits=10, decimal_places=4),
-            ),
-            _depreciable=ExpressionWrapper(
-                F('purchase_price') - CoalesceFunc(F('salvage_value'), Value(0)),
-                output_field=DecimalField(max_digits=15, decimal_places=2),
-            ),
-            _annual_dep=ExpressionWrapper(
-                (F('purchase_price') - CoalesceFunc(F('salvage_value'), Value(0)))
-                * Value(1.0)
-                / F('useful_life_years'),
-                output_field=DecimalField(max_digits=15, decimal_places=2),
-            ),
-        ).annotate(
-            _raw_dep=ExpressionWrapper(
-                F('_annual_dep') * F('_years_passed'),
-                output_field=DecimalField(max_digits=15, decimal_places=2),
-            ),
-        ).annotate(
-            _capped_dep=Case(
-                When(_raw_dep__lt=Value(0), then=Value(0)),
-                When(_raw_dep__gt=F('_depreciable'), then=F('_depreciable')),
-                default=F('_raw_dep'),
-                output_field=DecimalField(max_digits=15, decimal_places=2),
-            ),
-        ).aggregate(
-            total_dep=Coalesce(Sum('_capped_dep'), Decimal('0')),
-        )
-
-        total_dep = dep_agg['total_dep']
-        if isinstance(total_dep, float):
-            total_dep = Decimal(str(total_dep)).quantize(Decimal('0.01'))
-        total_nbv = (total_purchase - total_dep)
-        if total_nbv < 0:
-            total_nbv = Decimal('0')
         dep_pct = float((total_dep / total_purchase) * 100) if total_purchase > 0 else 0
 
-        # ── 3) Category breakdown top 5 (single query) ───────────────
+        # Status counts
+        active = qs.filter(status=Asset.Status.ACTIVE).count()
+        assigned = qs.filter(assigned_to__isnull=False).count()
+        repair = qs.filter(status=Asset.Status.UNDER_MAINTENANCE).count()
+        storage = qs.filter(status=Asset.Status.IN_STORAGE).count()
+
+        # Category breakdown top 5
         cat_data = list(
             qs.values('category__name')
             .annotate(count=Count('id'))
@@ -522,7 +440,7 @@ class DashboardAPIView(APIView):
             for c in cat_data
         ]
 
-        # ── 4) Status distribution (single query) ────────────────────
+        # Status distribution
         status_dict = {s[0]: s[1] for s in Asset.Status.choices}
         status_agg = qs.values('status').annotate(count=Count('id')).order_by('-count')
         status_distribution = [
@@ -530,23 +448,20 @@ class DashboardAPIView(APIView):
             for s in status_agg if s['count'] > 0
         ]
 
-        # ── 5) Recent 5 assets (uses created_at index) ───────────────
-        recent = qs.only(
-            'id', 'name', 'asset_tag', 'status', 'category',
-        ).select_related('category').order_by('-created_at')[:5]
+        # Recent assets
+        recent = qs.order_by('-created_at')[:5]
         recent_assets = [
             {
                 'id': str(a.id),
                 'name': a.name,
-                'asset_id': a.asset_tag,
+                'asset_id': a.asset_id if hasattr(a, 'asset_id') else '',
                 'status': a.status,
                 'category': a.category.name if a.category else '',
             }
-            for a in recent
+            for a in recent.select_related('category')
         ]
 
-        # ── 6) Master data counts (single query per model is fine,
-        #        these tables are small) ───────────────────────────────
+        # Master data counts
         master = {
             'groups': Group.objects.filter(organization=org).count(),
             'sub_groups': SubGroup.objects.filter(organization=org).count(),
@@ -560,14 +475,14 @@ class DashboardAPIView(APIView):
 
         data = {
             'total_assets': total_assets,
-            'active_assets': agg['active_assets'],
-            'assigned_assets': agg['assigned_assets'],
-            'in_repair_assets': agg['in_repair_assets'],
-            'in_storage_assets': agg['in_storage_assets'],
+            'active_assets': active,
+            'assigned_assets': assigned,
+            'in_repair_assets': repair,
+            'in_storage_assets': storage,
             'show_financial': show_financial,
             'total_value': str(total_purchase),
-            'total_nbv': str(total_nbv.quantize(Decimal('0.01'))),
-            'total_depreciation': str(total_dep.quantize(Decimal('0.01'))),
+            'total_nbv': str(total_nbv),
+            'total_depreciation': str(total_dep),
             'depreciation_percentage': round(dep_pct, 1),
             'category_breakdown': category_breakdown,
             'status_distribution': status_distribution,
@@ -697,7 +612,7 @@ class AssetLookupByTagAPIView(APIView):
             organization=org,
             is_deleted=False,
         ).filter(
-            Q(asset_tag__iexact=tag)
+            Q(asset_tag__iexact=tag) | Q(custom_asset_tag__iexact=tag)
         ).select_related(
             'category', 'sub_category', 'group', 'sub_group',
             'company', 'department', 'site', 'building',
@@ -750,9 +665,6 @@ class AssetListAPIView(APIView):
     """
     GET /api/v1/assets/   – list assets for the user's organisation.
     Supports ?status=&category=&search= query params.
-
-    Optimised: uses lightweight serializer (no depreciation), only() for fewer
-    columns, and proper indexing.
     """
     permission_classes = [IsAuthenticated]
 
@@ -761,20 +673,10 @@ class AssetListAPIView(APIView):
 
         org = getattr(request.user, 'organization', None)
         if not org:
-            return Response({'count': 0, 'page': 1, 'page_size': 25, 'results': []})
+            return Response({'results': []})
 
         qs = Asset.objects.filter(organization=org, is_deleted=False).select_related(
             'category', 'company', 'department', 'site', 'building', 'assigned_to',
-        ).only(
-            'id', 'name', 'asset_tag', 'serial_number',
-            'status', 'condition', 'asset_type',
-            'purchase_date', 'purchase_price', 'currency', 'created_at',
-            'category__id', 'category__name',
-            'company__id', 'company__name',
-            'department__id', 'department__name',
-            'site__id', 'site__name',
-            'building__id', 'building__name',
-            'assigned_to__id', 'assigned_to__first_name', 'assigned_to__last_name', 'assigned_to__username',
         ).order_by('-created_at')
 
         # filters
@@ -795,7 +697,7 @@ class AssetListAPIView(APIView):
 
         # simple pagination
         page = int(request.query_params.get('page', 1))
-        page_size = min(int(request.query_params.get('page_size', 25)), 100)
+        page_size = int(request.query_params.get('page_size', 25))
         total = qs.count()
         start = (page - 1) * page_size
         assets = qs[start:start + page_size]
@@ -804,7 +706,7 @@ class AssetListAPIView(APIView):
             'count': total,
             'page': page,
             'page_size': page_size,
-            'results': AssetListSerializer(assets, many=True).data,
+            'results': AssetReadSerializer(assets, many=True).data,
         })
 
 
@@ -980,36 +882,105 @@ class DepartmentListAPIView(APIView):
         return Response(DepartmentLookupSerializer(qs, many=True).data)
 
 
-class AssetTransferExportPDFView(APIView):
+# ────────────────────────────────────────────────────
+# Asset Attachment endpoints (mobile upload / list / delete)
+# ────────────────────────────────────────────────────
+
+ALLOWED_ATTACHMENT_MIME_TYPES = {
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+}
+MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+class AssetAttachmentListUploadView(APIView):
+    """
+    GET  /api/v1/assets/<uuid:pk>/attachments/  – list attachments for an asset
+    POST /api/v1/assets/<uuid:pk>/attachments/  – upload a new attachment
+        multipart/form-data fields: file, attachment_type, description (optional)
+    """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        # Filter transfers as needed (e.g., by org, user, date)
-        transfers = AssetTransfer.objects.all().select_related('asset', 'transferred_from_user', 'transferred_to_user', 'transferred_from_department', 'transferred_to_department', 'transferred_from_location', 'transferred_to_location')
-        data = []
-        for t in transfers:
-            data.append({
-                'transfer_no': t.transfer_no or '',
-                'asset_tag': t.asset.asset_tag if t.asset else '',
-                'asset_name': getattr(t.asset, 'name', ''),
-                'from_info': f"{getattr(t.transferred_from_user, 'username', '')} / {getattr(t.transferred_from_department, 'name', '')} / {getattr(t.transferred_from_location, 'name', '')}",
-                'to_info': f"{getattr(t.transferred_to_user, 'username', '')} / {getattr(t.transferred_to_department, 'name', '')} / {getattr(t.transferred_to_location, 'name', '')}",
-                'transfer_date': t.transfer_date.strftime('%Y-%m-%d %H:%M'),
-                'status': t.get_status_display(),
-                'transfer_reason': t.transfer_reason,
-                'notes': t.notes,
-            })
-        html_string = render_to_string('asset_transfer_export.html', {
-            'transfers': data,
-            'generated_on': timezone.now().strftime('%Y-%m-%d %H:%M'),
-            'organization': getattr(request.user, 'organization', ''),
-        })
-        if WeasyprintHTML is None:
+    def _get_asset(self, request, pk):
+        from apps.assets.models import Asset
+        org = getattr(request.user, 'organization', None)
+        if not org:
+            return None
+        try:
+            return Asset.objects.get(pk=pk, organization=org, is_deleted=False)
+        except Asset.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        asset = self._get_asset(request, pk)
+        if not asset:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+        from apps.assets.models import AssetAttachment
+        attachments = AssetAttachment.objects.filter(asset=asset).order_by('-created_at')
+        serializer = AssetAttachmentSerializer(attachments, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    def post(self, request, pk):
+        asset = self._get_asset(request, pk)
+        if not asset:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Size validation
+        if uploaded_file.size > MAX_ATTACHMENT_BYTES:
             return Response(
-                {'error': 'PDF generation is not available. WeasyPrint requires GTK3 libraries to be installed on the system.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                {'detail': f'File too large. Maximum allowed size is {MAX_ATTACHMENT_BYTES // (1024*1024)} MB.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        pdf_file = WeasyprintHTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf_file, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="asset_transfers.pdf"'
-        return response
+
+        # MIME type validation
+        content_type = getattr(uploaded_file, 'content_type', '') or ''
+        if content_type and content_type not in ALLOWED_ATTACHMENT_MIME_TYPES:
+            return Response(
+                {'detail': 'File type not allowed.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.assets.models import AssetAttachment
+        attachment = AssetAttachment(
+            asset=asset,
+            organization=asset.organization,
+            attachment_type=request.data.get('attachment_type', AssetAttachment.Type.OTHER),
+            description=request.data.get('description', ''),
+            file=uploaded_file,
+        )
+        attachment.save()
+        serializer = AssetAttachmentSerializer(attachment, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class AssetAttachmentDeleteView(APIView):
+    """
+    DELETE /api/v1/assets/<uuid:pk>/attachments/<int:att_pk>/  – delete an attachment
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk, att_pk):
+        from apps.assets.models import Asset, AssetAttachment
+        org = getattr(request.user, 'organization', None)
+        if not org:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            asset = Asset.objects.get(pk=pk, organization=org, is_deleted=False)
+        except Asset.DoesNotExist:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            attachment = AssetAttachment.objects.get(pk=att_pk, asset=asset)
+        except AssetAttachment.DoesNotExist:
+            return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
+        attachment.file.delete(save=False)
+        attachment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

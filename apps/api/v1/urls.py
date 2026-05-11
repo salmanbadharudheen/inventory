@@ -27,8 +27,9 @@ urlpatterns = [
     path('assets/lookup/', views.AssetLookupByTagAPIView.as_view(), name='asset-lookup-by-tag'),
     path('assets/<uuid:pk>/', views.AssetDetailAPIView.as_view(), name='asset-detail'),
 
-    # Asset Transfer PDF Export
-    path('assets/export/pdf/', views.AssetTransferExportPDFView.as_view(), name='asset-transfer-export-pdf'),
+    # Asset Attachments
+    path('assets/<uuid:pk>/attachments/', views.AssetAttachmentListUploadView.as_view(), name='asset-attachment-list-upload'),
+    path('assets/<uuid:pk>/attachments/<int:att_pk>/', views.AssetAttachmentDeleteView.as_view(), name='asset-attachment-delete'),
 
     # Lookups (for dropdown pickers on mobile)
     path('lookups/categories/', views.CategoryListAPIView.as_view(), name='lookup-categories'),

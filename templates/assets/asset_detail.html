@@ -292,21 +292,41 @@
                 {% endif %}
 
                 <!-- Upload Panel -->
-                <div id="upload-panel" style="display:none;margin-top:1rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:1rem;">
-                    <p style="font-size:0.8rem;font-weight:700;color:#374151;margin:0 0 0.75rem;">Upload File</p>
-                    <div style="display:flex;flex-direction:column;gap:0.6rem;">
-                        <select id="att-type" style="padding:0.5rem 0.7rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.85rem;background:#fff;">
-                            {% for value, label in attachment_types %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
+                <div id="upload-panel" style="display:none;margin-top:1rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:1.25rem;">
+
+                    <!-- Step 1: choose kind -->
+                    <div id="upload-step1">
+                        <p style="font-size:0.82rem;font-weight:700;color:#374151;margin:0 0 1rem;text-align:center;">What would you like to attach?</p>
+                        <div style="display:flex;gap:0.75rem;">
+                            <button onclick="chooseUploadKind('image')" class="att-kind-btn">
+                                <i data-lucide="image" style="width:28px;height:28px;color:#7c3aed;"></i>
+                                <span style="font-weight:700;font-size:0.9rem;">Photo / Image</span>
+                                <span style="font-size:0.72rem;color:#64748b;">JPG, PNG, WEBP&hellip;</span>
+                            </button>
+                            <button onclick="chooseUploadKind('document')" class="att-kind-btn">
+                                <i data-lucide="file-text" style="width:28px;height:28px;color:#2563eb;"></i>
+                                <span style="font-weight:700;font-size:0.9rem;">Document / File</span>
+                                <span style="font-size:0.72rem;color:#64748b;">PDF, Word, Excel&hellip;</span>
+                            </button>
+                        </div>
+                        <button onclick="toggleUploadPanel()" style="width:100%;margin-top:0.75rem;padding:0.4rem;background:none;border:none;color:#94a3b8;font-size:0.8rem;cursor:pointer;">Cancel</button>
+                    </div>
+
+                    <!-- Step 2: upload form (shown after kind is picked) -->
+                    <div id="upload-step2" style="display:none;flex-direction:column;gap:0.6rem;">
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.15rem;">
+                            <button onclick="goBackToStep1()" style="background:none;border:none;cursor:pointer;color:#64748b;padding:0;display:flex;align-items:center;gap:0.2rem;font-size:0.78rem;">&larr; Back</button>
+                            <p id="upload-step2-title" style="font-size:0.82rem;font-weight:700;color:#374151;margin:0;flex:1;text-align:center;"></p>
+                        </div>
+                        <select id="att-type" style="padding:0.5rem 0.7rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.85rem;background:#fff;"></select>
                         <input type="text" id="att-desc" placeholder="Description (optional)" style="padding:0.5rem 0.7rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.85rem;">
-                        <!-- Mobile-friendly: accept images + docs, allow camera capture -->
                         <label class="file-upload-label" id="file-upload-label">
                             <i data-lucide="upload-cloud" style="width:20px;height:20px;"></i>
-                            <span id="file-label-text">Tap to choose file or take photo</span>
-                            <input type="file" id="att-file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none;" onchange="fileSelected(this)">
+                            <span id="file-label-text">Tap to choose file</span>
+                            <input type="file" id="att-file" style="display:none;" onchange="fileSelected(this)">
                         </label>
+                        <p style="font-size:0.72rem;color:#94a3b8;margin:0;text-align:center;">Max file size: <strong>1 MB</strong></p>
+                        <p id="att-size-error" style="display:none;font-size:0.78rem;color:#ef4444;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:0.4rem 0.65rem;margin:0;"></p>
                         <div style="display:flex;gap:0.5rem;">
                             <button class="btn-upload-submit" id="btn-upload" onclick="uploadAttachment('{{ asset.pk }}')" disabled>
                                 <i data-lucide="upload" style="width:14px;"></i> Upload
@@ -320,6 +340,7 @@
                             <p id="upload-status" style="font-size:0.75rem;color:#64748b;margin:0.3rem 0 0;">Uploading...</p>
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -415,6 +436,14 @@
         padding: 0.55rem 1rem; background: #f1f5f9; color: #475569;
         border: 1px solid #cbd5e1; border-radius: 7px; font-size: 0.85rem; cursor: pointer;
     }
+    /* Kind picker buttons */
+    .att-kind-btn {
+        flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+        padding: 1.1rem 0.75rem; background: #fff; border: 2px solid #e2e8f0;
+        border-radius: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+        text-align: center;
+    }
+    .att-kind-btn:hover { border-color: #6366f1; background: #f5f3ff; }
     @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
@@ -510,24 +539,106 @@ function refreshAssetCodes(assetId) {
         });
 }
 
+/* All attachment types from Django (used by kind picker) */
+const ALL_ATT_TYPES = [
+    {% for value, label in attachment_types %}{ value: "{{ value }}", label: "{{ label }}" },
+    {% endfor %}
+];
+const IMAGE_TYPES = ['PHOTO'];
+
 function toggleUploadPanel() {
     const panel = document.getElementById('upload-panel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    if (panel.style.display === 'block') {
-        document.getElementById('att-type').focus();
+    const isHidden = panel.style.display === 'none';
+    panel.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        // Always reset to step 1
+        document.getElementById('upload-step1').style.display = 'block';
+        document.getElementById('upload-step2').style.display = 'none';
+        // Reset form fields
+        const fi = document.getElementById('att-file');
+        if (fi) fi.value = '';
+        const di = document.getElementById('att-desc');
+        if (di) di.value = '';
+        const lbl = document.getElementById('file-label-text');
+        if (lbl) lbl.textContent = 'Tap to choose file';
+        const ul = document.getElementById('file-upload-label');
+        if (ul) ul.classList.remove('has-file');
+        const bu = document.getElementById('btn-upload');
+        if (bu) bu.disabled = true;
+        const prog = document.getElementById('upload-progress');
+        if (prog) prog.style.display = 'none';
+        lucide.createIcons();
     }
+}
+
+function chooseUploadKind(kind) {
+    document.getElementById('upload-step1').style.display = 'none';
+    const step2 = document.getElementById('upload-step2');
+    step2.style.display = 'flex';
+
+    const title = document.getElementById('upload-step2-title');
+    const typeSelect = document.getElementById('att-type');
+    const fileInput = document.getElementById('att-file');
+
+    if (kind === 'image') {
+        title.textContent = '📷 Upload a Photo';
+        fileInput.accept = 'image/*';
+        typeSelect.innerHTML = ALL_ATT_TYPES
+            .filter(t => IMAGE_TYPES.includes(t.value))
+            .map(t => `<option value="${t.value}">${t.label}</option>`)
+            .join('');
+    } else {
+        title.textContent = '📄 Upload a Document';
+        fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv';
+        typeSelect.innerHTML = ALL_ATT_TYPES
+            .filter(t => !IMAGE_TYPES.includes(t.value))
+            .map(t => `<option value="${t.value}">${t.label}</option>`)
+            .join('');
+    }
+    lucide.createIcons();
+}
+
+function goBackToStep1() {
+    document.getElementById('upload-step2').style.display = 'none';
+    document.getElementById('upload-step1').style.display = 'block';
+    // reset file pick
+    const fi = document.getElementById('att-file');
+    if (fi) fi.value = '';
+    const lbl = document.getElementById('file-label-text');
+    if (lbl) lbl.textContent = 'Tap to choose file';
+    const ul = document.getElementById('file-upload-label');
+    if (ul) ul.classList.remove('has-file');
+    const bu = document.getElementById('btn-upload');
+    if (bu) bu.disabled = true;
+    lucide.createIcons();
 }
 
 function fileSelected(input) {
     const label = document.getElementById('file-label-text');
     const btn = document.getElementById('btn-upload');
     const uploadLabel = document.getElementById('file-upload-label');
+    const sizeErr = document.getElementById('att-size-error');
+    const MAX_BYTES = 1 * 1024 * 1024; // 1 MB — matches server limit
+
     if (input.files && input.files[0]) {
-        label.textContent = input.files[0].name;
+        const file = input.files[0];
+        if (file.size > MAX_BYTES) {
+            const mb = (file.size / (1024 * 1024)).toFixed(1);
+            sizeErr.textContent = `\u26a0\ufe0f File is ${mb} MB — maximum allowed size is 1 MB.`;
+            sizeErr.style.display = 'block';
+            label.textContent = 'Tap to choose file';
+            uploadLabel.classList.remove('has-file');
+            btn.disabled = true;
+            input.value = '';
+            return;
+        }
+        sizeErr.style.display = 'none';
+        label.textContent = file.name;
         uploadLabel.classList.add('has-file');
         btn.disabled = false;
     } else {
-        label.textContent = 'Tap to choose file or take photo';
+        sizeErr.style.display = 'none';
+        label.textContent = 'Tap to choose file';
         uploadLabel.classList.remove('has-file');
         btn.disabled = true;
     }

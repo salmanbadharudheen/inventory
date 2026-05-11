@@ -1,9 +1,11 @@
 import API from "../config/api";
 import type {
+  AssetAttachment,
   AssetCreatePayload,
   AssetCreateResponse,
   AssetDetail,
   AssetListResponse,
+  AttachmentType,
   CategoryItem,
   LookupItem,
 } from "../types/api";
@@ -14,15 +16,10 @@ import { authFetch } from "./auth-api";
 export async function createAsset(
   payload: AssetCreatePayload
 ): Promise<AssetCreateResponse> {
-  let res: Response;
-  try {
-    res = await authFetch(API.ASSETS.CREATE, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  } catch (err: any) {
-    throw new Error(err.message || "Network error. Please check your connection.");
-  }
+  const res = await authFetch(API.ASSETS.CREATE, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     // Flatten DRF field errors into a readable string
@@ -49,12 +46,7 @@ export async function listAssets(params?: {
   if (params?.category) q.set("category", String(params.category));
   if (params?.search) q.set("search", params.search);
   const url = `${API.ASSETS.LIST}${q.toString() ? "?" + q.toString() : ""}`;
-  let res: Response;
-  try {
-    res = await authFetch(url);
-  } catch (err: any) {
-    throw new Error(err.message || "Network error");
-  }
+  const res = await authFetch(url);
   if (!res.ok) throw new Error("Failed to fetch assets");
   return res.json();
 }
@@ -63,12 +55,7 @@ export async function lookupAssetByTag(
   assetTag: string
 ): Promise<AssetDetail> {
   const url = `${API.ASSETS.LOOKUP}?asset_tag=${encodeURIComponent(assetTag)}`;
-  let res: Response;
-  try {
-    res = await authFetch(url);
-  } catch (err: any) {
-    throw new Error(err.message || "Network error");
-  }
+  const res = await authFetch(url);
   if (!res.ok) {
     if (res.status === 404) throw new Error("Asset not found");
     const err = await res.json().catch(() => ({}));
@@ -79,12 +66,7 @@ export async function lookupAssetByTag(
 
 export async function getAssetDetail(id: string): Promise<AssetDetail> {
   const url = `${API.ASSETS.DETAIL}${id}/`;
-  let res: Response;
-  try {
-    res = await authFetch(url);
-  } catch (err: any) {
-    throw new Error(err.message || "Network error");
-  }
+  const res = await authFetch(url);
   if (!res.ok) {
     if (res.status === 404) throw new Error("Asset not found");
     throw new Error("Failed to fetch asset details");
@@ -92,10 +74,7 @@ export async function getAssetDetail(id: string): Promise<AssetDetail> {
   return res.json();
 }
 
-/* ── Lookups (with in-memory cache) ── */
-
-const lookupCache = new Map<string, { data: any[]; ts: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+/* ── Lookups ── */
 
 async function fetchLookup<T = LookupItem>(
   path: string,
@@ -103,27 +82,9 @@ async function fetchLookup<T = LookupItem>(
 ): Promise<T[]> {
   const q = new URLSearchParams(params);
   const url = `${path}${q.toString() ? "?" + q.toString() : ""}`;
-  const cacheKey = url;
-
-  const cached = lookupCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return cached.data as T[];
-  }
-
-  try {
-    const res = await authFetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    const arr = Array.isArray(data) ? data : [];
-    lookupCache.set(cacheKey, { data: arr, ts: Date.now() });
-    return arr;
-  } catch {
-    return [];
-  }
-}
-
-export function clearLookupCache() {
-  lookupCache.clear();
+  const res = await authFetch(url);
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export const getCategories = () =>
@@ -172,3 +133,39 @@ export const getDepartments = (branchId?: number) =>
     API.LOOKUPS.DEPARTMENTS,
     branchId ? { branch: String(branchId) } : undefined
   );
+
+/* ── Asset Attachments ── */
+
+export async function listAttachments(assetId: string): Promise<AssetAttachment[]> {
+  const url = `${API.ASSETS.ATTACHMENTS}${assetId}/attachments/`;
+  const res = await authFetch(url);
+  if (!res.ok) throw new Error("Failed to fetch attachments");
+  return res.json();
+}
+
+export async function uploadAttachment(
+  assetId: string,
+  file: { uri: string; name: string; type: string },
+  attachmentType: AttachmentType,
+  description?: string
+): Promise<AssetAttachment> {
+  const url = `${API.ASSETS.ATTACHMENTS}${assetId}/attachments/`;
+  const form = new FormData();
+  // React Native FormData accepts objects with uri/name/type
+  form.append("file", { uri: file.uri, name: file.name, type: file.type } as any);
+  form.append("attachment_type", attachmentType);
+  if (description) form.append("description", description);
+
+  const res = await authFetch(url, { method: "POST", body: form });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? "Upload failed");
+  }
+  return res.json();
+}
+
+export async function deleteAttachment(assetId: string, attachmentId: number): Promise<void> {
+  const url = `${API.ASSETS.ATTACHMENTS}${assetId}/attachments/${attachmentId}/`;
+  const res = await authFetch(url, { method: "DELETE" });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete attachment");
+}
