@@ -1,235 +1,400 @@
 {% extends 'base.html' %}
-
 {% block page_title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Asset Transfer{% endblock %}
-
 {% block content %}
 <style>
 :root {
-  --primary: #6366f1; --primary-dark: #4f46e5; --primary-light: #eef2ff; --primary-border: #c7d2fe;
-  --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-300: #d1d5db;
-  --gray-400: #9ca3af; --gray-600: #4b5563; --gray-700: #374151; --gray-900: #111827;
-  --green: #10b981; --green-light: #f0fdf4; --green-border: #bbf7d0;
-  --red: #dc2626; --red-light: #fef2f2;
-  --radius: 12px; --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
+  --p: #6366f1; --pd: #4f46e5; --pl: #eef2ff; --pb: #c7d2fe;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g300:#d1d5db;--g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g700:#374151;--g900:#111827;
+  --grn:#10b981;--grnl:#f0fdf4;--grnb:#bbf7d0;
+  --red:#dc2626;--redl:#fef2f2;
+  --r:12px; --sh:0 1px 4px rgba(0,0,0,.07);
 }
-.tf-page { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; font-family: 'Inter', system-ui, sans-serif; }
-.tf-back { display:inline-flex; align-items:center; gap:6px; color:var(--primary); text-decoration:none; font-size:13px; font-weight:600; padding:4px 8px; border-radius:6px; margin-bottom:10px; transition:background .15s; }
-.tf-back:hover { background:var(--primary-light); }
-.tf-title { font-size:22px; font-weight:700; color:var(--gray-900); margin:0 0 3px; }
-.tf-subtitle { font-size:13px; color:var(--gray-400); margin:0 0 20px; }
-.tf-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius); padding:22px; margin-bottom:14px; box-shadow:var(--shadow-sm); }
-.tf-card-title { font-size:14px; font-weight:700; color:var(--gray-900); margin:0 0 14px; }
+*,*::before,*::after{box-sizing:border-box}
+.page{max-width:900px;margin:0 auto;padding:24px 16px 60px;font-family:'Inter',system-ui,sans-serif;}
+/* Header */
+.pg-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:24px;}
+.pg-back{display:inline-flex;align-items:center;gap:5px;color:var(--p);text-decoration:none;font-size:12px;font-weight:600;padding:5px 9px;border-radius:6px;border:1px solid var(--pb);background:var(--pl);transition:all .15s;white-space:nowrap;}
+.pg-back:hover{background:#dde4fd;}
+.pg-info{flex:1;}
+.pg-title{font-size:20px;font-weight:700;color:var(--g900);margin:0 0 2px;}
+.pg-sub{font-size:13px;color:var(--g400);margin:0;}
+/* Steps indicator */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:22px;}
+.step{display:flex;align-items:center;gap:8px;flex:1;}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.step.done .step-dot{background:var(--grn);color:#fff;}
+.step.active .step-dot{background:var(--p);color:#fff;box-shadow:0 0 0 3px var(--pl);}
+.step.idle .step-dot{background:var(--g200);color:var(--g500);}
+.step-label{font-size:12px;font-weight:600;color:var(--g600);}
+.step.active .step-label{color:var(--p);}
+.step-line{flex:1;height:2px;background:var(--g200);margin:0 6px;}
+.step.done .step-line{background:var(--grn);}
+/* Card */
+.card{background:#fff;border:1px solid var(--g200);border-radius:var(--r);margin-bottom:14px;box-shadow:var(--sh);overflow:hidden;}
+.card-head{display:flex;align-items:center;gap:10px;padding:14px 18px 12px;border-bottom:1px solid var(--g100);}
+.card-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.card-icon.purple{background:var(--pl);}
+.card-icon.blue{background:#eff6ff;}
+.card-icon.green{background:var(--grnl);}
+.card-ttl{font-size:14px;font-weight:700;color:var(--g900);flex:1;}
+.card-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--p);color:#fff;}
+.card-body{padding:16px 18px;}
 /* Search */
-.tf-search-bar { display:flex; gap:8px; margin-bottom:10px; }
-.tf-search-input { flex:1; padding:10px 14px; border:1px solid var(--gray-200); border-radius:10px; font-size:14px; outline:none; transition:border-color .15s,box-shadow .15s; }
-.tf-search-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
-/* Asset list */
-.tf-asset-list { border:1px solid var(--gray-200); border-radius:10px; overflow:hidden; max-height:300px; overflow-y:auto; }
-.tf-asset-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--gray-100); cursor:pointer; transition:background .1s; }
-.tf-asset-item:last-child { border-bottom:none; }
-.tf-asset-item:hover { background:var(--primary-light); }
-.tf-asset-item.checked { background:var(--green-light); }
-.tf-asset-item input[type=checkbox] { accent-color:var(--primary); width:16px; height:16px; flex-shrink:0; cursor:pointer; }
-.tf-asset-tag  { font-size:13px; font-weight:700; color:var(--gray-900); min-width:110px; }
-.tf-asset-name { font-size:13px; color:var(--gray-600); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.tf-asset-meta { font-size:11.5px; color:var(--gray-400); white-space:nowrap; }
-.tf-asset-empty { text-align:center; padding:28px; color:var(--gray-400); font-size:13px; }
-.tf-selected-count { font-size:13px; color:var(--primary); font-weight:600; margin-top:8px; min-height:18px; }
-/* Form fields */
-.tf-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.tf-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
-.tf-grid.col1  { grid-template-columns:1fr; }
-@media(max-width:600px){ .tf-grid,.tf-grid.cols3{ grid-template-columns:1fr; } }
-.tf-field { display:flex; flex-direction:column; gap:4px; }
-.tf-label { font-size:12px; font-weight:600; color:var(--gray-700); }
-.tf-divider { display:flex; align-items:center; gap:10px; margin:16px 0 12px; color:var(--gray-400); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
-.tf-divider::before,.tf-divider::after { content:''; flex:1; height:1px; background:var(--gray-200); }
-.tf-control { padding:9px 11px; border:1px solid var(--gray-200); border-radius:8px; font-size:13px; background:#fff; color:var(--gray-900); outline:none; transition:border-color .15s,box-shadow .15s; width:100%; box-sizing:border-box; }
-.tf-control:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(99,102,241,.1); }
-textarea.tf-control { resize:vertical; min-height:64px; }
-/* Actions */
-.tf-actions { display:flex; gap:10px; margin-top:10px; }
-.tf-btn-submit { flex:1; padding:12px 18px; background:var(--primary); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; transition:background .2s; }
-.tf-btn-submit:hover { background:var(--primary-dark); }
-.tf-btn-cancel { padding:12px 20px; background:var(--gray-100); color:var(--gray-700); border:1px solid var(--gray-200); border-radius:10px; font-size:13px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; transition:background .15s; }
-.tf-btn-cancel:hover { background:var(--gray-200); }
-.tf-error { background:var(--red-light); border:1px solid #fca5a5; color:#b91c1c; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:13px; }
+.search-row{display:flex;gap:8px;margin-bottom:12px;}
+.search-wrap{position:relative;flex:1;}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--g400);}
+.search-in{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--g200);border-radius:8px;font-size:13px;outline:none;transition:all .15s;background:#fafafa;}
+.search-in:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(99,102,241,.1);background:#fff;}
+.btn-load{padding:9px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:12px;font-weight:600;color:var(--g600);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.btn-load:hover{background:var(--g100);}
+/* Asset results */
+.asset-results{border:1px solid var(--g200);border-radius:10px;overflow:hidden;max-height:280px;overflow-y:auto;}
+.a-item{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--g100);cursor:pointer;transition:background .1s;}
+.a-item:last-child{border-bottom:none;}
+.a-item:hover{background:var(--g50);}
+.a-item.sel{background:var(--pl);}
+.a-item input[type=checkbox]{accent-color:var(--p);width:15px;height:15px;cursor:pointer;}
+.a-main{display:flex;align-items:baseline;gap:7px;min-width:0;}
+.a-tag{font-size:12px;font-weight:700;color:var(--g900);flex-shrink:0;}
+.a-name{font-size:13px;color:var(--g600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.a-meta{font-size:11px;color:var(--g400);white-space:nowrap;}
+.a-empty{text-align:center;padding:30px 16px;color:var(--g400);font-size:13px;}
+.a-empty svg{display:block;margin:0 auto 8px;opacity:.35;}
+/* Selected chips */
+.sel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:0;}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px 4px 10px;background:var(--pl);border:1px solid var(--pb);border-radius:20px;font-size:12px;font-weight:600;color:var(--p);}
+.chip-x{cursor:pointer;color:var(--pb);display:flex;align-items:center;transition:color .1s;}
+.chip-x:hover{color:var(--p);}
+.sel-empty{font-size:12px;color:var(--g400);padding:4px 0;}
+/* Grid */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fgrid.g3{grid-template-columns:1fr 1fr 1fr;}
+.fgrid.g1{grid-template-columns:1fr;}
+@media(max-width:640px){.fgrid,.fgrid.g3{grid-template-columns:1fr;}}
+.frow{display:flex;flex-direction:column;gap:4px;}
+.flbl{font-size:11.5px;font-weight:600;color:var(--g700);letter-spacing:.01em;}
+.fctl{padding:9px 11px;border:1px solid var(--g200);border-radius:8px;font-size:13px;background:#fff;color:var(--g900);outline:none;transition:all .15s;width:100%;}
+.fctl:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+textarea.fctl{resize:vertical;min-height:70px;}
+.divider{display:flex;align-items:center;gap:8px;margin:14px 0 10px;font-size:11px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--g200);}
+/* Mismatch banner */
+.warn-banner{display:none;margin-top:8px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#78350f;}
+.warn-banner b{color:#92400e;}
+/* Footer */
+.form-foot{position:sticky;bottom:0;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);border-top:1px solid var(--g200);padding:12px 18px;margin:0 -16px;display:flex;align-items:center;gap:10px;}
+.btn-cancel{padding:10px 18px;background:var(--g100);color:var(--g700);border:1px solid var(--g200);border-radius:9px;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;transition:all .15s;}
+.btn-cancel:hover{background:var(--g200);}
+.btn-submit{flex:1;max-width:220px;padding:11px 20px;background:var(--p);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:7px;}
+.btn-submit:hover{background:var(--pd);}
+.btn-submit:disabled{background:var(--g300);cursor:not-allowed;}
+.sel-summary{flex:1;font-size:12px;color:var(--g500);}
+.sel-summary b{color:var(--p);}
+.err-box{background:var(--redl);border:1px solid #fca5a5;color:#b91c1c;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;}
 </style>
 
-<div class="tf-page">
-  <a href="{% url 'transfer-list' %}" class="tf-back">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to Transfers
-  </a>
-  <h1 class="tf-title">{% if form.instance.pk %}Edit Transfer{% else %}New Asset Transfer{% endif %}</h1>
-  <p class="tf-subtitle">Search and select assets, then fill in the destination details</p>
+<div class="page">
+
+  <!-- Header -->
+  <div class="pg-head">
+    <a href="{% url 'transfer-list' %}" class="pg-back">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Transfers
+    </a>
+    <div class="pg-info">
+      <h1 class="pg-title">{% if form.instance.pk %}Edit Transfer{% else %}New Asset Transfer{% endif %}</h1>
+      <p class="pg-sub">Pick assets, set destination, then submit</p>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="step1-ind">
+      <div class="step-dot">1</div>
+      <div class="step-label">Assets</div>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step idle" id="step2-ind">
+      <div class="step-dot">2</div>
+      <div class="step-label">Destination</div>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step idle" id="step3-ind">
+      <div class="step-dot">3</div>
+      <div class="step-label">Details</div>
+    </div>
+  </div>
 
   {% if form.non_field_errors %}
-  <div class="tf-error">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+  <div class="err-box">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
   {% endif %}
 
   <form method="post" id="tf-form">
     {% csrf_token %}
     <input type="hidden" name="asset_ids" id="id_asset_ids" value="">
 
-    <!-- Assets -->
-    <div class="tf-card">
-      <p class="tf-card-title">Select Assets</p>
-      <div class="tf-search-bar">
-        <input type="text" id="asset-search" class="tf-search-input" placeholder="Search by tag, name, serial number..." autocomplete="off" />
+    <!-- ── SECTION 1: Assets ─────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon purple">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+        </div>
+        <span class="card-ttl">Select Assets</span>
+        <span class="card-badge" id="badge-count" style="display:none">0</span>
       </div>
-      <div class="tf-asset-list" id="asset-list">
-        <div class="tf-asset-empty" id="list-placeholder">Start typing to search assets...</div>
-      </div>
-      <div class="tf-selected-count" id="selected-count"></div>
-    </div>
+      <div class="card-body">
+        <div class="search-row">
+          <div class="search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="asset-search" class="search-in" placeholder="Search by tag, name, serial number…" autocomplete="off">
+          </div>
+          <button type="button" class="btn-load" id="btn-load-all">Browse All</button>
+        </div>
 
-    <!-- Destination -->
-    <div class="tf-card">
-      <p class="tf-card-title">Destination</p>
+        <div class="asset-results" id="asset-list">
+          <div class="a-empty" id="list-placeholder">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Type to search, or click <strong>Browse All</strong>
+          </div>
+        </div>
 
-      <div class="tf-divider" style="justify-content:space-between;">
-        <span style="display:flex;align-items:center;gap:10px;flex:1;">
-          <span style="flex:1;height:1px;background:var(--gray-200);"></span>
-          Location
-          <span style="flex:1;height:1px;background:var(--gray-200);"></span>
-        </span>
-        <button type="button" id="btn-general-location" title="Clear all location fields" style="margin-left:10px;padding:4px 12px;font-size:11px;font-weight:600;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;" onmouseover="this.style.background='#fef9c3';this.style.color='#92400e';this.style.borderColor='#fde68a';" onmouseout="this.style.background='#f9fafb';this.style.color='#6b7280';this.style.borderColor='#e5e7eb';">
-          &#10005; Set as General
-        </button>
-      </div>
-      <div class="tf-grid">
-        <div class="tf-field"><label class="tf-label">Region</label>{{ form.transferred_to_region }}</div>
-        <div class="tf-field"><label class="tf-label">Site</label>{{ form.transferred_to_site }}</div>
-      </div>
-      <div id="tf-location-mismatch-banner" style="display:none; margin-top:8px; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px;">
-        <div style="display:flex; align-items:flex-start; gap:10px;">
-          <span style="font-size:17px; line-height:1.2;">&#9888;</span>
-          <div>
-            <strong style="color:#92400e; font-size:13px;">Location mismatch</strong>
-            <p id="tf-location-mismatch-msg" style="margin:3px 0 0; color:#78350f; font-size:13px;"></p>
-            <p style="margin:3px 0 0; color:#92400e; font-size:12px;">Please pick a valid site or click <strong>&#10005; Set as General</strong> to clear all location fields.</p>
+        <!-- Selected chips -->
+        <div style="margin-top:12px;">
+          <div style="font-size:11.5px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Selected</div>
+          <div class="sel-chips" id="sel-chips">
+            <span class="sel-empty" id="no-sel-msg">No assets selected yet</span>
           </div>
         </div>
       </div>
-      <div class="tf-grid cols3" style="margin-top:12px;">
-        <div class="tf-field"><label class="tf-label">Building</label>{{ form.transferred_to_building }}</div>
-        <div class="tf-field"><label class="tf-label">Floor</label>{{ form.transferred_to_floor }}</div>
-        <div class="tf-field"><label class="tf-label">Room</label>{{ form.transferred_to_room }}</div>
-      </div>
-      <div class="tf-grid col1" style="margin-top:12px;">
-        <div class="tf-field"><label class="tf-label">Location</label>{{ form.transferred_to_location }}</div>
-      </div>
+    </div>
 
-      <div class="tf-divider">Assignment</div>
-      <div class="tf-grid">
-        <div class="tf-field"><label class="tf-label">Company</label>{{ form.transferred_to_company }}</div>
-        <div class="tf-field"><label class="tf-label">Department</label>{{ form.transferred_to_department }}</div>
+    <!-- ── SECTION 2: Destination ─────────────────────────────────── -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon blue">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <span class="card-ttl">Destination</span>
+        <button type="button" id="btn-general-location" style="padding:5px 11px;font-size:11px;font-weight:600;color:var(--g500);background:var(--g50);border:1px solid var(--g200);border-radius:6px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#fef9c3';this.style.color='#92400e';this.style.borderColor='#fde68a';" onmouseout="this.style.background='var(--g50)';this.style.color='var(--g500)';this.style.borderColor='var(--g200)';">✕ Clear Location</button>
       </div>
-      <div class="tf-grid col1" style="margin-top:12px;">
-        <div class="tf-field"><label class="tf-label">Custodian</label>{{ form.transferred_to_custodian }}</div>
-      </div>
+      <div class="card-body">
 
-      <div class="tf-divider">Details</div>
-      <div class="tf-grid">
-        <div class="tf-field"><label class="tf-label">Transfer No.</label>{{ form.transfer_no }}</div>
-        <div class="tf-field"><label class="tf-label">Movement Reason</label>{{ form.movement_reason }}</div>
-      </div>
-      <div class="tf-grid col1" style="margin-top:12px;">
-        <div class="tf-field"><label class="tf-label">Description</label>{{ form.transfer_description }}</div>
+        <div class="divider">Location</div>
+        <div class="fgrid">
+          <div class="frow"><label class="flbl">Region</label>{{ form.transferred_to_region }}</div>
+          <div class="frow"><label class="flbl">Site</label>{{ form.transferred_to_site }}</div>
+        </div>
+
+        <div class="warn-banner" id="tf-location-mismatch-banner">
+          ⚠️ <b>Location mismatch —</b> <span id="tf-location-mismatch-msg"></span>
+          Click <strong>✕ Clear Location</strong> to reset.
+        </div>
+
+        <div class="fgrid g3" style="margin-top:12px;">
+          <div class="frow"><label class="flbl">Building</label>{{ form.transferred_to_building }}</div>
+          <div class="frow"><label class="flbl">Floor</label>{{ form.transferred_to_floor }}</div>
+          <div class="frow"><label class="flbl">Room</label>{{ form.transferred_to_room }}</div>
+        </div>
+        <div class="fgrid g1" style="margin-top:12px;">
+          <div class="frow"><label class="flbl">Location</label>{{ form.transferred_to_location }}</div>
+        </div>
+
+        <div class="divider">Assignment</div>
+        <div class="fgrid">
+          <div class="frow"><label class="flbl">Company</label>{{ form.transferred_to_company }}</div>
+          <div class="frow"><label class="flbl">Department</label>{{ form.transferred_to_department }}</div>
+        </div>
+        <div class="fgrid g1" style="margin-top:12px;">
+          <div class="frow"><label class="flbl">Custodian</label>{{ form.transferred_to_custodian }}</div>
+        </div>
       </div>
     </div>
 
-    <div class="tf-actions">
-      <a href="{% url 'transfer-list' %}" class="tf-btn-cancel">Cancel</a>
-      <button type="submit" class="tf-btn-submit" id="tf-submit-btn">
+    <!-- ── SECTION 3: Details ─────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-icon green">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <span class="card-ttl">Transfer Details</span>
+      </div>
+      <div class="card-body">
+        <div class="fgrid">
+          <div class="frow"><label class="flbl">Transfer No. <span style="font-weight:400;color:var(--g400)">(optional)</span></label>{{ form.transfer_no }}</div>
+          <div class="frow"><label class="flbl">Movement Reason</label>{{ form.movement_reason }}</div>
+        </div>
+        <div class="fgrid" style="margin-top:12px;">
+          <div class="frow"><label class="flbl">Requester Name <span style="font-weight:400;color:var(--g400)">(optional)</span></label>{{ form.requester_name }}</div>
+        </div>
+        <div class="fgrid g1" style="margin-top:12px;">
+          <div class="frow"><label class="flbl">Description <span style="font-weight:400;color:var(--g400)">(optional)</span></label>{{ form.transfer_description }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Footer -->
+    <div class="form-foot">
+      <div class="sel-summary" id="foot-summary">No assets selected</div>
+      <a href="{% url 'transfer-list' %}" class="btn-cancel">Cancel</a>
+      <button type="submit" class="btn-submit" id="tf-submit-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         {% if form.instance.pk %}Update Transfer{% else %}Submit Transfer{% endif %}
       </button>
     </div>
+
   </form>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+(function(){
   var SEARCH_URL = '{% url "ajax-search-assets" %}';
+  var hiddenInput = document.getElementById('id_asset_ids');
+  var searchIn    = document.getElementById('asset-search');
+  var assetList   = document.getElementById('asset-list');
+  var placeholder = document.getElementById('list-placeholder');
+  var selChips    = document.getElementById('sel-chips');
+  var noSelMsg    = document.getElementById('no-sel-msg');
+  var footSummary = document.getElementById('foot-summary');
+  var badgeCount  = document.getElementById('badge-count');
+  var submitBtn   = document.getElementById('tf-submit-btn');
 
-  var hiddenAsset  = document.getElementById('id_asset_ids');
-  var searchInput  = document.getElementById('asset-search');
-  var assetList    = document.getElementById('asset-list');
-  var placeholder  = document.getElementById('list-placeholder');
-  var countEl      = document.getElementById('selected-count');
-  var submitBtn    = document.getElementById('tf-submit-btn');
+  var checked = {};  // id -> asset obj
+  var lastAssets = [];
 
-  var allAssets    = [];   // loaded from server
-  var checked      = {};   // id -> asset obj
-
-  // Apply tf-control to all form fields
-  document.querySelectorAll('#tf-form select, #tf-form input:not([type=hidden]), #tf-form textarea').forEach(function(el){
-    el.classList.add('tf-control');
+  // Apply form control styles
+  document.querySelectorAll('#tf-form select,#tf-form input:not([type=hidden]),#tf-form textarea').forEach(function(el){
+    el.classList.add('fctl');
   });
 
-  function updateCount() {
-    var n = Object.keys(checked).length;
-    countEl.textContent = n ? n + ' asset' + (n !== 1 ? 's' : '') + ' selected' : '';
+  // ── Selection helpers ──────────────────────────────────
+  function syncAll(){
+    var ids = Object.keys(checked);
+    hiddenInput.value = ids.join(',');
+    // badge
+    if(ids.length){ badgeCount.textContent=ids.length; badgeCount.style.display=''; }
+    else { badgeCount.style.display='none'; }
+    // footer
+    if(ids.length){
+      footSummary.innerHTML = '<b>'+ids.length+'</b> asset'+(ids.length!==1?'s':'')+' selected';
+    } else {
+      footSummary.textContent='No assets selected';
+    }
+    // chips
+    renderChips();
+    // re-mark list items
+    assetList.querySelectorAll('.a-item').forEach(function(row){
+      var id=row.dataset.id;
+      var cb=row.querySelector('input[type=checkbox]');
+      if(checked[id]){ row.classList.add('sel'); if(cb) cb.checked=true; }
+      else            { row.classList.remove('sel'); if(cb) cb.checked=false; }
+    });
+    // steps
+    updateSteps();
   }
 
-  function syncHidden() {
-    if (hiddenAsset) hiddenAsset.value = Object.keys(checked).join(',');
+  function toggle(a,on){
+    if(on) checked[a.id]=a; else delete checked[a.id];
+    syncAll();
   }
 
-  function renderList(assets) {
-    assetList.innerHTML = '';
-    if (!assets.length) {
-      assetList.innerHTML = '<div class="tf-asset-empty">No assets found.</div>';
+  function renderChips(){
+    selChips.innerHTML='';
+    var ids=Object.keys(checked);
+    if(!ids.length){ selChips.appendChild(noSelMsg); return; }
+    ids.forEach(function(id){
+      var a=checked[id];
+      var chip=document.createElement('div');
+      chip.className='chip';
+      chip.innerHTML=(a.asset_tag||'#'+id)+
+        '<span class="chip-x" data-id="'+id+'" title="Remove">'+
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+        '</span>';
+      chip.querySelector('.chip-x').addEventListener('click',function(){
+        delete checked[id]; syncAll();
+      });
+      selChips.appendChild(chip);
+    });
+  }
+
+  function updateSteps(){
+    var hasAssets=Object.keys(checked).length>0;
+    // step 1 always active/done
+    var s1=document.getElementById('step1-ind');
+    var s2=document.getElementById('step2-ind');
+    var s3=document.getElementById('step3-ind');
+    var l1=document.getElementById('line1');
+    var l2=document.getElementById('line2');
+    if(hasAssets){
+      s1.className='step done'; l1.style.background='var(--grn)';
+      s2.className='step active';
+      s3.className='step idle'; l2.style.background='';
+    } else {
+      s1.className='step active'; l1.style.background='';
+      s2.className='step idle';
+      s3.className='step idle'; l2.style.background='';
+    }
+  }
+
+  // ── Render asset list ──────────────────────────────────
+  function renderList(assets){
+    assetList.innerHTML='';
+    if(!assets.length){
+      assetList.innerHTML='<div class="a-empty"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>No assets found.</div>';
       return;
     }
-    assets.forEach(function(a) {
-      var row = document.createElement('div');
-      row.className = 'tf-asset-item' + (checked[a.id] ? ' checked' : '');
-      row.dataset.id = a.id;
-      var cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.checked = !!checked[a.id];
-      var tag  = document.createElement('span'); tag.className = 'tf-asset-tag';  tag.textContent = a.asset_tag;
-      var name = document.createElement('span'); name.className = 'tf-asset-name'; name.textContent = a.name;
-      var meta = document.createElement('span'); meta.className = 'tf-asset-meta'; meta.textContent = [a.category, a.department].filter(Boolean).join(' / ');
-      row.appendChild(cb); row.appendChild(tag); row.appendChild(name); row.appendChild(meta);
-      row.addEventListener('click', function(e) {
-        if (e.target === cb) return;
-        cb.checked = !cb.checked;
-        toggle(a, cb.checked, row);
+    assets.forEach(function(a){
+      var row=document.createElement('div');
+      row.className='a-item'+(checked[a.id]?' sel':'');
+      row.dataset.id=a.id;
+      var cb=document.createElement('input');
+      cb.type='checkbox'; cb.checked=!!checked[a.id];
+      var main=document.createElement('div'); main.className='a-main';
+      var tag=document.createElement('span'); tag.className='a-tag'; tag.textContent=a.asset_tag||('ID '+a.id);
+      var nm=document.createElement('span'); nm.className='a-name'; nm.textContent=a.name||'';
+      main.appendChild(tag); main.appendChild(nm);
+      var meta=document.createElement('span'); meta.className='a-meta';
+      meta.textContent=[a.category,a.location||a.department].filter(Boolean).join(' · ');
+      row.appendChild(cb); row.appendChild(main); row.appendChild(meta);
+      row.addEventListener('click',function(e){
+        if(e.target===cb) return;
+        cb.checked=!cb.checked; toggle(a,cb.checked);
       });
-      cb.addEventListener('change', function() { toggle(a, cb.checked, row); });
+      cb.addEventListener('change',function(){ toggle(a,cb.checked); });
       assetList.appendChild(row);
     });
   }
 
-  function toggle(a, on, row) {
-    if (on) { checked[a.id] = a; row.classList.add('checked'); }
-    else    { delete checked[a.id]; row.classList.remove('checked'); }
-    updateCount();
-    syncHidden();
-  }
-
-  var debounce = null;
-  searchInput.addEventListener('input', function() {
-    clearTimeout(debounce);
-    var q = this.value.trim();
-    if (!q) { assetList.innerHTML = ''; assetList.appendChild(placeholder); return; }
-    placeholder.textContent = 'Searching...';
-    debounce = setTimeout(function() {
-      fetch(SEARCH_URL + '?q=' + encodeURIComponent(q) + '&limit=50', { credentials: 'same-origin' })
-        .then(function(r){ return r.json(); })
-        .then(function(data) {
-          allAssets = data.assets || [];
-          renderList(allAssets);
+  // ── AJAX search ──────────────────────────────────────────
+  var debTimer=null;
+  searchIn.addEventListener('input',function(){
+    clearTimeout(debTimer);
+    var q=this.value.trim();
+    if(!q){ assetList.innerHTML=''; assetList.appendChild(placeholder); return; }
+    placeholder.textContent='Searching…';
+    debTimer=setTimeout(function(){
+      fetch(SEARCH_URL+'?q='+encodeURIComponent(q)+'&limit=50',{credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          lastAssets=d.assets||[];
+          renderList(lastAssets);
         })
-        .catch(function() {
-          assetList.innerHTML = '<div class="tf-asset-empty">Error loading assets.</div>';
-        });
-    }, 300);
+        .catch(function(){ assetList.innerHTML='<div class="a-empty">Error loading assets.</div>'; });
+    },280);
   });
 
-  // Cascading dropdowns
+  // Browse All
+  document.getElementById('btn-load-all').addEventListener('click',function(){
+    assetList.innerHTML='<div class="a-empty" style="padding:20px">Loading…</div>';
+    fetch(SEARCH_URL+'?q=&limit=100',{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        lastAssets=d.assets||[];
+        renderList(lastAssets);
+      })
+      .catch(function(){ assetList.innerHTML='<div class="a-empty">Error.</div>'; });
+  });
+
+  // ── Cascading location dropdowns ─────────────────────────
   var regionSel = document.getElementById('{{ form.transferred_to_region.id_for_label }}');
   var siteSel   = document.getElementById('{{ form.transferred_to_site.id_for_label }}');
   var buildSel  = document.getElementById('{{ form.transferred_to_building.id_for_label }}');
@@ -237,154 +402,105 @@ document.addEventListener('DOMContentLoaded', function () {
   var roomSel   = document.getElementById('{{ form.transferred_to_room.id_for_label }}');
   var locSel    = document.getElementById('{{ form.transferred_to_location.id_for_label }}');
 
-  // Capture initial selected values (edit mode)
-  var initSite     = siteSel   ? siteSel.value   : '';
-  var initBuilding = buildSel  ? buildSel.value  : '';
-  var initFloor    = floorSel  ? floorSel.value  : '';
-  var initRoom     = roomSel   ? roomSel.value   : '';
-  var initLoc      = locSel    ? locSel.value    : '';
+  var initSite=siteSel?siteSel.value:'', initBuilding=buildSel?buildSel.value:'',
+      initFloor=floorSel?floorSel.value:'', initRoom=roomSel?roomSel.value:'',
+      initLoc=locSel?locSel.value:'';
 
-  function resetSel(s) { if (s) { s.innerHTML = '<option value="">---------</option>'; } }
-  function ajaxList(url) { return fetch(url, { credentials:'same-origin' }).then(function(r){ return r.json(); }).then(function(d){ return Array.isArray(d) ? d : (d.results || []); }); }
-
-  function populateSel(sel, items, selectedId) {
-    if (!sel) return;
-    sel.innerHTML = '<option value="">---------</option>';
-    items.forEach(function(item) {
-      var opt = new Option(item.name, item.id);
-      if (String(item.id) === String(selectedId)) opt.selected = true;
-      sel.appendChild(opt);
-    });
+  function resetSel(s){if(s)s.innerHTML='<option value="">---------</option>';}
+  function ajaxList(url){return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){return Array.isArray(d)?d:(d.results||[]);});}
+  function populateSel(sel,items,selId){
+    if(!sel)return;
+    sel.innerHTML='<option value="">---------</option>';
+    items.forEach(function(item){var o=new Option(item.name,item.id);if(String(item.id)===String(selId))o.selected=true;sel.appendChild(o);});
   }
-
-  function loadSites(regionId, selectId) {
-    resetSel(siteSel); resetSel(buildSel); resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
-    if (!regionId) return;
-    ajaxList('{% url "get-sites" %}?region_id=' + regionId).then(function(sites){
-      populateSel(siteSel, sites, selectId || '');
-      if (selectId) siteSel.dispatchEvent(new Event('change'));
-    });
+  function loadSites(regionId,selId){
+    resetSel(siteSel);resetSel(buildSel);resetSel(floorSel);resetSel(roomSel);resetSel(locSel);
+    if(!regionId)return;
+    ajaxList('{% url "get-sites" %}?region_id='+regionId).then(function(d){populateSel(siteSel,d,selId||'');if(selId)siteSel.dispatchEvent(new Event('change'));});
   }
-
-  function loadBuildings(siteId, selectId) {
-    resetSel(buildSel); resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
-    if (!siteId) return;
-    ajaxList('{% url "get-buildings-by-site" %}?site_id=' + siteId).then(function(buildings){
-      populateSel(buildSel, buildings, selectId || '');
-      if (selectId) buildSel.dispatchEvent(new Event('change'));
-    });
+  function loadBuildings(siteId,selId){
+    resetSel(buildSel);resetSel(floorSel);resetSel(roomSel);resetSel(locSel);
+    if(!siteId)return;
+    ajaxList('{% url "get-buildings-by-site" %}?site_id='+siteId).then(function(d){populateSel(buildSel,d,selId||'');if(selId)buildSel.dispatchEvent(new Event('change'));});
   }
-
-  function loadFloors(buildingId, selectId) {
-    resetSel(floorSel); resetSel(roomSel);
-    if (!buildingId) return;
+  function loadFloors(buildId,selId){
+    resetSel(floorSel);resetSel(roomSel);
+    if(!buildId)return;
     Promise.all([
-      ajaxList('{% url "get-floors" %}?building_id=' + buildingId),
-      ajaxList('{% url "get-locations" %}?building_id=' + buildingId)
-    ]).then(function(results){
-      populateSel(floorSel, results[0], selectId || '');
-      populateSel(locSel, results[1], initLoc);
-      initLoc = '';
-      if (selectId) floorSel.dispatchEvent(new Event('change'));
+      ajaxList('{% url "get-floors" %}?building_id='+buildId),
+      ajaxList('{% url "get-locations" %}?building_id='+buildId)
+    ]).then(function(res){
+      populateSel(floorSel,res[0],selId||'');
+      populateSel(locSel,res[1],initLoc); initLoc='';
+      if(selId)floorSel.dispatchEvent(new Event('change'));
     });
   }
-
-  function loadRooms(floorId, selectId) {
+  function loadRooms(floorId,selId){
     resetSel(roomSel);
-    if (!floorId) return;
-    ajaxList('{% url "get-rooms" %}?floor_id=' + floorId).then(function(rooms){
-      populateSel(roomSel, rooms, selectId || '');
-    });
+    if(!floorId)return;
+    ajaxList('{% url "get-rooms" %}?floor_id='+floorId).then(function(d){populateSel(roomSel,d,selId||'');});
   }
 
-  regionSel && regionSel.addEventListener('change', function(){
-    var tfBanner = document.getElementById('tf-location-mismatch-banner');
-    if (tfBanner) tfBanner.style.display = 'none';
-    loadSites(this.value, '');
+  regionSel&&regionSel.addEventListener('change',function(){
+    document.getElementById('tf-location-mismatch-banner').style.display='none';
+    loadSites(this.value,'');
   });
-  siteSel && siteSel.addEventListener('change', function(){
-    loadBuildings(this.value, '');
-  });
-  buildSel && buildSel.addEventListener('change', function(){
-    loadFloors(this.value, '');
-  });
-  floorSel && floorSel.addEventListener('change', function(){
-    loadRooms(this.value, '');
-  });
+  siteSel&&siteSel.addEventListener('change',function(){loadBuildings(this.value,'');});
+  buildSel&&buildSel.addEventListener('change',function(){loadFloors(this.value,'');});
+  floorSel&&floorSel.addEventListener('change',function(){loadRooms(this.value,'');});
 
-  // Track which region is "current" so stale AJAX callbacks are ignored
-  var activeRegionVal = regionSel ? regionSel.value : '';
-  regionSel && regionSel.addEventListener('change', function(){
-    activeRegionVal = this.value;
-  }, true); // capture phase so this runs before loadSites
-
-  // On page load, re-populate cascading selects based on existing values (edit mode)
-  if (regionSel && regionSel.value) {
-    resetSel(siteSel); resetSel(buildSel); resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
-    var snapRegion = regionSel.value;
-    ajaxList('{% url "get-sites" %}?region_id=' + snapRegion).then(function(sites){
-      // Discard if user already changed region while AJAX was in flight
-      if (regionSel.value !== snapRegion) return;
-      populateSel(siteSel, sites, initSite);
-      // Detect mismatch: had a saved site but it's not in this region's list
-      if (initSite) {
-        var siteFound = sites.some(function(s){ return String(s.id) === String(initSite); });
-        if (!siteFound) {
-          // Clear initSite so the building/floor/room chain below does NOT fire for the wrong site
-          initSite = ''; initBuilding = ''; initFloor = ''; initRoom = ''; initLoc = '';
-          var tfBanner = document.getElementById('tf-location-mismatch-banner');
-          var tfMsg    = document.getElementById('tf-location-mismatch-msg');
-          if (tfBanner && tfMsg) {
-            var regionName = regionSel.options[regionSel.selectedIndex] ? regionSel.options[regionSel.selectedIndex].text : 'the selected region';
-            tfMsg.textContent = 'The previously saved Site does not belong to Region "' + regionName + '". It has been cleared.';
-            tfBanner.style.display = 'block';
-          }
+  // Page-load: restore cascading selects (edit mode)
+  if(regionSel&&regionSel.value){
+    var snapR=regionSel.value;
+    resetSel(siteSel);resetSel(buildSel);resetSel(floorSel);resetSel(roomSel);resetSel(locSel);
+    ajaxList('{% url "get-sites" %}?region_id='+snapR).then(function(sites){
+      if(regionSel.value!==snapR)return;
+      populateSel(siteSel,sites,initSite);
+      if(initSite){
+        var siteFound=sites.some(function(s){return String(s.id)===String(initSite);});
+        if(!siteFound){
+          initSite='';initBuilding='';initFloor='';initRoom='';initLoc='';
+          var banner=document.getElementById('tf-location-mismatch-banner');
+          document.getElementById('tf-location-mismatch-msg').textContent='The saved Site does not belong to Region "'+( regionSel.options[regionSel.selectedIndex]?regionSel.options[regionSel.selectedIndex].text:'selected')+'" — it has been cleared.';
+          if(banner)banner.style.display='block';
         }
       }
-      if (initSite) {
-        var snapSite = initSite;
-        ajaxList('{% url "get-buildings-by-site" %}?site_id=' + snapSite).then(function(buildings){
-          if (regionSel.value !== snapRegion) return;
-          populateSel(buildSel, buildings, initBuilding);
-          if (initBuilding) {
-            var snapBuilding = initBuilding;
+      if(initSite){
+        var snapS=initSite;
+        ajaxList('{% url "get-buildings-by-site" %}?site_id='+snapS).then(function(buildings){
+          if(regionSel.value!==snapR)return;
+          populateSel(buildSel,buildings,initBuilding);
+          if(initBuilding){
+            var snapB=initBuilding;
             Promise.all([
-              ajaxList('{% url "get-floors" %}?building_id=' + snapBuilding),
-              ajaxList('{% url "get-locations" %}?building_id=' + snapBuilding)
-            ]).then(function(results){
-              if (regionSel.value !== snapRegion) return;
-              populateSel(floorSel, results[0], initFloor);
-              populateSel(locSel, results[1], initLoc);
-              if (initFloor) {
-                ajaxList('{% url "get-rooms" %}?floor_id=' + initFloor).then(function(rooms){
-                  if (regionSel.value !== snapRegion) return;
-                  populateSel(roomSel, rooms, initRoom);
-                });
-              }
+              ajaxList('{% url "get-floors" %}?building_id='+snapB),
+              ajaxList('{% url "get-locations" %}?building_id='+snapB)
+            ]).then(function(res){
+              if(regionSel.value!==snapR)return;
+              populateSel(floorSel,res[0],initFloor);
+              populateSel(locSel,res[1],initLoc);
+              if(initFloor)ajaxList('{% url "get-rooms" %}?floor_id='+initFloor).then(function(rooms){if(regionSel.value!==snapR)return;populateSel(roomSel,rooms,initRoom);});
             });
           }
         });
       }
     });
   } else {
-    // No region selected: clear all downstream selects so nothing stale is submitted
-    resetSel(siteSel); resetSel(buildSel); resetSel(floorSel); resetSel(roomSel); resetSel(locSel);
+    resetSel(siteSel);resetSel(buildSel);resetSel(floorSel);resetSel(roomSel);resetSel(locSel);
   }
 
-  // "Set as General" button — clears all location fields
-  var btnGeneral = document.getElementById('btn-general-location');
-  btnGeneral && btnGeneral.addEventListener('click', function(){
-    [regionSel, siteSel, buildSel, floorSel, roomSel, locSel].forEach(function(sel){
-      if (sel) { sel.value = ''; resetSel(sel); }
-    });
-    // Also reset the initSite etc. so the page-load restore chain doesn't re-fire
-    initSite = ''; initBuilding = ''; initFloor = ''; initRoom = ''; initLoc = '';
+  // Clear location button
+  document.getElementById('btn-general-location').addEventListener('click',function(){
+    [regionSel,siteSel,buildSel,floorSel,roomSel,locSel].forEach(function(s){if(s){s.value='';resetSel(s);}});
+    initSite='';initBuilding='';initFloor='';initRoom='';initLoc='';
+    document.getElementById('tf-location-mismatch-banner').style.display='none';
   });
 
-  // On submit just sync hidden field
-  document.getElementById('tf-form').addEventListener('submit', function(){
-    syncHidden();
-  });
-});
+  // Submit sync
+  document.getElementById('tf-form').addEventListener('submit',function(){ syncAll(); });
+
+  // Initial sync
+  syncAll();
+})();
 </script>
 {% endblock %}
