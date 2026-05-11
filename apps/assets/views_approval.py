@@ -40,8 +40,8 @@ class CheckerOrAdminMixin(LoginRequiredMixin, UserPassesTestMixin):
         return redirect('dashboard')
 
 
-class AssetApprovalRequestCreateView(AdminOnlyMixin, CreateView):
-    """Create a new asset approval request (Admin only)"""
+class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
+    """Create a new asset approval request (any authenticated user)"""
     model = ApprovalRequest
     form_class = AssetApprovalRequestForm
     template_name = 'assets/approval_request_form.html'
@@ -87,18 +87,22 @@ class AssetApprovalRequestCreateView(AdminOnlyMixin, CreateView):
         return reverse('approval-request-list')
 
 
-class ApprovalRequestListView(CheckerOrAdminMixin, ListView):
-    """List approval requests for approver roles"""
+class ApprovalRequestListView(LoginRequiredMixin, ListView):
+    """List approval requests - approvers see all, others see their own"""
     model = ApprovalRequest
     template_name = 'assets/approval_request_list.html'
     context_object_name = 'approval_requests'
     paginate_by = 20
     
     def get_queryset(self):
-        # Admins see all requests in their organization
-        return ApprovalRequest.objects.filter(
-            organization=self.request.user.organization
+        user = self.request.user
+        base_qs = ApprovalRequest.objects.filter(
+            organization=user.organization
         ).order_by('-created_at')
+        # Approvers see all; others only see their own
+        if user.is_superuser or user.role in ['ADMIN', 'CHECKER', 'SENIOR_MANAGER']:
+            return base_qs
+        return base_qs.filter(requester=user)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
