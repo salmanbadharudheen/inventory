@@ -268,8 +268,9 @@ class AdminUserListView(AdminRequiredMixin, ListView):
         qs = User.objects.all().select_related('organization', 'branch', 'department').order_by('-date_joined')
         
         if self.request.user.is_superuser:
-            # Superuser sees all (owner portal)
-            pass
+            # When superuser is logged in as an org, filter to that org
+            if is_superuser_org_mode(self.request) and self.request.user.organization:
+                qs = qs.filter(organization=self.request.user.organization)
         else:
             org = getattr(self.request.user, 'organization', None)
             # Tenant isolation: non-superusers without an org see nobody.
