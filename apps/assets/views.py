@@ -641,7 +641,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                         else:
                             total_closing_value += asset.current_value
                         
-                        total_acc_dep += asset.accumulated_depreciation
+                        total_acc_dep += asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
                 
                 total_nbv = total_closing_value
             else:
@@ -690,7 +690,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                     cat_qs = queryset.filter(category_id=cat_id)
                     
                     cat_assets = list(cat_qs)
-                    total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+                    total_cat_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
                     
                     grouped_list.append({
                         'id': cat_id,
@@ -723,6 +723,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                     asset_dict.closing_value = asset.current_value
                 
                 asset_dict.period_depreciation = asset_dict.opening_value - asset_dict.closing_value
+                asset_dict.display_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
                 assets_with_values.append(asset_dict)
             
             context['assets'] = assets_with_values
@@ -4134,11 +4135,12 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
                 total_nbv += asset.current_value
-                total_acc_dep += asset.accumulated_depreciation
+                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -4179,7 +4181,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         for group in grouped_data:
             cat_id = group['category']
             cat_assets = list(queryset.filter(category_id=cat_id))
-            total_cat_dep = sum(a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
+            total_cat_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
             
             grouped_list.append({
                 'id': cat_id,
@@ -4320,11 +4322,12 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
                 total_nbv += asset.current_value
-                total_acc_dep += asset.accumulated_depreciation
+                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -4361,7 +4364,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         for department in grouped_data:
             department_id = department['department']
             department_assets = list(queryset.filter(department_id=department_id))
-            total_department_dep = sum(a.accumulated_depreciation for a in department_assets) if department_assets else Decimal('0')
+            total_department_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in department_assets) if department_assets else Decimal('0')
             
             grouped_list.append({
                 'id': department_id,
@@ -4500,11 +4503,12 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
                 total_nbv += asset.current_value
-                total_acc_dep += asset.accumulated_depreciation
+                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -4541,7 +4545,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         for location in grouped_data:
             location_id = location['location']
             location_assets = list(queryset.filter(location_id=location_id))
-            total_location_dep = sum(a.accumulated_depreciation for a in location_assets) if location_assets else Decimal('0')
+            total_location_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in location_assets) if location_assets else Decimal('0')
             
             grouped_list.append({
                 'id': location_id,
@@ -4680,11 +4684,12 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
                 total_nbv += asset.current_value
-                total_acc_dep += asset.accumulated_depreciation
+                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep

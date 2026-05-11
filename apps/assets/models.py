@@ -484,6 +484,21 @@ class Asset(TenantAwareModel):
         val = self.purchase_price - self.accumulated_depreciation
         return val.quantize(Decimal('0.01'))
 
+    def get_accumulated_dep_at_date(self, target_date):
+        """Calculate accumulated depreciation as of a specific date"""
+        if not self.purchase_price:
+            return Decimal('0.00')
+        if not self.purchase_date or target_date < self.purchase_date:
+            return Decimal('0.00')
+        nbv = self.get_value_at_date(target_date)
+        acc = self.purchase_price - nbv
+        if acc < Decimal('0'):
+            acc = Decimal('0')
+        depreciable = self.purchase_price - self.salvage_value
+        if acc > depreciable:
+            acc = depreciable
+        return acc.quantize(Decimal('0.01'))
+
     def get_value_at_date(self, target_date):
         """Calculate asset value (NBV) at a specific date"""
         if not self.purchase_price or not self.purchase_date or not self.useful_life_years:

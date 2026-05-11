@@ -1354,7 +1354,7 @@
                         {% if opening_date %}<td class="depr-right" style="color:#3b82f6; font-weight:600;">{{ asset.currency }} {{ asset.opening_value|floatformat:2|intcomma }}</td>{% endif %}
                         {% if closing_date %}<td class="depr-right" style="color:#8b5cf6; font-weight:600;">{{ asset.currency }} {{ asset.closing_value|floatformat:2|intcomma }}</td>{% endif %}
                         {% if opening_date and closing_date %}<td class="depr-right" style="color:#ef4444;">-{{ asset.currency }} {{ asset.period_depreciation|floatformat:2|intcomma }}</td>{% endif %}
-                        <td class="depr-right" style="color:#dc2626;">{% if asset.accumulated_depreciation %}-{{ asset.currency }} {{ asset.accumulated_depreciation|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
+                        <td class="depr-right" style="color:#dc2626;">{% if asset.display_acc_dep %}-{{ asset.currency }} {{ asset.display_acc_dep|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
                         <td class="depr-right" style="font-weight:600; color:#22c55e;">{{ asset.currency }} {{ asset.current_value|floatformat:2|intcomma }}</td>
                     </tr>
                     <!-- Asset Details Row -->
