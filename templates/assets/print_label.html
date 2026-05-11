@@ -678,6 +678,7 @@
         }
 
         .hide-barcode .lbl-right img,
+        .hide-barcode .lbl-barcode-svg,
         .hide-barcode .lbl-barcode-img,
         .hide-barcode .lbl-barcode-inline {
             display: none !important;
@@ -1029,7 +1030,50 @@
                 margin: 0.65rem 0.65rem 1rem;
             }
         }
+
+        /* ── JsBarcode SVG barcode elements ─────────────────── */
+        .lbl-barcode-svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            flex-shrink: 0;
+        }
+        .label-classic .lbl-right .lbl-barcode-svg,
+        .label-detailed .lbl-right .lbl-barcode-svg {
+            height: calc(70px * var(--custom-barcode-scale));
+        }
+        .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
+            width: 92%;
+            height: calc(100px * var(--custom-barcode-scale));
+        }
+        .label-modern .lbl-barcode-inline .lbl-barcode-svg {
+            height: calc(46px * var(--custom-barcode-scale));
+        }
+        @media print {
+            .label-classic .lbl-right .lbl-barcode-svg {
+                height: calc(0.42in * var(--custom-barcode-scale)) !important;
+            }
+            .label-detailed .lbl-right .lbl-barcode-svg {
+                height: calc(0.40in * var(--custom-barcode-scale)) !important;
+            }
+            .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
+                width: 1.85in !important;
+                height: calc(0.66in * var(--custom-barcode-scale)) !important;
+            }
+            .label-modern .lbl-barcode-inline .lbl-barcode-svg {
+                height: calc(0.30in * var(--custom-barcode-scale)) !important;
+            }
+            body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
+            body.size-roll-133x19 .label-detailed .lbl-right .lbl-barcode-svg,
+            body.size-roll-133x19 .label-modern .lbl-barcode-inline .lbl-barcode-svg,
+            body.size-roll-133x19 .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
+                height: calc(5.5mm * var(--custom-barcode-scale)) !important;
+                width: 100% !important;
+            }
+        }
     </style>
+    <!-- JsBarcode: browser-side Code128 rendering for crisp print quality -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/barcodes/JsBarcode.code128.min.js"></script>
 </head>
 <body>
 
@@ -1297,9 +1341,7 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
             <div class="lbl-right">
-                {% if asset.barcode_svg_data or asset.barcode_image %}
-                <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
-                {% endif %}
+                <svg class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></svg>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
@@ -1331,9 +1373,7 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
             <div class="lbl-right">
-                {% if asset.barcode_svg_data or asset.barcode_image %}
-                <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
-                {% endif %}
+                <svg class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></svg>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
@@ -1343,9 +1383,7 @@ function updateBatchParam(batchNum) {
     <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
         <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
-            {% if asset.barcode_svg_data or asset.barcode_image %}
-            <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
-            {% endif %}
+            <svg class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></svg>
         </div>
         <div class="lbl-tag">{{ asset.asset_tag }}</div>
     </div>
@@ -1366,9 +1404,7 @@ function updateBatchParam(batchNum) {
                 {% if asset.category %}<div class="lbl-category">{{ asset.category.name }}</div>{% endif %}
                 {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
                 <div class="lbl-barcode-inline">
-                    {% if asset.barcode_svg_data or asset.barcode_image %}
-                    <img src="{% if asset.barcode_svg_data %}{{ asset.barcode_svg_data }}{% else %}{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="Barcode">
-                    {% endif %}
+                    <svg class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></svg>
                 </div>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
@@ -1618,6 +1654,32 @@ async function sendToExternalPrintApp() {
         }
     }
 }
+
+/* ── JsBarcode: render all barcodes directly in browser ─ */
+(function() {
+    if (typeof JsBarcode === 'undefined') return;
+    document.querySelectorAll('.lbl-barcode-svg').forEach(function(svg) {
+        var tag = svg.dataset.tag;
+        if (!tag) return;
+        try {
+            JsBarcode(svg, tag, {
+                format: 'CODE128',
+                displayValue: false,
+                background: '#ffffff',
+                lineColor: '#000000',
+                width: 3,
+                height: 90,
+                margin: 4
+            });
+            /* Allow CSS to stretch SVG to fill its container without
+               distorting bar-width ratios (bars get proportionally wider,
+               which is fine and actually improves scannability). */
+            svg.setAttribute('preserveAspectRatio', 'none');
+        } catch(e) {
+            svg.style.display = 'none';
+        }
+    });
+})();
 
 /* ── Wait for all images, then enable Print ─────────── */
 (function() {
