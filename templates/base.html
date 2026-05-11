@@ -737,6 +737,7 @@
                     <i data-lucide="truck"></i>
                     <span>Suppliers</span>
                 </a>
+                {% if user.role != 'EMPLOYEE' %}
                 <a href="{% url 'custodian-list' %}" class="nav-item {% if 'custodians' in request.path %}active{% endif %}" data-label="Custodians">
                     <i data-lucide="user-check"></i>
                     <span>Custodians</span>
@@ -745,6 +746,7 @@
                     <i data-lucide="users"></i>
                     <span>Users</span>
                 </a>
+                {% endif %}
             </div>
 
             <!-- Admin Section -->
