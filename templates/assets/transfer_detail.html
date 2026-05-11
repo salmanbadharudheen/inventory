@@ -1,488 +1,484 @@
 {% extends 'base.html' %}
 
-{% block page_title %}Transfer Detail - {{ transfer.asset.asset_tag }}{% endblock %}
+{% block page_title %}Transfer Detail{% if transfer.transfer_no %} – {{ transfer.transfer_no }}{% endif %}{% endblock %}
 
 {% block content %}
-<div class="asset-container">
-    <!-- Header -->
-    <div class="detail-header">
-        <div class="header-back">
-            <a href="{% url 'transfer-list' %}" class="btn-back-link">
-                <i data-lucide="arrow-left"></i> Back to Transfers
-            </a>
-        </div>
-        <h1 class="detail-title">Transfer: {{ transfer.asset.asset_tag }}</h1>
-        <div class="header-actions">
-            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.is_superuser %}
-            {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
-            <a href="{% url 'transfer-update' transfer.id %}" class="btn-icon-action" title="Edit">
-                <i data-lucide="edit"></i>
-            </a>
-            {% endif %}
-            {% endif %}
-            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER or request.user.is_superuser %}
-            {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
-            <a href="{% url 'transfer-receive' transfer.id %}" class="btn-primary-action" title="Receive Transfer">
-                <i data-lucide="check"></i> Receive
-            </a>
-            {% endif %}
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Content Grid -->
-    <div class="detail-grid">
-        <!-- Left Column -->
-        <div class="detail-main">
-            <!-- Status Card -->
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Transfer Status</h2>
-                </div>
-                <div class="card-body">
-                    <div class="status-badge status-{{ transfer.status|lower }}">
-                        <span class="status-label">{{ transfer.get_status_display }}</span>
-                    </div>
-                    <div class="status-timeline">
-                        <div class="timeline-item {% if transfer.status != 'PENDING' %}completed{% endif %}">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-content">
-                                <p class="timeline-label">Created</p>
-                                <p class="timeline-date">{{ transfer.transfer_date|date:"d M Y H:i" }}</p>
-                                {% if transfer.created_by %}
-                                <p class="timeline-by">by {{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-item {% if transfer.status in 'IN_TRANSIT,RECEIVED,REJECTED' %}completed{% endif %}">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-content">
-                                <p class="timeline-label">In Transit</p>
-                                {% if transfer.expected_receipt_date %}
-                                <p class="timeline-date">Expected: {{ transfer.expected_receipt_date|date:"d M Y" }}</p>
-                                {% else %}
-                                <p class="timeline-date">TBD</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-item {% if transfer.status == 'RECEIVED' %}completed{% endif %}">
-                            <div class="timeline-marker"></div>
-                            <div class="timeline-content">
-                                <p class="timeline-label">Received</p>
-                                {% if transfer.actual_receipt_date %}
-                                <p class="timeline-date">{{ transfer.actual_receipt_date|date:"d M Y" }}</p>
-                                {% if transfer.received_by %}
-                                <p class="timeline-by">by {{ transfer.received_by.get_full_name }}</p>
-                                {% endif %}
-                                {% else %}
-                                <p class="timeline-date">Pending</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Asset Details -->
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Asset Information</h2>
-                </div>
-                <div class="card-body">
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Asset Tag</span>
-                            <span class="info-value font-weight-bold">{{ transfer.asset.asset_tag }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Asset Name</span>
-                            <span class="info-value">{{ transfer.asset.name }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Category</span>
-                            <span class="info-value">{{ transfer.asset.category.name }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Serial Number</span>
-                            <span class="info-value">{{ transfer.asset.serial_number|default:"N/A" }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Asset Condition</span>
-                            <span class="info-value">{{ transfer.asset.get_condition_display }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Current Status</span>
-                            <span class="info-value">{{ transfer.asset.get_status_display }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Transfer Details -->
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Transfer Details</h2>
-                </div>
-                <div class="card-body">
-                    <div class="info-grid">
-                        <div class="info-item full-width">
-                            <span class="info-label">Reason for Transfer</span>
-                            <span class="info-value">{{ transfer.transfer_reason|default:"Not specified" }}</span>
-                        </div>
-                        <div class="info-item full-width">
-                            <span class="info-label">Notes</span>
-                            <span class="info-value">{{ transfer.notes|default:"No notes" }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Receiver Comments (if received) -->
-            {% if transfer.received_comments %}
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Receiver Comments</h2>
-                </div>
-                <div class="card-body">
-                    <p class="info-value">{{ transfer.received_comments }}</p>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Right Column -->
-        <div class="detail-sidebar">
-            <!-- From Information -->
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Transferred From</h2>
-                </div>
-                <div class="card-body">
-                    {% if transfer.transferred_from_user %}
-                    <div class="info-item">
-                        <span class="info-label">User</span>
-                        <span class="info-value">{{ transfer.transferred_from_user.get_full_name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if transfer.transferred_from_department %}
-                    <div class="info-item">
-                        <span class="info-label">Department</span>
-                        <span class="info-value">{{ transfer.transferred_from_department.name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if transfer.transferred_from_location %}
-                    <div class="info-item">
-                        <span class="info-label">Location</span>
-                        <span class="info-value">{{ transfer.transferred_from_location.name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if not transfer.transferred_from_user and not transfer.transferred_from_department and not transfer.transferred_from_location %}
-                    <p class="text-muted">No specific from location specified</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- To Information -->
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Transferred To</h2>
-                </div>
-                <div class="card-body">
-                    {% if transfer.transferred_to_user %}
-                    <div class="info-item">
-                        <span class="info-label">User</span>
-                        <span class="info-value">{{ transfer.transferred_to_user.get_full_name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if transfer.transferred_to_department %}
-                    <div class="info-item">
-                        <span class="info-label">Department</span>
-                        <span class="info-value">{{ transfer.transferred_to_department.name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if transfer.transferred_to_location %}
-                    <div class="info-item">
-                        <span class="info-label">Location</span>
-                        <span class="info-value">{{ transfer.transferred_to_location.name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if not transfer.transferred_to_user and not transfer.transferred_to_department and not transfer.transferred_to_location %}
-                    <p class="text-muted">No specific to location specified</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Metadata -->
-            <div class="detail-card">
-                <div class="card-header">
-                    <h2 class="card-title">Metadata</h2>
-                </div>
-                <div class="card-body">
-                    <div class="info-item">
-                        <span class="info-label">Transfer ID</span>
-                        <span class="info-value font-monospace">{{ transfer.id }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Created</span>
-                        <span class="info-value">{{ transfer.created_at|date:"d M Y H:i" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Last Updated</span>
-                        <span class="info-value">{{ transfer.updated_at|date:"d M Y H:i" }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
-    .detail-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding: 20px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+:root {
+  --primary:#6366f1; --primary-dark:#4f46e5; --primary-light:#eef2ff; --primary-border:#c7d2fe;
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb; --gray-300:#d1d5db;
+  --gray-400:#9ca3af; --gray-600:#4b5563; --gray-700:#374151; --gray-900:#111827;
+  --green:#10b981; --green-light:#f0fdf4; --green-border:#bbf7d0;
+  --amber:#f59e0b; --amber-light:#fffbeb;
+  --red:#dc2626; --red-light:#fef2f2;
+  --blue:#3b82f6; --blue-light:#eff6ff;
+  --radius:12px; --shadow-sm:0 1px 3px rgba(0,0,0,.08);
+}
+.td-page { max-width:980px; margin:0 auto; padding:24px 16px 56px; font-family:'Inter',system-ui,sans-serif; }
+.td-back { display:inline-flex; align-items:center; gap:6px; color:var(--primary); text-decoration:none;
+  font-size:13px; font-weight:600; padding:4px 8px; border-radius:6px; margin-bottom:12px; transition:background .15s; }
+.td-back:hover { background:var(--primary-light); }
 
-    .header-back {
-        flex: 1;
-    }
+/* ── Page header ── */
+.td-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+.td-header-left h1 { font-size:20px; font-weight:700; color:var(--gray-900); margin:0 0 4px; }
+.td-header-left p  { font-size:13px; color:var(--gray-400); margin:0; }
+.td-header-actions { display:flex; gap:8px; flex-shrink:0; }
+.td-btn-edit { display:inline-flex; align-items:center; gap:6px; padding:8px 14px;
+  background:var(--gray-100); color:var(--gray-700); border:1px solid var(--gray-200);
+  border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; transition:background .15s; }
+.td-btn-edit:hover { background:var(--gray-200); }
+.td-btn-receive { display:inline-flex; align-items:center; gap:6px; padding:8px 16px;
+  background:var(--primary); color:#fff; border:none; border-radius:8px;
+  font-size:13px; font-weight:600; text-decoration:none; transition:background .2s; }
+.td-btn-receive:hover { background:var(--primary-dark); }
 
-    .btn-back-link {
-        color: #007bff;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 14px;
-    }
+/* ── Status badge ── */
+.td-badge { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.td-badge-pending   { background:#fff3cd; color:#856404; }
+.td-badge-in_transit{ background:#d1ecf1; color:#0c5460; }
+.td-badge-received  { background:#d4edda; color:#155724; }
+.td-badge-rejected  { background:#f8d7da; color:#721c24; }
+.td-badge-cancelled { background:#e2e3e5; color:#383d41; }
 
-    .btn-back-link:hover {
-        text-decoration: underline;
-    }
+/* ── Cards ── */
+.td-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius);
+  margin-bottom:16px; box-shadow:var(--shadow-sm); overflow:hidden; }
+.td-card-header { padding:14px 18px; border-bottom:1px solid var(--gray-100);
+  display:flex; align-items:center; gap:8px; }
+.td-card-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center;
+  justify-content:center; flex-shrink:0; }
+.td-card-icon svg { width:14px; height:14px; }
+.td-card-icon.blue  { background:var(--blue-light);   color:var(--blue); }
+.td-card-icon.green { background:var(--green-light);  color:var(--green); }
+.td-card-icon.amber { background:var(--amber-light);  color:var(--amber); }
+.td-card-icon.purple{ background:var(--primary-light);color:var(--primary); }
+.td-card-title { font-size:13px; font-weight:700; color:var(--gray-900); margin:0; }
+.td-card-body  { padding:16px 18px; }
 
-    .detail-title {
-        flex: 2;
-        font-size: 24px;
-        font-weight: 600;
-        margin: 0;
-    }
+/* ── Info grid ── */
+.td-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px; }
+.td-grid-2 { grid-template-columns:1fr 1fr; }
+.td-grid-3 { grid-template-columns:repeat(3,1fr); }
+@media(max-width:640px){ .td-grid,.td-grid-2,.td-grid-3{ grid-template-columns:1fr 1fr; } }
+@media(max-width:420px){ .td-grid,.td-grid-2,.td-grid-3{ grid-template-columns:1fr; } }
+.td-item { display:flex; flex-direction:column; gap:3px; }
+.td-item.span2 { grid-column:span 2; }
+.td-item.full  { grid-column:1/-1; }
+.td-label { font-size:11px; font-weight:700; color:var(--gray-400); text-transform:uppercase; letter-spacing:.05em; }
+.td-value { font-size:13.5px; color:var(--gray-900); font-weight:500; }
+.td-value.mono { font-family:'Monaco','Courier New',monospace; font-size:12px; word-break:break-all; }
+.td-value.muted { color:var(--gray-400); font-style:italic; font-weight:400; }
+.td-value.bold  { font-weight:700; }
 
-    .header-actions {
-        flex: 1;
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-    }
+/* ── Location hierarchy ── */
+.td-loc { display:flex; flex-direction:column; gap:0; }
+.td-loc-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--gray-100); }
+.td-loc-row:last-child { border-bottom:none; }
+.td-loc-icon { width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+  color:var(--gray-400); flex-shrink:0; }
+.td-loc-icon svg { width:13px; height:13px; }
+.td-loc-key  { font-size:11.5px; font-weight:600; color:var(--gray-600); min-width:90px; flex-shrink:0; }
+.td-loc-val  { font-size:13px; color:var(--gray-900); font-weight:500; }
+.td-loc-val.empty { color:var(--gray-400); font-style:italic; font-weight:400; }
+.td-loc-arrow { color:var(--gray-300); margin:0 2px; font-size:11px; }
 
-    .btn-icon-action {
-        padding: 8px 12px;
-        background-color: #f0f0f0;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        text-decoration: none;
-        color: #333;
-        transition: all 0.2s;
-    }
+/* ── From/To two-column layout ── */
+.td-loc-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media(max-width:700px){ .td-loc-grid { grid-template-columns:1fr; } }
 
-    .btn-icon-action:hover {
-        background-color: #e0e0e0;
-    }
+/* ── Asset table ── */
+.td-asset-table { width:100%; border-collapse:collapse; font-size:13px; }
+.td-asset-table th { background:var(--gray-50); font-size:11.5px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--gray-600); padding:9px 12px; border-bottom:1px solid var(--gray-200);
+  text-align:left; }
+.td-asset-table td { padding:10px 12px; border-bottom:1px solid var(--gray-100); color:var(--gray-900); vertical-align:top; }
+.td-asset-table tr:last-child td { border-bottom:none; }
+.td-asset-table tr:hover td { background:var(--gray-50); }
+.td-tag { font-family:'Monaco','Courier New',monospace; font-size:11.5px; font-weight:700;
+  background:var(--primary-light); color:var(--primary-dark); padding:2px 7px; border-radius:5px; }
 
-    .btn-primary-action {
-        padding: 8px 16px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
+/* ── Timeline ── */
+.td-timeline { display:flex; flex-direction:column; gap:0; }
+.td-tl-item { display:flex; gap:14px; padding:12px 0; border-bottom:1px solid var(--gray-100); }
+.td-tl-item:last-child { border-bottom:none; }
+.td-tl-dot-wrap { display:flex; flex-direction:column; align-items:center; gap:0; }
+.td-tl-dot { width:20px; height:20px; border-radius:50%; background:var(--gray-200);
+  border:3px solid #fff; box-shadow:0 0 0 2px var(--gray-200); flex-shrink:0; }
+.td-tl-dot.done { background:var(--green); box-shadow:0 0 0 2px var(--green-border); }
+.td-tl-dot.active{ background:var(--primary); box-shadow:0 0 0 2px var(--primary-border); }
+.td-tl-line { flex:1; width:2px; background:var(--gray-200); margin:3px 0; min-height:12px; }
+.td-tl-body { flex:1; padding-top:0; }
+.td-tl-label { font-size:13px; font-weight:700; color:var(--gray-900); margin:0 0 2px; }
+.td-tl-meta  { font-size:12px; color:var(--gray-400); margin:0; }
 
-    .btn-primary-action:hover {
-        background-color: #0056b3;
-    }
+/* ── Two-column page layout ── */
+.td-layout { display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start; }
+@media(max-width:900px){ .td-layout { grid-template-columns:1fr; } }
+.td-main  { display:flex; flex-direction:column; gap:14px; }
+.td-side  { display:flex; flex-direction:column; gap:14px; }
 
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 380px;
-        gap: 24px;
-    }
-
-    @media (max-width: 1024px) {
-        .detail-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .detail-card {
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .card-header {
-        background-color: #f9f9f9;
-        padding: 16px;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    .card-title {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0;
-        color: #333;
-    }
-
-    .card-body {
-        padding: 16px;
-    }
-
-    .info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-    }
-
-    .info-item.full-width {
-        grid-column: 1 / -1;
-    }
-
-    .info-label {
-        display: block;
-        font-size: 12px;
-        font-weight: 600;
-        color: #6c757d;
-        text-transform: uppercase;
-        margin-bottom: 4px;
-    }
-
-    .info-value {
-        display: block;
-        font-size: 14px;
-        color: #333;
-    }
-
-    .font-weight-bold {
-        font-weight: 600;
-    }
-
-    .font-monospace {
-        font-family: 'Monaco', 'Courier New', monospace;
-        font-size: 12px;
-        word-break: break-all;
-    }
-
-    .text-muted {
-        color: #6c757d;
-        font-size: 14px;
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
-        margin-bottom: 20px;
-    }
-
-    .status-pending {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-
-    .status-in_transit {
-        background-color: #d1ecf1;
-        color: #0c5460;
-    }
-
-    .status-received {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .status-rejected {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-
-    .status-cancelled {
-        background-color: #e2e3e5;
-        color: #383d41;
-    }
-
-    .status-timeline {
-        margin-top: 20px;
-    }
-
-    .timeline-item {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 20px;
-        opacity: 0.6;
-    }
-
-    .timeline-item.completed {
-        opacity: 1;
-    }
-
-    .timeline-marker {
-        width: 24px;
-        height: 24px;
-        min-width: 24px;
-        background-color: #e0e0e0;
-        border: 2px solid #fff;
-        border-radius: 50%;
-        margin-top: 2px;
-    }
-
-    .timeline-item.completed .timeline-marker {
-        background-color: #28a745;
-        border-color: #fff;
-    }
-
-    .timeline-label {
-        font-weight: 600;
-        color: #333;
-        margin: 0 0 4px 0;
-        font-size: 14px;
-    }
-
-    .timeline-date {
-        color: #666;
-        margin: 0;
-        font-size: 13px;
-    }
-
-    .timeline-by {
-        color: #6c757d;
-        margin: 4px 0 0 0;
-        font-size: 12px;
-    }
-
-    .timeline-content {
-        padding-top: 2px;
-    }
+/* ── Divider ── */
+.td-divider { height:1px; background:var(--gray-100); margin:6px 0; }
 </style>
 
+<div class="td-page">
+  <a href="{% url 'transfer-list' %}" class="td-back">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+    Back to Transfers
+  </a>
+
+  <!-- Page Header -->
+  <div class="td-header">
+    <div class="td-header-left">
+      <h1>
+        Transfer{% if transfer.transfer_no %}: <span style="color:var(--primary)">{{ transfer.transfer_no }}</span>{% endif %}
+      </h1>
+      <p>{{ transfer.asset.asset_tag }} &mdash; {{ transfer.asset.name|truncatechars:60 }}</p>
+    </div>
+    <div class="td-header-actions">
+      {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.is_superuser %}
+        {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
+        <a href="{% url 'transfer-update' transfer.id %}" class="td-btn-edit">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+          Edit
+        </a>
+        {% endif %}
+        {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
+        <a href="{% url 'transfer-receive' transfer.id %}" class="td-btn-receive">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+          Receive
+        </a>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="td-layout">
+    <!-- ─── MAIN column ─── -->
+    <div class="td-main">
+
+      <!-- Asset Information -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon blue">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></svg>
+          </div>
+          <h2 class="td-card-title">Asset Information</h2>
+        </div>
+        <div class="td-card-body">
+          <div class="td-grid">
+            <div class="td-item">
+              <span class="td-label">Asset Tag</span>
+              <span class="td-value"><span class="td-tag">{{ transfer.asset.asset_tag }}</span></span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Asset Name</span>
+              <span class="td-value bold">{{ transfer.asset.name }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Category</span>
+              <span class="td-value">{{ transfer.asset.category.name|default:"—" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Serial Number</span>
+              <span class="td-value mono">{{ transfer.asset.serial_number|default:"—" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Condition</span>
+              <span class="td-value">{{ transfer.asset.get_condition_display|default:"—" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Asset Status</span>
+              <span class="td-value">{{ transfer.asset.get_status_display|default:"—" }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- From / To Location -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon amber">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
+          </div>
+          <h2 class="td-card-title">Location Transfer</h2>
+        </div>
+        <div class="td-card-body">
+          <div class="td-loc-grid">
+
+            <!-- FROM -->
+            <div>
+              <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin:0 0 8px;">From</p>
+              <div class="td-loc">
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20"/></svg></span>
+                  <span class="td-loc-key">Region</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_region %} empty{% endif %}">{{ transfer.transferred_from_region.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg></span>
+                  <span class="td-loc-key">Site</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_site %} empty{% endif %}">{{ transfer.transferred_from_site.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21"/></svg></span>
+                  <span class="td-loc-key">Building</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_building %} empty{% endif %}">{{ transfer.transferred_from_building.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25Z"/></svg></span>
+                  <span class="td-loc-key">Floor</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_floor %} empty{% endif %}">{{ transfer.transferred_from_floor.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819"/></svg></span>
+                  <span class="td-loc-key">Room</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_room %} empty{% endif %}">{{ transfer.transferred_from_room.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg></span>
+                  <span class="td-loc-key">Location</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_location %} empty{% endif %}">{{ transfer.transferred_from_location.name|default:"—" }}</span>
+                </div>
+                <div class="td-divider"></div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg></span>
+                  <span class="td-loc-key">Department</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_department %} empty{% endif %}">{{ transfer.transferred_from_department.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg></span>
+                  <span class="td-loc-key">User</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_user %} empty{% endif %}">{{ transfer.transferred_from_user.get_full_name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21"/></svg></span>
+                  <span class="td-loc-key">Company</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_company %} empty{% endif %}">{{ transfer.transferred_from_company.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg></span>
+                  <span class="td-loc-key">Custodian</span>
+                  <span class="td-loc-val{% if not transfer.transferred_from_custodian %} empty{% endif %}">{{ transfer.transferred_from_custodian.name|default:"—" }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- TO -->
+            <div>
+              <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin:0 0 8px;">To</p>
+              <div class="td-loc">
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20"/></svg></span>
+                  <span class="td-loc-key">Region</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_region %} empty{% endif %}">{{ transfer.transferred_to_region.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg></span>
+                  <span class="td-loc-key">Site</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_site %} empty{% endif %}">{{ transfer.transferred_to_site.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21"/></svg></span>
+                  <span class="td-loc-key">Building</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_building %} empty{% endif %}">{{ transfer.transferred_to_building.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25Z"/></svg></span>
+                  <span class="td-loc-key">Floor</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_floor %} empty{% endif %}">{{ transfer.transferred_to_floor.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819"/></svg></span>
+                  <span class="td-loc-key">Room</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_room %} empty{% endif %}">{{ transfer.transferred_to_room.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg></span>
+                  <span class="td-loc-key">Location</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_location %} empty{% endif %}">{{ transfer.transferred_to_location.name|default:"—" }}</span>
+                </div>
+                <div class="td-divider"></div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg></span>
+                  <span class="td-loc-key">Department</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_department %} empty{% endif %}">{{ transfer.transferred_to_department.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg></span>
+                  <span class="td-loc-key">User</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_user %} empty{% endif %}">{{ transfer.transferred_to_user.get_full_name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21"/></svg></span>
+                  <span class="td-loc-key">Company</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_company %} empty{% endif %}">{{ transfer.transferred_to_company.name|default:"—" }}</span>
+                </div>
+                <div class="td-loc-row">
+                  <span class="td-loc-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg></span>
+                  <span class="td-loc-key">Custodian</span>
+                  <span class="td-loc-val{% if not transfer.transferred_to_custodian %} empty{% endif %}">{{ transfer.transferred_to_custodian.name|default:"—" }}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Transfer Details -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon purple">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+          </div>
+          <h2 class="td-card-title">Transfer Details</h2>
+        </div>
+        <div class="td-card-body">
+          <div class="td-grid">
+            <div class="td-item">
+              <span class="td-label">Transfer Ref No.</span>
+              <span class="td-value mono">{{ transfer.transfer_no|default:"—" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Transfer Date</span>
+              <span class="td-value">{{ transfer.transfer_date|date:"d M Y H:i" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Expected Receipt</span>
+              <span class="td-value{% if not transfer.expected_receipt_date %} muted{% endif %}">{{ transfer.expected_receipt_date|date:"d M Y"|default:"Not set" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Actual Receipt</span>
+              <span class="td-value{% if not transfer.actual_receipt_date %} muted{% endif %}">{{ transfer.actual_receipt_date|date:"d M Y"|default:"Pending" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Requester</span>
+              <span class="td-value{% if not transfer.requester_name %} muted{% endif %}">{{ transfer.requester_name|default:"—" }}</span>
+            </div>
+            <div class="td-item">
+              <span class="td-label">Requested By</span>
+              <span class="td-value{% if not transfer.request_by %} muted{% endif %}">{{ transfer.request_by.get_full_name|default:"—" }}</span>
+            </div>
+            <div class="td-item full">
+              <span class="td-label">Transfer Reason</span>
+              <span class="td-value{% if not transfer.transfer_reason %} muted{% endif %}">{{ transfer.transfer_reason|default:"Not specified" }}</span>
+            </div>
+            <div class="td-item full">
+              <span class="td-label">Movement Reason</span>
+              <span class="td-value{% if not transfer.movement_reason %} muted{% endif %}">{{ transfer.movement_reason|default:"Not specified" }}</span>
+            </div>
+            <div class="td-item full">
+              <span class="td-label">Description</span>
+              <span class="td-value{% if not transfer.transfer_description %} muted{% endif %}">{{ transfer.transfer_description|default:"—" }}</span>
+            </div>
+            <div class="td-item full">
+              <span class="td-label">Notes</span>
+              <span class="td-value{% if not transfer.notes %} muted{% endif %}">{{ transfer.notes|default:"No notes" }}</span>
+            </div>
+          </div>
+          {% if transfer.received_comments %}
+          <div style="margin-top:14px;padding:12px 14px;background:var(--green-light);border:1px solid var(--green-border);border-radius:8px;">
+            <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin:0 0 4px;">Receiver Comments</p>
+            <p style="font-size:13px;color:var(--gray-900);margin:0;">{{ transfer.received_comments }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── SIDEBAR ─── -->
+    <div class="td-side">
+
+      <!-- Status -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon green">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          </div>
+          <h2 class="td-card-title">Status</h2>
+        </div>
+        <div class="td-card-body">
+          <span class="td-badge td-badge-{{ transfer.status|lower }}">{{ transfer.get_status_display }}</span>
+
+          <!-- Timeline -->
+          <div class="td-timeline" style="margin-top:16px;">
+            <div class="td-tl-item">
+              <div class="td-tl-dot-wrap">
+                <div class="td-tl-dot done"></div>
+                <div class="td-tl-line"></div>
+              </div>
+              <div class="td-tl-body">
+                <p class="td-tl-label">Created</p>
+                <p class="td-tl-meta">{{ transfer.created_at|date:"d M Y H:i" }}{% if transfer.created_by %}<br>by {{ transfer.created_by.get_full_name }}{% endif %}</p>
+              </div>
+            </div>
+            <div class="td-tl-item">
+              <div class="td-tl-dot-wrap">
+                <div class="td-tl-dot {% if transfer.status in 'IN_TRANSIT,RECEIVED,REJECTED' %}done{% elif transfer.status == 'PENDING' %}active{% endif %}"></div>
+                <div class="td-tl-line"></div>
+              </div>
+              <div class="td-tl-body">
+                <p class="td-tl-label">In Transit</p>
+                <p class="td-tl-meta">
+                  {% if transfer.expected_receipt_date %}Expected: {{ transfer.expected_receipt_date|date:"d M Y" }}{% else %}Expected: TBD{% endif %}
+                </p>
+              </div>
+            </div>
+            <div class="td-tl-item">
+              <div class="td-tl-dot-wrap">
+                <div class="td-tl-dot {% if transfer.status == 'RECEIVED' %}done{% elif transfer.status == 'IN_TRANSIT' %}active{% endif %}"></div>
+              </div>
+              <div class="td-tl-body">
+                <p class="td-tl-label">Received</p>
+                <p class="td-tl-meta">
+                  {% if transfer.actual_receipt_date %}{{ transfer.actual_receipt_date|date:"d M Y" }}{% if transfer.received_by %}<br>by {{ transfer.received_by.get_full_name }}{% endif %}{% else %}Pending{% endif %}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon blue">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+          </div>
+          <h2 class="td-card-title">Record Info</h2>
+        </div>
+        <div class="td-card-body">
+          <div class="td-loc">
+            <div class="td-loc-row">
+              <span class="td-loc-key" style="min-width:80px;">Transfer ID</span>
+              <span class="td-loc-val" style="font-family:monospace;font-size:11px;word-break:break-all;">{{ transfer.id }}</span>
+            </div>
+            <div class="td-loc-row">
+              <span class="td-loc-key" style="min-width:80px;">Created</span>
+              <span class="td-loc-val">{{ transfer.created_at|date:"d M Y H:i" }}</span>
+            </div>
+            <div class="td-loc-row">
+              <span class="td-loc-key" style="min-width:80px;">Updated</span>
+              <span class="td-loc-val">{{ transfer.updated_at|date:"d M Y H:i" }}</span>
+            </div>
+            <div class="td-loc-row">
+              <span class="td-loc-key" style="min-width:80px;">Created by</span>
+              <span class="td-loc-val{% if not transfer.created_by %} empty{% endif %}">{{ transfer.created_by.get_full_name|default:"—" }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        lucide.createIcons();
-    });
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
 </script>
 {% endblock %}

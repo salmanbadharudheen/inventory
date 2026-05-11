@@ -209,6 +209,37 @@ def lookup_asset(request):
 
     return JsonResponse({'asset': current, 'departments': departments, 'locations': locations, 'users': users})
 
+def ajax_search_assets(request):
+    """Return a JSON list of assets matching a search query. Used by the transfer browse panel."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    org = getattr(request.user, 'organization', None)
+    q = request.GET.get('q', '').strip()
+    limit = min(int(request.GET.get('limit', 50)), 100)
+
+    qs = Asset.objects.filter(organization=org).select_related('category', 'department')
+
+    if q:
+        qs = qs.filter(
+            Q(asset_tag__icontains=q) |
+            Q(name__icontains=q) |
+            Q(custom_asset_tag__icontains=q) |
+            Q(serial_number__icontains=q)
+        )
+
+    assets = []
+    for a in qs.order_by('asset_tag')[:limit]:
+        assets.append({
+            'id': str(a.id),
+            'asset_tag': a.asset_tag or '',
+            'name': a.name or '',
+            'category': a.category.name if a.category else '',
+            'department': a.department.name if a.department else '',
+        })
+
+    return JsonResponse({'assets': assets, 'total': qs.count()})
+
 ASSET_IMPORT_FIELDS = [
     'name', 'description', 'short_description', 'asset_tag',
     'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
@@ -2240,6 +2271,18 @@ class AssetUpdateView(LoginRequiredMixin, UpdateView):
                 form.instance.category,
                 form.instance.company
             )
+        # Safety net: clear location fields that don't match their parent
+        asset = form.instance
+        if asset.site and asset.region and asset.site.region_id != asset.region_id:
+            asset.site = None
+            asset.location = None
+            asset.sub_location = None
+            asset.building = None
+            asset.floor = None
+            asset.room = None
+        elif asset.site and asset.location and hasattr(asset.location, 'site_id') and asset.location.site_id != asset.site_id:
+            asset.location = None
+            asset.sub_location = None
         response = super().form_valid(form)
         invalidate_dashboard_cache_for_org(self.request.user.organization)
         return response
@@ -3598,6 +3641,28 @@ class AssetTransferUpdateView(LoginRequiredMixin, UpdateView):
     def get_success_url(self):
         return reverse('transfer-detail', kwargs={'pk': self.object.pk})
 
+
+
+
+class AssetTransferApproveView(LoginRequiredMixin, View):
+    """Approve a PENDING transfer -> IN_TRANSIT (Manager / Admin only)."""
+
+    def _is_approver(self, user):
+        return user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER, user.Role.CHECKER]
+
+    def post(self, request, pk):
+        if not self._is_approver(request.user):
+            return HttpResponseForbidden('Only a Manager or Admin can approve transfers.')
+        transfer = get_object_or_404(
+            AssetTransfer,
+            pk=pk,
+            organization=request.user.organization,
+            status=AssetTransfer.Status.PENDING,
+        )
+        transfer.status = AssetTransfer.Status.IN_TRANSIT
+        transfer.save(update_fields=['status', 'updated_at'])
+        messages.success(request, f'Transfer approved — {transfer.asset.asset_tag} is now In Transit.')
+        return redirect(reverse('transfer-detail', kwargs={'pk': transfer.pk}))
 
 class AssetTransferReceiveView(LoginRequiredMixin, UpdateView):
     """Mark an asset transfer as received"""

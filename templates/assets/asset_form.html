@@ -152,79 +152,123 @@ Add New Asset
       });
     }
 
-    // Region -> Site -> Location -> SubLocation filtering
-    const regionSelect = document.querySelector('select[name="region"]');
-    const siteSelect = document.querySelector('select[name="site"]');
-    const locationSelect = document.querySelector('select[name="location"]');
+    // Region -> Site -> Location -> SubLocation cascading
+    // (Building/Floor/Room are driven by Branch above; not duplicated here)
+    const regionSelect      = document.querySelector('select[name="region"]');
+    const siteSelect        = document.querySelector('select[name="site"]');
+    const locationSelect    = document.querySelector('select[name="location"]');
     const sublocationSelect = document.querySelector('select[name="sub_location"]');
 
-    if (regionSelect && siteSelect) {
+    // Capture existing values for edit-mode page-load restore (let so mismatch can clear them)
+    let initSite     = siteSelect        ? siteSelect.value        : '';
+    let initLocation = locationSelect    ? locationSelect.value    : '';
+    let initSubloc   = sublocationSelect ? sublocationSelect.value : '';
+
+    function resetSel(sel) {
+      if (sel) sel.innerHTML = '<option value="">---------</option>';
+    }
+    function ajaxOpts(url) {
+      return fetch(url, { credentials: 'same-origin' }).then(r => r.json())
+        .then(d => Array.isArray(d) ? d : (d.results || []));
+    }
+    function populateSel(sel, items, keepId) {
+      if (!sel) return;
+      sel.innerHTML = '<option value="">---------</option>';
+      items.forEach(item => {
+        const opt = new Option(item.name, item.id);
+        if (String(item.id) === String(keepId)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    // Region changes -> clear ALL location-dependent fields downstream
+    if (regionSelect) {
       regionSelect.addEventListener('change', function () {
-        const regionId = this.value;
-
-        siteSelect.innerHTML = '<option value="">---------</option>';
-        if (locationSelect) locationSelect.innerHTML = '<option value="">---------</option>';
-        if (sublocationSelect) sublocationSelect.innerHTML = '<option value="">---------</option>';
-
-        if (!regionId) return;
-
-        fetch(`/locations/ajax/sites/?region_id=${encodeURIComponent(regionId)}`)
-          .then(r => r.json())
-          .then(data => {
-            data.forEach(item => {
-              const opt = document.createElement('option');
-              opt.value = item.id;
-              opt.textContent = item.name;
-              siteSelect.appendChild(opt);
-            });
-          })
+        const banner = document.getElementById('location-mismatch-banner');
+        if (banner) banner.style.display = 'none';
+        resetSel(siteSelect); resetSel(locationSelect); resetSel(sublocationSelect);
+        resetSel(buildingSelect); resetSel(floorSelect); resetSel(roomSelect);
+        if (!this.value) return;
+        ajaxOpts(`/locations/ajax/sites/?region_id=${encodeURIComponent(this.value)}`)
+          .then(data => populateSel(siteSelect, data, ''))
           .catch(err => console.error('Error fetching sites:', err));
       });
     }
 
-    if (siteSelect && locationSelect) {
+    // Site changes -> clear location/sublocation + building/floor/room, reload both
+    if (siteSelect) {
       siteSelect.addEventListener('change', function () {
-        const siteId = this.value;
-
-        locationSelect.innerHTML = '<option value="">---------</option>';
-        if (sublocationSelect) sublocationSelect.innerHTML = '<option value="">---------</option>';
-
-        if (!siteId) return;
-
-        fetch(`/locations/ajax/locations/?site_id=${encodeURIComponent(siteId)}`)
-          .then(r => r.json())
-          .then(data => {
-            data.forEach(item => {
-              const opt = document.createElement('option');
-              opt.value = item.id;
-              opt.textContent = item.name;
-              locationSelect.appendChild(opt);
-            });
-          })
+        resetSel(locationSelect); resetSel(sublocationSelect);
+        resetSel(buildingSelect); resetSel(floorSelect); resetSel(roomSelect);
+        if (!this.value) return;
+        ajaxOpts(`/locations/ajax/locations/?site_id=${encodeURIComponent(this.value)}`)
+          .then(data => populateSel(locationSelect, data, ''))
           .catch(err => console.error('Error fetching locations:', err));
+        if (buildingSelect) {
+          ajaxOpts(`/assets/ajax/buildings_by_site/?site_id=${encodeURIComponent(this.value)}`)
+            .then(data => populateSel(buildingSelect, data, ''))
+            .catch(err => console.error('Error fetching buildings:', err));
+        }
       });
     }
 
-    if (locationSelect && sublocationSelect) {
+    // Location changes -> clear sublocation, load sublocations
+    if (locationSelect) {
       locationSelect.addEventListener('change', function () {
-        const locationId = this.value;
-
-        sublocationSelect.innerHTML = '<option value="">---------</option>';
-        if (!locationId) return;
-
-        fetch(`/locations/ajax/sublocations/?location_id=${encodeURIComponent(locationId)}`)
-          .then(r => r.json())
-          .then(data => {
-            data.forEach(item => {
-              const opt = document.createElement('option');
-              opt.value = item.id;
-              opt.textContent = item.name;
-              sublocationSelect.appendChild(opt);
-            });
-          })
+        resetSel(sublocationSelect);
+        if (!this.value) return;
+        ajaxOpts(`/locations/ajax/sublocations/?location_id=${encodeURIComponent(this.value)}`)
+          .then(data => populateSel(sublocationSelect, data, ''))
           .catch(err => console.error('Error fetching sublocations:', err));
       });
     }
+
+    // On page load (edit mode): restore site/location/sublocation from saved values
+    // Snapshot the region value so stale AJAX callbacks are discarded if user changes region mid-flight
+    (function restoreRegionCascade() {
+      if (!regionSelect || !regionSelect.value) {
+        resetSel(siteSelect); resetSel(locationSelect); resetSel(sublocationSelect);
+        return;
+      }
+      const snapRegion = regionSelect.value;
+      resetSel(siteSelect); resetSel(locationSelect); resetSel(sublocationSelect);
+      ajaxOpts(`/locations/ajax/sites/?region_id=${encodeURIComponent(snapRegion)}`)
+        .then(sites => {
+          if (regionSelect.value !== snapRegion) return null; // stale — user already changed region
+          // Detect mismatch: saved site not in this region
+          if (initSite) {
+            const found = sites.some(s => String(s.id) === String(initSite));
+            if (!found) {
+              // Clear all init vars so the location/sublocation chain below does NOT fire
+              initSite = ''; initLocation = ''; initSubloc = '';
+              const banner = document.getElementById('location-mismatch-banner');
+              const msg    = document.getElementById('location-mismatch-msg');
+              if (banner && msg) {
+                const regionName = regionSelect.options[regionSelect.selectedIndex].text;
+                msg.textContent = 'The previously saved Site does not belong to Region "' + regionName + '". It has been cleared.';
+                banner.style.display = 'block';
+              }
+            } else {
+              const banner = document.getElementById('location-mismatch-banner');
+              if (banner) banner.style.display = 'none';
+            }
+          }
+          populateSel(siteSelect, sites, initSite);
+          if (!initSite) return null;
+          return ajaxOpts(`/locations/ajax/locations/?site_id=${encodeURIComponent(initSite)}`);
+        })
+        .then(locs => {
+          if (!locs || regionSelect.value !== snapRegion) return null;
+          populateSel(locationSelect, locs, initLocation);
+          if (!initLocation) return null;
+          return ajaxOpts(`/locations/ajax/sublocations/?location_id=${encodeURIComponent(initLocation)}`);
+        })
+        .then(sublocs => {
+          if (!sublocs || regionSelect.value !== snapRegion) return;
+          populateSel(sublocationSelect, sublocs, initSubloc);
+        })
+        .catch(err => console.error('Error restoring region cascade:', err));
+    })();
 
     // Parent/Child Toggle
     const parentRadio = document.getElementById('id_hierarchy_parent');
@@ -598,6 +642,17 @@ Add New Asset
         <div class="form-group"
           style="grid-column: span 2; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
           <label style="font-weight: 600; font-size: 1rem;">Location Hierarchy</label>
+        </div>
+
+        <div id="location-mismatch-banner" style="display:none; grid-column:span 2; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px; margin-bottom:4px;">
+          <div style="display:flex; align-items:flex-start; gap:10px;">
+            <span style="font-size:18px; line-height:1;">&#9888;</span>
+            <div>
+              <strong style="color:#92400e; font-size:13px;">Location mismatch detected</strong>
+              <p id="location-mismatch-msg" style="margin:4px 0 0; color:#78350f; font-size:13px;"></p>
+              <p style="margin:4px 0 0; color:#92400e; font-size:12px;">Please select a valid site for the chosen region, or clear all location fields before saving.</p>
+            </div>
+          </div>
         </div>
 
         <div class="form-group">

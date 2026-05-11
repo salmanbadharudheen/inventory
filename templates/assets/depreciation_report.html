@@ -196,7 +196,7 @@
     }
     .depr-filter-grid {
         display: grid;
-        grid-template-columns: 1.3fr repeat(4, 1fr) auto auto;
+        grid-template-columns: 1.3fr repeat(4, 1fr) auto auto auto;
         gap: 0.625rem;
         margin-bottom: 0;
         align-items: end;
@@ -750,6 +750,67 @@
         border-color: rgba(198, 169, 107, 0.45);
     }
 
+    /* ── More Filters button ── */
+    .depr-btn-more {
+        background: #f8fafc;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        padding: 0.4rem 0.8rem;
+        border-radius: 5px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        height: 34px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        white-space: nowrap;
+    }
+    .depr-btn-more:hover, .depr-btn-more.active {
+        background: #1f2937;
+        color: white;
+        border-color: #1f2937;
+    }
+
+    /* ── Advanced Filter Panel ── */
+    .depr-adv-panel {
+        margin-top: 0.9rem;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 0.9rem;
+    }
+    .depr-adv-section {
+        margin-bottom: 1rem;
+    }
+    .depr-adv-section-title {
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .depr-adv-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.5rem;
+    }
+    .depr-adv-grid .depr-filter-group label {
+        font-size: 0.63rem;
+    }
+    .depr-adv-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 0.9rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
 </style>
 {% endblock %}
 
@@ -932,9 +993,250 @@
                 </a>
                 {% endif %}
             </div>
+
+            <div class="depr-filter-action-group">
+                <button type="button" id="depr-adv-toggle" class="depr-btn-more" onclick="toggleAdvFilters()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="4" y1="6" x2="20" y2="6"></line>
+                        <line x1="8" y1="12" x2="20" y2="12"></line>
+                        <line x1="12" y1="18" x2="20" y2="18"></line>
+                    </svg>
+                    More Filters
+                </button>
+            </div>
         </div>
     </form>
-</div>
+
+    <!-- Advanced Filter Panel -->
+    <div id="depr-adv-panel" class="depr-adv-panel" style="display:none;">
+        <form method="get">
+            <input type="hidden" name="view" value="depreciation">
+            <input type="hidden" name="q" value="{{ request.GET.q }}">
+            <input type="hidden" name="depr_date_from" value="{{ depr_date_from }}">
+            <input type="hidden" name="depr_date_to" value="{{ depr_date_to }}">
+            <input type="hidden" name="group_by" value="{{ request.GET.group_by }}">
+            <input type="hidden" name="sort_by" value="{{ request.GET.sort_by }}">
+
+            <!-- Identity & Classification -->
+            <div class="depr-adv-section">
+                <div class="depr-adv-section-title">🏷 Identity &amp; Classification</div>
+                <div class="depr-adv-grid">
+                    <div class="depr-filter-group">
+                        <label>Category</label>
+                        <select name="depr_category">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == depr_category %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Sub Category</label>
+                        <select name="depr_subcategory">
+                            <option value="">All Sub Categories</option>
+                            {% for sc in subcategories %}
+                            <option value="{{ sc.id }}" {% if sc.id|stringformat:"s" == depr_subcategory %}selected{% endif %}>{{ sc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Group</label>
+                        <select name="depr_group">
+                            <option value="">All Groups</option>
+                            {% for g in groups %}
+                            <option value="{{ g.id }}" {% if g.id|stringformat:"s" == depr_group %}selected{% endif %}>{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Sub Group</label>
+                        <select name="depr_sub_group">
+                            <option value="">All Sub Groups</option>
+                            {% for sg in subgroups %}
+                            <option value="{{ sg.id }}" {% if sg.id|stringformat:"s" == depr_sub_group %}selected{% endif %}>{{ sg.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Status</label>
+                        <select name="depr_status">
+                            <option value="">All Statuses</option>
+                            {% for value, label in statuses %}
+                            <option value="{{ value }}" {% if value == depr_status %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Condition</label>
+                        <select name="depr_condition">
+                            <option value="">All Conditions</option>
+                            {% for value, label in conditions %}
+                            <option value="{{ value }}" {% if value == depr_condition %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Label Type</label>
+                        <select name="depr_label_type">
+                            <option value="">All Types</option>
+                            {% for value, label in label_types %}
+                            <option value="{{ value }}" {% if value == depr_label_type %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Tag Type</label>
+                        <select name="depr_tag_type">
+                            <option value="">All Tags</option>
+                            <option value="BARCODE" {% if depr_tag_type == 'BARCODE' %}selected{% endif %}>Barcode</option>
+                            <option value="RFID" {% if depr_tag_type == 'RFID' %}selected{% endif %}>RFID</option>
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Brand</label>
+                        <select name="depr_brand">
+                            <option value="">All Brands</option>
+                            {% for br in brands %}
+                            <option value="{{ br.id }}" {% if br.id|stringformat:"s" == depr_brand %}selected{% endif %}>{{ br.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Supplier</label>
+                        <select name="depr_supplier">
+                            <option value="">All Suppliers</option>
+                            {% for sup in suppliers %}
+                            <option value="{{ sup.id }}" {% if sup.id|stringformat:"s" == depr_supplier %}selected{% endif %}>{{ sup.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Product Name</label>
+                        <input type="text" name="depr_product_name" placeholder="Search name…" value="{{ depr_product_name }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location & Placement -->
+            <div class="depr-adv-section">
+                <div class="depr-adv-section-title">📍 Location &amp; Placement</div>
+                <div class="depr-adv-grid">
+                    <div class="depr-filter-group">
+                        <label>Site</label>
+                        <select name="depr_site">
+                            <option value="">All Sites</option>
+                            {% for s in sites %}
+                            <option value="{{ s.id }}" {% if s.id|stringformat:"s" == depr_site %}selected{% endif %}>{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Branch</label>
+                        <select name="depr_branch">
+                            <option value="">All Branches</option>
+                            {% for b in branches %}
+                            <option value="{{ b.id }}" {% if b.id|stringformat:"s" == depr_branch %}selected{% endif %}>{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Building</label>
+                        <select name="depr_building">
+                            <option value="">All Buildings</option>
+                            {% for bld in buildings %}
+                            <option value="{{ bld.id }}" {% if bld.id|stringformat:"s" == depr_building %}selected{% endif %}>{{ bld.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Floor</label>
+                        <select name="depr_floor">
+                            <option value="">All Floors</option>
+                            {% for fl in floors %}
+                            <option value="{{ fl.id }}" {% if fl.id|stringformat:"s" == depr_floor %}selected{% endif %}>{{ fl.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Location</label>
+                        <select name="depr_location">
+                            <option value="">All Locations</option>
+                            {% for loc in locations %}
+                            <option value="{{ loc.id }}" {% if loc.id|stringformat:"s" == depr_location %}selected{% endif %}>{{ loc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Room</label>
+                        <select name="depr_room">
+                            <option value="">All Rooms</option>
+                            {% for r in rooms %}
+                            <option value="{{ r.id }}" {% if r.id|stringformat:"s" == depr_room %}selected{% endif %}>{{ r.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Sub Location</label>
+                        <select name="depr_sub_location">
+                            <option value="">All Sub Locations</option>
+                            {% for sl in sublocations %}
+                            <option value="{{ sl.id }}" {% if sl.id|stringformat:"s" == depr_sub_location %}selected{% endif %}>{{ sl.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Department</label>
+                        <select name="depr_department">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == depr_department %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dates & Ownership -->
+            <div class="depr-adv-section">
+                <div class="depr-adv-section-title">📅 Dates &amp; Ownership</div>
+                <div class="depr-adv-grid">
+                    <div class="depr-filter-group">
+                        <label>Purchase Date From</label>
+                        <input type="date" name="depr_purchase_date_from" value="{{ depr_purchase_date_from }}">
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Purchase Date To</label>
+                        <input type="date" name="depr_purchase_date_to" value="{{ depr_purchase_date_to }}">
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Registered Date From</label>
+                        <input type="date" name="depr_registered_date_from" value="{{ depr_registered_date_from }}">
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Registered Date To</label>
+                        <input type="date" name="depr_registered_date_to" value="{{ depr_registered_date_to }}">
+                    </div>
+                    <div class="depr-filter-group">
+                        <label>Registered By</label>
+                        <select name="depr_created_by">
+                            <option value="">All Users</option>
+                            {% for u in creators %}
+                            <option value="{{ u.id }}" {% if u.id|stringformat:"s" == depr_created_by %}selected{% endif %}>
+                                {% if u.first_name or u.last_name %}{{ u.first_name }} {{ u.last_name }}{% else %}{{ u.username }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="depr-adv-footer">
+                <a href="?view=depreciation" class="depr-btn-reset">✕ Reset All</a>
+                <button type="submit" class="depr-btn-apply">✓ Apply Filters</button>
+            </div>
+        </form>
+    </div>
+</div><!-- /depr-filters-section -->
 
 <!-- Active Filters Indicator -->
 {% if request.GET.q or depr_date_from or depr_date_to %}
@@ -1260,6 +1562,33 @@ function toggleDeprDetails(rowId) {
 }
 </script>
 {% endif %}
+
+<script>
+function toggleAdvFilters() {
+    const panel = document.getElementById('depr-adv-panel');
+    const btn = document.getElementById('depr-adv-toggle');
+    if (!panel) return;
+    const open = panel.style.display === 'none' || panel.style.display === '';
+    panel.style.display = open ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', open);
+}
+
+// Auto-open advanced panel if any advanced filter is active
+;(() => {
+    const basicKeys = new Set(['q','depr_date_from','depr_date_to','group_by','sort_by','view','page']);
+    const params = new URLSearchParams(window.location.search);
+    let hasAdv = false;
+    for (const [k, v] of params.entries()) {
+        if (!basicKeys.has(k) && v) { hasAdv = true; break; }
+    }
+    if (hasAdv) {
+        const panel = document.getElementById('depr-adv-panel');
+        const btn = document.getElementById('depr-adv-toggle');
+        if (panel) panel.style.display = 'block';
+        if (btn) btn.classList.add('active');
+    }
+})();
+</script>
 </div>
 
 {% endblock %}

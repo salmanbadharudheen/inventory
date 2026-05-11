@@ -1,8 +1,8 @@
-﻿from django.urls import path
+from django.urls import path
 from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetDeleteView, AssetImportView, 
     BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
-    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset,
+    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset, ajax_search_assets,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
     label_print_center, print_asset_labels_bulk, mark_assets_tagged,
@@ -18,7 +18,7 @@ from .views import (
     CustodianListView, CustodianCreateView, CustodianUpdateView,
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
-    AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferExportExcelView,
+    AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferApproveView, AssetTransferExportExcelView,
     AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
     ReportsListView, MastersListView, MastersExportExcelView, AssetReconciliationReportView,
     AssetReconciliationReportPDFView
@@ -63,6 +63,7 @@ urlpatterns = [
     path('ajax/rooms/', get_rooms, name='get-rooms'),
     path('ajax/locations/', get_locations, name='get-locations'),
     path('ajax/lookup/', lookup_asset, name='asset-lookup'),
+    path('ajax/search/', ajax_search_assets, name='ajax-search-assets'),
     path('add/', AssetCreateView.as_view(), name='asset-create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset-detail'),
     path('<uuid:pk>/edit/', AssetUpdateView.as_view(), name='asset-update'),
@@ -153,9 +154,10 @@ urlpatterns = [
     path('transfers/add/', AssetTransferCreateView.as_view(), name='transfer-create'),
     path('transfers/<uuid:pk>/', AssetTransferDetailView.as_view(), name='transfer-detail'),
     path('transfers/<uuid:pk>/edit/', AssetTransferUpdateView.as_view(), name='transfer-update'),
+    path('transfers/<uuid:pk>/approve/', AssetTransferApproveView.as_view(), name='transfer-approve'),
     path('transfers/<uuid:pk>/receive/', AssetTransferReceiveView.as_view(), name='transfer-receive'),
     
-    # Asset Disposal Workflow (Two-step approval: Manager → Admin)
+    # Asset Disposal Workflow (Two-step approval: Manager ? Admin)
     path('disposals/', AssetDisposalListView.as_view(), name='disposal-list'),
     path('disposals/add/', AssetDisposalCreateView.as_view(), name='disposal-create'),
     path('disposals/<uuid:pk>/', AssetDisposalDetailView.as_view(), name='disposal-detail'),

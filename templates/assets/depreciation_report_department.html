@@ -1,676 +1,395 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load humanize %}
 
-{% block page_title %}Depreciation Report - Department Breakdown{% endblock %}
+{% block page_title %}Depreciation Report — Department{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Hide base.html sidebar and adjust layout */
-    body {
-        display: flex !important;
-    }
-    
-    .sidebar {
-        display: none !important;
-    }
-    
-    .main-content {
-        width: 100% !important;
-        flex: 1 !important;
-    }
-    
-    .container-main {
-        width: 100% !important;
-    }
-
-    .page-title {
-        display: none !important;
-    }
-
-    /* Deprecation Report Sidebar - Matching base.html design */
-    .depr-sidebar-wrapper {
-        width: 260px;
-        background: var(--bg-sidebar);
-        color: var(--text-on-sidebar);
-        display: flex;
-        flex-direction: column;
-        border-right: 2px solid var(--border-sidebar);
-        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
-        height: 100vh;
-        overflow-y: auto;
-        position: fixed;
-        left: 0;
-        top: 0;
-        z-index: 99;
-    }
-
-    .depr-sidebar-brand {
-        padding: 2rem 1.5rem;
-        font-size: 1.25rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        color: var(--text-on-sidebar);
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        border-bottom: 2px solid var(--border-sidebar);
-        background: rgba(99, 102, 241, 0.05);
-    }
-
-    .depr-sidebar-brand svg {
-        color: var(--primary);
-        width: 24px;
-        height: 24px;
-        stroke-width: 2;
-        flex-shrink: 0;
-    }
-
-    .depr-sidebar-menu {
-        flex: 1;
-        overflow-y: auto;
-        padding: 1rem 0;
-    }
-
-    .depr-sidebar-section {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .depr-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.875rem;
-        padding: 0.875rem 1.5rem;
-        color: var(--text-secondary-sidebar);
-        text-decoration: none;
-        transition: all 0.25s ease;
-        cursor: pointer;
-        border-left: 3px solid transparent;
-        font-weight: 500;
-        font-size: 0.95rem;
-    }
-
-    .depr-nav-item:hover {
-        color: var(--text-on-sidebar);
-        background: rgba(99, 102, 241, 0.12);
-        border-left-color: var(--primary);
-    }
-
-    .depr-nav-item.active {
-        color: var(--text-on-sidebar);
-        background: rgba(99, 102, 241, 0.2);
-        border-left-color: var(--primary);
-        font-weight: 600;
-    }
-
-    .depr-nav-item svg {
-        width: 18px;
-        height: 18px;
-        stroke-width: 2;
-        flex-shrink: 0;
-    }
-
-    .depr-sidebar-footer {
-        padding: 1.25rem 1.5rem;
-        border-top: 2px solid var(--border-sidebar);
-        font-size: 0.8rem;
-        color: var(--text-secondary-sidebar);
-        opacity: 0.9;
-        background: rgba(99, 102, 241, 0.04);
-    }
-
-    .depr-content-wrapper {
-        margin-left: 260px;
-        padding: 2rem;
-        background: var(--bg-page);
-        min-height: 100vh;
-    }
-
-    .depr-header {
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 2px solid var(--border-color);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .depr-header h2 {
-        font-size: 2.125rem;
-        font-weight: 800;
-        color: var(--text-primary);
-        margin: 0;
-        letter-spacing: -0.8px;
-    }
-
-    .depr-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.25rem;
-        margin-bottom: 2.5rem;
-    }
-
-    .depr-card {
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-    }
-
-    .depr-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transform: translateY(-2px);
-    }
-
-    .stat-label {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        letter-spacing: 0.3px;
-        text-transform: uppercase;
-    }
-
-    .stat-value {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--primary);
-        line-height: 1.2;
-    }
-
-    .depr-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9375rem;
-    }
-
-    .depr-table thead {
-        background: var(--bg-secondary);
-        border-bottom: 2px solid var(--border-color);
-    }
-
-    .depr-table th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 700;
-        color: var(--text-primary);
-        letter-spacing: -0.3px;
-    }
-
-    .depr-table tbody tr {
-        border-bottom: 1px solid var(--border-color);
-        transition: background 0.15s ease;
-    }
-
-    .depr-table tbody tr:hover {
-        background: var(--bg-secondary);
-    }
-
-    .depr-table td {
-        padding: 1rem;
-        color: var(--text-primary);
-    }
-
-    .depr-right {
-        text-align: right;
-        font-weight: 600;
-    }
-
-    .depr-filter-section {
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .depr-filter-title {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-    }
-
-    .depr-filter-grid {
-        display: grid;
-        grid-template-columns: repeat(6, minmax(140px, 1fr)) auto auto;
-        gap: 1rem;
-        align-items: end;
-    }
-
-    .form-group-depr {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .form-group-depr label {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-    .form-group-depr input,
-    .form-group-depr select {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 0.875rem;
-        font-family: inherit;
-        background: white;
-        color: var(--text-primary);
-    }
-
-    .form-group-depr input:focus,
-    .form-group-depr select:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
-    }
-
-    .depr-table-container {
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        overflow: hidden;
-        margin-bottom: 1.25rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .depr-section-title {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 0.75rem;
-        letter-spacing: -0.3px;
-    }
-
-    .depr-button-group {
-        display: contents;
-    }
-
-    .depr-action-group {
-        display: flex;
-        align-items: end;
-        height: 100%;
-    }
-
-    .depr-export {
-        background: #fff;
-        border: 1px solid var(--border-color);
-        color: var(--text-primary);
-        text-decoration: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-
-    .depr-export:hover { background: var(--bg-secondary); }
-
-    .depr-btn {
-        padding: 0.5rem 1.25rem;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .depr-btn-primary {
-        background: var(--primary);
-        color: white;
-    }
-
-    .depr-btn-primary:hover {
-        background: var(--primary-hover);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
-    }
-
-    .depr-btn-secondary {
-        background: transparent;
-        border: 1px solid var(--primary);
-        color: var(--primary);
-    }
-
-    .depr-btn-secondary:hover {
-        background: rgba(var(--primary-rgb), 0.05);
-    }
-
-    /* Responsive */
-    @media (max-width: 1200px) { 
-        .depr-filter-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 1024px) { 
-        .depr-cards { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } 
-        .depr-filter-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 640px) { 
-        .depr-cards { grid-template-columns: 1fr; }
-        .depr-filter-grid { grid-template-columns: 1fr; }
-        .depr-header h2 { font-size: 1.125rem; }
-        .depr-content-wrapper { margin-left: 0; padding: 1rem; }
-        .depr-sidebar-wrapper { width: 100%; height: auto; position: relative; }
-    }
-    /* Luxury polish */
-    .depr-content-wrapper {
-        background:
-            radial-gradient(1200px 480px at 100% -10%, rgba(198, 169, 107, 0.08), transparent 60%),
-            #f3f4f6;
-    }
-    .depr-header,
-    .depr-filter-section,
-    .depr-card,
-    .depr-table-container {
-        background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
-        border-color: #e2e8f0;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
-    }
-    .depr-header h2 { letter-spacing: -0.25px; }
-    .depr-btn-primary {
-        background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-    }
-    .depr-btn-primary:hover { background: linear-gradient(135deg, #0b1220 0%, #111827 100%); }
-    .depr-table thead { background: #f8fafc; }
-    .depr-table tbody tr:hover { background: rgba(198, 169, 107, 0.08); }
+body          { display:flex!important; height:auto!important; min-height:100vh!important; overflow-x:hidden!important; overflow-y:auto!important; }
+.main-wrapper { overflow:visible!important; height:auto!important; flex:1!important; }
+.content      { overflow:visible!important; height:auto!important; flex:none!important; padding:0!important; }
+.top-bar      { position:sticky!important; top:0!important; z-index:98!important; }
+.sidebar      { display:none!important; }
+.main-content { width:100%!important; flex:1!important; }
+.container-main{ width:100%!important; }
+.page-title   { display:none!important; }
+:root{ --dr-sidebar:240px; --dr-bg:#f1f5f9; --dr-white:#ffffff; --dr-border:#e2e8f0; --dr-radius:12px; --dr-shadow:0 1px 3px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.04); --dr-shadow-md:0 4px 12px rgba(15,23,42,.08),0 8px 32px rgba(15,23,42,.06); --dr-ink:#0f172a; --dr-muted:#64748b; --dr-indigo:#6366f1; --dr-indigo-dk:#4f46e5; }
+.dr-sidebar{ width:var(--dr-sidebar); background:#0f172a; display:flex; flex-direction:column; height:100vh; position:fixed; left:0; top:0; z-index:200; border-right:1px solid rgba(255,255,255,.05); }
+.dr-sidebar-brand{ padding:1.25rem 1rem; display:flex; align-items:center; gap:.75rem; border-bottom:1px solid rgba(255,255,255,.06); }
+.dr-brand-icon{ width:36px; height:36px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.dr-brand-icon svg{ width:18px; height:18px; color:#fff; stroke-width:2.5; }
+.dr-brand-name{ font-size:.875rem; font-weight:700; color:#f1f5f9; line-height:1.2; }
+.dr-brand-sub{ font-size:.68rem; color:#475569; margin-top:1px; }
+.dr-sidebar-nav{ flex:1; overflow-y:auto; padding:.5rem; display:flex; flex-direction:column; gap:2px; }
+.dr-nav-label{ font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:#334155; padding:.75rem .5rem .25rem; margin-top:.25rem; }
+.dr-nav-item{ display:flex; align-items:center; gap:.625rem; padding:.5625rem .75rem; color:#94a3b8; text-decoration:none; border-radius:8px; font-size:.8125rem; font-weight:500; transition:all .15s ease; }
+.dr-nav-item svg{ width:15px; height:15px; stroke-width:2; flex-shrink:0; opacity:.65; }
+.dr-nav-item:hover{ background:rgba(255,255,255,.06); color:#e2e8f0; }
+.dr-nav-item:hover svg{ opacity:1; }
+.dr-nav-item.active{ background:rgba(99,102,241,.18); color:#a5b4fc; font-weight:600; }
+.dr-nav-item.active svg{ opacity:1; color:#818cf8; }
+.dr-sidebar-footer{ padding:.875rem 1rem; border-top:1px solid rgba(255,255,255,.05); font-size:.68rem; color:#334155; display:flex; align-items:center; gap:.4rem; }
+.dr-content{ margin-left:var(--dr-sidebar); min-height:100vh; background:var(--dr-bg); display:flex; flex-direction:column; }
+.dr-page-header{ background:var(--dr-white); border-bottom:1px solid var(--dr-border); padding:1rem 1.75rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; position:sticky; top:0; z-index:100; box-shadow:0 1px 4px rgba(15,23,42,.06); }
+.dr-page-title{ font-size:1.125rem; font-weight:700; color:var(--dr-ink); margin:0; letter-spacing:-.3px; }
+.dr-breadcrumb{ font-size:.72rem; color:var(--dr-muted); display:flex; align-items:center; gap:.3rem; margin-top:.1rem; }
+.dr-breadcrumb a{ color:var(--dr-indigo); text-decoration:none; }
+.dr-breadcrumb a:hover{ text-decoration:underline; }
+.dr-header-actions{ display:flex; align-items:center; gap:.5rem; }
+.dr-btn{ display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1rem; border-radius:8px; font-size:.8125rem; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s ease; white-space:nowrap; border:1.5px solid transparent; height:36px; }
+.dr-btn-primary{ background:var(--dr-indigo); color:#fff; border-color:var(--dr-indigo); }
+.dr-btn-primary:hover{ background:var(--dr-indigo-dk); border-color:var(--dr-indigo-dk); }
+.dr-btn-ghost{ background:var(--dr-white); color:var(--dr-muted); border-color:var(--dr-border); }
+.dr-btn-ghost:hover{ border-color:#94a3b8; color:var(--dr-ink); }
+.dr-btn-outline{ background:var(--dr-white); color:var(--dr-muted); border-color:var(--dr-border); }
+.dr-btn-outline:hover{ background:#f8fafc; }
+.dr-btn-outline.active{ border-color:var(--dr-indigo); color:var(--dr-indigo); background:rgba(99,102,241,.05); }
+.dr-body{ padding:1.5rem 1.75rem; display:flex; flex-direction:column; gap:1.25rem; }
+.dr-kpi-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:1rem; }
+.dr-kpi{ background:var(--dr-white); border:1px solid var(--dr-border); border-radius:var(--dr-radius); padding:1.125rem 1.25rem; display:flex; align-items:flex-start; gap:.875rem; box-shadow:var(--dr-shadow); transition:all .2s ease; }
+.dr-kpi:hover{ transform:translateY(-2px); box-shadow:var(--dr-shadow-md); }
+.dr-kpi-ico{ width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+.ico-blue{ background:#eff6ff; } .ico-red{ background:#fef2f2; } .ico-green{ background:#f0fdf4; } .ico-violet{ background:#f5f3ff; } .ico-amber{ background:#fffbeb; } .ico-teal{ background:#f0fdfa; }
+.dr-kpi-body{ flex:1; min-width:0; }
+.dr-kpi-label{ font-size:.68rem; font-weight:700; color:var(--dr-muted); text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:.2rem; }
+.dr-kpi-val{ font-size:1.25rem; font-weight:800; color:var(--dr-ink); letter-spacing:-.5px; line-height:1.2; }
+.dr-kpi-sub{ font-size:.68rem; color:var(--dr-muted); margin-top:.15rem; }
+.dr-filter{ background:var(--dr-white); border:1px solid var(--dr-border); border-radius:var(--dr-radius); box-shadow:var(--dr-shadow); overflow:hidden; }
+.dr-filter-head{ padding:.875rem 1.25rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:.625rem; }
+.dr-filter-head-icon{ width:28px; height:28px; background:#f8fafc; border:1px solid var(--dr-border); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:.8rem; }
+.dr-filter-head-title{ font-size:.875rem; font-weight:700; color:var(--dr-ink); flex:1; }
+.dr-filter-body{ padding:1rem 1.25rem; }
+.dr-filter-quick{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:.75rem; align-items:end; }
+.fg{ display:flex; flex-direction:column; gap:.3rem; }
+.fg label{ font-size:.7rem; font-weight:700; color:var(--dr-muted); text-transform:uppercase; letter-spacing:.04em; }
+.fg input,.fg select{ padding:.5rem .75rem; border:1.5px solid #e2e8f0; border-radius:8px; font-size:.8125rem; font-family:inherit; background:#f8fafc; color:var(--dr-ink); height:38px; transition:all .15s ease; }
+.fg input:focus,.fg select:focus{ outline:none; border-color:var(--dr-indigo); background:#fff; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+.dr-filter-actions{ display:flex; align-items:center; gap:.5rem; justify-content:flex-end; padding-top:.875rem; border-top:1px solid #f1f5f9; margin-top:.875rem; }
+.dr-adv-panel{ border-top:1px solid #f1f5f9; background:#fafbff; padding:1rem 1.25rem; animation:advSlide .25s ease; }
+@keyframes advSlide{ from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.dr-adv-section{ margin-bottom:1rem; }
+.dr-adv-section:last-of-type{ margin-bottom:0; }
+.dr-adv-section-title{ font-size:.68rem; font-weight:700; color:var(--dr-muted); text-transform:uppercase; letter-spacing:.07em; padding-bottom:.4rem; margin-bottom:.6rem; border-bottom:1px solid #e9edf3; display:flex; align-items:center; gap:.35rem; }
+.dr-adv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:.6rem; }
+.dr-adv-footer{ display:flex; gap:.5rem; justify-content:flex-end; padding-top:.75rem; border-top:1px solid #e2e8f0; margin-top:.75rem; }
+.dr-card{ background:var(--dr-white); border:1px solid var(--dr-border); border-radius:var(--dr-radius); box-shadow:var(--dr-shadow); overflow:hidden; }
+.dr-card-head{ padding:.875rem 1.25rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; }
+.dr-card-title{ font-size:.9375rem; font-weight:700; color:var(--dr-ink); margin:0; }
+.dr-badge{ font-size:.7rem; font-weight:600; padding:.2rem .6rem; border-radius:999px; background:#f1f5f9; color:var(--dr-muted); }
+.dr-table-wrap{ overflow-x:auto; }
+.dr-table{ width:100%; border-collapse:collapse; font-size:.875rem; }
+.dr-table thead tr{ background:#f8fafc; border-bottom:2px solid #e9edf3; }
+.dr-table th{ padding:.75rem 1rem; text-align:left; font-size:.68rem; font-weight:700; color:var(--dr-muted); text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; }
+.dr-table th.r,.dr-table td.r{ text-align:right; }
+.dr-table tbody tr{ border-bottom:1px solid #f1f5f9; transition:background .1s; }
+.dr-table tbody tr:last-child{ border-bottom:none; }
+.dr-table tbody tr:hover{ background:#f8fafc; }
+.dr-table td{ padding:.875rem 1rem; color:var(--dr-ink); vertical-align:middle; }
+.dr-table tbody tr:nth-child(even){ background:#fafafa; }
+.dr-table tbody tr:nth-child(even):hover{ background:#f5f7fb; }
+.mn{ font-variant-numeric:tabular-nums; font-weight:600; }
+.mn-r{ color:#dc2626; } .mn-g{ color:#16a34a; } .mn-b{ color:#2563eb; } .mn-v{ color:#7c3aed; }
+.dr-link{ color:var(--dr-indigo); text-decoration:none; font-weight:600; }
+.dr-link:hover{ text-decoration:underline; }
+.dr-empty{ padding:3rem 2rem; text-align:center; color:var(--dr-muted); font-size:.9rem; }
+.dr-empty-icon{ font-size:2.5rem; margin-bottom:.75rem; opacity:.4; }
+.dr-pagination{ padding:.875rem 1.25rem; border-top:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center; gap:.375rem; }
+.dr-pg-btn{ padding:.375rem .75rem; border:1.5px solid var(--dr-border); border-radius:6px; font-size:.78rem; font-weight:600; color:var(--dr-muted); text-decoration:none; background:var(--dr-white); transition:all .15s ease; display:inline-flex; align-items:center; }
+.dr-pg-btn:hover{ border-color:var(--dr-indigo); color:var(--dr-indigo); }
+.dr-pg-info{ padding:.375rem .875rem; font-size:.78rem; font-weight:600; color:var(--dr-ink); background:#f8fafc; border:1px solid var(--dr-border); border-radius:6px; }
+@media(max-width:1100px){ .dr-filter-quick{ grid-template-columns:1fr 1fr; } }
+@media(max-width:768px){ .dr-content{ margin-left:0; } .dr-sidebar{ display:none; } .dr-kpi-row{ grid-template-columns:repeat(2,1fr); } .dr-body{ padding:1rem; } .dr-page-header{ padding:.875rem 1rem; } .dr-filter-quick{ grid-template-columns:1fr; } }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Custom Depreciation Report Sidebar -->
-<div class="depr-sidebar-wrapper">
-    <div class="depr-sidebar-brand">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-        <span>Reports</span>
+<aside class="dr-sidebar">
+    <div class="dr-sidebar-brand">
+        <div class="dr-brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></div>
+        <div><div class="dr-brand-name">Depreciation</div><div class="dr-brand-sub">Financial Reports</div></div>
     </div>
-    
-    <nav class="depr-sidebar-menu">
-        <div class="depr-sidebar-section">
-            <a href="{% url 'asset-list' %}?view=depreciation" class="depr-nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-                <span>Summary</span>
-            </a>
-            <a href="{% url 'depreciation-category' %}" class="depr-nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-                <span>Category</span>
-            </a>
-            <a href="{% url 'depreciation-group' %}" class="depr-nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                <span>Group</span>
-            </a>
-            <a href="{% url 'depreciation-location' %}" class="depr-nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <span>Location</span>
-            </a>
-            <a href="{% url 'depreciation-department' %}" class="depr-nav-item active">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                <span>Department</span>
-            </a>
-            <a href="#all-assets" class="depr-nav-item" style="opacity: 0.6; cursor: not-allowed;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 9l6-6 6 6"></path>
-                    <path d="M9 20h6v-8H9v8z"></path>
-                </svg>
-                <span>All Assets</span>
-            </a>
-        </div>
+    <nav class="dr-sidebar-nav">
+        <div class="dr-nav-label">Reports</div>
+        <a href="{% url 'asset-list' %}?view=depreciation" class="dr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>Summary</a>
+        <a href="{% url 'depreciation-category' %}" class="dr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>By Category</a>
+        <a href="{% url 'depreciation-group' %}" class="dr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>By Group</a>
+        <a href="{% url 'depreciation-location' %}" class="dr-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>By Location</a>
+        <a href="{% url 'depreciation-department' %}" class="dr-nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>By Department</a>
     </nav>
-    
-    <div class="depr-sidebar-footer">
-        Financial Depreciation Report
-    </div>
-</div>
+    <div class="dr-sidebar-footer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:12px;height:12px;stroke-width:2;opacity:.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Financial Depreciation System</div>
+</aside>
 
-<!-- Main Content Wrapper -->
-<div class="depr-content-wrapper">
-    <div class="depr-header">
+<main class="dr-content">
+    <div class="dr-page-header">
         <div>
-            <h2>Department Depreciation Breakdown</h2>
+            <h1 class="dr-page-title">Department Depreciation Breakdown</h1>
+            <div class="dr-breadcrumb"><a href="{% url 'asset-list' %}">Assets</a><span>›</span><span>Depreciation Reports</span><span>›</span><span>By Department</span></div>
         </div>
-        <a href="{% url 'asset-export-excel' %}?{{ query_params|default:'view=depreciation' }}" class="depr-export">Export</a>
+        <div class="dr-header-actions">
+            <a href="{% url 'asset-export-excel' %}?{{ query_params|default:'view=depreciation' }}" class="dr-btn dr-btn-ghost">↓ Export Excel</a>
+        </div>
     </div>
 
-    <!-- Filter Section -->
-    <div class="depr-filter-section">
-        <form method="get" style="display: contents;">
-            <div style="display: contents;">
-                <div class="depr-filter-title">Filters</div>
-                <div class="depr-filter-grid">
-                    <div class="form-group-depr">
-                        <label for="search">Search</label>
-                        <input type="text" id="search" name="q" placeholder="Asset name, tag..." value="{{ search_query }}">
-                    </div>
-                    <div class="form-group-depr">
-                        <label for="date_from">From Date</label>
-                        <input type="date" id="date_from" name="depr_date_from" value="{{ depr_date_from }}">
-                    </div>
-                    <div class="form-group-depr">
-                        <label for="date_to">To Date</label>
-                        <input type="date" id="date_to" name="depr_date_to" value="{{ depr_date_to }}">
-                    </div>
-                    <div class="form-group-depr">
-                        <label for="department">Department</label>
-                        <select id="department" name="depr_department">
-                            <option value="">All Departments</option>
-                            {% for dept in departments %}
-                            <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == depr_department %}selected{% endif %}>{{ dept.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group-depr">
-                        <label for="category">Category</label>
-                        <select id="category" name="depr_category">
-                            <option value="">All Categories</option>
-                            {% for cat in categories %}
-                            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == depr_category %}selected{% endif %}>{{ cat.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group-depr">
-                        <label for="location">Location</label>
-                        <select id="location" name="depr_location">
-                            <option value="">All Locations</option>
-                            {% for loc in locations %}
-                            <option value="{{ loc.id }}" {% if loc.id|stringformat:"s" == depr_location %}selected{% endif %}>{{ loc.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="depr-button-group depr-action-group">
-                        <button type="submit" class="depr-btn depr-btn-primary">Apply</button>
-                    </div>
-                    <div class="depr-button-group depr-action-group">
-                        <a href="{% url 'depreciation-department' %}" class="depr-btn depr-btn-secondary" style="text-decoration: none; display: inline-block;">Reset</a>
-                    </div>
+    <div class="dr-body">
+        <!-- KPI Cards -->
+        <div class="dr-kpi-row">
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-blue">💰</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Total Purchase Cost</div>
+                    <div class="dr-kpi-val" style="color:#2563eb;">AED {{ total_cost|floatformat:2|intcomma|default:"0.00" }}</div>
+                    {% if is_estimate %}<div class="dr-kpi-sub">*Estimated</div>{% endif %}
                 </div>
             </div>
-        </form>
-    </div>
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-red">📉</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Accumulated Depreciation</div>
+                    <div class="dr-kpi-val" style="color:#dc2626;">-AED {{ total_acc_dep|floatformat:2|intcomma|default:"0.00" }}</div>
+                </div>
+            </div>
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-green">📈</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Net Book Value</div>
+                    <div class="dr-kpi-val" style="color:#16a34a;">AED {{ total_nbv|floatformat:2|intcomma|default:"0.00" }}</div>
+                </div>
+            </div>
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-violet">📦</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Total Assets</div>
+                    <div class="dr-kpi-val" style="color:#7c3aed;">{{ total_assets_report|default:"0" }}</div>
+                </div>
+            </div>
+            {% if opening_date %}
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-teal">🔓</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Opening Value</div>
+                    <div class="dr-kpi-val" style="color:#0d9488;font-size:1rem;">AED {{ total_opening_value|floatformat:2|intcomma }}</div>
+                    <div class="dr-kpi-sub">{{ depr_date_from }}</div>
+                </div>
+            </div>
+            {% endif %}
+            {% if closing_date %}
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-amber">🔒</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Closing Value</div>
+                    <div class="dr-kpi-val" style="color:#d97706;font-size:1rem;">AED {{ total_closing_value|floatformat:2|intcomma }}</div>
+                    <div class="dr-kpi-sub">{{ depr_date_to }}</div>
+                </div>
+            </div>
+            {% endif %}
+            {% if opening_date and closing_date %}
+            <div class="dr-kpi">
+                <div class="dr-kpi-ico ico-red">📅</div>
+                <div class="dr-kpi-body">
+                    <div class="dr-kpi-label">Period Depreciation</div>
+                    <div class="dr-kpi-val" style="color:#dc2626;font-size:1rem;">-AED {{ period_depreciation|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
 
-    <!-- Summary Cards -->
-    <div class="depr-cards">
-        <div class="depr-card">
-            <span class="stat-label">Total Purchase Cost</span>
-            <span class="stat-value">
-                {% if total_cost %}
-                    AED {{ total_cost|floatformat:2|intcomma }}
-                {% else %}
-                    AED 0.00
-                {% endif %}
-            </span>
-            {% if is_estimate %}<span style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">*Estimated</span>{% endif %}
+        <!-- Filter Panel -->
+        <div class="dr-filter">
+            <div class="dr-filter-head">
+                <div class="dr-filter-head-icon">⚙</div>
+                <span class="dr-filter-head-title">Filters</span>
+            </div>
+            <div class="dr-filter-body">
+                <form method="get" id="dr-filter-form">
+                    <div class="dr-filter-quick">
+                        <div class="fg"><label>Search</label><input type="text" name="q" placeholder="Asset name, tag…" value="{{ search_query }}"></div>
+                        <div class="fg"><label>Depr. From</label><input type="date" name="depr_date_from" value="{{ depr_date_from }}"></div>
+                        <div class="fg"><label>Depr. To</label><input type="date" name="depr_date_to" value="{{ depr_date_to }}"></div>
+                        <div class="fg">
+                            <label>Department</label>
+                            <select name="depr_department">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}<option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == depr_department %}selected{% endif %}>{{ dept.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="dr-filter-actions">
+                        <a href="{% url 'depreciation-department' %}" class="dr-btn dr-btn-ghost">✕ Reset</a>
+                        <button type="button" id="dr-adv-toggle" class="dr-btn dr-btn-outline" onclick="toggleAdvFilters()">⚙ More Filters</button>
+                        <button type="submit" class="dr-btn dr-btn-primary">Apply</button>
+                    </div>
+                </form>
+            </div>
+            <div id="dr-adv-panel" class="dr-adv-panel" style="display:none;">
+                <form method="get">
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                    <input type="hidden" name="depr_date_from" value="{{ depr_date_from }}">
+                    <input type="hidden" name="depr_date_to" value="{{ depr_date_to }}">
+                    <input type="hidden" name="depr_department" value="{{ depr_department }}">
+                    <div class="dr-adv-section">
+                        <div class="dr-adv-section-title">🏷 Identity &amp; Classification</div>
+                        <div class="dr-adv-grid">
+                            <div class="fg"><label>Product Name</label><input type="text" name="depr_product_name" placeholder="Search…" value="{{ depr_product_name }}"></div>
+                            <div class="fg"><label>Status</label><select name="depr_status"><option value="">All Statuses</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if value == depr_status %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Condition</label><select name="depr_condition"><option value="">All Conditions</option>{% for value,label in condition_choices %}<option value="{{ value }}" {% if value == depr_condition %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Label Type</label><select name="depr_label_type"><option value="">All Types</option>{% for value,label in label_types %}<option value="{{ value }}" {% if value == depr_label_type %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Tag Type</label><select name="depr_tag_type"><option value="">All Tags</option><option value="BARCODE" {% if depr_tag_type == 'BARCODE' %}selected{% endif %}>Barcode</option><option value="RFID" {% if depr_tag_type == 'RFID' %}selected{% endif %}>RFID</option></select></div>
+                            <div class="fg"><label>Category</label><select name="depr_category"><option value="">All Categories</option>{% for cat in categories %}<option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == depr_category %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Group</label><select name="depr_group"><option value="">All Groups</option>{% for g in groups %}<option value="{{ g.id }}" {% if g.id|stringformat:"s" == depr_group %}selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Sub Group</label><select name="depr_sub_group"><option value="">All Sub Groups</option>{% for sg in sub_groups %}<option value="{{ sg.id }}" {% if sg.id|stringformat:"s" == depr_sub_group %}selected{% endif %}>{{ sg.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Sub Category</label><select name="depr_subcategory"><option value="">All Sub Categories</option>{% for sc in sub_categories %}<option value="{{ sc.id }}" {% if sc.id|stringformat:"s" == depr_subcategory %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Brand</label><select name="depr_brand"><option value="">All Brands</option>{% for br in brands %}<option value="{{ br.id }}" {% if br.id|stringformat:"s" == depr_brand %}selected{% endif %}>{{ br.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Supplier</label><select name="depr_supplier"><option value="">All Suppliers</option>{% for sup in suppliers %}<option value="{{ sup.id }}" {% if sup.id|stringformat:"s" == depr_supplier %}selected{% endif %}>{{ sup.name }}</option>{% endfor %}</select></div>
+                        </div>
+                    </div>
+                    <div class="dr-adv-section">
+                        <div class="dr-adv-section-title">📍 Location &amp; Placement</div>
+                        <div class="dr-adv-grid">
+                            <div class="fg"><label>Site</label><select name="depr_site"><option value="">All Sites</option>{% for s in sites %}<option value="{{ s.id }}" {% if s.id|stringformat:"s" == depr_site %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Branch</label><select name="depr_branch"><option value="">All Branches</option>{% for b in branches %}<option value="{{ b.id }}" {% if b.id|stringformat:"s" == depr_branch %}selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Building</label><select name="depr_building"><option value="">All Buildings</option>{% for bld in buildings %}<option value="{{ bld.id }}" {% if bld.id|stringformat:"s" == depr_building %}selected{% endif %}>{{ bld.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Floor</label><select name="depr_floor"><option value="">All Floors</option>{% for fl in floors %}<option value="{{ fl.id }}" {% if fl.id|stringformat:"s" == depr_floor %}selected{% endif %}>{{ fl.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Location</label><select name="depr_location"><option value="">All Locations</option>{% for loc in locations %}<option value="{{ loc.id }}" {% if loc.id|stringformat:"s" == depr_location %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Room</label><select name="depr_room"><option value="">All Rooms</option>{% for r in rooms %}<option value="{{ r.id }}" {% if r.id|stringformat:"s" == depr_room %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+                            <div class="fg"><label>Sub Location</label><select name="depr_sub_location"><option value="">All Sub Locations</option>{% for sl in sub_locations %}<option value="{{ sl.id }}" {% if sl.id|stringformat:"s" == depr_sub_location %}selected{% endif %}>{{ sl.name }}</option>{% endfor %}</select></div>
+                        </div>
+                    </div>
+                    <div class="dr-adv-section">
+                        <div class="dr-adv-section-title">📅 Dates &amp; Ownership</div>
+                        <div class="dr-adv-grid">
+                            <div class="fg"><label>Purchase Date From</label><input type="date" name="depr_purchase_date_from" value="{{ depr_purchase_date_from }}"></div>
+                            <div class="fg"><label>Purchase Date To</label><input type="date" name="depr_purchase_date_to" value="{{ depr_purchase_date_to }}"></div>
+                            <div class="fg"><label>Registered Date From</label><input type="date" name="depr_registered_date_from" value="{{ depr_registered_date_from }}"></div>
+                            <div class="fg"><label>Registered Date To</label><input type="date" name="depr_registered_date_to" value="{{ depr_registered_date_to }}"></div>
+                            <div class="fg"><label>Registered By</label><select name="depr_created_by"><option value="">All Users</option>{% for u in creators %}<option value="{{ u.id }}" {% if u.id|stringformat:"s" == depr_created_by %}selected{% endif %}>{% if u.first_name or u.last_name %}{{ u.first_name }} {{ u.last_name }}{% else %}{{ u.username }}{% endif %}</option>{% endfor %}</select></div>
+                        </div>
+                    </div>
+                    <div class="dr-adv-footer">
+                        <a href="{% url 'depreciation-department' %}" class="dr-btn dr-btn-ghost">✕ Reset All</a>
+                        <button type="submit" class="dr-btn dr-btn-primary">✓ Apply Filters</button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <div class="depr-card">
-            <span class="stat-label">Accumulated Depreciation</span>
-            <span class="stat-value" style="color:#dc2626;">
-                {% if total_acc_dep %}
-                    -AED {{ total_acc_dep|floatformat:2|intcomma }}
-                {% else %}
-                    -AED 0.00
-                {% endif %}
-            </span>
-        </div>
-        <div class="depr-card">
-            <span class="stat-label">Net Book Value (NBV)</span>
-            <span class="stat-value" style="color:#22c55e;">
-                {% if total_nbv %}
-                    AED {{ total_nbv|floatformat:2|intcomma }}
-                {% else %}
-                    AED 0.00
-                {% endif %}
-            </span>
-        </div>
-        <div class="depr-card">
-            <span class="stat-label">Total Assets</span>
-            <span class="stat-value" style="color:#3b82f6;">
-                {{ total_assets_report|default:"0" }}
-            </span>
-        </div>
-        {% if opening_date %}
-        <div class="depr-card">
-            <span class="stat-label">Opening Value ({{ depr_date_from }})</span>
-            <span class="stat-value" style="color:#3b82f6;">AED {{ total_opening_value|floatformat:2|intcomma }}</span>
-        </div>
-        {% endif %}
-        {% if closing_date %}
-        <div class="depr-card">
-            <span class="stat-label">Closing Value ({{ depr_date_to }})</span>
-            <span class="stat-value" style="color:#8b5cf6;">AED {{ total_closing_value|floatformat:2|intcomma }}</span>
-        </div>
-        {% endif %}
-        {% if opening_date and closing_date %}
-        <div class="depr-card">
-            <span class="stat-label">Period Depreciation</span>
-            <span class="stat-value" style="color:#ef4444;">-AED {{ period_depreciation|floatformat:2|intcomma }}</span>
-        </div>
-        {% endif %}
-    </div>
 
-    <!-- Department Breakdown Table -->
-    <div style="margin-top: 2rem;">
-        <h3 class="depr-section-title">Department Depreciation Summary</h3>
-        <div class="depr-table-container">
-            <table class="depr-table">
-                <thead>
-                    <tr>
-                        <th>Department</th>
-                        <th style="text-align:center; width:80px;">Count</th>
-                        <th class="depr-right">Purchase Cost</th>
-                        <th class="depr-right">Accumulated Depreciation</th>
-                        <th class="depr-right">Net Book Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if grouped_data %}
-                        {% for dept in grouped_data %}
-                        <tr>
-                            <td>
-                                {% if dept.id %}
-                                <a href="?{% if query_params %}{{ query_params }}&{% endif %}depr_department={{ dept.id }}" style="text-decoration:none; color:var(--primary); font-weight:600;">{{ dept.name }}</a>
-                                {% else %}
-                                <span style="color: var(--text-secondary);">{{ dept.name }}</span>
-                                {% endif %}
-                            </td>
-                            <td style="text-align:center; font-weight:600;">{{ dept.count }}</td>
-                            <td class="depr-right">AED {{ dept.total_cost|floatformat:2|intcomma }}</td>
-                            <td class="depr-right" style="color:#dc2626;">-AED {{ dept.total_acc_dep|floatformat:2|intcomma }}</td>
-                            <td class="depr-right" style="color:#22c55e; font-weight:700;">AED {{ dept.total_nbv|floatformat:2|intcomma }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">No data available</td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Assets Table -->
-    <div style="margin-top: 2rem;">
-        <h3 class="depr-section-title">Asset Details</h3>
-        <div class="depr-table-container">
-            <div style="overflow-x:auto;">
-                <table class="depr-table">
+        <!-- Department Summary Table -->
+        <div class="dr-card">
+            <div class="dr-card-head">
+                <h3 class="dr-card-title">Department Summary</h3>
+                <span class="dr-badge">{{ grouped_data|length }} department{{ grouped_data|length|pluralize }}</span>
+            </div>
+            <div class="dr-table-wrap">
+                <table class="dr-table">
                     <thead>
                         <tr>
-                            <th>Asset</th>
                             <th>Department</th>
-                            <th>Purchase Date</th>
-                            <th class="depr-right">Cost</th>
-                            {% if opening_date %}<th class="depr-right">Opening</th>{% endif %}
-                            {% if closing_date %}<th class="depr-right">Closing</th>{% endif %}
-                            {% if opening_date and closing_date %}<th class="depr-right">Period Depr.</th>{% endif %}
-                            <th class="depr-right">Acc. Depr.</th>
-                            <th class="depr-right">NBV</th>
+                            <th style="text-align:center;">Count</th>
+                            <th class="r">Purchase Cost</th>
+                            <th class="r">Acc. Depreciation</th>
+                            <th class="r">Net Book Value</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for asset in assets %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'asset-detail' asset.id %}" style="color:var(--primary); text-decoration:none; font-weight:600;">{{ asset.asset_tag|default:asset.name }}</a>
-                            </td>
-                            <td>{{ asset.department.name|default:"—" }}</td>
-                            <td>{{ asset.purchase_date|date:"d/m/Y"|default:"—" }}</td>
-                            <td class="depr-right">AED {{ asset.purchase_price|floatformat:2|intcomma|default:"—" }}</td>
-                            {% if opening_date %}<td class="depr-right" style="color:#3b82f6;">AED {{ asset.opening_value|floatformat:2|intcomma }}</td>{% endif %}
-                            {% if closing_date %}<td class="depr-right" style="color:#8b5cf6;">AED {{ asset.closing_value|floatformat:2|intcomma }}</td>{% endif %}
-                            {% if opening_date and closing_date %}<td class="depr-right" style="color:#ef4444;">-AED {{ asset.period_depreciation|floatformat:2|intcomma }}</td>{% endif %}
-                            <td class="depr-right" style="color:#dc2626;">-AED {{ asset.accumulated_depreciation|floatformat:2|intcomma }}</td>
-                            <td class="depr-right" style="color:#22c55e; font-weight:700;">AED {{ asset.current_value|floatformat:2|intcomma }}</td>
-                        </tr>
-                        {% endfor %}
+                        {% if grouped_data %}
+                            {% for dept in grouped_data %}
+                            <tr>
+                                <td>{% if dept.id %}<a class="dr-link" href="?{% if query_params %}{{ query_params }}&{% endif %}depr_department={{ dept.id }}">{{ dept.name }}</a>{% else %}<span style="color:var(--dr-muted);">{{ dept.name }}</span>{% endif %}</td>
+                                <td style="text-align:center;font-weight:600;">{{ dept.count }}</td>
+                                <td class="r mn mn-b">AED {{ dept.total_cost|floatformat:2|intcomma }}</td>
+                                <td class="r mn mn-r">-AED {{ dept.total_acc_dep|floatformat:2|intcomma }}</td>
+                                <td class="r mn mn-g">AED {{ dept.total_nbv|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="5" class="dr-empty"><div class="dr-empty-icon">📂</div>No department data available for this period</td></tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Pagination -->
-        {% if is_paginated %}
-        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center; justify-content: center;">
-            {% if page_obj.has_previous %}
-                <a href="?page=1{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">First</a>
-                <a href="?page={{ page_obj.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">Previous</a>
-            {% endif %}
-            <span style="font-weight:600;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">Next</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}{% if query_params %}&{{ query_params }}{% endif %}" class="depr-btn depr-btn-secondary" style="text-decoration:none;">Last</a>
+        <!-- Asset Details Table -->
+        <div class="dr-card">
+            <div class="dr-card-head">
+                <h3 class="dr-card-title">Asset Details</h3>
+                {% if page_obj %}<span class="dr-badge">{{ page_obj.paginator.count }} asset{{ page_obj.paginator.count|pluralize }}</span>{% endif %}
+            </div>
+            <div class="dr-table-wrap">
+                <table class="dr-table">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Department</th>
+                            <th>Purchase Date</th>
+                            <th class="r">Cost</th>
+                            {% if opening_date %}<th class="r">Opening</th>{% endif %}
+                            {% if closing_date %}<th class="r">Closing</th>{% endif %}
+                            {% if opening_date and closing_date %}<th class="r">Period Depr.</th>{% endif %}
+                            <th class="r">Acc. Depr.</th>
+                            <th class="r">NBV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                        <tr>
+                            <td><a class="dr-link" href="{% url 'asset-detail' asset.id %}">{{ asset.asset_tag|default:asset.name }}</a></td>
+                            <td style="color:var(--dr-muted);">{{ asset.department.name|default:"—" }}</td>
+                            <td style="color:var(--dr-muted);white-space:nowrap;">{{ asset.purchase_date|date:"d M Y"|default:"—" }}</td>
+                            <td class="r mn mn-b">{% if asset.purchase_price %}AED {{ asset.purchase_price|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                            {% if opening_date %}<td class="r mn" style="color:#0d9488;">AED {{ asset.opening_value|floatformat:2|intcomma }}</td>{% endif %}
+                            {% if closing_date %}<td class="r mn mn-v">AED {{ asset.closing_value|floatformat:2|intcomma }}</td>{% endif %}
+                            {% if opening_date and closing_date %}<td class="r mn mn-r">-AED {{ asset.period_depreciation|floatformat:2|intcomma }}</td>{% endif %}
+                            <td class="r mn mn-r">-AED {{ asset.accumulated_depreciation|floatformat:2|intcomma }}</td>
+                            <td class="r mn mn-g">AED {{ asset.current_value|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="dr-empty"><div class="dr-empty-icon">🔍</div>No assets match the current filters</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if is_paginated %}
+            <div class="dr-pagination">
+                {% if page_obj.has_previous %}
+                    <a class="dr-pg-btn" href="?page=1{% if query_params %}&{{ query_params }}{% endif %}">« First</a>
+                    <a class="dr-pg-btn" href="?page={{ page_obj.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">‹ Prev</a>
+                {% endif %}
+                <span class="dr-pg-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="dr-pg-btn" href="?page={{ page_obj.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">Next ›</a>
+                    <a class="dr-pg-btn" href="?page={{ page_obj.paginator.num_pages }}{% if query_params %}&{{ query_params }}{% endif %}">Last »</a>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
-        {% endif %}
+
     </div>
-</div>
+</main>
+
+<script>
+function toggleAdvFilters() {
+    const panel = document.getElementById('dr-adv-panel');
+    const btn   = document.getElementById('dr-adv-toggle');
+    if (!panel) return;
+    const open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    btn.textContent = open ? '⚙ More Filters' : '✕ Hide Filters';
+    btn.classList.toggle('active', !open);
+}
+(function() {
+    const panel = document.getElementById('dr-adv-panel');
+    if (!panel) return;
+    const params = new URLSearchParams(window.location.search);
+    const basic = new Set(['q','depr_date_from','depr_date_to','depr_department','page']);
+    for (const [k, v] of params.entries()) {
+        if (!basic.has(k) && v && v.trim()) {
+            panel.style.display = 'block';
+            const btn = document.getElementById('dr-adv-toggle');
+            if (btn) { btn.textContent = '✕ Hide Filters'; btn.classList.add('active'); }
+            break;
+        }
+    }
+})();
+</script>
 
 {% endblock %}

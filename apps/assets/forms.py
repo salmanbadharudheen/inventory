@@ -102,9 +102,30 @@ class AssetForm(forms.ModelForm):
                 self.fields['supplier'].queryset = Supplier.objects.filter(organization=org)
                 self.fields['custodian'].queryset = Custodian.objects.filter(organization=org)
                 self.fields['region'].queryset = Region.objects.filter(organization=org)
+                # Default org-wide (AJAX will narrow by region/site as user selects)
                 self.fields['site'].queryset = Site.objects.filter(region__organization=org)
                 self.fields['location'].queryset = Location.objects.filter(site__region__organization=org)
                 self.fields['sub_location'].queryset = SubLocation.objects.filter(location__site__region__organization=org)
+                # Narrow site/location/sublocation by saved region/site so Django won't
+                # render a site from a different region as "selected" (prevents stale data).
+                _region_id = self.data.get('region') or getattr(self.instance, 'region_id', None)
+                if _region_id:
+                    self.fields['site'].queryset = Site.objects.filter(
+                        region_id=_region_id, region__organization=org)
+                    self.fields['location'].queryset = Location.objects.filter(
+                        site__region_id=_region_id, site__region__organization=org)
+                    self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                        location__site__region_id=_region_id, location__site__region__organization=org)
+                _site_id = self.data.get('site') or getattr(self.instance, 'site_id', None)
+                if _site_id:
+                    self.fields['location'].queryset = Location.objects.filter(
+                        site_id=_site_id, site__region__organization=org)
+                    self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                        location__site_id=_site_id, location__site__region__organization=org)
+                _location_id = self.data.get('location') or getattr(self.instance, 'location_id', None)
+                if _location_id:
+                    self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                        location_id=_location_id, location__site__region__organization=org)
                 self.fields['asset_remarks'].queryset = AssetRemarks.objects.filter(organization=org)
 
                 # Filter assigned_to users by organization
@@ -177,6 +198,35 @@ class AssetForm(forms.ModelForm):
                         f"{field_name.replace('_', ' ').title()} is too large. Maximum allowed size is {max_mb} MB."
                     )
                 })
+
+        # Cross-validate location hierarchy: clear child fields whose parent changed
+        region = cleaned_data.get('region')
+        site = cleaned_data.get('site')
+        location = cleaned_data.get('location')
+        sub_location = cleaned_data.get('sub_location')
+
+        # Site must belong to the selected region
+        if site and region and hasattr(site, 'region_id'):
+            if site.region_id != region.pk:
+                cleaned_data['site'] = None
+                cleaned_data['location'] = None
+                cleaned_data['sub_location'] = None
+                cleaned_data['building'] = None
+                cleaned_data['floor'] = None
+                cleaned_data['room'] = None
+                site = None
+
+        # Location must belong to the selected site
+        if location and site and hasattr(location, 'site_id'):
+            if location.site_id != site.pk:
+                cleaned_data['location'] = None
+                cleaned_data['sub_location'] = None
+                location = None
+
+        # SubLocation must belong to the selected location
+        if sub_location and location and hasattr(sub_location, 'location_id'):
+            if sub_location.location_id != location.pk:
+                cleaned_data['sub_location'] = None
 
         return cleaned_data
 

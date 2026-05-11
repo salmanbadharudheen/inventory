@@ -11,11 +11,9 @@
                 <a href="{% url 'transfer-export-excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-secondary">
                     <i data-lucide="file-spreadsheet"></i> Export Excel
                 </a>
-                {% if request.user.is_authenticated %}
                 <a href="{% url 'transfer-create' %}" class="btn btn-primary">
-                    <i data-lucide="plus"></i> New Transfer
+                    <i data-lucide="plus"></i> New Transfer Request
                 </a>
-                {% endif %}
             </div>
         </div>
 
@@ -23,12 +21,18 @@
             <div class="filter-left">
                 <div class="search">
                     <i data-lucide="search"></i>
-                    <input type="text" name="search" placeholder="Search by asset tag, asset code, name or transfer no." value="{{ search }}">
+                    <input type="text" name="search" placeholder="Search transfers, tags or names" value="{{ search }}">
                 </div>
                 <select name="status">
                     <option value="">All Status</option>
                     {% for code, label in status_choices %}
                     <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="asset">
+                    <option value="">All Assets</option>
+                    {% for asset in assets %}
+                    <option value="{{ asset.id }}" {% if asset_filter == asset.id|stringformat:"s" %}selected{% endif %}>{{ asset.asset_tag }} - {{ asset.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -37,9 +41,6 @@
                 <input type="date" name="date_from" value="{{ date_from }}" title="From">
                 <input type="date" name="date_to" value="{{ date_to }}" title="To">
                 <button type="submit" class="btn btn-secondary">Apply</button>
-                {% if search or status_filter or date_from or date_to %}
-                <a href="{% url 'transfer-list' %}" class="btn btn-secondary" title="Clear filters">Clear</a>
-                {% endif %}
             </div>
         </form>
     </header>
@@ -54,8 +55,7 @@
                         <th>Asset</th>
                         <th>From</th>
                         <th>To</th>
-                        <th>Transferred By</th>
-                        <th>Date & Time</th>
+                        <th>Date</th>
                         <th>Status</th>
                         <th></th>
                     </tr>
@@ -83,14 +83,7 @@
                                 -
                             {% endif %}
                         </td>
-                        <td class="muted">
-                            {% if transfer.created_by %}
-                                {{ transfer.created_by.get_full_name|default:transfer.created_by.username }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>{{ transfer.transfer_date|date:"d M Y H:i" }}</td>
+                        <td>{{ transfer.transfer_date|date:"d M Y" }}</td>
                         <td>
                             {% with cls=transfer.status|lower %}
                             <span class="pill pill-{{ cls|slugify }}">{{ transfer.get_status_display }}</span>
@@ -98,12 +91,16 @@
                         </td>
                         <td class="actions-col">
                             <a href="{% url 'transfer-detail' transfer.id %}" class="icon-btn" title="View"><i data-lucide="eye"></i></a>
-                            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.is_superuser %}
+                            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER or request.user.is_superuser %}
+                            {% if transfer.status == 'PENDING' %}
+                            <form method="post" action="{% url 'transfer-approve' transfer.id %}" style="display:inline">
+                                {% csrf_token %}
+                                <button type="submit" class="icon-btn icon-btn-approve" title="Approve" onclick="return confirm('Approve this transfer request?')"><i data-lucide="check-circle"></i></button>
+                            </form>
+                            {% endif %}
                             {% if transfer.status == 'PENDING' or transfer.status == 'IN_TRANSIT' %}
                             <a href="{% url 'transfer-update' transfer.id %}" class="icon-btn" title="Edit"><i data-lucide="edit"></i></a>
                             {% endif %}
-                            {% endif %}
-                            {% if request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER or request.user.is_superuser %}
                             {% if transfer.status == 'IN_TRANSIT' or transfer.status == 'PENDING' %}
                             <a href="{% url 'transfer-receive' transfer.id %}" class="icon-btn" title="Receive"><i data-lucide="check"></i></a>
                             {% endif %}
@@ -123,10 +120,8 @@
         <div class="empty-state">
             <i data-lucide="inbox" class="empty-icon"></i>
             <h3>No transfers found</h3>
-            <p>{% if request.user.role == request.user.Role.EMPLOYEE or request.user.is_superuser %}Create a new transfer to get started.{% else %}No transfer requests found.{% endif %}</p>
-            {% if request.user.role == request.user.Role.EMPLOYEE or request.user.is_superuser %}
-            <a href="{% url 'transfer-create' %}" class="btn btn-primary">New Transfer</a>
-            {% endif %}
+            <p>Create a new transfer request to get started.</p>
+            <a href="{% url 'transfer-create' %}" class="btn btn-primary">New Transfer Request</a>
         </div>
         {% endif %}
     </main>
@@ -163,8 +158,10 @@
 .pill-cancelled { background:#e2e3e5; color:#6c757d; }
 
 .actions-col { width:120px; text-align:right; }
-.icon-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; color:#495057; margin-left:6px; }
+.icon-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; color:#495057; margin-left:6px; background:transparent; border:none; cursor:pointer; }
 .icon-btn:hover { background:#f1f3f5; }
+.icon-btn-approve { color:#155724; }
+.icon-btn-approve:hover { background:#d4edda; }
 
 .empty-state { text-align:center; padding:40px 20px; color:#6c757d; }
 .empty-icon { width:48px; height:48px; color:#c6c8cc; }
