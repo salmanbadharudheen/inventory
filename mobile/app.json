@@ -41,6 +41,13 @@
         {
           "cameraPermission": "Allow Inventory Manager to access your camera to scan QR codes and barcodes on assets."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Inventory Manager to access your photos to attach images to assets.",
+          "cameraPermission": "Allow Inventory Manager to use the camera to take photos of assets."
+        }
       ]
     ],
     "extra": {
