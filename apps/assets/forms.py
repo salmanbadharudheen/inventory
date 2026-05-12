@@ -106,26 +106,57 @@ class AssetForm(forms.ModelForm):
                 self.fields['site'].queryset = Site.objects.filter(region__organization=org)
                 self.fields['location'].queryset = Location.objects.filter(site__region__organization=org)
                 self.fields['sub_location'].queryset = SubLocation.objects.filter(location__site__region__organization=org)
-                # Narrow site/location/sublocation by saved region/site so Django won't
-                # render a site from a different region as "selected" (prevents stale data).
-                _region_id = self.data.get('region') or getattr(self.instance, 'region_id', None)
-                if _region_id:
-                    self.fields['site'].queryset = Site.objects.filter(
-                        region_id=_region_id, region__organization=org)
-                    self.fields['location'].queryset = Location.objects.filter(
-                        site__region_id=_region_id, site__region__organization=org)
-                    self.fields['sub_location'].queryset = SubLocation.objects.filter(
-                        location__site__region_id=_region_id, location__site__region__organization=org)
-                _site_id = self.data.get('site') or getattr(self.instance, 'site_id', None)
-                if _site_id:
-                    self.fields['location'].queryset = Location.objects.filter(
-                        site_id=_site_id, site__region__organization=org)
-                    self.fields['sub_location'].queryset = SubLocation.objects.filter(
-                        location__site_id=_site_id, location__site__region__organization=org)
-                _location_id = self.data.get('location') or getattr(self.instance, 'location_id', None)
-                if _location_id:
-                    self.fields['sub_location'].queryset = SubLocation.objects.filter(
-                        location_id=_location_id, location__site__region__organization=org)
+                # Narrow site/location/sublocation querysets.
+                # On POST (is_bound): include both submitted and instance IDs so that
+                # stale child-field values pass Django's field-level validation and
+                # reach clean(), where mismatches are detected and cleared.
+                # On GET (display): use only the instance's saved values.
+                if not self.is_bound:
+                    # Display mode: narrow to saved values for efficient dropdowns
+                    _r = getattr(self.instance, 'region_id', None)
+                    if _r:
+                        self.fields['site'].queryset = Site.objects.filter(
+                            region_id=_r, region__organization=org)
+                        self.fields['location'].queryset = Location.objects.filter(
+                            site__region_id=_r, site__region__organization=org)
+                        self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                            location__site__region_id=_r, location__site__region__organization=org)
+                    _s = getattr(self.instance, 'site_id', None)
+                    if _s:
+                        self.fields['location'].queryset = Location.objects.filter(
+                            site_id=_s, site__region__organization=org)
+                        self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                            location__site_id=_s, location__site__region__organization=org)
+                    _l = getattr(self.instance, 'location_id', None)
+                    if _l:
+                        self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                            location_id=_l, location__site__region__organization=org)
+                else:
+                    # Submission mode: accept both submitted and saved values so clean()
+                    # can detect and clear hierarchy mismatches
+                    def _ids(*vals):
+                        return list({str(v) for v in vals if v})
+
+                    _rids = _ids(self.data.get('region'), getattr(self.instance, 'region_id', None))
+                    if _rids:
+                        self.fields['site'].queryset = Site.objects.filter(
+                            region_id__in=_rids, region__organization=org)
+                        self.fields['location'].queryset = Location.objects.filter(
+                            site__region_id__in=_rids, site__region__organization=org)
+                        self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                            location__site__region_id__in=_rids, location__site__region__organization=org)
+
+                    _sids = _ids(self.data.get('site'), getattr(self.instance, 'site_id', None))
+                    if _sids:
+                        self.fields['location'].queryset = Location.objects.filter(
+                            site_id__in=_sids, site__region__organization=org)
+                        self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                            location__site_id__in=_sids, location__site__region__organization=org)
+
+                    _lids = _ids(self.data.get('location'), getattr(self.instance, 'location_id', None))
+                    if _lids:
+                        self.fields['sub_location'].queryset = SubLocation.objects.filter(
+                            location_id__in=_lids, location__site__region__organization=org)
                 self.fields['asset_remarks'].queryset = AssetRemarks.objects.filter(organization=org)
 
                 # Filter assigned_to users by organization
@@ -204,6 +235,18 @@ class AssetForm(forms.ModelForm):
         site = cleaned_data.get('site')
         location = cleaned_data.get('location')
         sub_location = cleaned_data.get('sub_location')
+
+        # If region changed from the saved value, unconditionally clear all location
+        # children so the DB is never left with a site/location from the old region.
+        if self.instance.pk:
+            inst_region_id = getattr(self.instance, 'region_id', None)
+            sub_region_id = getattr(region, 'pk', None) if region else None
+            if sub_region_id and inst_region_id and sub_region_id != inst_region_id:
+                for _f in ('site', 'location', 'sub_location', 'building', 'floor', 'room'):
+                    cleaned_data[_f] = None
+                site = None
+                location = None
+                sub_location = None
 
         # Site must belong to the selected region
         if site and region and hasattr(site, 'region_id'):
