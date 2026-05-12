@@ -31,6 +31,9 @@ urlpatterns = [
     path('assets/<uuid:pk>/attachments/', views.AssetAttachmentListUploadView.as_view(), name='asset-attachment-list-upload'),
     path('assets/<uuid:pk>/attachments/<int:att_pk>/', views.AssetAttachmentDeleteView.as_view(), name='asset-attachment-delete'),
 
+    # Asset tagging status
+    path('assets/<uuid:pk>/tagging-status/', views.AssetTaggingStatusUpdateView.as_view(), name='asset-tagging-status'),
+
     # Lookups (for dropdown pickers on mobile)
     path('lookups/categories/', views.CategoryListAPIView.as_view(), name='lookup-categories'),
     path('lookups/sub-categories/', views.SubCategoryListAPIView.as_view(), name='lookup-sub-categories'),

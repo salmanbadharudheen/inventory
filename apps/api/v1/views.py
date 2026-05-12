@@ -984,3 +984,31 @@ class AssetAttachmentDeleteView(APIView):
         attachment.file.delete(save=False)
         attachment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AssetTaggingStatusUpdateView(APIView):
+    """
+    PATCH /api/v1/assets/<uuid:pk>/tagging-status/
+    Updates tagging_status (TAGGED / UNTAGGED) for an asset.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        from apps.assets.models import Asset
+        org = getattr(request.user, 'organization', None)
+        if not org:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            asset = Asset.objects.get(pk=pk, organization=org, is_deleted=False)
+        except Asset.DoesNotExist:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('tagging_status')
+        if new_status not in ('TAGGED', 'UNTAGGED'):
+            return Response(
+                {'detail': 'Invalid tagging_status. Must be TAGGED or UNTAGGED.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        asset.tagging_status = new_status
+        asset.save(update_fields=['tagging_status'])
+        return Response({'tagging_status': asset.tagging_status})

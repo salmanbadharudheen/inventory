@@ -25,6 +25,7 @@ const API = {
     LOOKUP: "/api/v1/assets/lookup/",
     DETAIL: "/api/v1/assets/",          // append <uuid>/
     ATTACHMENTS: "/api/v1/assets/",     // append <uuid>/attachments/
+    TAGGING_STATUS: "/api/v1/assets/",  // append <uuid>/tagging-status/
   },
   LOOKUPS: {
     CATEGORIES: "/api/v1/lookups/categories/",

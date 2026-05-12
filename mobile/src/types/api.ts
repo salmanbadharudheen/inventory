@@ -184,6 +184,7 @@ export interface AssetDetail {
   condition: AssetCondition;
   asset_type: AssetType;
   label_type: string;
+  tagging_status: "TAGGED" | "UNTAGGED";
   brand: string;
   model: string;
   category: number;

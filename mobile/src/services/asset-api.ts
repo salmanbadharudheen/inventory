@@ -169,3 +169,18 @@ export async function deleteAttachment(assetId: string, attachmentId: number): P
   const res = await authFetch(url, { method: "DELETE" });
   if (!res.ok && res.status !== 204) throw new Error("Failed to delete attachment");
 }
+
+export async function updateTaggingStatus(
+  assetId: string,
+  taggingStatus: "TAGGED" | "UNTAGGED"
+): Promise<void> {
+  const url = `${API.ASSETS.TAGGING_STATUS}${assetId}/tagging-status/`;
+  const res = await authFetch(url, {
+    method: "PATCH",
+    body: JSON.stringify({ tagging_status: taggingStatus }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? "Failed to update tagging status");
+  }
+}

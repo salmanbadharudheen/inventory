@@ -24,6 +24,7 @@ import {
   listAttachments,
   uploadAttachment,
   deleteAttachment,
+  updateTaggingStatus,
 } from "../../src/services/asset-api";
 import type { AssetAttachment, AssetDetail, AttachmentType } from "../../src/types/api";
 import API from "../../src/config/api";
@@ -59,7 +60,7 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 export default function AssetDetailScreen() {
-  const params = useLocalSearchParams<{ asset_tag?: string; asset_id?: string }>();
+  const params = useLocalSearchParams<{ asset_tag?: string; asset_id?: string; from_scan?: string }>();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,6 +93,32 @@ export default function AssetDetailScreen() {
         // Load attachments in background
         const atts = await listAttachments(data.id).catch(() => []);
         setAttachments(atts);
+
+        // If opened from scan and asset is not yet tagged, prompt user
+        if (params.from_scan === "1" && data.tagging_status === "UNTAGGED") {
+          setTimeout(() => {
+            Alert.alert(
+              "Label Tagged?",
+              `Is the physical label tagged on this asset?\n\n${data.name} (${data.asset_tag})`,
+              [
+                { text: "Not Yet", style: "cancel" },
+                {
+                  text: "Yes, Tagged ✅",
+                  onPress: async () => {
+                    try {
+                      await updateTaggingStatus(data.id, "TAGGED");
+                      setAsset((prev) =>
+                        prev ? { ...prev, tagging_status: "TAGGED" } : prev
+                      );
+                    } catch (e: any) {
+                      Alert.alert("Error", e.message ?? "Failed to update tagging status");
+                    }
+                  },
+                },
+              ]
+            );
+          }, 600); // slight delay so screen renders first
+        }
       } catch (e: any) {
         setError(e.message ?? "Failed to load asset");
       } finally {
@@ -462,8 +489,12 @@ export default function AssetDetailScreen() {
             <InfoRow label="Type" value={a.asset_type.replace(/_/g, " ")} />
           ) : null}
           {a.label_type ? (
-            <InfoRow label="Label Status" value={a.label_type.replace(/_/g, " ")} />
+            <InfoRow label="Label Type" value={a.label_type.replace(/_/g, " ")} />
           ) : null}
+          <InfoRow
+            label="Tagging Status"
+            value={a.tagging_status === "TAGGED" ? "✅ Tagged" : "🏷️ Untagged"}
+          />
           <InfoRow label="Quantity" value={String(a.quantity)} />
         </View>
 

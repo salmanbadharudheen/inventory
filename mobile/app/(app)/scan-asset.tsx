@@ -27,14 +27,14 @@ export default function ScanAssetScreen() {
   const navigateToDetail = useCallback((assetTag: string) => {
     router.push({
       pathname: "/(app)/asset-detail",
-      params: { asset_tag: assetTag },
+      params: { asset_tag: assetTag, from_scan: "1" },
     });
   }, []);
 
   const navigateToDetailById = useCallback((assetId: string) => {
     router.push({
       pathname: "/(app)/asset-detail",
-      params: { asset_id: assetId },
+      params: { asset_id: assetId, from_scan: "1" },
     });
   }, []);
 
