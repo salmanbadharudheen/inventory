@@ -152,17 +152,25 @@ Add New Asset
       });
     }
 
-    // Region -> Site -> Location -> SubLocation cascading
-    // (Building/Floor/Room are driven by Branch above; not duplicated here)
-    const regionSelect      = document.querySelector('select[name="region"]');
-    const siteSelect        = document.querySelector('select[name="site"]');
-    const locationSelect    = document.querySelector('select[name="location"]');
-    const sublocationSelect = document.querySelector('select[name="sub_location"]');
+    // Region -> Site -> Location -> SubLocation -> Building -> Floor -> Room cascading
+    // Uses getElementById for reliability and a generation counter to prevent
+    // the page-load restore chain from overriding user-initiated region changes.
+    const regionSelect      = document.getElementById('id_region');
+    const siteSelect        = document.getElementById('id_site');
+    const locationSelect    = document.getElementById('id_location');
+    const sublocationSelect = document.getElementById('id_sub_location');
 
-    // Capture existing values for edit-mode page-load restore (let so mismatch can clear them)
+    // Capture Django-rendered values for edit-mode page-load restore
     let initSite     = siteSelect        ? siteSelect.value        : '';
     let initLocation = locationSelect    ? locationSelect.value    : '';
     let initSubloc   = sublocationSelect ? sublocationSelect.value : '';
+    let initBuilding = buildingSelect    ? buildingSelect.value    : '';
+    let initFloor    = floorSelect       ? floorSelect.value       : '';
+    let initRoom     = roomSelect        ? roomSelect.value        : '';
+
+    // Generation counter: ANY manual region change increments this, permanently
+    // cancelling the page-load AJAX restore chain (even if user returns to original region).
+    let cascadeGen = 0;
 
     function resetSel(sel) {
       if (sel) sel.innerHTML = '<option value="">---------</option>';
@@ -181,15 +189,18 @@ Add New Asset
       });
     }
 
-    // Region changes -> clear ALL location-dependent fields downstream
+    // Region changes -> invalidate page-load restore, clear ALL downstream fields
     if (regionSelect) {
       regionSelect.addEventListener('change', function () {
+        cascadeGen++;  // cancel any pending page-load restore chain
+        initSite = ''; initLocation = ''; initSubloc = '';
+        initBuilding = ''; initFloor = ''; initRoom = '';
         const banner = document.getElementById('location-mismatch-banner');
         if (banner) banner.style.display = 'none';
         resetSel(siteSelect); resetSel(locationSelect); resetSel(sublocationSelect);
         resetSel(buildingSelect); resetSel(floorSelect); resetSel(roomSelect);
         if (!this.value) return;
-        ajaxOpts(`/locations/ajax/sites/?region_id=${encodeURIComponent(this.value)}`)
+        ajaxOpts('/locations/ajax/sites/?region_id=' + encodeURIComponent(this.value))
           .then(data => populateSel(siteSelect, data, ''))
           .catch(err => console.error('Error fetching sites:', err));
       });
@@ -201,11 +212,11 @@ Add New Asset
         resetSel(locationSelect); resetSel(sublocationSelect);
         resetSel(buildingSelect); resetSel(floorSelect); resetSel(roomSelect);
         if (!this.value) return;
-        ajaxOpts(`/locations/ajax/locations/?site_id=${encodeURIComponent(this.value)}`)
+        ajaxOpts('/locations/ajax/locations/?site_id=' + encodeURIComponent(this.value))
           .then(data => populateSel(locationSelect, data, ''))
           .catch(err => console.error('Error fetching locations:', err));
         if (buildingSelect) {
-          ajaxOpts(`/assets/ajax/buildings_by_site/?site_id=${encodeURIComponent(this.value)}`)
+          ajaxOpts('/assets/ajax/buildings_by_site/?site_id=' + encodeURIComponent(this.value))
             .then(data => populateSel(buildingSelect, data, ''))
             .catch(err => console.error('Error fetching buildings:', err));
         }
@@ -217,30 +228,33 @@ Add New Asset
       locationSelect.addEventListener('change', function () {
         resetSel(sublocationSelect);
         if (!this.value) return;
-        ajaxOpts(`/locations/ajax/sublocations/?location_id=${encodeURIComponent(this.value)}`)
+        ajaxOpts('/locations/ajax/sublocations/?location_id=' + encodeURIComponent(this.value))
           .then(data => populateSel(sublocationSelect, data, ''))
           .catch(err => console.error('Error fetching sublocations:', err));
       });
     }
 
-    // On page load (edit mode): restore site/location/sublocation from saved values
-    // Snapshot the region value so stale AJAX callbacks are discarded if user changes region mid-flight
+    // On page load (edit mode): restore the full cascade from saved values.
+    // Uses cascadeGen so any manual region change (even back to original) cancels this.
     (function restoreRegionCascade() {
       if (!regionSelect || !regionSelect.value) {
         resetSel(siteSelect); resetSel(locationSelect); resetSel(sublocationSelect);
+        resetSel(buildingSelect); resetSel(floorSelect); resetSel(roomSelect);
         return;
       }
-      const snapRegion = regionSelect.value;
+      const snapGen = cascadeGen;
+      // Clear all child selects; AJAX will repopulate them
       resetSel(siteSelect); resetSel(locationSelect); resetSel(sublocationSelect);
-      ajaxOpts(`/locations/ajax/sites/?region_id=${encodeURIComponent(snapRegion)}`)
+      resetSel(buildingSelect); resetSel(floorSelect); resetSel(roomSelect);
+      ajaxOpts('/locations/ajax/sites/?region_id=' + encodeURIComponent(regionSelect.value))
         .then(sites => {
-          if (regionSelect.value !== snapRegion) return null; // stale — user already changed region
+          if (cascadeGen !== snapGen) return null; // user changed region — abort entirely
           // Detect mismatch: saved site not in this region
           if (initSite) {
             const found = sites.some(s => String(s.id) === String(initSite));
             if (!found) {
-              // Clear all init vars so the location/sublocation chain below does NOT fire
               initSite = ''; initLocation = ''; initSubloc = '';
+              initBuilding = ''; initFloor = ''; initRoom = '';
               const banner = document.getElementById('location-mismatch-banner');
               const msg    = document.getElementById('location-mismatch-msg');
               if (banner && msg) {
@@ -255,19 +269,42 @@ Add New Asset
           }
           populateSel(siteSelect, sites, initSite);
           if (!initSite) return null;
-          return ajaxOpts(`/locations/ajax/locations/?site_id=${encodeURIComponent(initSite)}`);
+          // Fetch locations and buildings in parallel for the restored site
+          return Promise.all([
+            ajaxOpts('/locations/ajax/locations/?site_id=' + encodeURIComponent(initSite)),
+            buildingSelect
+              ? ajaxOpts('/assets/ajax/buildings_by_site/?site_id=' + encodeURIComponent(initSite))
+              : Promise.resolve([])
+          ]);
         })
-        .then(locs => {
-          if (!locs || regionSelect.value !== snapRegion) return null;
+        .then(results => {
+          if (!results || cascadeGen !== snapGen) return null;
+          const [locs, buildings] = results;
           populateSel(locationSelect, locs, initLocation);
-          if (!initLocation) return null;
-          return ajaxOpts(`/locations/ajax/sublocations/?location_id=${encodeURIComponent(initLocation)}`);
+          populateSel(buildingSelect, buildings, initBuilding);
+          // Fetch sublocations and floors in parallel
+          return Promise.all([
+            initLocation
+              ? ajaxOpts('/locations/ajax/sublocations/?location_id=' + encodeURIComponent(initLocation))
+              : Promise.resolve(null),
+            initBuilding
+              ? ajaxOpts('/assets/ajax/floors/?building_id=' + encodeURIComponent(initBuilding))
+              : Promise.resolve(null)
+          ]);
         })
-        .then(sublocs => {
-          if (!sublocs || regionSelect.value !== snapRegion) return;
-          populateSel(sublocationSelect, sublocs, initSubloc);
+        .then(results => {
+          if (!results || cascadeGen !== snapGen) return null;
+          const [sublocs, floors] = results;
+          if (sublocs) populateSel(sublocationSelect, sublocs, initSubloc);
+          if (floors)  populateSel(floorSelect, floors, initFloor);
+          if (!initFloor) return null;
+          return ajaxOpts('/assets/ajax/rooms/?floor_id=' + encodeURIComponent(initFloor));
         })
-        .catch(err => console.error('Error restoring region cascade:', err));
+        .then(rooms => {
+          if (!rooms || cascadeGen !== snapGen) return;
+          populateSel(roomSelect, rooms, initRoom);
+        })
+        .catch(err => console.error('Error restoring location cascade:', err));
     })();
 
     // Parent/Child Toggle
