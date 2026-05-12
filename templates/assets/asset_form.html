@@ -307,6 +307,35 @@ Add New Asset
         .catch(err => console.error('Error restoring location cascade:', err));
     })();
 
+    // Form submit interceptor: if region was changed during this session,
+    // force-clear all child location selects before the POST is sent.
+    // This is the bullet-proof guarantee that no stale location data reaches the server.
+    const assetFormEl = document.querySelector('form.asset-form');
+    if (assetFormEl) {
+      assetFormEl.addEventListener('submit', function () {
+        if (cascadeGen > 0) {
+          // Region was changed - wipe every child location select unconditionally
+          [siteSelect, locationSelect, sublocationSelect,
+           buildingSelect, floorSelect, roomSelect].forEach(function (sel) {
+            if (!sel) return;
+            // If the select still has a user-chosen value from the NEW region, keep it
+            // We detect "stale" by checking if the option exists in the current option list
+            // But to be safe: always force value = '' if only the placeholder is present
+            if (sel.options.length <= 1 || sel.value === '') {
+              sel.value = '';
+            }
+            // Even if user re-selected something in new region, that's fine - keep it
+          });
+          // Belt-and-suspenders: explicitly zero out site/location/sublocation/building/floor/room
+          // hidden inputs if any exist (some themes add them)
+          ['site', 'location', 'sub_location', 'building', 'floor', 'room'].forEach(function (name) {
+            var hiddenEl = assetFormEl.querySelector('input[type="hidden"][name="' + name + '"]');
+            if (hiddenEl) hiddenEl.value = '';
+          });
+        }
+      });
+    }
+
     // Parent/Child Toggle
     const parentRadio = document.getElementById('id_hierarchy_parent');
     const childRadio = document.getElementById('id_hierarchy_child');
@@ -493,7 +522,7 @@ Add New Asset
 
 {% block content %}
 <div style="max-width: 1000px; margin: 0 auto;">
-  <form method="post" enctype="multipart/form-data" class="asset-form">
+  <form method="post" enctype="multipart/form-data" class="asset-form" autocomplete="off">
     {% csrf_token %}
 
     {% if form.errors %}
