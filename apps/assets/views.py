@@ -2272,19 +2272,22 @@ class AssetUpdateView(LoginRequiredMixin, UpdateView):
                 form.instance.category,
                 form.instance.company
             )
-        # Safety net: clear location fields that don't match their parent
-        asset = form.instance
-        if asset.site and asset.region and asset.site.region_id != asset.region_id:
-            asset.site = None
-            asset.location = None
-            asset.sub_location = None
-            asset.building = None
-            asset.floor = None
-            asset.room = None
-        elif asset.site and asset.location and hasattr(asset.location, 'site_id') and asset.location.site_id != asset.site_id:
-            asset.location = None
-            asset.sub_location = None
         response = super().form_valid(form)
+        # Post-save bulletproof safety net:
+        # After the form saves, verify the saved site belongs to the saved region.
+        # If not (JS didn't clear it or form clean() had an issue), force-clear all
+        # child location fields directly in the DB so they are never left stale.
+        saved = self.object
+        if saved.site_id:
+            try:
+                _site = Site.objects.get(pk=saved.site_id)
+                if _site.region_id != saved.region_id:
+                    Asset.objects.filter(pk=saved.pk).update(
+                        site_id=None, location_id=None, sub_location_id=None,
+                        building_id=None, floor_id=None, room_id=None
+                    )
+            except Site.DoesNotExist:
+                pass
         invalidate_dashboard_cache_for_org(self.request.user.organization)
         return response
 
