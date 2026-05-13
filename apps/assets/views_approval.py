@@ -93,7 +93,7 @@ class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
             f"Asset request submitted for approval. Request ID: {self.object.id}"
         )
         
-        return super().form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
     
     def get_success_url(self):
         return reverse('approval-request-list')
