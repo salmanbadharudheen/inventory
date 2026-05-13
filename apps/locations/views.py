@@ -296,6 +296,11 @@ def get_locations(request):
     if not org:
         return JsonResponse([], safe=False)
 
+    building_id = request.GET.get('building_id')
+    if building_id:
+        locations = Location.objects.filter(building_id=building_id, site__region__organization=org).values('id', 'name')
+        return JsonResponse(list(locations), safe=False)
+
     site_id = request.GET.get('site_id')
     if site_id:
         locations = Location.objects.filter(site_id=site_id, site__region__organization=org).values('id', 'name')
