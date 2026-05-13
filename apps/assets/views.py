@@ -218,7 +218,15 @@ def ajax_search_assets(request):
     q = request.GET.get('q', '').strip()
     limit = min(int(request.GET.get('limit', 50)), 100)
 
-    qs = Asset.objects.filter(organization=org).select_related('category', 'department')
+    _active_disposal_statuses = [
+        AssetDisposal.Status.PENDING,
+        AssetDisposal.Status.MANAGER_APPROVED,
+        AssetDisposal.Status.APPROVED,
+        AssetDisposal.Status.COMPLETED,
+    ]
+    qs = Asset.objects.filter(organization=org, is_deleted=False).exclude(
+        disposals__status__in=_active_disposal_statuses
+    ).select_related('category', 'department')
 
     if q:
         qs = qs.filter(
@@ -3554,7 +3562,15 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
         created = []
         for aid in asset_ids:
             try:
-                asset_obj = Asset.objects.get(pk=aid, organization=self.request.user.organization)
+                _active_disposal_statuses = [
+                    AssetDisposal.Status.PENDING,
+                    AssetDisposal.Status.MANAGER_APPROVED,
+                    AssetDisposal.Status.APPROVED,
+                    AssetDisposal.Status.COMPLETED,
+                ]
+                asset_obj = Asset.objects.filter(is_deleted=False).exclude(
+                    disposals__status__in=_active_disposal_statuses
+                ).get(pk=aid, organization=self.request.user.organization)
             except (Asset.DoesNotExist, Exception):
                 continue
 
