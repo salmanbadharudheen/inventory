@@ -4108,6 +4108,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             'depr_branch': 'branch_id',
             'depr_building': 'building_id',
             'depr_location': 'location_id',
+            'depr_tagging_status': 'tagging_status',
         }
         
         for param, field in depr_filters.items():
@@ -4221,6 +4222,8 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
         context['depr_building'] = self.request.GET.get('depr_building', '')
         context['depr_location'] = self.request.GET.get('depr_location', '')
         context['search_query'] = self.request.GET.get('q', '')
+        context['depr_tagging_status'] = self.request.GET.get('depr_tagging_status', '')
+        context['tagging_status_choices'] = [('TAGGED', 'Tagged'), ('UNTAGGED', 'Untagged')]
 
         # Enrich paginated assets with opening/closing values
         if context.get('page_obj'):
@@ -4295,6 +4298,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             'depr_branch': 'branch_id',
             'depr_building': 'building_id',
             'depr_location': 'location_id',
+            'depr_tagging_status': 'tagging_status',
         }
         
         for param, field in depr_filters.items():
@@ -4404,6 +4408,8 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
         context['depr_building'] = self.request.GET.get('depr_building', '')
         context['depr_location'] = self.request.GET.get('depr_location', '')
         context['search_query'] = self.request.GET.get('q', '')
+        context['depr_tagging_status'] = self.request.GET.get('depr_tagging_status', '')
+        context['tagging_status_choices'] = [('TAGGED', 'Tagged'), ('UNTAGGED', 'Untagged')]
 
         if context.get('page_obj'):
             enriched_assets = []
@@ -4476,6 +4482,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             'depr_branch': 'branch_id',
             'depr_building': 'building_id',
             'depr_location': 'location_id',
+            'depr_tagging_status': 'tagging_status',
         }
         
         for param, field in depr_filters.items():
@@ -4585,6 +4592,8 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
         context['depr_building'] = self.request.GET.get('depr_building', '')
         context['depr_location'] = self.request.GET.get('depr_location', '')
         context['search_query'] = self.request.GET.get('q', '')
+        context['depr_tagging_status'] = self.request.GET.get('depr_tagging_status', '')
+        context['tagging_status_choices'] = [('TAGGED', 'Tagged'), ('UNTAGGED', 'Untagged')]
         
         if context.get('page_obj'):
             enriched_assets = []
@@ -4657,6 +4666,7 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             'depr_branch': 'branch_id',
             'depr_building': 'building_id',
             'depr_location': 'location_id',
+            'depr_tagging_status': 'tagging_status',
         }
         
         for param, field in depr_filters.items():
@@ -4766,6 +4776,8 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
         context['depr_building'] = self.request.GET.get('depr_building', '')
         context['depr_location'] = self.request.GET.get('depr_location', '')
         context['search_query'] = self.request.GET.get('q', '')
+        context['depr_tagging_status'] = self.request.GET.get('depr_tagging_status', '')
+        context['tagging_status_choices'] = [('TAGGED', 'Tagged'), ('UNTAGGED', 'Untagged')]
 
         if context.get('page_obj'):
             enriched_assets = []

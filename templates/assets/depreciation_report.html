@@ -1093,6 +1093,14 @@
                         </select>
                     </div>
                     <div class="depr-filter-group">
+                        <label>Tag Status</label>
+                        <select name="depr_tagging_status">
+                            <option value="">All Statuses</option>
+                            <option value="TAGGED" {% if depr_tagging_status == 'TAGGED' %}selected{% endif %}>Tagged</option>
+                            <option value="UNTAGGED" {% if depr_tagging_status == 'UNTAGGED' %}selected{% endif %}>Untagged</option>
+                        </select>
+                    </div>
+                    <div class="depr-filter-group">
                         <label>Brand</label>
                         <select name="depr_brand">
                             <option value="">All Brands</option>

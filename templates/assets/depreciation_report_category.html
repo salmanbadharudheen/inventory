@@ -643,6 +643,14 @@ body          { display:flex!important; height:auto!important; min-height:100vh!
                                 </select>
                             </div>
                             <div class="fg">
+                                <label>Tag Status</label>
+                                <select name="depr_tagging_status">
+                                    <option value="">All Statuses</option>
+                                    <option value="TAGGED" {% if depr_tagging_status == 'TAGGED' %}selected{% endif %}>Tagged</option>
+                                    <option value="UNTAGGED" {% if depr_tagging_status == 'UNTAGGED' %}selected{% endif %}>Untagged</option>
+                                </select>
+                            </div>
+                            <div class="fg">
                                 <label>Group</label>
                                 <select name="depr_group">
                                     <option value="">All Groups</option>
