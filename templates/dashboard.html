@@ -413,7 +413,7 @@
     /* Charts Section */
     .charts-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 1.5rem;
         margin-bottom: 2rem;
     }
@@ -424,6 +424,24 @@
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .chart-card--clickable {
+        cursor: pointer;
+        transition: box-shadow .2s, transform .15s;
+    }
+    .chart-card--clickable:hover {
+        box-shadow: 0 4px 16px rgba(99,102,241,.15);
+        transform: translateY(-2px);
+    }
+    .chart-click-hint {
+        font-size: 11px;
+        color: #6366f1;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 2px;
     }
 
     .chart-header {
@@ -457,7 +475,10 @@
 
     .chart-container {
         position: relative;
-        height: 250px;
+        height: 260px;
+    }
+    @media (max-width: 480px) {
+        .chart-container { height: 320px !important; }
     }
 
     /* Table */
@@ -1177,12 +1198,16 @@
 
     <!-- Charts -->
     <div class="charts-grid">
-        <div class="chart-card">
+        <a href="{% url 'reconciliation-report' %}" class="chart-card chart-card--clickable" id="groupChartCard" style="text-decoration:none;display:block;">
             <div class="chart-header">
                 <div>
                     <div class="chart-title">
                         <i data-lucide="layers"></i>
                         Asset Groups Distribution
+                    </div>
+                    <div class="chart-click-hint">
+                        <i data-lucide="mouse-pointer-click" style="width:12px;height:12px;"></i>
+                        Click to view reconciliation
                     </div>
                 </div>
                 <div class="chart-count">{{ total_assets }} Total</div>
@@ -1190,19 +1215,25 @@
             <div class="chart-container">
                 <canvas id="groupChart"></canvas>
             </div>
-        </div>
+        </a>
 
-        <div class="chart-card">
+        <a href="{% url 'reconciliation-report' %}" class="chart-card chart-card--clickable" style="text-decoration:none;display:block;">
             <div class="chart-header">
-                <div class="chart-title">
-                    <i data-lucide="tag"></i>
-                    Category Breakdown
+                <div>
+                    <div class="chart-title">
+                        <i data-lucide="tag"></i>
+                        Category Breakdown
+                    </div>
+                    <div class="chart-click-hint">
+                        <i data-lucide="mouse-pointer-click" style="width:12px;height:12px;"></i>
+                        Click to view reconciliation
+                    </div>
                 </div>
             </div>
             <div class="chart-container">
                 <canvas id="categoryChart"></canvas>
             </div>
-        </div>
+        </a>
     </div>
 
     <!-- Recent Assets Table -->
@@ -1285,7 +1316,7 @@
         Chart.defaults.color = '#6B7280';
 
         // Group Chart
-        const groupData = {
+        var groupData = {
             labels: [{% for group in group_distribution %}"{{ group.name }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
             datasets: [{
                 data: [{% for group in group_distribution %}{{ group.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
@@ -1306,20 +1337,26 @@
             }]
         };
 
-        const groupCtx = document.getElementById('groupChart').getContext('2d');
-        new Chart(groupCtx, {
+        var APPROVAL_URL = '{% url "reconciliation-report" %}';
+        var isMobile = function() { return window.innerWidth <= 600; };
+
+        var groupCtx = document.getElementById('groupChart').getContext('2d');
+        var groupChart = new Chart(groupCtx, {
             type: 'doughnut',
             data: groupData,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function(evt, elements) {
+                    window.location.href = APPROVAL_URL;
+                },
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: isMobile() ? 'bottom' : 'right',
                         labels: {
                             usePointStyle: true,
                             boxWidth: 8,
-                            padding: 15,
+                            padding: isMobile() ? 10 : 15,
                             font: { size: 11, weight: '500' }
                         }
                     },
@@ -1331,28 +1368,44 @@
                         bodyFont: { size: 12, weight: '500' },
                         callbacks: {
                             label: function (context) {
-                                return ` ${context.label}: ${context.raw}`;
+                                return ' ' + context.label + ': ' + context.raw;
                             }
                         }
                     }
                 },
-                cutout: '75%'
+                cutout: '70%'
             }
         });
 
+        // Update legend position on resize
+        var resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                var pos = isMobile() ? 'bottom' : 'right';
+                if (groupChart.options.plugins.legend.position !== pos) {
+                    groupChart.options.plugins.legend.position = pos;
+                    groupChart.update();
+                }
+            }, 150);
+        });
+
         // Category Chart
-        const categoryData = {
+        var categoryData = {
             labels: [{% for cat in category_breakdown %}"{{ cat.category__name|default:'Uncategorized' }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
             datasets: [{
                 label: 'Assets',
                 data: [{% for cat in category_breakdown %}{{ cat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-                backgroundColor: '#6366F1',
+                backgroundColor: [
+                    '#6366F1','#8B5CF6','#EC4899','#F43F5E','#FB923C',
+                    '#FBBF24','#34D399','#14B8A6','#06B6D4','#0EA5E9'
+                ],
                 borderRadius: 6,
                 barThickness: 'flex'
             }]
         };
 
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        var categoryCtx = document.getElementById('categoryChart').getContext('2d');
         new Chart(categoryCtx, {
             type: 'bar',
             data: categoryData,
@@ -1360,6 +1413,7 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function() { window.location.href = APPROVAL_URL; },
                 scales: {
                     x: {
                         grid: { display: false },
@@ -1368,7 +1422,7 @@
                     y: {
                         grid: { display: false },
                         ticks: {
-                            font: { size: 11, weight: '500' },
+                            font: { size: isMobile() ? 10 : 11, weight: '500' },
                             color: '#6B7280'
                         }
                     }

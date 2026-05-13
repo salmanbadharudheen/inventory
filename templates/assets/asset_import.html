@@ -152,8 +152,8 @@
 
         <!-- Drop zone -->
         <div class="imp-dropzone" id="imp-dropzone">
-          <input type="file" name="{{ form.import_file.html_name }}" id="{{ form.import_file.id_for_label }}"
-                 class="imp-file-input" accept=".xlsx,.csv" id="imp-file-input">
+          <input type="file" name="{{ form.import_file.html_name }}" id="imp-file-input"
+                 class="imp-file-input" accept=".xlsx,.csv">
           <div class="imp-dz-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
           </div>
@@ -187,37 +187,50 @@
 
 <script>
 (function () {
-  const dropzone  = document.getElementById('imp-dropzone');
-  const fileInput = document.getElementById('imp-file-input');
-  const filename  = document.getElementById('imp-filename');
-  const submitBtn = document.getElementById('imp-submit');
+  var dropzone  = document.getElementById('imp-dropzone');
+  var fileInput = document.getElementById('imp-file-input');
+  var filename  = document.getElementById('imp-filename');
+  var submitBtn = document.getElementById('imp-submit');
+
+  if (!fileInput) return; // safety guard
 
   function setFile(file) {
     if (!file) return;
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'csv') {
+      alert('Only .xlsx and .csv files are accepted.');
+      fileInput.value = '';
+      dropzone.classList.remove('has-file');
+      submitBtn.disabled = true;
+      return;
+    }
     filename.textContent = file.name;
     dropzone.classList.add('has-file');
     submitBtn.disabled = false;
   }
 
-  fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+  fileInput.addEventListener('change', function () { setFile(fileInput.files[0]); });
 
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-  dropzone.addEventListener('drop', e => {
+  dropzone.addEventListener('dragover', function (e) { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', function () { dropzone.classList.remove('dragover'); });
+  dropzone.addEventListener('drop', function (e) {
     e.preventDefault();
     dropzone.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
+    var file = e.dataTransfer.files[0];
     if (file) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      fileInput.files = dt.files;
+      try {
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+      } catch (err) { /* DataTransfer not supported in all browsers */ }
       setFile(file);
     }
   });
 
   document.getElementById('imp-form').addEventListener('submit', function () {
+    if (!fileInput.files || fileInput.files.length === 0) return;
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Importing...';
+    submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Importing…';
   });
 })();
 </script>

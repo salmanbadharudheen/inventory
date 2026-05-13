@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+﻿from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, FormView, View, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
@@ -265,7 +265,7 @@ def download_sample_csv(request):
     # Sample Row
     writer.writerow([
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', '1', 'NON_METAL', 'SN123456', 
+        'C001', 'ERP-100', '1', 'BARCODE', 'SN123456', 
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
@@ -308,7 +308,7 @@ def download_sample_excel(request):
     # Sample row
     sample_data = [
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', 1, 'NON_METAL', 'SN123456',
+        'C001', 'ERP-100', 1, 'BARCODE', 'SN123456',
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell',
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp',
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building',
@@ -1993,7 +1993,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 status = get_choice(row.get('status'), Asset.Status, Asset.Status.ACTIVE)
                 condition = get_choice(row.get('condition'), Asset.Condition, Asset.Condition.NEW)
                 asset_type = get_choice(row.get('asset_type'), Asset.Type, Asset.Type.TAGGABLE)
-                label_type = get_choice(row.get('label_type'), Asset.LabelType, Asset.LabelType.NON_METAL)
+                label_type = get_choice(row.get('label_type'), Asset.LabelType, Asset.LabelType.BARCODE)
 
                 # 3. Master Data Lookups (from cache)
                 sub_category = get_from_cache(subcategories, row.get('sub_category'))
@@ -3272,7 +3272,7 @@ class MastersExportExcelView(LoginRequiredMixin, View):
             ws.cell(row=current_row, column=1).font = openpyxl.styles.Font(bold=True)
             current_row += 1
             for filter_text in filters_applied:
-                ws.cell(row=current_row, column=1, value=f"  • {filter_text}")
+                ws.cell(row=current_row, column=1, value=f"  â€¢ {filter_text}")
                 current_row += 1
         else:
             current_row += 1
@@ -3665,7 +3665,7 @@ class AssetTransferApproveView(LoginRequiredMixin, View):
         )
         transfer.status = AssetTransfer.Status.IN_TRANSIT
         transfer.save(update_fields=['status', 'updated_at'])
-        messages.success(request, f'Transfer approved — {transfer.asset.asset_tag} is now In Transit.')
+        messages.success(request, f'Transfer approved â€” {transfer.asset.asset_tag} is now In Transit.')
         return redirect(reverse('transfer-detail', kwargs={'pk': transfer.pk}))
 
 class AssetTransferReceiveView(LoginRequiredMixin, UpdateView):
@@ -5716,7 +5716,7 @@ def asset_attachment_delete(request, pk, attachment_id):
 
 @login_required
 def label_print_center(request):
-    """Label Print Center — lets the user pick a design and select assets to print."""
+    """Label Print Center â€” lets the user pick a design and select assets to print."""
     org = request.user.organization
     categories = Category.objects.filter(organization=org).order_by('name')
     branches = Branch.objects.filter(organization=org).order_by('name')
@@ -5773,7 +5773,7 @@ def print_asset_labels_bulk(request):
 
     qs = qs.order_by('asset_tag')
 
-    # Batch pagination — 100 labels per page
+    # Batch pagination â€” 100 labels per page
     BATCH_SIZE = 100
     total_count = qs.count()
     total_batches = max(1, (total_count + BATCH_SIZE - 1) // BATCH_SIZE)
@@ -6038,3 +6038,5 @@ class ApprovalListView(ApprovalAccessMixin, TemplateView):
             ).count()
 
         return context
+
+

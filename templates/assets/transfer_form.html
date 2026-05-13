@@ -91,6 +91,11 @@ textarea.fctl{resize:vertical;min-height:70px;}
 .sel-summary{flex:1;font-size:12px;color:var(--g500);}
 .sel-summary b{color:var(--p);}
 .err-box{background:var(--redl);border:1px solid #fca5a5;color:#b91c1c;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;}
+/* Required-field error states */
+.frow--err select,.frow--err input,.frow--err textarea{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(220,38,38,.1)!important;}
+.fctl--err{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(220,38,38,.1)!important;}
+.asset-err-box{background:var(--redl);border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#b91c1c;margin-top:8px;display:none;}
+.ferr-msg{font-size:11.5px;color:var(--red);margin-top:3px;}
 </style>
 
 <div class="page">
@@ -129,7 +134,7 @@ textarea.fctl{resize:vertical;min-height:70px;}
   <div class="err-box">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
   {% endif %}
 
-  <form method="post" id="tf-form">
+  <form method="post" id="tf-form" novalidate>
     {% csrf_token %}
     <input type="hidden" name="asset_ids" id="id_asset_ids" value="">
 
@@ -164,6 +169,7 @@ textarea.fctl{resize:vertical;min-height:70px;}
           <div class="sel-chips" id="sel-chips">
             <span class="sel-empty" id="no-sel-msg">No assets selected yet</span>
           </div>
+          <div class="asset-err-box" id="asset-required-banner">⚠️ <b>Required —</b> please select at least one asset before submitting.</div>
         </div>
       </div>
     </div>
@@ -179,10 +185,22 @@ textarea.fctl{resize:vertical;min-height:70px;}
       </div>
       <div class="card-body">
 
-        <div class="divider">Location</div>
+        <div class="divider">Location <span style="color:var(--red);font-size:11px;font-weight:600;">— all fields required</span></div>
         <div class="fgrid">
-          <div class="frow"><label class="flbl">Region</label>{{ form.transferred_to_region }}</div>
-          <div class="frow"><label class="flbl">Site</label>{{ form.transferred_to_site }}</div>
+          <div class="frow{% if form.transferred_to_region.errors %} frow--err{% endif %}">
+            <label class="flbl">Region {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_region }}
+            {% if form.transferred_to_region.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_region.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="frow{% if form.transferred_to_site.errors %} frow--err{% endif %}">
+            <label class="flbl">Site {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_site }}
+            {% if form.transferred_to_site.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_site.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="warn-banner" id="tf-location-required-banner" style="display:none;background:#fef2f2;border-color:#fca5a5;color:#b91c1c;">
+          ⚠️ <b>Required —</b> please fill in: <span id="tf-location-required-list"></span>
         </div>
 
         <div class="warn-banner" id="tf-location-mismatch-banner">
@@ -191,21 +209,49 @@ textarea.fctl{resize:vertical;min-height:70px;}
         </div>
 
         <div class="fgrid g3" style="margin-top:12px;">
-          <div class="frow"><label class="flbl">Building</label>{{ form.transferred_to_building }}</div>
-          <div class="frow"><label class="flbl">Floor</label>{{ form.transferred_to_floor }}</div>
-          <div class="frow"><label class="flbl">Room</label>{{ form.transferred_to_room }}</div>
+          <div class="frow{% if form.transferred_to_building.errors %} frow--err{% endif %}">
+            <label class="flbl">Building {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_building }}
+            {% if form.transferred_to_building.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_building.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="frow{% if form.transferred_to_floor.errors %} frow--err{% endif %}">
+            <label class="flbl">Floor {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_floor }}
+            {% if form.transferred_to_floor.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_floor.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="frow{% if form.transferred_to_room.errors %} frow--err{% endif %}">
+            <label class="flbl">Room {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_room }}
+            {% if form.transferred_to_room.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_room.errors.0 }}</div>{% endif %}
+          </div>
         </div>
         <div class="fgrid g1" style="margin-top:12px;">
-          <div class="frow"><label class="flbl">Location</label>{{ form.transferred_to_location }}</div>
+          <div class="frow{% if form.transferred_to_location.errors %} frow--err{% endif %}">
+            <label class="flbl">Location {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_location }}
+            {% if form.transferred_to_location.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_location.errors.0 }}</div>{% endif %}
+          </div>
         </div>
 
-        <div class="divider">Assignment</div>
+        <div class="divider">Assignment <span style="color:var(--red);font-size:11px;font-weight:600;">— all fields required</span></div>
         <div class="fgrid">
-          <div class="frow"><label class="flbl">Company</label>{{ form.transferred_to_company }}</div>
-          <div class="frow"><label class="flbl">Department</label>{{ form.transferred_to_department }}</div>
+          <div class="frow{% if form.transferred_to_company.errors %} frow--err{% endif %}">
+            <label class="flbl">Company {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_company }}
+            {% if form.transferred_to_company.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_company.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="frow{% if form.transferred_to_department.errors %} frow--err{% endif %}">
+            <label class="flbl">Department {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_department }}
+            {% if form.transferred_to_department.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_department.errors.0 }}</div>{% endif %}
+          </div>
         </div>
         <div class="fgrid g1" style="margin-top:12px;">
-          <div class="frow"><label class="flbl">Custodian</label>{{ form.transferred_to_custodian }}</div>
+          <div class="frow{% if form.transferred_to_custodian.errors %} frow--err{% endif %}">
+            <label class="flbl">Custodian {% if not form.instance.pk %}<span style="color:var(--red)">*</span>{% endif %}</label>
+            {{ form.transferred_to_custodian }}
+            {% if form.transferred_to_custodian.errors %}<div style="color:var(--red);font-size:11.5px;margin-top:3px;">{{ form.transferred_to_custodian.errors.0 }}</div>{% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -496,8 +542,68 @@ textarea.fctl{resize:vertical;min-height:70px;}
     document.getElementById('tf-location-mismatch-banner').style.display='none';
   });
 
-  // Submit sync
-  document.getElementById('tf-form').addEventListener('submit',function(){ syncAll(); });
+  // ── Assignment selectors (declared here so clear-error listeners can reference them) ──
+  var companySel   = document.getElementById('{{ form.transferred_to_company.id_for_label }}');
+  var deptSel      = document.getElementById('{{ form.transferred_to_department.id_for_label }}');
+  var custodianSel = document.getElementById('{{ form.transferred_to_custodian.id_for_label }}');
+
+  // Clear error highlight when user corrects a field
+  function clearFieldErr(sel){ if(sel){ sel.classList.remove('fctl--err'); sel.style.borderColor=''; sel.style.boxShadow=''; } }
+  [regionSel,siteSel,buildSel,floorSel,roomSel,locSel,companySel,deptSel,custodianSel].forEach(function(sel){
+    sel && sel.addEventListener('change', function(){ clearFieldErr(this); });
+  });
+
+  // Submit sync + required-destination guard (both create and edit)
+  var IS_CREATE = {% if not form.instance.pk %}true{% else %}false{% endif %};
+  document.getElementById('tf-form').addEventListener('submit',function(e){
+    syncAll();
+
+    // 1. (Create only) Must have at least one asset selected
+    if(IS_CREATE){
+      var assetBanner = document.getElementById('asset-required-banner');
+      if(Object.keys(checked).length === 0){
+        e.preventDefault();
+        if(assetBanner){ assetBanner.style.display='block'; assetBanner.scrollIntoView({behavior:'smooth',block:'center'}); }
+        return;
+      } else if(assetBanner){
+        assetBanner.style.display='none';
+      }
+    }
+
+    // 2. All 9 destination + assignment fields must be filled (create AND edit)
+    var missing=[];
+    var locationFields=[
+      {sel:regionSel,   label:'Region'},
+      {sel:siteSel,     label:'Site'},
+      {sel:buildSel,    label:'Building'},
+      {sel:floorSel,    label:'Floor'},
+      {sel:roomSel,     label:'Room'},
+      {sel:locSel,      label:'Location'},
+      {sel:companySel,  label:'Company'},
+      {sel:deptSel,     label:'Department'},
+      {sel:custodianSel,label:'Custodian'},
+    ];
+    locationFields.forEach(function(f){
+      if(f.sel && !f.sel.value){
+        missing.push(f.label);
+        f.sel.classList.add('fctl--err');
+      } else if(f.sel){
+        clearFieldErr(f.sel);
+      }
+    });
+    if(missing.length){
+      e.preventDefault();
+      var banner=document.getElementById('tf-location-required-banner');
+      if(banner){
+        banner.querySelector('#tf-location-required-list').textContent=missing.join(', ');
+        banner.style.display='block';
+        banner.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    } else {
+      var banner=document.getElementById('tf-location-required-banner');
+      if(banner) banner.style.display='none';
+    }
+  });
 
   // Initial sync
   syncAll();

@@ -490,36 +490,44 @@ class AssetTransferForm(forms.ModelForm):
             self.fields['transferred_to_custodian'].queryset = Custodian.objects.filter(organization=org)
 
             region_id = self.data.get('transferred_to_region') or getattr(self.instance, 'transferred_to_region_id', None)
-            if region_id:
+
+            if self.is_bound:
+                # POST submission: use org-wide querysets so any valid org ID passes
+                # validation regardless of parent selection order. JS cascade handles UI.
                 self.fields['transferred_to_site'].queryset = Site.objects.filter(
-                    region_id=region_id,
-                    region__organization=org,
-                )
-
-            site_id = self.data.get('transferred_to_site') or getattr(self.instance, 'transferred_to_site_id', None)
-            if site_id:
+                    region__organization=org)
                 self.fields['transferred_to_building'].queryset = Building.objects.filter(
-                    locations__site_id=site_id,
-                    locations__site__region__organization=org,
-                ).distinct()
-
-            building_id = self.data.get('transferred_to_building') or getattr(self.instance, 'transferred_to_building_id', None)
-            if building_id:
+                    branch__organization=org)
                 self.fields['transferred_to_floor'].queryset = Floor.objects.filter(
-                    building_id=building_id,
-                    building__branch__organization=org,
-                )
-                self.fields['transferred_to_location'].queryset = Location.objects.filter(
-                    building_id=building_id,
-                    site__region__organization=org,
-                )
-
-            floor_id = self.data.get('transferred_to_floor') or getattr(self.instance, 'transferred_to_floor_id', None)
-            if floor_id:
+                    building__branch__organization=org)
                 self.fields['transferred_to_room'].queryset = Room.objects.filter(
-                    floor_id=floor_id,
-                    floor__building__branch__organization=org,
-                )
+                    floor__building__branch__organization=org)
+                self.fields['transferred_to_location'].queryset = Location.objects.filter(
+                    site__region__organization=org)
+            else:
+                # GET (initial load / edit): restore cascade from saved instance values
+                if region_id:
+                    self.fields['transferred_to_site'].queryset = Site.objects.filter(
+                        region_id=region_id, region__organization=org)
+
+                site_id = getattr(self.instance, 'transferred_to_site_id', None)
+                if site_id:
+                    self.fields['transferred_to_building'].queryset = Building.objects.filter(
+                        locations__site_id=site_id,
+                        locations__site__region__organization=org,
+                    ).distinct()
+
+                building_id = getattr(self.instance, 'transferred_to_building_id', None)
+                if building_id:
+                    self.fields['transferred_to_floor'].queryset = Floor.objects.filter(
+                        building_id=building_id, building__branch__organization=org)
+                    self.fields['transferred_to_location'].queryset = Location.objects.filter(
+                        building_id=building_id, site__region__organization=org)
+
+                floor_id = getattr(self.instance, 'transferred_to_floor_id', None)
+                if floor_id:
+                    self.fields['transferred_to_room'].queryset = Room.objects.filter(
+                        floor_id=floor_id, floor__building__branch__organization=org)
         
         # Make all fields optional (bulk form handles multiple assets via JS)
         self.fields['transfer_no'].required = False
