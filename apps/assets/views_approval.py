@@ -365,6 +365,15 @@ def _build_asset_instance_from_request(approval_request, approver):
             for field_name, raw_value in payload.items():
                 field = allowed_fields.get(field_name)
                 if not field:
+                    # Handle _id-suffixed FK keys (e.g. 'category_id' stored in payload
+                    # but allowed_fields is keyed by field.name = 'category')
+                    if field_name.endswith('_id'):
+                        base_field = allowed_fields.get(field_name[:-3])
+                        if base_field and isinstance(base_field, django_models.ForeignKey):
+                            if raw_value in [None, '']:
+                                setattr(asset, field_name, None)
+                            else:
+                                setattr(asset, field_name, int(raw_value))
                     continue
 
                 if isinstance(field, django_models.ForeignKey):
