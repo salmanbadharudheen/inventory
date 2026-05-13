@@ -62,6 +62,9 @@ class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
         # Store asset details in the data JSONField
         asset_category = form.cleaned_data.get('asset_category')
         asset_department = form.cleaned_data.get('asset_department')
+        requester_name = form.cleaned_data.get('requested_by') or (self.request.user.get_full_name() or self.request.user.username)
+
+        # Simple summary fields (for display / fallback)
         self.object.data = {
             'asset_name': form.cleaned_data.get('asset_name'),
             'asset_category': asset_category.name if asset_category else '',
@@ -70,8 +73,17 @@ class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
             'asset_quantity': form.cleaned_data.get('asset_quantity', 1),
             'asset_reason': form.cleaned_data.get('asset_reason'),
             'asset_department': asset_department.name if asset_department else '',
-            'requested_by': form.cleaned_data.get('requested_by') or (self.request.user.get_full_name() or self.request.user.username),
+            'requested_by': requester_name,
             'requester_name': self.request.user.get_full_name() or self.request.user.username,
+            # Full asset payload so the approval system can create the Asset record
+            'asset_payload': {
+                'name': form.cleaned_data.get('asset_name'),
+                'category_id': asset_category.id if asset_category else None,
+                'department_id': asset_department.id if asset_department else None,
+                'purchase_price': str(form.cleaned_data.get('asset_cost') or ''),
+                'notes': form.cleaned_data.get('asset_description') or '',
+                'quantity': form.cleaned_data.get('asset_quantity', 1),
+            },
         }
         
         self.object.save()
@@ -285,13 +297,46 @@ def _coerce_bool(value):
     return bool(value)
 
 
+def _build_payload_from_legacy_data(data):
+    """Build an asset_payload dict from legacy simple-field approval data."""
+    from .models import Category
+    from apps.locations.models import Department
+
+    category_id = None
+    cat_name = data.get('asset_category', '')
+    if cat_name:
+        cat = Category.objects.filter(name__iexact=cat_name).first()
+        if cat:
+            category_id = cat.id
+
+    department_id = None
+    dept_name = data.get('asset_department', '')
+    if dept_name:
+        dept = Department.objects.filter(name__iexact=dept_name).first()
+        if dept:
+            department_id = dept.id
+
+    return {
+        'name': data.get('asset_name') or '',
+        'category_id': category_id,
+        'department_id': department_id,
+        'purchase_price': data.get('asset_cost') or '',
+        'notes': data.get('asset_description') or '',
+        'quantity': data.get('asset_quantity') or 1,
+    }
+
+
 def _build_asset_instance_from_request(approval_request, approver):
     """Rehydrate deferred asset payload and create one or more Asset records."""
     data = approval_request.data or {}
-    payload = data.get('asset_payload', {})
+    payload = data.get('asset_payload') or {}
     file_fields = data.get('file_fields', {})
 
+    # Fallback: build payload from legacy simple fields
     if not payload:
+        payload = _build_payload_from_legacy_data(data)
+
+    if not payload.get('name') and not payload.get('category_id'):
         raise ValueError('No asset payload found in this approval request.')
 
     allowed_fields = {
