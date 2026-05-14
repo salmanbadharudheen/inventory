@@ -291,6 +291,19 @@
         box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         transform: translateY(-4px);
         border-color: var(--primary);
+        cursor: pointer;
+    }
+
+    a.stat-card-link {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    a.stat-card-link:hover .stat-card {
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        transform: translateY(-4px);
+        border-color: var(--primary);
     }
 
     .stat-card-header {
@@ -1123,6 +1136,7 @@
     {% if show_financial %}
     <div class="stats-grid">
         <!-- Total Assets - Moved to First Position -->
+        <a href="{% url 'asset-list' %}" class="stat-card-link">
         <div class="stat-card info">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="package-check"></i></div>
@@ -1136,7 +1150,9 @@
                 </div>
             </div>
         </div>
+        </a>
 
+        <a href="{% url 'depreciation-category' %}" class="stat-card-link">
         <div class="stat-card">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="wallet"></i></div>
@@ -1150,7 +1166,9 @@
                 </div>
             </div>
         </div>
+        </a>
 
+        <a href="{% url 'depreciation-category' %}" class="stat-card-link">
         <div class="stat-card success">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="bar-chart-3"></i></div>
@@ -1163,7 +1181,9 @@
                 </div>
             </div>
         </div>
+        </a>
 
+        <a href="{% url 'depreciation-category' %}" class="stat-card-link">
         <div class="stat-card danger">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="trending-down"></i></div>
@@ -1176,10 +1196,12 @@
                 </div>
             </div>
         </div>
+        </a>
     </div>
     {% else %}
     <!-- EMPLOYEE Dashboard - Only inventory count -->
     <div class="stats-grid">
+        <a href="{% url 'asset-list' %}" class="stat-card-link">
         <div class="stat-card info">
             <div class="stat-card-header">
                 <div class="stat-icon"><i data-lucide="package-check"></i></div>
@@ -1193,6 +1215,7 @@
                 </div>
             </div>
         </div>
+        </a>
     </div>
     {% endif %}
 
