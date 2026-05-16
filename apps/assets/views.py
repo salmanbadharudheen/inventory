@@ -485,6 +485,49 @@ class AssetListView(LoginRequiredMixin, ListView):
         if registered_date_to:
             queryset = queryset.filter(created_at__date__lte=registered_date_to)
 
+        # Price Range Filters
+        purchase_price_from = self.request.GET.get('purchase_price_from')
+        purchase_price_to = self.request.GET.get('purchase_price_to')
+
+        if purchase_price_from:
+            try:
+                queryset = queryset.filter(purchase_price__gte=Decimal(purchase_price_from))
+            except Exception:
+                pass
+        if purchase_price_to:
+            try:
+                queryset = queryset.filter(purchase_price__lte=Decimal(purchase_price_to))
+            except Exception:
+                pass
+
+        # Current Value (Net Book Value) Range Filters
+        current_value_from = self.request.GET.get('current_value_from')
+        current_value_to = self.request.GET.get('current_value_to')
+
+        if current_value_from or current_value_to:
+            try:
+                # current_value is computed on the model, so filter after evaluating the queryset.
+                assets_list = list(queryset)
+                current_value_from_decimal = Decimal(current_value_from) if current_value_from else None
+                current_value_to_decimal = Decimal(current_value_to) if current_value_to else None
+
+                filtered_assets = []
+                for asset in assets_list:
+                    asset_current_value = asset.current_value
+                    include = True
+
+                    if current_value_from_decimal is not None and asset_current_value < current_value_from_decimal:
+                        include = False
+                    if current_value_to_decimal is not None and asset_current_value > current_value_to_decimal:
+                        include = False
+
+                    if include:
+                        filtered_assets.append(asset)
+
+                asset_ids = [asset.id for asset in filtered_assets]
+                queryset = queryset.filter(id__in=asset_ids)
+            except Exception:
+                pass
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
@@ -896,6 +939,16 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             to_val = request.GET.get('purchase_date_to', '')
             applied_filters.append(("Purchase Date Range", f"{from_val} to {to_val}"))
 
+        if request.GET.get('purchase_price_from') or request.GET.get('purchase_price_to'):
+            from_val = request.GET.get('purchase_price_from', '')
+            to_val = request.GET.get('purchase_price_to', '')
+            applied_filters.append(("Purchase Price Range", f"{from_val} to {to_val}"))
+
+        if request.GET.get('current_value_from') or request.GET.get('current_value_to'):
+            from_val = request.GET.get('current_value_from', '')
+            to_val = request.GET.get('current_value_to', '')
+            applied_filters.append(("Current Value Range", f"{from_val} to {to_val}"))
+
         if request.GET.get('registered_date_from') or request.GET.get('registered_date_to'):
             from_val = request.GET.get('registered_date_from', '')
             to_val = request.GET.get('registered_date_to', '')
@@ -1099,6 +1152,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 assigned = ''
                 if asset.assigned_to:
                     assigned = (asset.assigned_to.get_full_name() or '').strip() or asset.assigned_to.username
+                elif asset.custodian and asset.custodian.user:
+                    assigned = (asset.custodian.user.get_full_name() or '').strip() or asset.custodian.user.username
                 brand_val = ''
                 if getattr(asset, 'brand_new', None):
                     brand_val = asset.brand_new.name
@@ -1364,6 +1419,8 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
 
         form.instance.organization = self.request.user.organization
         form.instance.created_by = self.request.user
+        # Keep assignment in sync with selected custodian on asset creation.
+        form.instance.assigned_to = form.instance.custodian.user if form.instance.custodian and form.instance.custodian.user else None
         
         # Handle bulk creation based on quantity
         quantity = form.instance.quantity if form.instance.quantity else 1
@@ -3777,8 +3834,8 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
     template_name = 'assets/disposal_list.html'
     context_object_name = 'disposals'
     paginate_by = 50
-    
-    def get_queryset(self):
+
+    def get_filtered_queryset(self):
         org = self.request.user.organization
         qs = AssetDisposal.objects.filter(organization=org).select_related(
             'asset', 'requested_by', 'approved_by'
@@ -3801,8 +3858,11 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         user = self.request.user
         if user.role == user.Role.EMPLOYEE:
             qs = qs.filter(requested_by=user)
-        
+
         return qs.order_by('-created_at')
+
+    def get_queryset(self):
+        return self.get_filtered_queryset()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -3810,6 +3870,92 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         context['status_filter'] = self.request.GET.get('status', '')
         context['search'] = self.request.GET.get('search', '')
         return context
+
+
+class AssetDisposalExportPDFView(AssetDisposalListView):
+    """Export filtered asset disposal requests to PDF."""
+
+    def get(self, request, *args, **kwargs):
+        disposals = self.get_filtered_queryset()
+
+        from fpdf import FPDF
+
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=10)
+        pdf.set_margins(10, 10, 10)
+        pdf.add_page()
+
+        def safe_text(value):
+            text = str(value or '')
+            # Keep PDF output robust for non-latin punctuation/symbols.
+            return text.encode('latin-1', 'replace').decode('latin-1')
+
+        generated_on = timezone.now().strftime('%d %b %Y %H:%M')
+        status_filter = request.GET.get('status', '')
+        search_filter = request.GET.get('search', '')
+
+        pdf.set_fill_color(48, 84, 150)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 13)
+        pdf.cell(0, 9, safe_text('Asset Disposal Report'), ln=1, fill=True)
+
+        pdf.set_font('Helvetica', '', 9)
+        pdf.cell(0, 6, safe_text(f"Generated: {generated_on}    Total Records: {disposals.count()}"), ln=1)
+        pdf.cell(
+            0,
+            6,
+            safe_text(f"Filters - Status: {status_filter or 'All'} | Search: {search_filter or 'None'}"),
+            ln=1
+        )
+        pdf.ln(2)
+
+        headers = ['Tag', 'Asset Name', 'Method', 'Status', 'Requested By', 'Requested Date']
+        col_widths = [35, 95, 35, 35, 45, 30]
+
+        pdf.set_fill_color(48, 84, 150)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 8)
+        for header, width in zip(headers, col_widths):
+            pdf.cell(width, 7, safe_text(header), border=1, align='L', fill=True)
+        pdf.ln()
+
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('Helvetica', '', 8)
+        row_fill = False
+
+        for disposal in disposals:
+            if row_fill:
+                pdf.set_fill_color(245, 247, 251)
+            else:
+                pdf.set_fill_color(255, 255, 255)
+
+            requested_by = '-'
+            if disposal.requested_by:
+                requested_by = disposal.requested_by.get_full_name() or disposal.requested_by.username
+
+            row_values = [
+                disposal.asset.asset_tag if disposal.asset else '-',
+                disposal.asset.name if disposal.asset else '-',
+                disposal.get_disposal_method_display(),
+                disposal.get_status_display(),
+                requested_by,
+                disposal.created_at.strftime('%Y-%m-%d') if disposal.created_at else '-',
+            ]
+
+            for idx, (value, width) in enumerate(zip(row_values, col_widths)):
+                align = 'L'
+                if idx == 5:
+                    align = 'C'
+                pdf.cell(width, 6, safe_text(value)[:70], border=1, align=align, fill=True)
+            pdf.ln()
+            row_fill = not row_fill
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="asset_disposals_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+        )
+        response.write(bytes(pdf.output()))
+        return response
 
 
 class AssetDisposalCreateView(LoginRequiredMixin, CreateView):

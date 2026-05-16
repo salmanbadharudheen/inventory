@@ -182,6 +182,8 @@
         padding: 1rem;
         margin-bottom: 0.9rem;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     .depr-filters-title { 
         font-size: 0.7rem; 
@@ -200,6 +202,7 @@
         gap: 0.625rem;
         margin-bottom: 0;
         align-items: end;
+        min-width: 980px;
     }
     .depr-filter-group {
         display: flex;
@@ -465,9 +468,15 @@
         background: white;
         border: 1px solid #e5e7eb;
         border-radius: 10px;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
         margin-bottom: 1rem;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .depr-table {
+        min-width: 1100px;
     }
 
     .depr-active-filters {
@@ -500,6 +509,12 @@
         .depr-filter-grid { grid-template-columns: repeat(2, 1fr); }
         .depr-filter-action-group { grid-column: span 1; }
         .depr-header h2 { font-size: 1.125rem; }
+    }
+
+    @media (max-width: 768px) {
+        .depr-filter-grid {
+            grid-template-columns: 220px repeat(4, 150px) auto auto auto;
+        }
     }
 
     /* Expandable Detail Rows */
@@ -950,9 +965,9 @@
                 <label>Group By</label>
                 <select name="group_by">
                     <option value="">None</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="category">Category</option>
+                    <option value="monthly" {% if request.GET.group_by == 'monthly' %}selected{% endif %}>Monthly</option>
+                    <option value="yearly" {% if request.GET.group_by == 'yearly' %}selected{% endif %}>Yearly</option>
+                    <option value="category" {% if request.GET.group_by == 'category' %}selected{% endif %}>Category</option>
                 </select>
             </div>
             
@@ -961,12 +976,12 @@
                 <label>Sort By</label>
                 <select name="sort_by">
                     <option value="">Default</option>
-                    <option value="cost_high">Cost (High)</option>
-                    <option value="cost_low">Cost (Low)</option>
-                    <option value="depr_high">Depreciation (High)</option>
-                    <option value="depr_low">Depreciation (Low)</option>
-                    <option value="nbv_high">NBV (High)</option>
-                    <option value="nbv_low">NBV (Low)</option>
+                    <option value="cost_high" {% if request.GET.sort_by == 'cost_high' %}selected{% endif %}>Cost (High)</option>
+                    <option value="cost_low" {% if request.GET.sort_by == 'cost_low' %}selected{% endif %}>Cost (Low)</option>
+                    <option value="depr_high" {% if request.GET.sort_by == 'depr_high' %}selected{% endif %}>Depreciation (High)</option>
+                    <option value="depr_low" {% if request.GET.sort_by == 'depr_low' %}selected{% endif %}>Depreciation (Low)</option>
+                    <option value="nbv_high" {% if request.GET.sort_by == 'nbv_high' %}selected{% endif %}>NBV (High)</option>
+                    <option value="nbv_low" {% if request.GET.sort_by == 'nbv_low' %}selected{% endif %}>NBV (Low)</option>
                 </select>
             </div>
 
@@ -1082,14 +1097,6 @@
                             {% for value, label in label_types %}
                             <option value="{{ value }}" {% if value == depr_label_type %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
-                        </select>
-                    </div>
-                    <div class="depr-filter-group">
-                        <label>Tag Type</label>
-                        <select name="depr_tag_type">
-                            <option value="">All Tags</option>
-                            <option value="BARCODE" {% if depr_tag_type == 'BARCODE' %}selected{% endif %}>Barcode</option>
-                            <option value="RFID" {% if depr_tag_type == 'RFID' %}selected{% endif %}>RFID</option>
                         </select>
                     </div>
                     <div class="depr-filter-group">
@@ -1367,7 +1374,7 @@
                     </tr>
                     <!-- Asset Details Row -->
                     <tr id="depr-detail-{{ asset.id }}" class="depr-detail-row" style="display:none;">
-                        <td colspan="8">
+                        <td colspan="100">
                             <div class="depr-detail-content">
                                 <div class="depr-detail-left">
                                     <div class="depr-asset-thumb">{{ asset.name|slice:":1"|upper }}</div>
@@ -1412,7 +1419,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" style="padding: 2.5rem; text-align: center; color: var(--text-secondary);">
+                        <td colspan="100" style="padding: 2.5rem; text-align: center; color: var(--text-secondary);">
                             <p style="margin:0; font-weight:500;">No financial data available for the current selection.</p>
                         </td>
                     </tr>

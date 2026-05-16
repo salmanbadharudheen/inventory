@@ -213,13 +213,14 @@ def generate_asset_tag(organization, category, company=None):
     """
     from datetime import date
     
-    # Get company code: first 2 letters from company name
+    # Get company code: first 2 letters from company name.
+    # If company is missing/invalid, fall back to organization initials.
     if company and company.name:
-        # Extract only alphabetic characters from company name
         alpha_chars = ''.join(c for c in company.name if c.isalpha()).upper()
         company_code = alpha_chars[:2] if len(alpha_chars) >= 2 else alpha_chars.ljust(2, 'X')[:2]
     else:
-        company_code = 'XX'  # Default if no company
+        org_alpha = ''.join(c for c in (organization.name or '') if c.isalpha()).upper() if organization else ''
+        company_code = org_alpha[:2] if len(org_alpha) >= 2 else (org_alpha.ljust(2, 'X')[:2] if org_alpha else 'XX')
     
     # Get category code (3 letters, already auto-generated)
     category_code = category.code[:3].upper() if category.code else 'XXX'

@@ -49,6 +49,15 @@
                             <small class="form-text">Estimated cost per unit</small>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">{{ form.asset_company.label }}</label>
+                            {{ form.asset_company }}
+                            {% if form.asset_company.errors %}<div class="form-error">{{ form.asset_company.errors }}</div>{% endif %}
+                            <small class="form-text">Company segment used for asset tag code</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
                             <label class="form-label">{{ form.asset_department.label }}</label>
                             {{ form.asset_department }}
                             {% if form.asset_department.errors %}<div class="form-error">{{ form.asset_department.errors }}</div>{% endif %}

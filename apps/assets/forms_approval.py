@@ -1,6 +1,6 @@
 """Forms for asset approval workflows"""
 from django import forms
-from .models import ApprovalRequest, Category
+from .models import ApprovalRequest, Category, Company
 from apps.locations.models import Department
 from django.utils.translation import gettext_lazy as _
 
@@ -97,6 +97,15 @@ class AssetApprovalRequestForm(forms.ModelForm):
             'class': 'form-control'
         })
     )
+
+    asset_company = forms.ModelChoiceField(
+        queryset=Company.objects.none(),
+        required=False,
+        label='Company',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
     
     requested_by = forms.CharField(
         max_length=255,
@@ -122,6 +131,7 @@ class AssetApprovalRequestForm(forms.ModelForm):
             org = self.request.user.organization
             self.fields['asset_category'].queryset = Category.objects.filter(organization=org)
             self.fields['asset_department'].queryset = Department.objects.filter(branch__organization=org)
+            self.fields['asset_company'].queryset = Company.objects.filter(organization=org)
     
     def clean(self):
         cleaned_data = super().clean()

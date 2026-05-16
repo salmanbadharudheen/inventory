@@ -19,7 +19,7 @@ from .views import (
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
     AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferApproveView, AssetTransferExportExcelView,
-    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView,
+    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView, AssetDisposalExportPDFView,
     ReportsListView, MastersListView, MastersExportExcelView, AssetReconciliationReportView,
     AssetReconciliationReportPDFView
 )
@@ -30,6 +30,7 @@ from .views_approval import (
     ApprovalRequestApproveView,
     ApprovalRequestRejectView,
     ApprovalPendingListView,
+    ApprovalRequestExportPDFView,
 )
 
 urlpatterns = [
@@ -143,6 +144,7 @@ urlpatterns = [
     # Asset Approval Request (New Feature)
     path('approval-requests/', ApprovalRequestListView.as_view(), name='approval-request-list'),
     path('approval-requests/new/', AssetApprovalRequestCreateView.as_view(), name='approval-request-create'),
+    path('approval-requests/export/pdf/', ApprovalRequestExportPDFView.as_view(), name='approval-request-export-pdf'),
     path('approval-requests/<uuid:pk>/', ApprovalRequestDetailView.as_view(), name='approval-request-detail'),
     path('approval-requests/<uuid:pk>/approve/', ApprovalRequestApproveView.as_view(), name='approval-request-approve'),
     path('approval-requests/<uuid:pk>/reject/', ApprovalRequestRejectView.as_view(), name='approval-request-reject'),
@@ -159,6 +161,7 @@ urlpatterns = [
     
     # Asset Disposal Workflow (Two-step approval: Manager ? Admin)
     path('disposals/', AssetDisposalListView.as_view(), name='disposal-list'),
+    path('disposals/export/pdf/', AssetDisposalExportPDFView.as_view(), name='disposal-export-pdf'),
     path('disposals/add/', AssetDisposalCreateView.as_view(), name='disposal-create'),
     path('disposals/<uuid:pk>/', AssetDisposalDetailView.as_view(), name='disposal-detail'),
     path('disposals/<uuid:pk>/manager-approve/', AssetDisposalManagerApproveView.as_view(), name='disposal-manager-approve'),

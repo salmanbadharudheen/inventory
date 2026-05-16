@@ -6,9 +6,14 @@
 <div class="asset-container">
     <div class="content-header">
         <h1 class="page-heading">{% if user.is_superuser or user.role in 'ADMIN CHECKER SENIOR_MANAGER' %}Asset Approval Requests{% else %}My Asset Requests{% endif %}</h1>
-        <a href="{% url 'approval-request-create' %}" class="btn btn-primary">
-            + New Request
-        </a>
+        <div style="display: flex; gap: 8px;">
+            <a href="{% url 'approval-request-export-pdf' %}" class="btn btn-secondary">
+                <i data-lucide="file-down"></i> Export PDF
+            </a>
+            <a href="{% url 'approval-request-create' %}" class="btn btn-primary">
+                + New Request
+            </a>
+        </div>
     </div>
 
     <div class="stats-grid">

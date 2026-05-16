@@ -517,6 +517,11 @@ class AssetCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        # Keep assignment consistent with custodian selection for mobile clients.
+        custodian = data.get('custodian')
+        if custodian and custodian.user:
+            data['assigned_to'] = custodian.user
+
         user = request.user
         org = getattr(user, 'organization', None)
         if not org:
@@ -616,7 +621,7 @@ class AssetLookupByTagAPIView(APIView):
         ).select_related(
             'category', 'sub_category', 'group', 'sub_group',
             'company', 'department', 'site', 'building',
-            'floor', 'region', 'assigned_to', 'branch',
+            'floor', 'region', 'assigned_to', 'branch', 'custodian__user',
         ).first()
 
         if not asset:
@@ -650,7 +655,7 @@ class AssetDetailAPIView(APIView):
             ).select_related(
                 'category', 'sub_category', 'group', 'sub_group',
                 'company', 'department', 'site', 'building',
-                'floor', 'region', 'assigned_to', 'branch',
+                'floor', 'region', 'assigned_to', 'branch', 'custodian__user',
             ).get(pk=pk)
         except Asset.DoesNotExist:
             return Response(
@@ -676,7 +681,7 @@ class AssetListAPIView(APIView):
             return Response({'results': []})
 
         qs = Asset.objects.filter(organization=org, is_deleted=False).select_related(
-            'category', 'company', 'department', 'site', 'building', 'assigned_to',
+            'category', 'company', 'department', 'site', 'building', 'assigned_to', 'custodian__user',
         ).order_by('-created_at')
 
         # filters

@@ -190,6 +190,8 @@ class AssetListSerializer(serializers.ModelSerializer):
     def get_assigned_to_name(self, obj):
         if obj.assigned_to:
             return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip() or obj.assigned_to.username
+        if obj.custodian and obj.custodian.user:
+            return f"{obj.custodian.user.first_name} {obj.custodian.user.last_name}".strip() or obj.custodian.user.username
         return ''
 
 
@@ -251,6 +253,8 @@ class AssetReadSerializer(serializers.ModelSerializer):
     def get_assigned_to_name(self, obj):
         if obj.assigned_to:
             return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip() or obj.assigned_to.username
+        if obj.custodian and obj.custodian.user:
+            return f"{obj.custodian.user.first_name} {obj.custodian.user.last_name}".strip() or obj.custodian.user.username
         return ''
 
 

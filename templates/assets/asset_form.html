@@ -785,10 +785,12 @@ Add New Asset
           {{ form.custodian }}
         </div>
 
+        {% if object %}
         <div class="form-group">
           <label>Assigned To</label>
           {{ form.assigned_to }}
         </div>
+        {% endif %}
 
         <div class="form-group">
           <label>Asset Remarks</label>

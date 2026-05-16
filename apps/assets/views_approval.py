@@ -62,6 +62,7 @@ class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
         # Store asset details in the data JSONField
         asset_category = form.cleaned_data.get('asset_category')
         asset_department = form.cleaned_data.get('asset_department')
+        asset_company = form.cleaned_data.get('asset_company')
         requester_name = form.cleaned_data.get('requested_by') or (self.request.user.get_full_name() or self.request.user.username)
 
         # Simple summary fields (for display / fallback)
@@ -73,6 +74,7 @@ class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
             'asset_quantity': form.cleaned_data.get('asset_quantity', 1),
             'asset_reason': form.cleaned_data.get('asset_reason'),
             'asset_department': asset_department.name if asset_department else '',
+            'asset_company': asset_company.name if asset_company else '',
             'requested_by': requester_name,
             'requester_name': self.request.user.get_full_name() or self.request.user.username,
             # Full asset payload so the approval system can create the Asset record
@@ -80,6 +82,7 @@ class AssetApprovalRequestCreateView(LoginRequiredMixin, CreateView):
                 'name': form.cleaned_data.get('asset_name'),
                 'category_id': asset_category.id if asset_category else None,
                 'department_id': asset_department.id if asset_department else None,
+                'company_id': asset_company.id if asset_company else None,
                 'purchase_price': str(form.cleaned_data.get('asset_cost') or ''),
                 'notes': form.cleaned_data.get('asset_description') or '',
                 'quantity': form.cleaned_data.get('asset_quantity', 1),
@@ -645,3 +648,85 @@ class ApprovalPendingListView(ApprovalRequiredMixin, ListView):
             context['approval_stage'] = 'All'
         
         return context
+
+
+class ApprovalRequestExportPDFView(ApprovalRequestListView):
+    """Export filtered approval requests to PDF."""
+
+    def get(self, request, *args, **kwargs):
+        approval_requests = self.get_queryset()
+
+        from fpdf import FPDF
+
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=10)
+        pdf.set_margins(10, 10, 10)
+        pdf.add_page()
+
+        def safe_text(value):
+            text = str(value or '')
+            return text.encode('latin-1', 'replace').decode('latin-1')
+
+        generated_on = timezone.now().strftime('%d %b %Y %H:%M')
+        user_label = 'All Requests' if (request.user.is_superuser or request.user.role in ['ADMIN', 'CHECKER', 'SENIOR_MANAGER']) else 'My Requests'
+
+        pdf.set_fill_color(48, 84, 150)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 13)
+        pdf.cell(0, 9, safe_text('Asset Approval Requests Report'), ln=1, fill=True)
+
+        pdf.set_font('Helvetica', '', 9)
+        pdf.cell(0, 6, safe_text(f"Generated: {generated_on}    Total Records: {approval_requests.count()}    View: {user_label}"), ln=1)
+        pdf.ln(2)
+
+        headers = ['Asset Name', 'Request Type', 'Status', 'Requester', 'Created Date']
+        col_widths = [80, 40, 35, 50, 30]
+
+        pdf.set_fill_color(48, 84, 150)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 8)
+        for header, width in zip(headers, col_widths):
+            pdf.cell(width, 7, safe_text(header), border=1, align='L', fill=True)
+        pdf.ln()
+
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('Helvetica', '', 8)
+        row_fill = False
+
+        for approval_request in approval_requests:
+            if row_fill:
+                pdf.set_fill_color(245, 247, 251)
+            else:
+                pdf.set_fill_color(255, 255, 255)
+
+            requester_name = '-'
+            if approval_request.requester:
+                requester_name = approval_request.requester.get_full_name() or approval_request.requester.username
+
+            asset_name = '-'
+            if approval_request.data and isinstance(approval_request.data, dict):
+                asset_name = approval_request.data.get('asset_name', '-')
+
+            row_values = [
+                asset_name,
+                approval_request.get_request_type_display(),
+                approval_request.get_status_display(),
+                requester_name,
+                approval_request.created_at.strftime('%Y-%m-%d') if approval_request.created_at else '-',
+            ]
+
+            for idx, (value, width) in enumerate(zip(row_values, col_widths)):
+                align = 'L'
+                if idx in [1, 2]:
+                    align = 'C'
+                pdf.cell(width, 6, safe_text(value)[:70], border=1, align=align, fill=True)
+            pdf.ln()
+            row_fill = not row_fill
+
+        from django.http import HttpResponse
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="approval_requests_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+        )
+        response.write(bytes(pdf.output()))
+        return response

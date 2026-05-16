@@ -28,6 +28,9 @@
                 </select>
             </div>
             <div class="filter-right">
+                <a href="{% url 'disposal-export-pdf' %}?status={{ status_filter|urlencode }}&search={{ search|urlencode }}" class="btn btn-secondary">
+                    <i data-lucide="file-down"></i> Export PDF
+                </a>
                 <button type="submit" class="btn btn-secondary">Apply</button>
                 <a href="{% url 'disposal-list' %}" class="btn btn-ghost">Reset</a>
             </div>

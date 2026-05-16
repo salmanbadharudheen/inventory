@@ -635,14 +635,6 @@ body          { display:flex!important; height:auto!important; min-height:100vh!
                                 </select>
                             </div>
                             <div class="fg">
-                                <label>Tag Type</label>
-                                <select name="depr_tag_type">
-                                    <option value="">All Tags</option>
-                                    <option value="BARCODE" {% if depr_tag_type == 'BARCODE' %}selected{% endif %}>Barcode</option>
-                                    <option value="RFID" {% if depr_tag_type == 'RFID' %}selected{% endif %}>RFID</option>
-                                </select>
-                            </div>
-                            <div class="fg">
                                 <label>Tag Status</label>
                                 <select name="depr_tagging_status">
                                     <option value="">All Statuses</option>
