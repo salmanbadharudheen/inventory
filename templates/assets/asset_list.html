@@ -2842,5 +2842,74 @@
         });
         */
     }
+
+    // ── Cascading filter dropdowns ──────────────────────────────────────────────
+    (function () {
+        function populateSelect(sel, items, keepValue) {
+            const firstOpt = sel.options[0]; // preserve "All …" option
+            sel.innerHTML = '';
+            sel.appendChild(firstOpt);
+            items.forEach(function (item) {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.name;
+                if (String(item.id) === String(keepValue)) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        // Group → SubGroup cascade (advanced filters panel)
+        const groupSel    = document.querySelector('select[name="group"]');
+        const subGroupSel = document.querySelector('select[name="sub_group"]');
+
+        if (groupSel && subGroupSel) {
+            groupSel.addEventListener('change', function () {
+                const groupId = this.value;
+                subGroupSel.innerHTML = subGroupSel.options[0].outerHTML; // reset to "All Sub Groups"
+                if (!groupId) return;
+                fetch('/assets/ajax/subgroups/?group_id=' + encodeURIComponent(groupId))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { populateSelect(subGroupSel, data, ''); })
+                    .catch(function (e) { console.error('Error fetching sub-groups', e); });
+            });
+
+            // On page load: if group is already selected, populate sub-groups and keep current selection
+            const initialGroup    = groupSel.value;
+            const initialSubGroup = subGroupSel.value;
+            if (initialGroup) {
+                fetch('/assets/ajax/subgroups/?group_id=' + encodeURIComponent(initialGroup))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { populateSelect(subGroupSel, data, initialSubGroup); })
+                    .catch(function (e) { console.error('Error restoring sub-groups', e); });
+            }
+        }
+
+        // Category → SubCategory cascade (main filter + advanced filter)
+        const categorySel    = document.querySelector('select[name="category"]');
+        const subCategorySel = document.querySelector('select[name="subcategory"]');
+
+        if (categorySel && subCategorySel) {
+            categorySel.addEventListener('change', function () {
+                const categoryId = this.value;
+                subCategorySel.innerHTML = subCategorySel.options[0].outerHTML;
+                if (!categoryId) return;
+                fetch('/assets/ajax/subcategories/?category_id=' + encodeURIComponent(categoryId))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { populateSelect(subCategorySel, data, ''); })
+                    .catch(function (e) { console.error('Error fetching sub-categories', e); });
+            });
+
+            // On page load: if category is already selected, populate sub-categories and keep selection
+            const initialCategory    = categorySel.value;
+            const initialSubCategory = subCategorySel.value;
+            if (initialCategory) {
+                fetch('/assets/ajax/subcategories/?category_id=' + encodeURIComponent(initialCategory))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { populateSelect(subCategorySel, data, initialSubCategory); })
+                    .catch(function (e) { console.error('Error restoring sub-categories', e); });
+            }
+        }
+    })();
+    // ───────────────────────────────────────────────────────────────────────────
 </script>
 {% endblock %}

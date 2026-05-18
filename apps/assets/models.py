@@ -26,6 +26,7 @@ class Vendor(TenantAwareModel):
 class Category(TenantAwareModel):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, blank=True)  # Auto-generated
+    sub_group = models.ForeignKey('SubGroup', on_delete=models.SET_NULL, null=True, blank=True, related_name='categories')
 
     useful_life_years = models.PositiveIntegerField(default=5) # Required now
     

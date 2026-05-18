@@ -1792,9 +1792,45 @@ class AssetImportView(LoginRequiredMixin, FormView):
         # Auto-create selected new entities
         selected = request.POST.getlist('create_entities')
 
+        # Groups must be created before SubGroups (dependency order)
+        if 'groups' in selected:
+            for name in new_entities.get('groups', []):
+                Group.objects.get_or_create(organization=org, name=name)
+
+        if 'sub_groups' in selected:
+            for name in new_entities.get('sub_groups', []):
+                # Find the parent group from the first matching row
+                parent_group = None
+                for row in rows:
+                    if str(row.get('sub_group') or '').strip().lower() == name.lower():
+                        grp_val = str(row.get('group') or '').strip()
+                        if grp_val:
+                            parent_group = Group.objects.filter(
+                                organization=org, name__iexact=grp_val
+                            ).first()
+                        break
+                obj, created = SubGroup.objects.get_or_create(organization=org, name=name)
+                if created and parent_group:
+                    obj.group = parent_group
+                    obj.save()
+
+        # Categories must be created before SubCategories (dependency order)
         if 'categories' in selected:
             for name in new_entities.get('categories', []):
-                Category.objects.get_or_create(organization=org, name=name)
+                # Find the sub_group from the first matching row
+                parent_sub_group = None
+                for row in rows:
+                    if str(row.get('category') or '').strip().lower() == name.lower():
+                        sgrp_val = str(row.get('sub_group') or '').strip()
+                        if sgrp_val:
+                            parent_sub_group = SubGroup.objects.filter(
+                                organization=org, name__iexact=sgrp_val
+                            ).first()
+                        break
+                obj, created = Category.objects.get_or_create(organization=org, name=name)
+                if created and parent_sub_group:
+                    obj.sub_group = parent_sub_group
+                    obj.save()
 
         if 'subcategories' in selected:
             for name in new_entities.get('subcategories', []):
@@ -1813,14 +1849,6 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     SubCategory.objects.get_or_create(
                         organization=org, category=parent_cat, name=name
                     )
-
-        if 'groups' in selected:
-            for name in new_entities.get('groups', []):
-                Group.objects.get_or_create(organization=org, name=name)
-
-        if 'sub_groups' in selected:
-            for name in new_entities.get('sub_groups', []):
-                SubGroup.objects.get_or_create(organization=org, name=name)
 
         if 'brands' in selected:
             for name in new_entities.get('brands', []):
@@ -2037,6 +2065,14 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 category = get_from_cache(categories_by_code, cat_val) or get_from_cache(categories_by_name, cat_val)
                 if not category:
                     raise ValueError(f"Category '{cat_val}' not found.")
+
+                # If the row provides a sub_group and the category doesn't have one yet, link it
+                _sgrp_val = str(row.get('sub_group') or '').strip()
+                if _sgrp_val and not category.sub_group_id:
+                    _linked_sg = get_from_cache(subgroups, _sgrp_val)
+                    if _linked_sg:
+                        category.sub_group = _linked_sg
+                        category.save(update_fields=['sub_group'])
 
                 # Look up company early so we can use it in the tag
                 _company_val = row.get('company')
@@ -2380,6 +2416,11 @@ class CategoryCreateView(LoginRequiredMixin, CreateView):
         form.instance.organization = self.request.user.organization
         return super().form_valid(form)
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
+        return ctx
+
 class CategoryUpdateView(LoginRequiredMixin, UpdateView):
     model = Category
     form_class = CategoryForm
@@ -2393,6 +2434,11 @@ class CategoryUpdateView(LoginRequiredMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
         return kwargs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
+        return ctx
 
 # --- SUBCATEGORY VIEWS ---
 class SubCategoryListView(LoginRequiredMixin, ListView):
@@ -2414,6 +2460,11 @@ class SubCategoryCreateView(LoginRequiredMixin, CreateView):
         kwargs['request'] = self.request
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
+        return ctx
+
 class SubCategoryUpdateView(LoginRequiredMixin, UpdateView):
     model = SubCategory
     form_class = SubCategoryForm
@@ -2421,8 +2472,12 @@ class SubCategoryUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('subcategory-list')
     
     def get_queryset(self):
-        # Ensure user can only edit subcategories in their org
         return SubCategory.objects.filter(category__organization=self.request.user.organization)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
+        return ctx
 
 # --- VENDOR VIEWS ---
 class VendorListView(LoginRequiredMixin, ListView):
@@ -2703,6 +2758,19 @@ def get_subgroups(request):
         subgroups = SubGroup.objects.filter(group_id=group_id).values('id', 'name')
         return JsonResponse(list(subgroups), safe=False)
     return JsonResponse([], safe=False)
+
+def get_categories_by_subgroup(request):
+    sub_group_id = request.GET.get('sub_group_id')
+    if sub_group_id:
+        categories = Category.objects.filter(
+            sub_group_id=sub_group_id,
+            organization=request.user.organization
+        ).values('id', 'name')
+    else:
+        categories = Category.objects.filter(
+            organization=request.user.organization
+        ).values('id', 'name')
+    return JsonResponse(list(categories), safe=False)
 
 # ==================== APPROVAL WORKFLOW VIEWS ====================
 

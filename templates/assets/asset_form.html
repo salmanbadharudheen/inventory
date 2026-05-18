@@ -128,16 +128,37 @@ Add New Asset
       });
     }
 
-    // Group -> SubGroup filtering
+    // Group -> SubGroup -> Category -> SubCategory cascading
     const groupSelect = document.querySelector('select[name="group"]');
     const subGroupSelect = document.querySelector('select[name="sub_group"]');
+
+    function fetchAndPopulate(url, selectEl, keepValue) {
+      return fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          selectEl.innerHTML = '<option value="">---------</option>';
+          data.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.name;
+            if (String(item.id) === String(keepValue)) opt.selected = true;
+            selectEl.appendChild(opt);
+          });
+        });
+    }
 
     if (groupSelect && subGroupSelect) {
       groupSelect.addEventListener('change', function () {
         const groupId = this.value;
         subGroupSelect.innerHTML = '<option value="">---------</option>';
-        if (!groupId) return;
-
+        // Also clear category and subcategory when group changes
+        if (categorySelect) categorySelect.innerHTML = '<option value="">---------</option>';
+        if (subCategorySelect) subCategorySelect.innerHTML = '<option value="">---------</option>';
+        if (!groupId) {
+          // Restore all categories when group is cleared
+          fetchAndPopulate('/assets/ajax/categories-by-subgroup/', categorySelect, '');
+          return;
+        }
         fetch(`/assets/ajax/subgroups/?group_id=${encodeURIComponent(groupId)}`)
           .then(r => r.json())
           .then(data => {
@@ -149,6 +170,20 @@ Add New Asset
             });
           })
           .catch(err => console.error('Error fetching subgroups:', err));
+        // Restore all categories (no subgroup selected yet)
+        fetchAndPopulate('/assets/ajax/categories-by-subgroup/', categorySelect, '');
+      });
+
+      // SubGroup -> Category filtering
+      subGroupSelect.addEventListener('change', function () {
+        const subGroupId = this.value;
+        if (categorySelect) categorySelect.innerHTML = '<option value="">---------</option>';
+        if (subCategorySelect) subCategorySelect.innerHTML = '<option value="">---------</option>';
+        fetchAndPopulate(
+          `/assets/ajax/categories-by-subgroup/?sub_group_id=${encodeURIComponent(subGroupId)}`,
+          categorySelect,
+          ''
+        );
       });
     }
 

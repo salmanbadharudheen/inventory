@@ -11,6 +11,22 @@
             {% csrf_token %}
 
             {% for field in form %}
+            {% if field.name == 'sub_group' %}
+            {# Group helper — not a saved field, used only to narrow the SubGroup dropdown #}
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Group</label>
+                <select id="helper-group-select" class="form-control">
+                    <option value="">— Select Group to filter Sub Group —</option>
+                    {% for grp in groups %}
+                    <option value="{{ grp.id }}"
+                        {% if form.instance.sub_group and form.instance.sub_group.group_id == grp.id %}selected{% endif %}>
+                        {{ grp.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <small style="color: grey; display:block; margin-top:0.25rem;">Optional — narrows the Sub Group list below.</small>
+            </div>
+            {% endif %}
             <div class="form-group" style="margin-bottom: 1.5rem;" id="field-{{ field.name }}">
 
                 <label style="display:block; margin-bottom:0.5rem; font-weight:500;" for="{{ field.id_for_label }}">
@@ -56,6 +72,38 @@
         if (methodEl) {
             methodEl.addEventListener("change", toggleExpectedUnits);
             toggleExpectedUnits();
+        }
+
+        // Group helper → SubGroup cascade
+        var groupHelper  = document.getElementById("helper-group-select");
+        var subGroupSel  = document.getElementById("id_sub_group");
+
+        function loadSubGroups(groupId, keepValue) {
+            if (!subGroupSel) return;
+            subGroupSel.innerHTML = '<option value="">---------</option>';
+            if (!groupId) return;
+            fetch('/assets/ajax/subgroups/?group_id=' + encodeURIComponent(groupId))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    data.forEach(function (item) {
+                        var opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.name;
+                        if (String(item.id) === String(keepValue)) opt.selected = true;
+                        subGroupSel.appendChild(opt);
+                    });
+                })
+                .catch(function (e) { console.error('Error fetching sub-groups', e); });
+        }
+
+        if (groupHelper) {
+            groupHelper.addEventListener('change', function () {
+                loadSubGroups(this.value, '');
+            });
+            // On edit: if a group is pre-selected, load its sub-groups and keep current sub_group value
+            if (groupHelper.value) {
+                loadSubGroups(groupHelper.value, subGroupSel ? subGroupSel.value : '');
+            }
         }
     });
 </script>

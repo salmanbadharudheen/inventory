@@ -281,8 +281,9 @@ class AssetAttachmentForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-        fields = ['name', 'useful_life_years', 'depreciation_method', 'default_salvage_value', 'default_expected_units']
+        fields = ['sub_group', 'name', 'useful_life_years', 'depreciation_method', 'default_salvage_value', 'default_expected_units']
         widgets = {
+            'sub_group': forms.Select(attrs={'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Electronics'}),
             'useful_life_years': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'depreciation_method': forms.Select(attrs={'class': 'form-control'}),
@@ -309,6 +310,10 @@ class CategoryForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
+        if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
+            org = self.request.user.organization
+            self.fields['sub_group'].queryset = SubGroup.objects.filter(group__organization=org)
+        self.fields['sub_group'].required = False
 
 class SubCategoryForm(forms.ModelForm):
     class Meta:

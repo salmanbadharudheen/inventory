@@ -11,7 +11,7 @@ from .views import (
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
     VendorListView, VendorCreateView, VendorUpdateView,
     GroupListView, GroupCreateView, GroupUpdateView,
-    SubGroupListView, SubGroupCreateView, SubGroupUpdateView, get_subgroups,
+    SubGroupListView, SubGroupCreateView, SubGroupUpdateView, get_subgroups, get_categories_by_subgroup,
     BrandListView, BrandCreateView, BrandUpdateView,
     CompanyListView, CompanyCreateView, CompanyUpdateView,
     SupplierListView, SupplierCreateView, SupplierUpdateView,
@@ -109,6 +109,7 @@ urlpatterns = [
     path('subgroups/add/', SubGroupCreateView.as_view(), name='subgroup-create'),
     path('subgroups/<int:pk>/edit/', SubGroupUpdateView.as_view(), name='subgroup-edit'),
     path('ajax/subgroups/', get_subgroups, name='get-subgroups'),
+    path('ajax/categories-by-subgroup/', get_categories_by_subgroup, name='get-categories-by-subgroup'),
 
     # Configuration: Brands
     path('brands/', BrandListView.as_view(), name='brand-list'),

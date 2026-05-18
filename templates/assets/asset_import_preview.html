@@ -18,6 +18,19 @@
             </div>
         </div>
 
+        <!-- Creation order info banner -->
+        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+            <i data-lucide="info" style="width: 18px; height: 18px; color: #2563EB; flex-shrink: 0; margin-top: 2px;"></i>
+            <div style="font-size: 0.875rem; color: #1E40AF; line-height: 1.6;">
+                <strong>How new items will be created:</strong>
+                New items are created in the correct dependency order —
+                <strong>Groups</strong> first, then <strong>Sub Groups</strong> (linked to their Group),
+                then <strong>Categories</strong> (linked to their Sub Group),
+                and finally <strong>Sub Categories</strong> (linked to their Category).
+                Make sure your file's <code>group</code>, <code>sub_group</code>, <code>category</code>, and <code>sub_category</code> columns are filled in consistently for each row.
+            </div>
+        </div>
+
         <form method="post" action="{% url 'asset-import' %}">
             {% csrf_token %}
             <input type="hidden" name="confirm_create" value="1">

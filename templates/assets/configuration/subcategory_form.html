@@ -8,6 +8,30 @@
         <form method="post">
             {% csrf_token %}
 
+            {# Group helper — not saved, used to narrow SubGroup dropdown #}
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Group</label>
+                <select id="helper-group-select" class="form-control">
+                    <option value="">— Select Group to filter Sub Group —</option>
+                    {% for grp in groups %}
+                    <option value="{{ grp.id }}"
+                        {% if object and object.category.sub_group and object.category.sub_group.group_id == grp.id %}selected{% endif %}>
+                        {{ grp.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <small style="color: grey; display: block; margin-top: 0.25rem;">Optional — narrows the Sub Group list below.</small>
+            </div>
+
+            {# SubGroup helper — not saved, used to narrow Category dropdown #}
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Sub Group</label>
+                <select id="helper-subgroup-select" class="form-control">
+                    <option value="">— Select Sub Group to filter Category —</option>
+                </select>
+                <small style="color: grey; display: block; margin-top: 0.25rem;">Optional — narrows the Category list below.</small>
+            </div>
+
             {% for field in form %}
             <div class="form-group" style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ field.label }}</label>
@@ -26,4 +50,75 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var groupHelper    = document.getElementById('helper-group-select');
+    var subGroupHelper = document.getElementById('helper-subgroup-select');
+    var categorySel    = document.getElementById('id_category');
+
+    function populateSelect(sel, items, keepValue, firstLabel) {
+        sel.innerHTML = '<option value="">' + firstLabel + '</option>';
+        items.forEach(function (item) {
+            var opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.name;
+            if (String(item.id) === String(keepValue)) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    // Group → SubGroup
+    function loadSubGroups(groupId, keepSubGroup) {
+        subGroupHelper.innerHTML = '<option value="">— Select Sub Group to filter Category —</option>';
+        if (categorySel) categorySel.innerHTML = '<option value="">---------</option>';
+        if (!groupId) return;
+        fetch('/assets/ajax/subgroups/?group_id=' + encodeURIComponent(groupId))
+            .then(function (r) { return r.json(); })
+            .then(function (data) { populateSelect(subGroupHelper, data, keepSubGroup, '— Select Sub Group to filter Category —'); })
+            .catch(function (e) { console.error(e); });
+    }
+
+    // SubGroup → Category
+    function loadCategories(subGroupId, keepCategory) {
+        if (!categorySel) return;
+        fetch('/assets/ajax/categories-by-subgroup/?sub_group_id=' + encodeURIComponent(subGroupId || ''))
+            .then(function (r) { return r.json(); })
+            .then(function (data) { populateSelect(categorySel, data, keepCategory, '---------'); })
+            .catch(function (e) { console.error(e); });
+    }
+
+    if (groupHelper) {
+        groupHelper.addEventListener('change', function () {
+            loadSubGroups(this.value, '');
+        });
+    }
+
+    if (subGroupHelper) {
+        subGroupHelper.addEventListener('change', function () {
+            loadCategories(this.value, '');
+        });
+    }
+
+    // On edit page load: restore chain from the saved category's sub_group → group
+    {% if object and object.category.sub_group %}
+    var initGroupId    = "{{ object.category.sub_group.group_id }}";
+    var initSubGroupId = "{{ object.category.sub_group_id }}";
+    var initCategoryId = "{{ object.category_id }}";
+    if (initGroupId) {
+        // pre-select group helper
+        groupHelper.value = initGroupId;
+        fetch('/assets/ajax/subgroups/?group_id=' + encodeURIComponent(initGroupId))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                populateSelect(subGroupHelper, data, initSubGroupId, '— Select Sub Group to filter Category —');
+                return fetch('/assets/ajax/categories-by-subgroup/?sub_group_id=' + encodeURIComponent(initSubGroupId));
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { populateSelect(categorySel, data, initCategoryId, '---------'); })
+            .catch(function (e) { console.error(e); });
+    }
+    {% endif %}
+});
+</script>
 {% endblock %}
