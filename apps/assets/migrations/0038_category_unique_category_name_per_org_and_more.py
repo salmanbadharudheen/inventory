@@ -51,6 +51,7 @@ def noop_reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ('assets', '0037_alter_asset_label_type_alter_asset_tagging_status'),
