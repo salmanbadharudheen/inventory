@@ -3,6 +3,53 @@
 from django.db import migrations, models
 
 
+def deduplicate_category_and_subcategory(apps, schema_editor):
+    Category = apps.get_model('assets', 'Category')
+    SubCategory = apps.get_model('assets', 'SubCategory')
+    Asset = apps.get_model('assets', 'Asset')
+
+    # 1) Merge duplicate Categories by (organization_id, name).
+    category_groups = {}
+    for category in Category.objects.all().order_by('id'):
+        key = (category.organization_id, category.name)
+        category_groups.setdefault(key, []).append(category)
+
+    for (_, _), categories in category_groups.items():
+        if len(categories) <= 1:
+            continue
+
+        keeper = categories[0]
+        duplicates = categories[1:]
+
+        for duplicate in duplicates:
+            # Move dependents first, then remove duplicate category.
+            SubCategory.objects.filter(category_id=duplicate.id).update(category_id=keeper.id)
+            Asset.objects.filter(category_id=duplicate.id).update(category_id=keeper.id)
+            duplicate.delete()
+
+    # 2) Merge duplicate SubCategories by (category_id, name).
+    subcategory_groups = {}
+    for subcategory in SubCategory.objects.all().order_by('id'):
+        key = (subcategory.category_id, subcategory.name)
+        subcategory_groups.setdefault(key, []).append(subcategory)
+
+    for (_, _), subcategories in subcategory_groups.items():
+        if len(subcategories) <= 1:
+            continue
+
+        keeper = subcategories[0]
+        duplicates = subcategories[1:]
+
+        for duplicate in duplicates:
+            Asset.objects.filter(sub_category_id=duplicate.id).update(sub_category_id=keeper.id)
+            duplicate.delete()
+
+
+def noop_reverse(apps, schema_editor):
+    # Data deduplication is not safely reversible.
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,6 +58,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(deduplicate_category_and_subcategory, noop_reverse),
         migrations.AddConstraint(
             model_name='category',
             constraint=models.UniqueConstraint(fields=('organization', 'name'), name='unique_category_name_per_org'),
