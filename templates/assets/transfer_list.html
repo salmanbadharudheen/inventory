@@ -53,8 +53,8 @@
                     <tr>
                         <th>Tag</th>
                         <th>Asset</th>
-                        <th>From</th>
-                        <th>To</th>
+                        <th style="min-width:200px;">From</th>
+                        <th style="min-width:200px;">To</th>
                         <th>Date</th>
                         <th>Status</th>
                         <th></th>
@@ -65,22 +65,60 @@
                     <tr>
                         <td class="mono">{{ transfer.asset.asset_tag }}</td>
                         <td>{{ transfer.asset.name }}</td>
-                        <td class="muted">
-                            {% if transfer.transferred_from_user %}
-                                {{ transfer.transferred_from_user.get_full_name }}
-                            {% elif transfer.transferred_from_department %}
-                                {{ transfer.transferred_from_department.name }}
-                            {% else %}
-                                -
+                        <td class="muted" title="
+From: {% if transfer.transferred_from_company %}{{ transfer.transferred_from_company.name }}{% endif %} / {% if transfer.transferred_from_location %}{{ transfer.transferred_from_location.name }}{% endif %}
+Department: {% if transfer.transferred_from_department %}{{ transfer.transferred_from_department.name }}{% endif %}
+User: {% if transfer.transferred_from_user %}{{ transfer.transferred_from_user.get_full_name }}{% else %}—{% endif %}
+Custodian: {% if transfer.transferred_from_custodian %}{{ transfer.transferred_from_custodian.name }}{% else %}—{% endif %}">
+                            <div style="font-weight:600;">
+                                {% if transfer.transferred_from_user %}
+                                    {{ transfer.transferred_from_user.get_full_name }}
+                                {% elif transfer.transferred_from_department %}
+                                    {{ transfer.transferred_from_department.name }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </div>
+                            <div style="font-size:0.85em; color:#666; margin-top:2px;">
+                                {% if transfer.transferred_from_location %}
+                                    {{ transfer.transferred_from_location.name }}
+                                {% endif %}
+                                {% if transfer.transferred_from_company %}
+                                    ({{ transfer.transferred_from_company.name }})
+                                {% endif %}
+                            </div>
+                            {% if transfer.transferred_from_custodian %}
+                            <div style="font-size:0.8em; color:#999; margin-top:1px;">
+                                Custodian: {{ transfer.transferred_from_custodian.name }}
+                            </div>
                             {% endif %}
                         </td>
-                        <td class="muted">
-                            {% if transfer.transferred_to_user %}
-                                {{ transfer.transferred_to_user.get_full_name }}
-                            {% elif transfer.transferred_to_department %}
-                                {{ transfer.transferred_to_department.name }}
-                            {% else %}
-                                -
+                        <td class="muted" title="
+To: {% if transfer.transferred_to_company %}{{ transfer.transferred_to_company.name }}{% endif %} / {% if transfer.transferred_to_location %}{{ transfer.transferred_to_location.name }}{% endif %}
+Department: {% if transfer.transferred_to_department %}{{ transfer.transferred_to_department.name }}{% endif %}
+User: {% if transfer.transferred_to_user %}{{ transfer.transferred_to_user.get_full_name }}{% else %}—{% endif %}
+Custodian: {% if transfer.transferred_to_custodian %}{{ transfer.transferred_to_custodian.name }}{% else %}—{% endif %}">
+                            <div style="font-weight:600;">
+                                {% if transfer.transferred_to_user %}
+                                    {{ transfer.transferred_to_user.get_full_name }}
+                                {% elif transfer.transferred_to_department %}
+                                    {{ transfer.transferred_to_department.name }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </div>
+                            <div style="font-size:0.85em; color:#666; margin-top:2px;">
+                                {% if transfer.transferred_to_location %}
+                                    {{ transfer.transferred_to_location.name }}
+                                {% endif %}
+                                {% if transfer.transferred_to_company %}
+                                    ({{ transfer.transferred_to_company.name }})
+                                {% endif %}
+                            </div>
+                            {% if transfer.transferred_to_custodian %}
+                            <div style="font-size:0.8em; color:#999; margin-top:1px;">
+                                Custodian: {{ transfer.transferred_to_custodian.name }}
+                            </div>
                             {% endif %}
                         </td>
                         <td>{{ transfer.transfer_date|date:"d M Y" }}</td>
@@ -141,13 +179,18 @@
 .filter-bar .search { display:flex; align-items:center; gap:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #e9ecef; }
 .filter-bar .search input { border:none; outline:none; min-width:200px; }
 
+/* Enhanced Transfer Details in Table */
+.transfer-table .from-col, .transfer-table .to-col { min-width:200px; }
+.transfer-table .from-col div, .transfer-table .to-col div { white-space:normal; word-wrap:break-word; }
+
 /* Table */
-.transfer-table-wrap { background:#fff; border:1px solid #e9ecef; border-radius:8px; overflow:hidden; }
+.transfer-table-wrap { background:#fff; border:1px solid #e9ecef; border-radius:8px; overflow:auto; max-height:70vh; }
 .transfer-table { width:100%; border-collapse:collapse; }
 .transfer-table thead { background:#f8f9fa; }
 .transfer-table th, .transfer-table td { padding:12px 14px; text-align:left; border-bottom:1px solid #f1f3f5; }
 .transfer-table tbody tr:hover { background:#fbfbfd; }
 .transfer-table .mono { font-family:monospace; color:#2b2b2b; font-weight:600; }
+.transfer-table td[title] { vertical-align:middle; padding:10px 14px; line-height:1.4; }
 .muted { color:#6c757d; }
 
 .pill { display:inline-block; padding:6px 10px; border-radius:999px; font-size:0.85em; }

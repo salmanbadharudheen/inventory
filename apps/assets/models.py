@@ -41,6 +41,9 @@ class Category(TenantAwareModel):
     class Meta:
         unique_together = ('organization', 'code')
         verbose_name_plural = "Categories"
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'name'], name='unique_category_name_per_org')
+        ]
 
     def save(self, *args, **kwargs):
         if not self.code:
@@ -85,6 +88,9 @@ class SubCategory(TenantAwareModel):
     
     class Meta:
         verbose_name_plural = "Sub Categories"
+        constraints = [
+            models.UniqueConstraint(fields=['category', 'name'], name='unique_subcategory_name_per_category')
+        ]
     
     def __str__(self):
         return f"{self.category.name} - {self.name}"

@@ -289,6 +289,26 @@ class CategoryForm(forms.ModelForm):
             'default_salvage_value': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01', 'placeholder': '0.00'}),
             'default_expected_units': forms.NumberInput(attrs={'class': 'form-control'}),
         }
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError('Category name is required.')
+        
+        # Check for duplicate in the same organization (exclude current instance if editing)
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Category.objects.filter(organization=organization, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A category with the name "{name}" already exists in your organization.')
+        
+        return name
+    
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
 
 class SubCategoryForm(forms.ModelForm):
     class Meta:
@@ -304,6 +324,21 @@ class SubCategoryForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.request and self.request.user.organization:
             self.fields['category'].queryset = Category.objects.filter(organization=self.request.user.organization)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        category = cleaned_data.get('category')
+        name = cleaned_data.get('name', '').strip()
+        
+        if category and name:
+            # Check for duplicate in the same category (exclude current instance if editing)
+            qs = SubCategory.objects.filter(category=category, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A sub-category with the name "{name}" already exists in the "{category.name}" category.')
+        
+        return cleaned_data
 
 class VendorForm(forms.ModelForm):
     class Meta:
@@ -341,6 +376,26 @@ class GroupForm(forms.ModelForm):
             'code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError('Group name is required.')
+        
+        # Check for duplicate in the same organization (exclude current instance if editing)
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Group.objects.filter(organization=organization, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A group with the name "{name}" already exists in your organization.')
+        
+        return name
 
 class SubGroupForm(forms.ModelForm):
     class Meta:
@@ -358,6 +413,21 @@ class SubGroupForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.request and hasattr(self.request.user, 'organization') and self.request.user.organization:
             self.fields['group'].queryset = Group.objects.filter(organization=self.request.user.organization)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        group = cleaned_data.get('group')
+        name = cleaned_data.get('name', '').strip()
+        
+        if group and name:
+            # Check for duplicate in the same group (exclude current instance if editing)
+            qs = SubGroup.objects.filter(group=group, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A sub-group with the name "{name}" already exists in the "{group.name}" group.')
+        
+        return cleaned_data
 
 class BrandForm(forms.ModelForm):
     class Meta:
@@ -368,6 +438,26 @@ class BrandForm(forms.ModelForm):
             'code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError('Brand name is required.')
+        
+        # Check for duplicate in the same organization (exclude current instance if editing)
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Brand.objects.filter(organization=organization, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A brand with the name "{name}" already exists in your organization.')
+        
+        return name
 
 class CompanyForm(forms.ModelForm):
     class Meta:
@@ -394,6 +484,26 @@ class SupplierForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError('Supplier name is required.')
+        
+        # Check for duplicate in the same organization (exclude current instance if editing)
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Supplier.objects.filter(organization=organization, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A supplier with the name "{name}" already exists in your organization.')
+        
+        return name
 
 class CustodianForm(forms.ModelForm):
     class Meta:

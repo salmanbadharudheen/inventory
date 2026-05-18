@@ -2371,6 +2371,11 @@ class CategoryCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/category_form.html'
     success_url = reverse_lazy('category-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
         return super().form_valid(form)
@@ -2383,6 +2388,11 @@ class CategoryUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_queryset(self):
         return Category.objects.filter(organization=self.request.user.organization)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
 
 # --- SUBCATEGORY VIEWS ---
 class SubCategoryListView(LoginRequiredMixin, ListView):
@@ -2459,6 +2469,11 @@ class GroupCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/group_form.html'
     success_url = reverse_lazy('group-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
         return super().form_valid(form)
@@ -2471,6 +2486,11 @@ class GroupUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_queryset(self):
         return Group.objects.filter(organization=self.request.user.organization)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
 
 # --- SUBGROUP VIEWS ---
 class SubGroupListView(LoginRequiredMixin, ListView):
@@ -2521,6 +2541,11 @@ class BrandCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/brand_form.html'
     success_url = reverse_lazy('brand-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
         return super().form_valid(form)
@@ -2530,6 +2555,11 @@ class BrandUpdateView(LoginRequiredMixin, UpdateView):
     form_class = BrandForm
     template_name = 'assets/configuration/brand_form.html'
     success_url = reverse_lazy('brand-list')
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
     
     def get_queryset(self):
         return Brand.objects.filter(organization=self.request.user.organization)
@@ -2577,6 +2607,11 @@ class SupplierCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/supplier_form.html'
     success_url = reverse_lazy('supplier-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
         return super().form_valid(form)
@@ -2586,6 +2621,11 @@ class SupplierUpdateView(LoginRequiredMixin, UpdateView):
     form_class = SupplierForm
     template_name = 'assets/configuration/supplier_form.html'
     success_url = reverse_lazy('supplier-list')
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
     
     def get_queryset(self):
         return Supplier.objects.filter(organization=self.request.user.organization)
@@ -3533,8 +3573,10 @@ class AssetTransferExportExcelView(AssetTransferListView):
         ws.title = "Asset Transfers"
 
         headers = [
-            'Transfer No', 'Asset Tag', 'Asset Name', 'From', 'To',
-            'Transfer Reason', 'Status', 'Transfer Date', 'Created By'
+            'Transfer No', 'Asset Tag', 'Asset Name', 
+            'From - User', 'From - Department', 'From - Location', 'From - Company', 'From - Custodian', 'From - Region', 'From - Site', 'From - Building', 'From - Floor', 'From - Room',
+            'To - User', 'To - Department', 'To - Location', 'To - Company', 'To - Custodian', 'To - Region', 'To - Site', 'To - Building', 'To - Floor', 'To - Room',
+            'Transfer Reason', 'Movement Reason', 'Status', 'Transfer Date', 'Expected Receipt', 'Actual Receipt', 'Created By'
         ]
         ws.append(headers)
 
@@ -3543,31 +3585,44 @@ class AssetTransferExportExcelView(AssetTransferListView):
             cell.fill = openpyxl.styles.PatternFill(start_color="366092", end_color="366092", fill_type="solid")
 
         for transfer in transfers:
-            from_value = '-'
-            if transfer.transferred_from_user:
-                from_value = transfer.transferred_from_user.get_full_name() or transfer.transferred_from_user.username
-            elif transfer.transferred_from_department:
-                from_value = transfer.transferred_from_department.name
+            # FROM details
+            from_user = transfer.transferred_from_user.get_full_name() if transfer.transferred_from_user else '-'
+            from_dept = transfer.transferred_from_department.name if transfer.transferred_from_department else '-'
+            from_location = transfer.transferred_from_location.name if transfer.transferred_from_location else '-'
+            from_company = transfer.transferred_from_company.name if transfer.transferred_from_company else '-'
+            from_custodian = str(transfer.transferred_from_custodian) if transfer.transferred_from_custodian else '-'
+            from_region = transfer.transferred_from_region.name if transfer.transferred_from_region else '-'
+            from_site = transfer.transferred_from_site.name if transfer.transferred_from_site else '-'
+            from_building = transfer.transferred_from_building.name if transfer.transferred_from_building else '-'
+            from_floor = transfer.transferred_from_floor.name if transfer.transferred_from_floor else '-'
+            from_room = transfer.transferred_from_room.name if transfer.transferred_from_room else '-'
 
-            to_value = '-'
-            if transfer.transferred_to_user:
-                to_value = transfer.transferred_to_user.get_full_name() or transfer.transferred_to_user.username
-            elif transfer.transferred_to_department:
-                to_value = transfer.transferred_to_department.name
+            # TO details
+            to_user = transfer.transferred_to_user.get_full_name() if transfer.transferred_to_user else '-'
+            to_dept = transfer.transferred_to_department.name if transfer.transferred_to_department else '-'
+            to_location = transfer.transferred_to_location.name if transfer.transferred_to_location else '-'
+            to_company = transfer.transferred_to_company.name if transfer.transferred_to_company else '-'
+            to_custodian = str(transfer.transferred_to_custodian) if transfer.transferred_to_custodian else '-'
+            to_region = transfer.transferred_to_region.name if transfer.transferred_to_region else '-'
+            to_site = transfer.transferred_to_site.name if transfer.transferred_to_site else '-'
+            to_building = transfer.transferred_to_building.name if transfer.transferred_to_building else '-'
+            to_floor = transfer.transferred_to_floor.name if transfer.transferred_to_floor else '-'
+            to_room = transfer.transferred_to_room.name if transfer.transferred_to_room else '-'
 
-            created_by_value = '-'
-            if transfer.created_by:
-                created_by_value = transfer.created_by.get_full_name() or transfer.created_by.username
+            created_by_value = transfer.created_by.get_full_name() if transfer.created_by else '-'
 
             ws.append([
                 transfer.transfer_no or '',
                 transfer.asset.asset_tag if transfer.asset else '',
                 transfer.asset.name if transfer.asset else '',
-                from_value,
-                to_value,
+                from_user, from_dept, from_location, from_company, from_custodian, from_region, from_site, from_building, from_floor, from_room,
+                to_user, to_dept, to_location, to_company, to_custodian, to_region, to_site, to_building, to_floor, to_room,
                 transfer.transfer_reason or '',
+                transfer.movement_reason or '',
                 transfer.get_status_display(),
                 transfer.transfer_date.strftime('%Y-%m-%d %H:%M:%S') if transfer.transfer_date else '',
+                transfer.expected_receipt_date.strftime('%Y-%m-%d') if transfer.expected_receipt_date else '',
+                transfer.actual_receipt_date.strftime('%Y-%m-%d %H:%M:%S') if transfer.actual_receipt_date else '',
                 created_by_value,
             ])
 
@@ -3606,17 +3661,28 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
         return kwargs
     
     def form_valid(self, form):
-        form.instance.organization = self.request.user.organization
+        organization = self.request.user.organization
+        form.instance.organization = organization
         form.instance.created_by = self.request.user
         # Asset IDs come from the hidden asset_ids CharField (plain string, possibly comma-separated UUIDs)
         asset_raw = form.cleaned_data.get('asset_ids') or self.request.POST.get('asset_ids', '')
-        asset_ids = [s.strip() for s in str(asset_raw).split(',') if s.strip()]
+        submitted_asset_ids = [s.strip() for s in str(asset_raw).split(',') if s.strip()]
+
+        # Preserve order but ignore duplicate IDs submitted by the client.
+        seen_asset_ids = set()
+        asset_ids = []
+        for aid in submitted_asset_ids:
+            if aid in seen_asset_ids:
+                continue
+            seen_asset_ids.add(aid)
+            asset_ids.append(aid)
 
         if not asset_ids:
             form.add_error(None, 'Please add at least one asset before submitting.')
             return self.form_invalid(form)
 
         created = []
+        skipped_duplicates = []
         for aid in asset_ids:
             try:
                 _active_disposal_statuses = [
@@ -3627,12 +3693,22 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
                 ]
                 asset_obj = Asset.objects.filter(is_deleted=False).exclude(
                     disposals__status__in=_active_disposal_statuses
-                ).get(pk=aid, organization=self.request.user.organization)
+                ).get(pk=aid, organization=organization)
             except (Asset.DoesNotExist, Exception):
                 continue
 
+            # Block duplicate transfer requests for the same asset while one is still open.
+            duplicate_exists = AssetTransfer.objects.filter(
+                organization=organization,
+                asset=asset_obj,
+                status__in=[AssetTransfer.Status.PENDING, AssetTransfer.Status.IN_TRANSIT],
+            ).exists()
+            if duplicate_exists:
+                skipped_duplicates.append(asset_obj.asset_tag)
+                continue
+
             at = AssetTransfer.objects.create(
-                organization=self.request.user.organization,
+                organization=organization,
                 created_by=self.request.user,
                 asset=asset_obj,
                 transfer_no=form.cleaned_data.get('transfer_no'),
@@ -3651,8 +3727,22 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
             created.append(at)
 
         if created:
-            messages.success(self.request, f'Asset transfer created for {len(created)} asset(s).')
+            if skipped_duplicates:
+                messages.warning(
+                    self.request,
+                    f'Created {len(created)} transfer request(s). '
+                    f'Skipped {len(skipped_duplicates)} duplicate request(s) already pending/in transit.'
+                )
+            else:
+                messages.success(self.request, f'Asset transfer created for {len(created)} asset(s).')
             return redirect(reverse('transfer-detail', kwargs={'pk': created[0].pk}))
+
+        if skipped_duplicates:
+            form.add_error(
+                None,
+                'No new transfer requests were created because selected asset(s) already have pending or in-transit transfer requests.'
+            )
+            return self.form_invalid(form)
 
         form.add_error(None, 'No valid assets were found. Please check the asset tag/ID and try again.')
         return self.form_invalid(form)
