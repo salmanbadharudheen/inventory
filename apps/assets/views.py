@@ -5750,10 +5750,12 @@ class AssetReconciliationReportView(LoginRequiredMixin, View):
     template_name = 'assets/reconciliation_report.html'
 
     def get(self, request):
+        from django.contrib.auth import get_user_model
         from django.db.models import Sum, Count, Q
         from django.db.models.functions import Coalesce
 
         org = request.user.organization
+        User = get_user_model()
         date_from_str = request.GET.get('date_from', '')
         date_to_str = request.GET.get('date_to', '')
 

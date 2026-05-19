@@ -26,6 +26,12 @@
 
   <!-- Date Filter -->
   <div class="filter-bar">
+    <div class="filter-panel-head">
+      <div>
+        <h3>Report Filters</h3>
+        <p>Refine results by asset details, location, ownership, and date range.</p>
+      </div>
+    </div>
     <form method="get" class="filter-form">
       <div class="filter-row">
         <div class="filter-group">
@@ -41,6 +47,16 @@
           <input type="date" name="date_to" value="{{ date_to }}" class="filter-input">
         </div>
       </div>
+
+      <div class="filter-quick-actions">
+        <button type="button" class="btn-more-options" id="toggle-advanced-filters" aria-expanded="{% if has_advanced_filters %}true{% else %}false{% endif %}" aria-controls="advanced-filters-panel">
+          <i data-lucide="sliders-horizontal" style="width:14px;height:14px;"></i>
+          <span>{% if has_advanced_filters %}Hide Options{% else %}More Options{% endif %}</span>
+          <i data-lucide="chevron-down" class="toggle-chevron" style="width:14px;height:14px;"></i>
+        </button>
+      </div>
+
+      <div id="advanced-filters-panel" class="advanced-filters-panel{% if has_advanced_filters %} is-open{% endif %}">
 
       <div class="filter-row">
         <div class="filter-group">
@@ -249,11 +265,12 @@
           <input type="date" name="depr_registered_date_to" value="{{ depr_registered_date_to }}" class="filter-input">
         </div>
       </div>
+      </div>
 
       <div class="filter-actions">
-        <button type="submit" class="btn-apply">Apply</button>
+        <button type="submit" class="btn-apply">Apply Filters</button>
         {% if has_advanced_filters %}
-        <a href="{% url 'reconciliation-report' %}" class="btn-clear">Clear</a>
+        <a href="{% url 'reconciliation-report' %}" class="btn-clear">Reset</a>
         {% endif %}
       </div>
     </form>
@@ -681,83 +698,148 @@
 
   /* ===================== FILTER BAR ===================== */
   .filter-bar {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 0.875rem 1rem;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-  .filter-form {
-    flex: 1 1 auto;
+    background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+    border: 1px solid #e3e8f2;
+    border-radius: 14px;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    align-items: stretch;
+    gap: 0.85rem;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+  }
+  .filter-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid #edf1f7;
+  }
+  .filter-panel-head h3 {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #111827;
+  }
+  .filter-panel-head p {
+    margin: 0.18rem 0 0;
+    font-size: 0.76rem;
+    color: #6b7280;
+  }
+  .filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.72rem;
+  }
+  .filter-quick-actions {
+    display: flex;
+    align-items: center;
+  }
+  .btn-more-options {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid #d7dde8;
+    background: #ffffff;
+    color: #374151;
+    border-radius: 8px;
+    padding: 0.42rem 0.72rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-more-options:hover {
+    border-color: #6366f1;
+    color: #4f46e5;
+    background: #f8faff;
+  }
+  .toggle-chevron {
+    transition: transform 0.2s ease;
+  }
+  .btn-more-options[aria-expanded="true"] .toggle-chevron {
+    transform: rotate(180deg);
+  }
+  .advanced-filters-panel {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: max-height 0.28s ease, opacity 0.2s ease, transform 0.2s ease;
+  }
+  .advanced-filters-panel.is-open {
+    max-height: 2400px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .advanced-filters-panel .filter-row {
+    margin-top: 0.72rem;
   }
   .filter-row {
-    display: flex;
-    gap: 0.6rem;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    gap: 0.62rem;
   }
   .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    flex: 1 1 140px;
-    min-width: 130px;
+    gap: 0.22rem;
+    min-width: 0;
   }
   .filter-group label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #6b7280;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #4b5563;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
   }
   .filter-input {
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    padding: 0.45rem 0.65rem;
-    font-size: 0.85rem;
-    color: #374151;
+    border: 1px solid #d7dde8;
+    border-radius: 8px;
+    padding: 0.47rem 0.68rem;
+    font-size: 0.82rem;
+    color: #1f2937;
     background: #fff;
     outline: none;
     width: 100%;
     box-sizing: border-box;
+    transition: all 0.15s ease;
   }
-  .filter-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .filter-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
   .filter-actions {
     display: flex;
     gap: 0.5rem;
     align-items: center;
     flex-wrap: wrap;
+    padding-top: 0.35rem;
+    border-top: 1px dashed #e6ebf3;
   }
   .btn-apply {
-    padding: 0.45rem 1.1rem;
-    background: #6366f1;
+    padding: 0.5rem 1.15rem;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     color: #fff;
     border: none;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: all 0.15s ease;
     white-space: nowrap;
   }
-  .btn-apply:hover { background: #4f46e5; }
+  .btn-apply:hover { filter: brightness(0.96); transform: translateY(-1px); }
   .btn-clear {
-    padding: 0.45rem 0.75rem;
+    padding: 0.5rem 0.8rem;
     background: #fff;
     color: #6b7280;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.82rem;
+    border: 1px solid #d7dde8;
+    border-radius: 8px;
+    font-size: 0.8rem;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
   }
-  .btn-clear:hover { border-color: #ef4444; color: #ef4444; }
+  .btn-clear:hover { border-color: #ef4444; color: #ef4444; background: #fff7f7; }
   .period-badge {
     display: inline-flex;
     align-items: center;
@@ -898,9 +980,15 @@
     .recon-title { font-size: 1.5rem; }
     .kpi-grid { grid-template-columns: repeat(4, 1fr); }
     .kpi-value { font-size: 1.35rem; }
-    .filter-form { flex-direction: row; align-items: flex-end; flex-wrap: wrap; }
-    .filter-row { flex-wrap: nowrap; }
-    .filter-group { flex: 0 1 auto; min-width: 160px; }
+    .filter-row { grid-template-columns: repeat(4, minmax(170px, 1fr)); }
+  }
+
+  @media (max-width: 1024px) {
+    .filter-row { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
+  }
+
+  @media (max-width: 768px) {
+    .filter-row { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
   }
 
   @media (max-width: 480px) {
@@ -912,6 +1000,7 @@
     .kpi-value { font-size: 1rem; }
     .kpi-label { font-size: 0.63rem; }
     .two-col { grid-template-columns: 1fr; }
+    .filter-row { grid-template-columns: 1fr; }
     .recon-table { font-size: 0.78rem; }
     .recon-table th, .recon-table td { padding: 0.5rem 0.65rem; }
   }
@@ -927,4 +1016,30 @@
     .recon-table { min-width: unset; font-size: 0.75rem; }
   }
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtn = document.getElementById('toggle-advanced-filters');
+    const advancedPanel = document.getElementById('advanced-filters-panel');
+    if (!toggleBtn || !advancedPanel) return;
+
+    const labelEl = toggleBtn.querySelector('span');
+
+    function setState(isOpen) {
+      advancedPanel.classList.toggle('is-open', isOpen);
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (labelEl) {
+        labelEl.textContent = isOpen ? 'Hide Options' : 'More Options';
+      }
+    }
+
+    // Respect server-rendered initial state (based on active filters)
+    setState(advancedPanel.classList.contains('is-open'));
+
+    toggleBtn.addEventListener('click', function () {
+      const isOpen = toggleBtn.getAttribute('aria-expanded') === 'true';
+      setState(!isOpen);
+    });
+  });
+</script>
 {% endblock %}
