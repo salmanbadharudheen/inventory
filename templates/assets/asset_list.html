@@ -665,8 +665,8 @@
                 </div>
             </div>
             {% endif %}
-            </div>
-        </form>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -2638,47 +2638,6 @@
         return `${year}-${month}-${day}`;
     }
 
-
-
-    function deselectAll() {
-        if (selectAll) selectAll.checked = false;
-        assetCheckboxes.forEach(cb => cb.checked = false);
-        updateBulkBar();
-    }
-
-    if (bulkForm) {
-        bulkForm.addEventListener('submit', function (e) {
-            const actionSelect = document.getElementById('bulk-action-select');
-            if (!actionSelect) return;
-            
-            const action = actionSelect.value;
-            if (!action) {
-                alert('Please select an action to perform.');
-                e.preventDefault();
-                return;
-            }
-
-            const selectedIds = Array.from(document.querySelectorAll('.asset-checkbox:checked')).map(cb => cb.value);
-            if (selectedIds.length === 0) {
-                alert('Please select at least one asset.');
-                e.preventDefault();
-                return;
-            }
-
-            if (action === 'disposal-request') {
-                e.preventDefault();
-                const params = new URLSearchParams({ asset_ids: selectedIds.join(',') });
-                window.location.href = `{% url 'disposal-create' %}?${params.toString()}`;
-                return;
-            }
-
-            if (action === 'delete') {
-                if (!confirm('Are you sure you want to delete the selected assets?')) {
-                    e.preventDefault();
-                }
-            }
-        });
-    }
 
     // Initialize Lucide Icons on Page Load
     document.addEventListener('DOMContentLoaded', function () {
