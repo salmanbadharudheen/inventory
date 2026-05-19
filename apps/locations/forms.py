@@ -25,8 +25,41 @@ class DepartmentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
+        self.request = request
         if request and hasattr(request.user, 'organization'):
              self.fields['branch'].queryset = Branch.objects.filter(organization=request.user.organization)
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '')
+        return name.strip()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        name = cleaned_data.get('name')
+        branch = cleaned_data.get('branch')
+
+        if not name or not branch:
+            return cleaned_data
+
+        org = None
+        if self.request and hasattr(self.request.user, 'organization'):
+            org = self.request.user.organization
+        elif self.instance and self.instance.pk:
+            org = self.instance.organization
+
+        duplicate_qs = Department.objects.filter(
+            organization=org,
+            branch=branch,
+            name__iexact=name,
+        )
+
+        if self.instance and self.instance.pk:
+            duplicate_qs = duplicate_qs.exclude(pk=self.instance.pk)
+
+        if duplicate_qs.exists():
+            self.add_error('name', 'This department already exists in the selected branch.')
+
+        return cleaned_data
 
 class BuildingForm(forms.ModelForm):
     class Meta:

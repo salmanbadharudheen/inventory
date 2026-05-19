@@ -24,6 +24,9 @@ class Department(TenantAwareModel):
     def __str__(self):
         return f"{self.name} - {self.branch.code}"
 
+    class Meta:
+        unique_together = ('organization', 'branch', 'name')
+
 class Building(TenantAwareModel):
     name = models.CharField(max_length=255)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='buildings')
