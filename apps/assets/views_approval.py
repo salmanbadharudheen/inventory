@@ -714,6 +714,14 @@ class ApprovalRequestExportPDFView(ApprovalRequestListView):
 
         generated_on = timezone.now().strftime('%d %b %Y %H:%M')
         user_label = 'All Requests' if (request.user.is_superuser or request.user.role in ['ADMIN', 'CHECKER', 'SENIOR_MANAGER']) else 'My Requests'
+        selected_status = self.get_selected_status()
+        status_filter_label_map = {
+            'all': 'All Requests',
+            'pending': 'Pending Requests',
+            'approved': 'Approved Requests',
+            'rejected': 'Rejected Requests',
+        }
+        status_filter_label = status_filter_label_map.get(selected_status, 'All Requests')
 
         pdf.set_fill_color(48, 84, 150)
         pdf.set_text_color(255, 255, 255)
@@ -721,7 +729,14 @@ class ApprovalRequestExportPDFView(ApprovalRequestListView):
         pdf.cell(0, 9, safe_text('Asset Approval Requests Report'), ln=1, fill=True)
 
         pdf.set_font('Helvetica', '', 9)
-        pdf.cell(0, 6, safe_text(f"Generated: {generated_on}    Total Records: {approval_requests.count()}    View: {user_label}"), ln=1)
+        pdf.cell(
+            0,
+            6,
+            safe_text(
+                f"Generated: {generated_on}    Total Records: {approval_requests.count()}    View: {user_label}    Filter: {status_filter_label}"
+            ),
+            ln=1,
+        )
         pdf.ln(2)
 
         headers = ['Asset Name', 'Request Type', 'Status', 'Requester', 'Created Date']

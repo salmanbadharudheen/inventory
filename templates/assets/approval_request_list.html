@@ -7,7 +7,7 @@
     <div class="content-header">
         <h1 class="page-heading">{% if user.is_superuser or user.role in 'ADMIN CHECKER SENIOR_MANAGER' %}Asset Approval Requests{% else %}My Asset Requests{% endif %}</h1>
         <div style="display: flex; gap: 8px;">
-            <a href="{% url 'approval-request-export-pdf' %}" class="btn btn-secondary">
+            <a href="{% url 'approval-request-export-pdf' %}?status={{ selected_status }}" class="btn btn-secondary">
                 <i data-lucide="file-down"></i> Export PDF
             </a>
             <a href="{% url 'approval-request-create' %}" class="btn btn-primary">
