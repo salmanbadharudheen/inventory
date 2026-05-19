@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    AdminCreateView, UserListView, 
+    AdminCreateView, UserListView, UserUpdateView,
     AdminDashboardView, AdminUserListView, AdminOrgListView, AdminUserDetailView,
     AdminUserDeleteView, AdminUserToggleStatusView, UserProfileView,
     OrgAssetTagSettingsView, OrgTagPreviewAPI,
@@ -11,6 +11,7 @@ from .views import (
 
 urlpatterns = [
     path('add/', AdminCreateView.as_view(), name='user-add'),
+    path('<int:pk>/edit/', UserUpdateView.as_view(), name='user-edit'),
     path('', UserListView.as_view(), name='user-list'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
     path('<int:pk>/delete/', AdminUserDeleteView.as_view(), name='user-delete'),

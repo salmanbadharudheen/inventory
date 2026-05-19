@@ -55,6 +55,63 @@ class UserCreationForm(forms.ModelForm):
             user.save()
         return user
 
+
+class UserUpdateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.current_user = kwargs.pop('current_user', None)
+        super().__init__(*args, **kwargs)
+
+        if self.current_user and getattr(self.current_user, 'organization', None):
+            self.fields.pop('organization', None)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'organization', 'branch', 'department']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'role': forms.Select(attrs={'class': 'form-control'}),
+            'organization': forms.Select(attrs={'class': 'form-control'}),
+            'branch': forms.Select(attrs={'class': 'form-control'}),
+            'department': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+    def clean_username(self):
+        username = (self.cleaned_data.get('username') or '').strip()
+        if not username:
+            raise forms.ValidationError('Username is required.')
+
+        qs = User.objects.filter(username__iexact=username)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('This username is already in use.')
+
+        return username
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip()
+        if not email:
+            return email
+
+        qs = User.objects.filter(email__iexact=email)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('This email is already in use.')
+
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if self.current_user and getattr(self.current_user, 'organization', None):
+            user.organization = self.current_user.organization
+        if commit:
+            user.save()
+        return user
+
 class AdminCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         fields = ['username', 'email', 'first_name', 'last_name', 'organization']

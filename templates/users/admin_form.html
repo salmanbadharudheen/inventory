@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block page_title %}Add User{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit User{% else %}Add User{% endif %}{% endblock %}
 
 {% block content %}
 <style>
@@ -149,8 +149,8 @@
 
 <div class="user-form-shell">
     <div class="user-form-hero">
-        <h2>Create User Account</h2>
-        <p>Set up account details, assign access role, and place the user in the correct organization structure.</p>
+        <h2>{% if form.instance.pk %}Edit User Account{% else %}Create User Account{% endif %}</h2>
+        <p>{% if form.instance.pk %}Update account details, role, and organization placement for this user.{% else %}Set up account details, assign access role, and place the user in the correct organization structure.{% endif %}</p>
     </div>
 
     <div class="user-form-card">
@@ -199,6 +199,7 @@
                 </div>
             </div>
 
+            {% if form.password or form.confirm_password %}
             <div class="form-block">
                 <h3 class="form-section-title"><i data-lucide="key-round"></i> Security</h3>
                 <div class="section-grid">
@@ -216,10 +217,15 @@
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
 
             <div class="action-row">
                 <button type="submit" class="btn btn-primary">
+                    {% if form.instance.pk %}
+                    <i data-lucide="save"></i> Update User
+                    {% else %}
                     <i data-lucide="user-plus"></i> Create User
+                    {% endif %}
                 </button>
                 <a href="{% url 'user-list' %}" class="btn btn-cancel">Cancel</a>
             </div>

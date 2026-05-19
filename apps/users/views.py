@@ -7,7 +7,7 @@ from django.views.generic import CreateView, ListView, TemplateView, DetailView,
 from django.http import Http404, JsonResponse
 from django.contrib import messages
 from .models import User
-from .forms import AdminCreationForm, UserCreationForm, OrganizationForm, AssignOrganizationAdminForm, OrganizationCreateWithAdminForm
+from .forms import AdminCreationForm, UserCreationForm, UserUpdateForm, OrganizationForm, AssignOrganizationAdminForm, OrganizationCreateWithAdminForm
 from apps.core.models import Organization
 from apps.assets.models import Asset
 
@@ -203,6 +203,40 @@ class AdminCreateView(LoginRequiredMixin, CreateView):
         # Auto-assign organization from current user when present
         if self.request.user.organization:
             form.instance.organization = self.request.user.organization
+        return super().form_valid(form)
+
+
+class UserUpdateView(UserManagementRequiredMixin, UpdateView):
+    model = User
+    form_class = UserUpdateForm
+    template_name = 'users/admin_form.html'
+    success_url = reverse_lazy('user-list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_superuser and not is_superuser_org_mode(request):
+            messages.info(request, 'Software owner can only manage organizations from the owner portal.')
+            return redirect('admin-orgs')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        qs = User.objects.all()
+        if not self.request.user.is_superuser:
+            qs = qs.filter(organization=self.request.user.organization)
+        elif is_superuser_org_mode(self.request) and self.request.user.organization:
+            qs = qs.filter(organization=self.request.user.organization)
+        return qs
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['current_user'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        edited_user = self.get_object()
+        if edited_user.id == self.request.user.id and form.cleaned_data.get('role') != edited_user.role:
+            messages.warning(self.request, 'Your own role was not changed.')
+            form.instance.role = edited_user.role
+        messages.success(self.request, f'User "{form.instance.username}" updated successfully.')
         return super().form_valid(form)
 
 class UserListView(LoginRequiredMixin, ListView):

@@ -54,6 +54,9 @@
                 <td style="padding: 1rem;">
                     {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'SENIOR_MANAGER' %}
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <a href="{% url 'user-edit' user.id %}" style="text-decoration: none; color: #1D4ED8; font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.8rem; border: 1px solid #93C5FD; border-radius: 4px; background: #EFF6FF; transition: all 0.2s ease;" onmouseover="this.style.background='#DBEAFE';" onmouseout="this.style.background='#EFF6FF';">
+                            <i data-lucide="pencil" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Edit
+                        </a>
                         <form method="post" action="{% url 'user-toggle-status' user.id %}" style="display: inline; margin: 0;">
                             {% csrf_token %}
                             {% if user.is_active %}
