@@ -23,7 +23,9 @@
                 <select name="status">
                     <option value="">All Status</option>
                     {% for value, label in status_choices %}
+                    {% if value != 'APPROVED' %}
                     <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endif %}
                     {% endfor %}
                 </select>
             </div>
@@ -124,6 +126,11 @@
                         </td>
                         <td class="actions-col">
                             <a href="{% url 'disposal-detail' disposal.pk %}" class="icon-btn" title="View"><i data-lucide="eye"></i></a>
+                            {% if disposal.status != 'APPROVED' %}
+                                {% if request.user.is_superuser or request.user.role == request.user.Role.ADMIN or request.user.role == request.user.Role.SENIOR_MANAGER or request.user.role == request.user.Role.CHECKER or disposal.requested_by_id == request.user.id %}
+                                <a href="{% url 'disposal-update' disposal.pk %}" class="icon-btn" title="Edit"><i data-lucide="edit"></i></a>
+                                {% endif %}
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
