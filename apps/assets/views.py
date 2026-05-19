@@ -1120,8 +1120,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 numeric_col_indexes.append(col); col += 1
             numeric_col_indexes.extend([col, col + 1])  # Accumulated Depreciation, Current NBV
         else:
-            # Quantity, Purchase Price, Salvage Value, Useful Life, Accumulated Depreciation, Current NBV, Maintenance Frequency
-            numeric_col_indexes = [8, 36, 37, 55, 56, 57, 59]
+            # Quantity, Purchase Price, Salvage Value, Accumulated Depreciation, Current NBV, Maintenance Frequency
+            numeric_col_indexes = [8, 36, 37, 56, 57, 59]
 
         totals = {idx: 0.0 for idx in numeric_col_indexes}
         row_count = 0
