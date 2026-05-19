@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block page_title %}New Disposal Request{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit Disposal Request{% else %}New Disposal Request{% endif %}{% endblock %}
 
 {% block content %}
 <div class="form-container">
@@ -9,8 +9,8 @@
         <a href="{% url 'disposal-list' %}" class="btn-back-link">
             <i data-lucide="arrow-left"></i> Back to Disposals
         </a>
-        <h1>Request Asset Disposal</h1>
-        <p class="form-subtitle">Submit a disposal request for assets that are no longer needed</p>
+        <h1>{% if form.instance.pk %}Edit Asset Disposal Request{% else %}Request Asset Disposal{% endif %}</h1>
+        <p class="form-subtitle">{% if form.instance.pk %}Update disposal request details for this transaction.{% else %}Submit a disposal request for assets that are no longer needed{% endif %}</p>
     </div>
 
     <div class="form-grid">
@@ -99,7 +99,7 @@
 
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">
-                            <i data-lucide="send"></i> Submit Request
+                            <i data-lucide="save"></i> {% if form.instance.pk %}Update Request{% else %}Submit Request{% endif %}
                         </button>
                         <a href="{% url 'disposal-list' %}" class="btn btn-secondary">Cancel</a>
                     </div>

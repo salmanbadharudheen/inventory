@@ -19,7 +19,7 @@ from .views import (
     AssetRemarksListView, AssetRemarksCreateView, AssetRemarksUpdateView,
     ApprovalListView, ApprovalDetailView, ApprovalApproveView, CreateApprovalRequestView,
     AssetTransferListView, AssetTransferCreateView, AssetTransferDetailView, AssetTransferUpdateView, AssetTransferReceiveView, AssetTransferApproveView, AssetTransferExportExcelView,
-    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView, AssetDisposalExportPDFView, AssetDisposalBulkActionView,
+    AssetDisposalListView, AssetDisposalCreateView, AssetDisposalUpdateView, AssetDisposalDetailView, AssetDisposalManagerApproveView, AssetDisposalApproveView, AssetDisposalExportPDFView, AssetDisposalBulkActionView,
     ReportsListView, MastersListView, MastersExportExcelView, AssetReconciliationReportView,
     AssetReconciliationReportPDFView
 )
@@ -164,6 +164,7 @@ urlpatterns = [
     path('disposals/', AssetDisposalListView.as_view(), name='disposal-list'),
     path('disposals/export/pdf/', AssetDisposalExportPDFView.as_view(), name='disposal-export-pdf'),
     path('disposals/add/', AssetDisposalCreateView.as_view(), name='disposal-create'),
+    path('disposals/<uuid:pk>/edit/', AssetDisposalUpdateView.as_view(), name='disposal-update'),
     path('disposals/bulk-action/', AssetDisposalBulkActionView.as_view(), name='disposal-bulk-action'),
     path('disposals/<uuid:pk>/', AssetDisposalDetailView.as_view(), name='disposal-detail'),
     path('disposals/<uuid:pk>/manager-approve/', AssetDisposalManagerApproveView.as_view(), name='disposal-manager-approve'),

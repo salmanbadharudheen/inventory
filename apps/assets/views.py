@@ -4102,7 +4102,7 @@ class AssetTransferUpdateView(LoginRequiredMixin, UpdateView):
 
     def _is_transfer_approver(self):
         user = self.request.user
-        return user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER]
+        return user.is_superuser or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER, user.Role.CHECKER]
 
     def dispatch(self, request, *args, **kwargs):
         if not self._is_transfer_approver():
@@ -4111,7 +4111,12 @@ class AssetTransferUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_queryset(self):
         org = self.request.user.organization
-        return AssetTransfer.objects.filter(organization=org)
+        queryset = AssetTransfer.objects.all()
+        if org:
+            queryset = queryset.filter(organization=org)
+        elif not self.request.user.is_superuser:
+            queryset = queryset.none()
+        return queryset
     
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -4590,6 +4595,59 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
             messages.error(self.request, 'No new disposal requests were created. Selected assets may already have pending requests or be ineligible.')
         return redirect('disposal-list')
     
+    def get_success_url(self):
+        return reverse('disposal-detail', kwargs={'pk': self.object.pk})
+
+
+class AssetDisposalUpdateView(LoginRequiredMixin, UpdateView):
+    """Edit an existing disposal request."""
+    model = AssetDisposal
+    form_class = AssetDisposalForm
+    template_name = 'assets/disposal_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def get_queryset(self):
+        org = self.request.user.organization
+        qs = AssetDisposal.objects.all().select_related('asset', 'requested_by')
+
+        if org:
+            qs = qs.filter(organization=org)
+        elif not self.request.user.is_superuser:
+            qs = qs.none()
+
+        user = self.request.user
+        if user.role == user.Role.EMPLOYEE:
+            qs = qs.filter(requested_by=user)
+
+        return qs
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        user = request.user
+        can_edit = (
+            user.is_superuser
+            or user.role in [user.Role.ADMIN, user.Role.SENIOR_MANAGER, user.Role.CHECKER]
+            or obj.requested_by_id == user.id
+        )
+        if not can_edit:
+            messages.error(request, 'You do not have permission to edit this disposal request.')
+            return redirect('disposal-list')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['selected_assets'] = [self.object.asset] if self.object.asset else []
+        context['selected_asset_ids'] = str(self.object.asset_id) if self.object.asset_id else ''
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Disposal request updated: {form.instance.asset.asset_tag}')
+        return super().form_valid(form)
+
     def get_success_url(self):
         return reverse('disposal-detail', kwargs={'pk': self.object.pk})
 

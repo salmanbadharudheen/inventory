@@ -808,8 +808,8 @@ class AssetDisposalForm(forms.ModelForm):
         selected_assets = cleaned_data.get('selected_assets')
         asset_ids = (cleaned_data.get('asset_ids') or '').strip()
 
-        # Require at least one asset from either path.
-        if not selected_assets and not asset_ids:
+        # On create, require at least one selected asset. On edit, keep existing asset.
+        if not selected_assets and not asset_ids and not (self.instance and self.instance.pk and self.instance.asset_id):
             raise forms.ValidationError('Please select at least one asset for disposal.')
 
         return cleaned_data
