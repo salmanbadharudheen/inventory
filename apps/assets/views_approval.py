@@ -108,34 +108,79 @@ class ApprovalRequestListView(LoginRequiredMixin, ListView):
     template_name = 'assets/approval_request_list.html'
     context_object_name = 'approval_requests'
     paginate_by = 20
+
+    STATUS_FILTERS = {
+        'all': None,
+        'pending': [ApprovalRequest.Status.PENDING],
+        'approved': [
+            ApprovalRequest.Status.CHECKER_APPROVED,
+            ApprovalRequest.Status.SENIOR_APPROVED,
+            ApprovalRequest.Status.APPROVED,
+        ],
+        'rejected': [
+            ApprovalRequest.Status.CHECKER_REJECTED,
+            ApprovalRequest.Status.SENIOR_REJECTED,
+            ApprovalRequest.Status.REJECTED,
+        ],
+    }
+
+    def get_selected_status(self):
+        selected_status = (self.request.GET.get('status') or 'all').strip().lower()
+        if selected_status not in self.STATUS_FILTERS:
+            return 'all'
+        return selected_status
     
     def get_queryset(self):
         user = self.request.user
         base_qs = ApprovalRequest.objects.filter(
             organization=user.organization
         ).order_by('-created_at')
+
         # Approvers see all; others only see their own
         if user.is_superuser or user.role in ['ADMIN', 'CHECKER', 'SENIOR_MANAGER']:
-            return base_qs
-        return base_qs.filter(requester=user)
+            queryset = base_qs
+        else:
+            queryset = base_qs.filter(requester=user)
+
+        selected_status = self.get_selected_status()
+        statuses = self.STATUS_FILTERS[selected_status]
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        queryset = self.get_queryset()
+        user = self.request.user
+        base_qs = ApprovalRequest.objects.filter(organization=user.organization)
+        if not (user.is_superuser or user.role in ['ADMIN', 'CHECKER', 'SENIOR_MANAGER']):
+            base_qs = base_qs.filter(requester=user)
         
-        context['pending_count'] = queryset.filter(
+        context['pending_count'] = base_qs.filter(
             status=ApprovalRequest.Status.PENDING
         ).count()
-        context['approved_count'] = queryset.filter(
-            status=ApprovalRequest.Status.APPROVED
+        context['approved_count'] = base_qs.filter(
+            status__in=[
+                ApprovalRequest.Status.CHECKER_APPROVED,
+                ApprovalRequest.Status.SENIOR_APPROVED,
+                ApprovalRequest.Status.APPROVED,
+            ]
         ).count()
-        context['rejected_count'] = queryset.filter(
+        context['rejected_count'] = base_qs.filter(
             status__in=[
                 ApprovalRequest.Status.CHECKER_REJECTED,
                 ApprovalRequest.Status.SENIOR_REJECTED,
                 ApprovalRequest.Status.REJECTED
             ]
         ).count()
+
+        context['selected_status'] = self.get_selected_status()
+        context['status_filter_options'] = [
+            {'value': 'all', 'label': 'All Requests'},
+            {'value': 'pending', 'label': 'Pending Requests'},
+            {'value': 'approved', 'label': 'Approved Requests'},
+            {'value': 'rejected', 'label': 'Rejected Requests'},
+        ]
         
         return context
 

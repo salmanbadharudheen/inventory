@@ -10,7 +10,7 @@ from .models import (Asset, AssetAttachment, Category, SubCategory, Vendor, gene
                      Group, SubGroup, Brand, Company, Supplier, Custodian, AssetRemarks, AssetTransfer, AssetDisposal)
 from .forms import (AssetForm, CategoryForm, SubCategoryForm, VendorForm, AssetImportForm,
                     GroupForm, SubGroupForm, BrandForm, CompanyForm, SupplierForm, CustodianForm, AssetRemarksForm, AssetTransferForm, AssetTransferReceiveForm, AssetDisposalForm, AssetDisposalManagerApprovalForm, AssetDisposalApprovalForm)
-from django.db import transaction, models
+from django.db import transaction, models, IntegrityError
 from apps.locations.models import (Branch, Building, Floor, Room, 
                                    Region, Site, Location, SubLocation, Department)
 from django.urls import reverse
@@ -2429,7 +2429,11 @@ class CategoryCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This category already exists in your organization.')
+            return self.form_invalid(form)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2454,6 +2458,13 @@ class CategoryUpdateView(LoginRequiredMixin, UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
         return ctx
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This category already exists in your organization.')
+            return self.form_invalid(form)
 
 # --- SUBCATEGORY VIEWS ---
 class SubCategoryListView(LoginRequiredMixin, ListView):
@@ -2480,6 +2491,13 @@ class SubCategoryCreateView(LoginRequiredMixin, CreateView):
         ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
         return ctx
 
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This sub-category already exists in the selected category.')
+            return self.form_invalid(form)
+
 class SubCategoryUpdateView(LoginRequiredMixin, UpdateView):
     model = SubCategory
     form_class = SubCategoryForm
@@ -2493,6 +2511,18 @@ class SubCategoryUpdateView(LoginRequiredMixin, UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx['groups'] = Group.objects.filter(organization=self.request.user.organization)
         return ctx
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This sub-category already exists in the selected category.')
+            return self.form_invalid(form)
 
 # --- VENDOR VIEWS ---
 class VendorListView(LoginRequiredMixin, ListView):
@@ -2509,15 +2539,36 @@ class VendorCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/vendor_form.html'
     success_url = reverse_lazy('vendor-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This vendor already exists in your organization.')
+            return self.form_invalid(form)
 
 class VendorUpdateView(LoginRequiredMixin, UpdateView):
     model = Vendor
     form_class = VendorForm
     template_name = 'assets/configuration/vendor_form.html'
     success_url = reverse_lazy('vendor-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This vendor already exists in your organization.')
+            return self.form_invalid(form)
     
     def get_queryset(self):
         return Vendor.objects.filter(organization=self.request.user.organization)
@@ -2546,7 +2597,11 @@ class GroupCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This group already exists in your organization.')
+            return self.form_invalid(form)
 
 class GroupUpdateView(LoginRequiredMixin, UpdateView):
     model = Group
@@ -2561,6 +2616,13 @@ class GroupUpdateView(LoginRequiredMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
         return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This group already exists in your organization.')
+            return self.form_invalid(form)
 
 # --- SUBGROUP VIEWS ---
 class SubGroupListView(LoginRequiredMixin, ListView):
@@ -2582,6 +2644,13 @@ class SubGroupCreateView(LoginRequiredMixin, CreateView):
         kwargs['request'] = self.request
         return kwargs
 
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This sub-group already exists in the selected group.')
+            return self.form_invalid(form)
+
 class SubGroupUpdateView(LoginRequiredMixin, UpdateView):
     model = SubGroup
     form_class = SubGroupForm
@@ -2595,6 +2664,13 @@ class SubGroupUpdateView(LoginRequiredMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
         return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This sub-group already exists in the selected group.')
+            return self.form_invalid(form)
 
 # --- BRAND VIEWS ---
 class BrandListView(LoginRequiredMixin, ListView):
@@ -2618,7 +2694,11 @@ class BrandCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This brand already exists in your organization.')
+            return self.form_invalid(form)
 
 class BrandUpdateView(LoginRequiredMixin, UpdateView):
     model = Brand
@@ -2633,6 +2713,13 @@ class BrandUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_queryset(self):
         return Brand.objects.filter(organization=self.request.user.organization)
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This brand already exists in your organization.')
+            return self.form_invalid(form)
 
 # --- COMPANY VIEWS ---
 class CompanyListView(LoginRequiredMixin, ListView):
@@ -2649,15 +2736,36 @@ class CompanyCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/company_form.html'
     success_url = reverse_lazy('company-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This company already exists in your organization.')
+            return self.form_invalid(form)
 
 class CompanyUpdateView(LoginRequiredMixin, UpdateView):
     model = Company
     form_class = CompanyForm
     template_name = 'assets/configuration/company_form.html'
     success_url = reverse_lazy('company-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This company already exists in your organization.')
+            return self.form_invalid(form)
     
     def get_queryset(self):
         return Company.objects.filter(organization=self.request.user.organization)
@@ -2684,7 +2792,11 @@ class SupplierCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This supplier already exists in your organization.')
+            return self.form_invalid(form)
 
 class SupplierUpdateView(LoginRequiredMixin, UpdateView):
     model = Supplier
@@ -2699,6 +2811,13 @@ class SupplierUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_queryset(self):
         return Supplier.objects.filter(organization=self.request.user.organization)
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This supplier already exists in your organization.')
+            return self.form_invalid(form)
 
 # --- CUSTODIAN VIEWS ---
 class CustodianListView(LoginRequiredMixin, ListView):
@@ -2722,7 +2841,11 @@ class CustodianCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('user', 'This user is already assigned as a custodian in your organization.')
+            return self.form_invalid(form)
 
 class CustodianUpdateView(LoginRequiredMixin, UpdateView):
     model = Custodian
@@ -2737,6 +2860,13 @@ class CustodianUpdateView(LoginRequiredMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
         return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('user', 'This user is already assigned as a custodian in your organization.')
+            return self.form_invalid(form)
 
 # --- ASSET REMARKS VIEWS ---
 class AssetRemarksListView(LoginRequiredMixin, ListView):
@@ -2753,15 +2883,36 @@ class AssetRemarksCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/configuration/assetremarks_form.html'
     success_url = reverse_lazy('assetremarks-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('remark', 'This remark already exists in your organization.')
+            return self.form_invalid(form)
 
 class AssetRemarksUpdateView(LoginRequiredMixin, UpdateView):
     model = AssetRemarks
     form_class = AssetRemarksForm
     template_name = 'assets/configuration/assetremarks_form.html'
     success_url = reverse_lazy('assetremarks-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('remark', 'This remark already exists in your organization.')
+            return self.form_invalid(form)
     
     def get_queryset(self):
         return AssetRemarks.objects.filter(organization=self.request.user.organization)

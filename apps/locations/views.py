@@ -6,6 +6,7 @@ from .models import Branch, Department, Building, Floor, Room, Region, Site, Loc
 from .forms import (BranchForm, DepartmentForm, BuildingForm, FloorForm, RoomForm,
                     RegionForm, SiteForm, LocationForm, SubLocationForm)
 from django.http import JsonResponse
+from django.db import IntegrityError
 
 # --- BRANCH VIEWS ---
 class BranchListView(LoginRequiredMixin, ListView):
@@ -22,15 +23,36 @@ class BranchCreateView(LoginRequiredMixin, CreateView):
     template_name = 'locations/branch_form.html'
     success_url = reverse_lazy('branch-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('code', 'This branch code already exists.')
+            return self.form_invalid(form)
 
 class BranchUpdateView(LoginRequiredMixin, UpdateView):
     model = Branch
     form_class = BranchForm
     template_name = 'locations/branch_form.html'
     success_url = reverse_lazy('branch-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('code', 'This branch code already exists.')
+            return self.form_invalid(form)
 
     def get_queryset(self):
         return Branch.objects.filter(organization=self.request.user.organization)
@@ -57,7 +79,11 @@ class DepartmentCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This department already exists in the selected branch.')
+            return self.form_invalid(form)
 
 class DepartmentUpdateView(LoginRequiredMixin, UpdateView):
     model = Department
@@ -72,6 +98,13 @@ class DepartmentUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         return Department.objects.filter(organization=self.request.user.organization)
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This department already exists in the selected branch.')
+            return self.form_invalid(form)
 
 # --- BUILDING VIEWS ---
 class BuildingListView(LoginRequiredMixin, ListView):
@@ -160,15 +193,36 @@ class RegionCreateView(LoginRequiredMixin, CreateView):
     template_name = 'locations/region_form.html'
     success_url = reverse_lazy('region-list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.organization = self.request.user.organization
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This region already exists.')
+            return self.form_invalid(form)
 
 class RegionUpdateView(LoginRequiredMixin, UpdateView):
     model = Region
     form_class = RegionForm
     template_name = 'locations/region_form.html'
     success_url = reverse_lazy('region-list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This region already exists.')
+            return self.form_invalid(form)
 
     def get_queryset(self):
         return Region.objects.filter(organization=self.request.user.organization)
@@ -195,7 +249,11 @@ class SiteCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         # organization is inherited via region in a way, but we might need it on region
-        return super().form_valid(form)
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This site already exists in the selected region.')
+            return self.form_invalid(form)
 
 class SiteUpdateView(LoginRequiredMixin, UpdateView):
     model = Site
@@ -210,6 +268,13 @@ class SiteUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         return Site.objects.filter(region__organization=self.request.user.organization)
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This site already exists in the selected region.')
+            return self.form_invalid(form)
 
 # --- LOCATION VIEWS ---
 class LocationListView(LoginRequiredMixin, ListView):
@@ -231,6 +296,13 @@ class LocationCreateView(LoginRequiredMixin, CreateView):
         kwargs['request'] = self.request
         return kwargs
 
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This location already exists in the selected site.')
+            return self.form_invalid(form)
+
 class LocationUpdateView(LoginRequiredMixin, UpdateView):
     model = Location
     form_class = LocationForm
@@ -244,6 +316,13 @@ class LocationUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         return Location.objects.filter(site__region__organization=self.request.user.organization)
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This location already exists in the selected site.')
+            return self.form_invalid(form)
 
 # --- SUBLOCATION VIEWS ---
 class SubLocationListView(LoginRequiredMixin, ListView):
@@ -265,6 +344,13 @@ class SubLocationCreateView(LoginRequiredMixin, CreateView):
         kwargs['request'] = self.request
         return kwargs
 
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This sub-location already exists in the selected location.')
+            return self.form_invalid(form)
+
 class SubLocationUpdateView(LoginRequiredMixin, UpdateView):
     model = SubLocation
     form_class = SubLocationForm
@@ -278,6 +364,13 @@ class SubLocationUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         return SubLocation.objects.filter(location__site__region__organization=self.request.user.organization)
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except IntegrityError:
+            form.add_error('name', 'This sub-location already exists in the selected location.')
+            return self.form_invalid(form)
 
 # AJAX Endpoints for Location Hierarchy
 def get_sites(request):

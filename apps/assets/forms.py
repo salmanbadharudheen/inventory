@@ -357,6 +357,25 @@ class VendorForm(forms.ModelForm):
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError('Vendor name is required.')
+
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Vendor.objects.filter(organization=organization, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A vendor with the name "{name}" already exists in your organization.')
+
+        return name
+
 class AssetImportForm(forms.Form):
     import_file = forms.FileField(
         label="Select File",
@@ -477,6 +496,25 @@ class CompanyForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError('Company name is required.')
+
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Company.objects.filter(organization=organization, name__iexact=name)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'A company with the name "{name}" already exists in your organization.')
+
+        return name
+
 class SupplierForm(forms.ModelForm):
     class Meta:
         model = Supplier
@@ -529,6 +567,23 @@ class CustodianForm(forms.ModelForm):
             User = get_user_model()
             self.fields['user'].queryset = User.objects.filter(organization=self.request.user.organization)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        user = cleaned_data.get('user')
+
+        if not user:
+            return cleaned_data
+
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = Custodian.objects.filter(organization=organization, user=user)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error('user', 'This user is already assigned as a custodian in your organization.')
+
+        return cleaned_data
+
 class AssetRemarksForm(forms.ModelForm):
     class Meta:
         model = AssetRemarks
@@ -537,6 +592,25 @@ class AssetRemarksForm(forms.ModelForm):
             'remark': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Needs Repair'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_remark(self):
+        remark = self.cleaned_data.get('remark', '').strip()
+        if not remark:
+            raise forms.ValidationError('Remark is required.')
+
+        organization = getattr(self.request, 'user', None) and self.request.user.organization
+        if organization:
+            qs = AssetRemarks.objects.filter(organization=organization, remark__iexact=remark)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(f'The remark "{remark}" already exists in your organization.')
+
+        return remark
 
 class AssetTransferForm(forms.ModelForm):
     """Form for creating and updating asset transfers"""
