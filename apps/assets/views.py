@@ -4587,7 +4587,7 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
         if skipped_ineligible_count > 0 and skipped_count == 0:
             messages.warning(self.request, 'No disposal requests were created. Selected assets were ineligible or not accessible.')
         else:
-            messages.warning(self.request, 'No new disposal requests were created. Selected assets may already have pending requests or be ineligible.')
+            messages.error(self.request, 'No new disposal requests were created. Selected assets may already have pending requests or be ineligible.')
         return redirect('disposal-list')
     
     def get_success_url(self):
