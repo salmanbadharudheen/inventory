@@ -3581,16 +3581,59 @@ class AssetTransferListView(LoginRequiredMixin, ListView):
     context_object_name = 'transfers'
     paginate_by = 50
 
+    _FROM_SNAPSHOT_FIELDS = [
+        'transferred_from_user',
+        'transferred_from_department',
+        'transferred_from_location',
+        'transferred_from_region',
+        'transferred_from_site',
+        'transferred_from_building',
+        'transferred_from_floor',
+        'transferred_from_room',
+        'transferred_from_company',
+        'transferred_from_custodian',
+    ]
+
+    def _hydrate_missing_from_snapshots(self, queryset):
+        """Backfill legacy open transfers that were created without from-snapshot data."""
+        transfers_to_fix = queryset.filter(
+            status__in=[AssetTransfer.Status.PENDING, AssetTransfer.Status.IN_TRANSIT],
+            transferred_from_location__isnull=True,
+        )
+
+        for transfer in transfers_to_fix:
+            transfer.snapshot_from_asset()
+            transfer.save(update_fields=self._FROM_SNAPSHOT_FIELDS + ['updated_at'])
+
     def get_filtered_queryset(self):
         org = self.request.user.organization
         queryset = AssetTransfer.objects.filter(organization=org).select_related(
             'asset',
             'transferred_from_user',
             'transferred_from_department',
+            'transferred_from_location',
+            'transferred_from_company',
+            'transferred_from_custodian',
+            'transferred_from_region',
+            'transferred_from_site',
+            'transferred_from_building',
+            'transferred_from_floor',
+            'transferred_from_room',
             'transferred_to_user',
             'transferred_to_department',
+            'transferred_to_location',
+            'transferred_to_company',
+            'transferred_to_custodian',
+            'transferred_to_region',
+            'transferred_to_site',
+            'transferred_to_building',
+            'transferred_to_floor',
+            'transferred_to_room',
             'created_by'
         )
+
+        # Self-heal open legacy rows where from snapshot was not persisted at creation.
+        self._hydrate_missing_from_snapshots(queryset)
 
         # Filter by status
         status = self.request.GET.get('status')
@@ -3793,10 +3836,24 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
                 skipped_duplicates.append(asset_obj.asset_tag)
                 continue
 
+            from_snapshot = {
+                'transferred_from_user': getattr(asset_obj, 'assigned_to', None),
+                'transferred_from_department': getattr(asset_obj, 'department', None),
+                'transferred_from_location': getattr(asset_obj, 'location', None),
+                'transferred_from_region': getattr(asset_obj, 'region', None),
+                'transferred_from_site': getattr(asset_obj, 'site', None),
+                'transferred_from_building': getattr(asset_obj, 'building', None),
+                'transferred_from_floor': getattr(asset_obj, 'floor', None),
+                'transferred_from_room': getattr(asset_obj, 'room', None),
+                'transferred_from_company': getattr(asset_obj, 'company', None),
+                'transferred_from_custodian': getattr(asset_obj, 'custodian', None),
+            }
+
             at = AssetTransfer.objects.create(
                 organization=organization,
                 created_by=self.request.user,
                 asset=asset_obj,
+                **from_snapshot,
                 transfer_no=form.cleaned_data.get('transfer_no'),
                 transfer_description=form.cleaned_data.get('transfer_description'),
                 transferred_to_region=form.cleaned_data.get('transferred_to_region'),
@@ -3804,6 +3861,7 @@ class AssetTransferCreateView(LoginRequiredMixin, CreateView):
                 transferred_to_building=form.cleaned_data.get('transferred_to_building'),
                 transferred_to_floor=form.cleaned_data.get('transferred_to_floor'),
                 transferred_to_room=form.cleaned_data.get('transferred_to_room'),
+                transferred_to_location=form.cleaned_data.get('transferred_to_location'),
                 transferred_to_company=form.cleaned_data.get('transferred_to_company'),
                 transferred_to_department=form.cleaned_data.get('transferred_to_department'),
                 transferred_to_custodian=form.cleaned_data.get('transferred_to_custodian'),
@@ -3861,6 +3919,28 @@ class AssetTransferDetailView(LoginRequiredMixin, DetailView):
         if user.role == user.Role.EMPLOYEE:
             qs = qs.filter(Q(created_by=user) | Q(transferred_to_user=user) | Q(transferred_from_user=user))
         return qs
+
+    def get_object(self, queryset=None):
+        transfer = super().get_object(queryset=queryset)
+        if (
+            transfer.status in [AssetTransfer.Status.PENDING, AssetTransfer.Status.IN_TRANSIT]
+            and transfer.transferred_from_location is None
+        ):
+            transfer.snapshot_from_asset()
+            transfer.save(update_fields=[
+                'transferred_from_user',
+                'transferred_from_department',
+                'transferred_from_location',
+                'transferred_from_region',
+                'transferred_from_site',
+                'transferred_from_building',
+                'transferred_from_floor',
+                'transferred_from_room',
+                'transferred_from_company',
+                'transferred_from_custodian',
+                'updated_at',
+            ])
+        return transfer
 
 
 class AssetTransferUpdateView(LoginRequiredMixin, UpdateView):
