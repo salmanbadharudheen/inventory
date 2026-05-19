@@ -496,19 +496,8 @@ class ApprovalRequestApproveView(ApprovalRequiredMixin, DetailView):
         user = request.user
 
         def finalize_approval(final_approver):
-            created_count = 0
-            if approval_request.request_type == ApprovalRequest.RequestType.ASSET_CREATE and approval_request.asset is None:
-                try:
-                    created_assets = _build_asset_instance_from_request(approval_request, final_approver)
-                    created_count = len(created_assets)
-                    if created_assets:
-                        approval_request.asset = created_assets[0]
-                except Exception as exc:
-                    messages.error(request, f'Unable to create inventory record from request: {exc}')
-                    return None
-
             approval_request.status = ApprovalRequest.Status.APPROVED
-            approval_request.save(update_fields=['status', 'asset', 'updated_at'])
+            approval_request.save(update_fields=['status', 'updated_at'])
 
             ApprovalLog.objects.create(
                 approval_request=approval_request,
@@ -517,20 +506,17 @@ class ApprovalRequestApproveView(ApprovalRequiredMixin, DetailView):
                 approval_level='SENIOR_MANAGER',
                 comments=comments
             )
-            return created_count
+            return True
         
         # Determine approval level and next status
         if approval_request.status == ApprovalRequest.Status.PENDING:
             # Senior/Admin can directly perform final approval from PENDING.
             if user.is_superuser or user.role in ['ADMIN', 'SENIOR_MANAGER']:
-                created_count = finalize_approval(user)
-                if created_count is None:
+                approval_saved = finalize_approval(user)
+                if approval_saved is None:
                     return HttpResponseRedirect(reverse('approval-request-detail', args=[pk]))
 
-                if created_count > 0:
-                    messages.success(request, f'Request fully approved. {created_count} asset(s) added to inventory.')
-                else:
-                    messages.success(request, 'Request has been fully approved.')
+                messages.success(request, 'Request has been fully approved.')
                 return HttpResponseRedirect(reverse('approval-request-detail', args=[pk]))
 
             # Checker approval (first step)
@@ -558,14 +544,11 @@ class ApprovalRequestApproveView(ApprovalRequiredMixin, DetailView):
                 messages.error(request, 'Only Senior Managers can perform final approval.')
                 return HttpResponseRedirect(reverse('approval-request-detail', args=[pk]))
 
-            created_count = finalize_approval(user)
-            if created_count is None:
+            approval_saved = finalize_approval(user)
+            if approval_saved is None:
                 return HttpResponseRedirect(reverse('approval-request-detail', args=[pk]))
-            
-            if created_count > 0:
-                messages.success(request, f'Request fully approved. {created_count} asset(s) added to inventory.')
-            else:
-                messages.success(request, 'Request has been fully approved.')
+
+            messages.success(request, 'Request has been fully approved.')
             return HttpResponseRedirect(reverse('approval-request-detail', args=[pk]))
         
         else:

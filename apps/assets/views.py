@@ -1428,7 +1428,7 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
             )
             messages.success(
                 self.request,
-                'Asset upload submitted for checker approval. It will be added to inventory after approval.'
+                'Asset purchase request submitted for checker approval. It will not be added to inventory from this workflow.'
             )
             return redirect('approval_list')
 

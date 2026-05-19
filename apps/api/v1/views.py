@@ -554,7 +554,7 @@ class AssetCreateAPIView(APIView):
                 comments='Asset uploaded by employee via mobile and waiting for checker approval.',
             )
             return Response(
-                {'detail': 'Asset submitted for approval. It will be added to inventory after checker approval.'},
+                {'detail': 'Asset purchase request submitted for approval. It will not be added to inventory from this workflow.'},
                 status=status.HTTP_202_ACCEPTED,
             )
 
