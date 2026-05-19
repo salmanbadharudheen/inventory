@@ -1185,6 +1185,9 @@ class AssetDisposal(TenantAwareModel):
     # Asset being disposed
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='disposals')
 
+    # Shared reference for multi-asset disposal submissions
+    batch_reference = models.CharField(max_length=36, blank=True, db_index=True)
+
     # Requester (employee)
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

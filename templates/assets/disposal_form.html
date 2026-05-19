@@ -45,7 +45,7 @@
                     </div>
                     {% else %}
                     <div class="field-group">
-                        <label for="{{ form.assets.id_for_label }}">Assets to Dispose <span class="req">*</span></label>
+                        <label for="{{ form.selected_assets.id_for_label }}">Assets to Dispose <span class="req">*</span></label>
                         <div class="asset-picker">
                             <div class="asset-picker-toolbar">
                                 <input type="text" id="asset-picker-search" class="asset-picker-search" placeholder="Search by asset tag or name...">
@@ -53,13 +53,14 @@
                                     <button type="button" class="asset-picker-btn" id="asset-clear-selected">Clear</button>
                                 </div>
                             </div>
-                            {{ form.asset }}
+                            {{ form.selected_assets }}
                             <div class="asset-picker-footer">
                                 <span id="asset-picker-count" class="asset-picker-count">0 selected</span>
                             </div>
+                            <div id="asset-picker-preview" class="asset-picker-preview" aria-live="polite"></div>
                         </div>
-                        {% if form.asset.errors %}<span class="field-error">{{ form.asset.errors.0 }}</span>{% endif %}
-                        <span class="field-hint">Search and select the asset to dispose.</span>
+                        {% if form.selected_assets.errors %}<span class="field-error">{{ form.selected_assets.errors.0 }}</span>{% endif %}
+                        <span class="field-hint">Search and select one or more assets to dispose.</span>
                     </div>
                     {% endif %}
 
@@ -207,10 +208,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
 
-    const selectEl = document.getElementById('{{ form.asset.id_for_label }}');
+    const selectEl = document.getElementById('{{ form.selected_assets.id_for_label }}');
     const searchEl = document.getElementById('asset-picker-search');
     const clearBtn = document.getElementById('asset-clear-selected');
     const countEl = document.getElementById('asset-picker-count');
+    const previewEl = document.getElementById('asset-picker-preview');
 
     if (!selectEl || !searchEl) {
         return;
@@ -219,7 +221,29 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderSelectionSummary() {
         const selected = Array.from(selectEl.options).filter(opt => opt.selected && opt.value);
         if (countEl) {
-            countEl.textContent = selected.length ? selected[0].textContent : '0 selected';
+            countEl.textContent = `${selected.length} selected`;
+        }
+        if (previewEl) {
+            previewEl.innerHTML = '';
+            if (selected.length === 0) {
+                const empty = document.createElement('span');
+                empty.className = 'asset-picker-tip';
+                empty.textContent = 'No assets selected yet.';
+                previewEl.appendChild(empty);
+            } else {
+                selected.slice(0, 6).forEach(opt => {
+                    const chip = document.createElement('span');
+                    chip.className = 'asset-preview-chip';
+                    chip.textContent = (opt.textContent || '').trim();
+                    previewEl.appendChild(chip);
+                });
+                if (selected.length > 6) {
+                    const more = document.createElement('span');
+                    more.className = 'asset-picker-tip';
+                    more.textContent = `+${selected.length - 6} more`;
+                    previewEl.appendChild(more);
+                }
+            }
         }
     }
 
@@ -235,7 +259,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
-            selectEl.value = '';
+            Array.from(selectEl.options).forEach(opt => {
+                opt.selected = false;
+            });
             searchEl.value = '';
             filterOptions();
             renderSelectionSummary();

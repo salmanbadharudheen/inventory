@@ -43,6 +43,30 @@
                 <span>{{ disposals|length }} record{{ disposals|length|pluralize }}</span>
             </div>
         </div>
+
+        {% if can_manager_bulk_disposal_action %}
+        <form id="bulk-disposal-form" method="post" action="{% url 'disposal-bulk-action' %}" class="bulk-action-bar" style="display:none;">
+            {% csrf_token %}
+            <div class="bulk-selection-meta">
+                <strong><span id="bulk-disposal-count">0</span> selected</strong>
+                <span id="selected-disposal-preview" class="selected-asset-preview"></span>
+            </div>
+            <div class="bulk-action-controls">
+                <select name="bulk_action" class="bulk-action-select" required>
+                    <option value="">Choose action...</option>
+                    <option value="approve">Approve & Process</option>
+                    <option value="reject">Reject & Cancel</option>
+                </select>
+                <input type="text" name="bulk_reason" class="bulk-reason-input" placeholder="Optional reason..." maxlength="200">
+                <button type="submit" class="btn-primary-action" style="padding:0.4rem 0.8rem; font-size:0.75rem;">
+                    Apply
+                </button>
+                <button type="button" class="btn-icon-action" id="bulk-disposal-clear" title="Clear selection">
+                    <i data-lucide="x-circle"></i>
+                </button>
+            </div>
+        </form>
+        {% endif %}
     </header>
 
     <main class="disposal-content">
@@ -51,6 +75,8 @@
             <table class="disposal-table">
                 <thead>
                     <tr>
+                        {% if can_manager_bulk_disposal_action %}<th style="width:40px;"><input type="checkbox" id="bulk-disposal-select-all" class="form-check-input"></th>{% endif %}
+                        <th>Batch</th>
                         <th>Tag</th>
                         <th>Asset</th>
                         <th>Requested By</th>
@@ -63,6 +89,21 @@
                 <tbody>
                     {% for disposal in disposals %}
                     <tr>
+                        {% if can_manager_bulk_disposal_action %}
+                        <td>
+                            {% if can_admin_bulk_disposal_action and disposal.status == 'PENDING' or can_admin_bulk_disposal_action and disposal.status == 'MANAGER_APPROVED' or can_manager_bulk_disposal_action and not can_admin_bulk_disposal_action and disposal.status == 'PENDING' %}
+                            <input type="checkbox" name="disposal_ids" value="{{ disposal.id }}" class="bulk-disposal-checkbox form-check-input" form="bulk-disposal-form" data-disposal-tag="{{ disposal.asset.asset_tag }}" data-disposal-name="{{ disposal.asset.name|escape }}">
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td>
+                            {% if disposal.batch_reference %}
+                            <span class="pill pill-batch" title="Batch request">{{ disposal.batch_reference }}</span>
+                            <div class="muted" style="font-size:0.72rem; margin-top:2px;">{{ disposal.batch_count }} item{{ disposal.batch_count|pluralize }}</div>
+                            {% else %}
+                            <span class="muted">Single</span>
+                            {% endif %}
+                        </td>
                         <td class="mono">{{ disposal.asset.asset_tag }}</td>
                         <td>{{ disposal.asset.name }}</td>
                         <td class="muted">{{ disposal.requested_by.get_full_name|default:disposal.requested_by.username }}</td>
@@ -146,7 +187,111 @@
 .btn-secondary:hover { background:#f9fafb; border-color:#d1d5db; }
 .btn-ghost { background:transparent; color:#6b7280; }
 .btn-ghost:hover { color:#374151; background:#f3f4f6; }
+.btn-success { background:#10b981; color:#fff; border:1px solid #10b981; }
+.btn-success:hover { background:#059669; border-color:#059669; color:#fff; }
+.btn-danger { background:#ef4444; color:#fff; border:1px solid #ef4444; }
+.btn-danger:hover { background:#dc2626; border-color:#dc2626; color:#fff; }
 .btn i, .btn svg { width:16px; height:16px; }
+
+/* Bulk Action Bar (matching asset list style) */
+.bulk-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: 0.6rem 0.9rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    border-radius: 8px;
+}
+.bulk-selection-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: #1e3a8a;
+}
+.selected-asset-preview {
+    color: #334155;
+    font-size: 0.74rem;
+}
+.bulk-action-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+.bulk-action-select {
+    min-width: 170px;
+    padding: 0.38rem 0.55rem;
+    border: 1px solid #93c5fd;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    background: #fff;
+}
+.bulk-reason-input {
+    min-width: 180px;
+    padding: 0.38rem 0.55rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    background: #fff;
+}
+.btn-icon-action {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-icon-action:hover {
+    background: #e2e8f0;
+    color: #6366f1;
+    border-color: #6366f1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+.btn-primary-action {
+    padding: 0.5rem 1.1rem;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.btn-primary-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+}
+.btn-primary-action:active {
+    transform: translateY(0);
+}
+.btn-primary-action i {
+    width: 16px;
+    height: 16px;
+}
 
 /* Table */
 .disposal-table-wrap { background:#fff; border:1px solid #e9ecef; border-radius:8px; overflow:hidden; }
@@ -170,6 +315,7 @@
 .pill-rejected { background:#fee2e2; color:#991b1b; }
 .pill-completed { background:#e5e7eb; color:#374151; }
 .pill-cancelled { background:#f3f4f6; color:#6b7280; }
+.pill-batch { background:#e0e7ff; color:#3730a3; }
 
 /* Actions */
 .actions-col { width:60px; text-align:right; }
@@ -195,10 +341,91 @@
 @media (max-width:800px) {
     .filter-left { flex-basis:100%; }
     .actions-col { width:50px; }
-    .disposal-table th:nth-child(3), .disposal-table td:nth-child(3) { display:none; }
     .disposal-table th:nth-child(4), .disposal-table td:nth-child(4) { display:none; }
+    .disposal-table th:nth-child(5), .disposal-table td:nth-child(5) { display:none; }
 }
 </style>
 
 <script>document.addEventListener('DOMContentLoaded', function() { lucide.createIcons(); });</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var bulkForm = document.getElementById('bulk-disposal-form');
+    var selectAll = document.getElementById('bulk-disposal-select-all');
+    var checkboxes = Array.from(document.querySelectorAll('.bulk-disposal-checkbox'));
+    var countEl = document.getElementById('bulk-disposal-count');
+    var previewEl = document.getElementById('selected-disposal-preview');
+    var clearBtn = document.getElementById('bulk-disposal-clear');
+    var actionSelect = bulkForm ? bulkForm.querySelector('[name="bulk_action"]') : null;
+
+    if (!bulkForm || checkboxes.length === 0) return;
+
+    function updateBulkState() {
+        var selected = checkboxes.filter(function (cb) { return cb.checked; });
+        var count = selected.length;
+        if (countEl) countEl.textContent = String(count);
+        if (bulkForm) bulkForm.style.display = count > 0 ? 'flex' : 'none';
+        if (selectAll) {
+            selectAll.checked = count > 0 && count === checkboxes.length;
+        }
+        if (previewEl && count > 0) {
+            var labels = selected
+                .slice(0, 3)
+                .map(function (cb) {
+                    var tag = cb.dataset.disposalTag || '';
+                    var name = cb.dataset.disposalName || '';
+                    return (tag + ' - ' + name).trim();
+                })
+                .filter(function (s) { return !!s; });
+            previewEl.textContent = count > 3
+                ? labels.join(', ') + ' +' + (count - 3) + ' more'
+                : labels.join(', ');
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach(function (cb) { cb.checked = selectAll.checked; });
+            updateBulkState();
+        });
+    }
+
+    checkboxes.forEach(function (cb) {
+        cb.addEventListener('change', updateBulkState);
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            checkboxes.forEach(function (cb) { cb.checked = false; });
+            if (selectAll) selectAll.checked = false;
+            updateBulkState();
+        });
+    }
+
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function (e) {
+            var selected = checkboxes.filter(function (cb) { return cb.checked; });
+            if (selected.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one disposal request.');
+                return;
+            }
+            var action = (actionSelect ? actionSelect.value : '').toLowerCase();
+            if (!action) {
+                e.preventDefault();
+                alert('Please select an action.');
+                return;
+            }
+            var msg = action === 'approve'
+                ? 'Are you sure you want to approve ' + selected.length + ' disposal request(s)?'
+                : 'Are you sure you want to reject ' + selected.length + ' disposal request(s)?';
+            if (!confirm(msg)) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    updateBulkState();
+});
+</script>
 {% endblock %}

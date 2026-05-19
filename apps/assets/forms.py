@@ -685,21 +685,24 @@ class AssetTransferReceiveForm(forms.ModelForm):
 
 
 class AssetDisposalForm(forms.ModelForm):
-    """Form for creating/editing asset disposal requests with searchable asset field"""
-    
-    # Searchable asset field using ModelChoiceField with custom widget
-    asset = forms.ModelChoiceField(
+    """Form for creating disposal requests for one or many assets."""
+
+    # Used when coming from bulk selection on the asset list page.
+    asset_ids = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    # Manual selection mode when opening disposal form directly.
+    selected_assets = forms.ModelMultipleChoiceField(
         queryset=Asset.objects.none(),
-        widget=forms.Select(attrs={
+        required=False,
+        widget=forms.SelectMultiple(attrs={
             'class': 'form-control searchable-select',
-            'required': True,
-            'data-placeholder': 'Search and select an asset...'
+            'data-placeholder': 'Search and select assets...'
         })
     )
     
     class Meta:
         model = AssetDisposal
-        fields = ['asset', 'disposal_method', 'reason', 'disposal_date', 'estimated_salvage_value', 'notes']
+        fields = ['disposal_method', 'reason', 'disposal_date', 'estimated_salvage_value', 'notes']
         widgets = {
             'disposal_method': forms.Select(attrs={'class': 'form-control'}),
             'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for disposal'}),
@@ -715,8 +718,9 @@ class AssetDisposalForm(forms.ModelForm):
         # Filter assets by organization - supports searching by asset_tag and name
         if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
-            self.fields['asset'].queryset = Asset.objects.filter(
+            self.fields['selected_assets'].queryset = Asset.objects.filter(
                 organization=org,
+                is_deleted=False,
                 status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
             ).order_by('asset_tag')
         
@@ -725,9 +729,16 @@ class AssetDisposalForm(forms.ModelForm):
         self.fields['reason'].required = False
         self.fields['notes'].required = False
     
-    def __str__(self):
-        """Display asset with tag and name for better searchability"""
-        return f"{self.asset_tag} - {self.name}"
+    def clean(self):
+        cleaned_data = super().clean()
+        selected_assets = cleaned_data.get('selected_assets')
+        asset_ids = (cleaned_data.get('asset_ids') or '').strip()
+
+        # Require at least one asset from either path.
+        if not selected_assets and not asset_ids:
+            raise forms.ValidationError('Please select at least one asset for disposal.')
+
+        return cleaned_data
 
 
 class AssetDisposalManagerApprovalForm(forms.ModelForm):

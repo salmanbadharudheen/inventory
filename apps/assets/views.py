@@ -4009,7 +4009,8 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
         if search:
             qs = qs.filter(
                 Q(asset__asset_tag__icontains=search) |
-                Q(asset__name__icontains=search)
+                Q(asset__name__icontains=search) |
+                Q(batch_reference__icontains=search)
             )
         
         # Employees can see only their own disposal requests
@@ -4024,10 +4025,124 @@ class AssetDisposalListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
         context['status_choices'] = AssetDisposal.Status.choices
         context['status_filter'] = self.request.GET.get('status', '')
         context['search'] = self.request.GET.get('search', '')
+        context['can_manager_bulk_disposal_action'] = user.role in [user.Role.SENIOR_MANAGER, user.Role.ADMIN] or user.is_superuser
+        context['can_admin_bulk_disposal_action'] = user.role == user.Role.ADMIN or user.is_superuser
+
+        batch_rows = list(
+            AssetDisposal.objects.filter(organization=user.organization)
+            .exclude(batch_reference='')
+            .values('batch_reference')
+            .annotate(total=models.Count('id'))
+        )
+        batch_counts = {row['batch_reference']: row['total'] for row in batch_rows}
+        for disposal in context.get('disposals', []):
+            ref = (disposal.batch_reference or '').strip()
+            disposal.batch_count = batch_counts.get(ref, 1) if ref else 1
+
         return context
+
+
+class AssetDisposalBulkActionView(LoginRequiredMixin, View):
+    """Batch approve/reject disposal requests with role-aware transitions."""
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        org = user.organization
+
+        disposal_ids = request.POST.getlist('disposal_ids')
+        action = (request.POST.get('bulk_action') or '').strip().lower()
+        reason = (request.POST.get('bulk_reason') or '').strip()
+
+        if not disposal_ids:
+            messages.warning(request, 'Please select at least one disposal request.')
+            return redirect(request.META.get('HTTP_REFERER') or reverse('disposal-list'))
+
+        can_admin = user.is_superuser or user.role == user.Role.ADMIN
+        can_manager = can_admin or user.role == user.Role.SENIOR_MANAGER
+
+        if not can_manager:
+            messages.error(request, 'You do not have permission to perform batch disposal actions.')
+            return redirect(request.META.get('HTTP_REFERER') or reverse('disposal-list'))
+
+        if action not in ['approve', 'reject']:
+            messages.warning(request, 'Please choose a valid batch action.')
+            return redirect(request.META.get('HTTP_REFERER') or reverse('disposal-list'))
+
+        qs = AssetDisposal.objects.filter(organization=org, id__in=disposal_ids).select_related('asset')
+
+        processed_count = 0
+        skipped_count = 0
+        approved_assets_count = 0
+
+        with transaction.atomic():
+            for disposal in qs:
+                if can_admin:
+                    eligible = disposal.status in [AssetDisposal.Status.PENDING, AssetDisposal.Status.MANAGER_APPROVED]
+                    if not eligible:
+                        skipped_count += 1
+                        continue
+
+                    if action == 'approve':
+                        disposal.status = AssetDisposal.Status.APPROVED
+                        disposal.approved_by = user
+                        disposal.approved_at = datetime.now()
+                        if reason:
+                            disposal.notes = ((disposal.notes or '').strip() + ('\n' if disposal.notes else '') + f'Batch approval note: {reason}').strip()
+                        disposal.save(update_fields=['status', 'approved_by', 'approved_at', 'notes', 'updated_at'])
+
+                        if disposal.asset and not disposal.asset.is_deleted:
+                            disposal.asset.status = Asset.Status.RETIRED
+                            disposal.asset.is_deleted = True
+                            disposal.asset.save(update_fields=['status', 'is_deleted'])
+                            approved_assets_count += 1
+                    else:
+                        disposal.status = AssetDisposal.Status.REJECTED
+                        disposal.approved_by = user
+                        disposal.approved_at = datetime.now()
+                        if reason:
+                            disposal.rejection_reason = reason
+                        disposal.save(update_fields=['status', 'approved_by', 'approved_at', 'rejection_reason', 'updated_at'])
+
+                    processed_count += 1
+                    continue
+
+                # Senior Manager flow
+                eligible = disposal.status == AssetDisposal.Status.PENDING
+                if not eligible:
+                    skipped_count += 1
+                    continue
+
+                if action == 'approve':
+                    disposal.status = AssetDisposal.Status.MANAGER_APPROVED
+                    disposal.manager_approved_by = user
+                    disposal.manager_approved_at = datetime.now()
+                    if reason:
+                        disposal.notes = ((disposal.notes or '').strip() + ('\n' if disposal.notes else '') + f'Batch manager note: {reason}').strip()
+                    disposal.save(update_fields=['status', 'manager_approved_by', 'manager_approved_at', 'notes', 'updated_at'])
+                else:
+                    disposal.status = AssetDisposal.Status.REJECTED
+                    if reason:
+                        disposal.manager_rejection_reason = reason
+                    disposal.save(update_fields=['status', 'manager_rejection_reason', 'updated_at'])
+
+                processed_count += 1
+
+        if approved_assets_count > 0:
+            invalidate_dashboard_cache_for_org(org)
+
+        if processed_count > 0:
+            if skipped_count > 0:
+                messages.success(request, f'Batch action completed: {processed_count} processed, {skipped_count} skipped (status not eligible).')
+            else:
+                messages.success(request, f'Batch action completed: {processed_count} processed.')
+        else:
+            messages.warning(request, 'No disposal requests were processed. Check status eligibility for your role.')
+
+        return redirect(request.META.get('HTTP_REFERER') or reverse('disposal-list'))
 
 
 class AssetDisposalExportPDFView(AssetDisposalListView):
@@ -4132,8 +4247,9 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
         kwargs['request'] = self.request
         return kwargs
 
-    def _parse_asset_ids(self):
-        raw = self.request.POST.get('asset_ids') or self.request.GET.get('asset_ids', '')
+    def _parse_asset_ids(self, raw=None):
+        if raw is None:
+            raw = self.request.POST.get('asset_ids') or self.request.GET.get('asset_ids', '')
         return [s.strip() for s in str(raw).split(',') if s.strip()]
 
     def get_context_data(self, **kwargs):
@@ -4155,64 +4271,75 @@ class AssetDisposalCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         org = self.request.user.organization
-        selected_ids = self._parse_asset_ids()
+        selected_ids = self._parse_asset_ids(form.cleaned_data.get('asset_ids'))
         form_assets = list(form.cleaned_data.get('selected_assets') or [])
+        skipped_ineligible_count = 0
 
         if selected_ids:
+            requested_ids = list(dict.fromkeys(selected_ids))
             assets = list(
                 Asset.objects.filter(
-                    id__in=selected_ids,
+                    id__in=requested_ids,
                     organization=org,
                     is_deleted=False,
                     status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
                 )
             )
+            skipped_ineligible_count = max(len(requested_ids) - len(assets), 0)
         else:
             assets = [a for a in form_assets if a.organization_id == org.id and not a.is_deleted]
 
-        if assets:
+        if not assets:
+            form.add_error(None, 'No eligible assets found for disposal. Please reselect assets and try again.')
+            return self.form_invalid(form)
 
-            created_count = 0
-            skipped_count = 0
+        created_count = 0
+        skipped_count = 0
+        batch_reference = f"DSP-{uuid4().hex[:8].upper()}" if len(assets) > 1 else ''
 
-            for asset in assets:
-                already_pending = AssetDisposal.objects.filter(
-                    organization=org,
-                    asset=asset,
-                    status__in=[AssetDisposal.Status.PENDING, AssetDisposal.Status.MANAGER_APPROVED]
-                ).exists()
+        for asset in assets:
+            already_pending = AssetDisposal.objects.filter(
+                organization=org,
+                asset=asset,
+                status__in=[AssetDisposal.Status.PENDING, AssetDisposal.Status.MANAGER_APPROVED]
+            ).exists()
 
-                if already_pending:
-                    skipped_count += 1
-                    continue
+            if already_pending:
+                skipped_count += 1
+                continue
 
-                AssetDisposal.objects.create(
-                    organization=org,
-                    requested_by=self.request.user,
-                    asset=asset,
-                    disposal_method=form.cleaned_data.get('disposal_method') or AssetDisposal.DisposalMethod.SCRAP,
-                    reason=form.cleaned_data.get('reason') or '',
-                    disposal_date=form.cleaned_data.get('disposal_date'),
-                    estimated_salvage_value=form.cleaned_data.get('estimated_salvage_value'),
-                    notes=form.cleaned_data.get('notes') or '',
-                )
-                created_count += 1
+            AssetDisposal.objects.create(
+                organization=org,
+                requested_by=self.request.user,
+                asset=asset,
+                batch_reference=batch_reference,
+                disposal_method=form.cleaned_data.get('disposal_method') or AssetDisposal.DisposalMethod.SCRAP,
+                reason=form.cleaned_data.get('reason') or '',
+                disposal_date=form.cleaned_data.get('disposal_date'),
+                estimated_salvage_value=form.cleaned_data.get('estimated_salvage_value'),
+                notes=form.cleaned_data.get('notes') or '',
+            )
+            created_count += 1
 
-            if created_count > 0:
+        if created_count > 0:
+            total_skipped = skipped_count + skipped_ineligible_count
+            batch_note = f' Batch ref: {batch_reference}.' if batch_reference else ''
+            if total_skipped > 0:
+                notes = []
                 if skipped_count > 0:
-                    messages.success(self.request, f'Disposal requests created for {created_count} asset(s). {skipped_count} skipped (already pending).')
-                else:
-                    messages.success(self.request, f'Disposal requests created for {created_count} asset(s).')
-                return redirect('disposal-list')
-
-            messages.warning(self.request, 'No new disposal requests were created. Selected assets may already have pending requests.')
+                    notes.append(f'{skipped_count} already pending')
+                if skipped_ineligible_count > 0:
+                    notes.append(f'{skipped_ineligible_count} ineligible or not accessible')
+                messages.success(self.request, f"Disposal requests created for {created_count} asset(s). {total_skipped} skipped ({', '.join(notes)}).{batch_note}")
+            else:
+                messages.success(self.request, f'Disposal requests created for {created_count} asset(s).{batch_note}')
             return redirect('disposal-list')
 
-        # Fallback single-create path
-        form.instance.organization = org
-        form.instance.requested_by = self.request.user
-        messages.success(self.request, 'Asset disposal request submitted successfully')
-        return super().form_valid(form)
+        if skipped_ineligible_count > 0 and skipped_count == 0:
+            messages.warning(self.request, 'No disposal requests were created. Selected assets were ineligible or not accessible.')
+        else:
+            messages.warning(self.request, 'No new disposal requests were created. Selected assets may already have pending requests or be ineligible.')
+        return redirect('disposal-list')
     
     def get_success_url(self):
         return reverse('disposal-detail', kwargs={'pk': self.object.pk})
