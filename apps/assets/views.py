@@ -464,6 +464,16 @@ class AssetListView(LoginRequiredMixin, ListView):
             if val:
                 queryset = queryset.filter(**{field: val})
 
+        is_tagged = (self.request.GET.get('is_tagged') or '').strip().lower()
+        if is_tagged == 'tagged':
+            queryset = queryset.filter(tagging_status='TAGGED')
+        elif is_tagged == 'untagged':
+            queryset = queryset.filter(
+                Q(tagging_status='UNTAGGED') |
+                Q(tagging_status__isnull=True) |
+                Q(tagging_status='')
+            )
+
         tag_type = self.request.GET.get('tag_type')
         if tag_type == 'BARCODE':
             queryset = queryset.filter(barcode_image__isnull=False)
@@ -648,6 +658,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                 'depr_branch': 'branch_id',
                 'depr_building': 'building_id',
                 'depr_location': 'location_id',
+                'depr_tagging_status': 'tagging_status',
             }
             
             for param, field in depr_filters.items():
@@ -842,6 +853,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 'depr_branch': 'branch_id',
                 'depr_building': 'building_id',
                 'depr_location': 'location_id',
+                'depr_tagging_status': 'tagging_status',
             }
 
             for param, field in depr_filters.items():
@@ -904,6 +916,9 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
         if request.GET.get('condition'):
             condition_val = request.GET.get('condition')
             applied_filters.append(("Condition", condition_map.get(condition_val, condition_val)))
+        if request.GET.get('is_tagged'):
+            tagged_val = request.GET.get('is_tagged')
+            applied_filters.append(("Tagged Status", "Tagged" if tagged_val == 'tagged' else "Untagged"))
         if request.GET.get('tag_type'):
             applied_filters.append(("Type of Tag", request.GET.get('tag_type')))
         if request.GET.get('label_type'):
@@ -3064,6 +3079,9 @@ class ReportsListView(LoginRequiredMixin, View):
                 'url': reverse('reconciliation-report'),
                 'color': 'warning'
             })
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
 
         context = {
             'reports': reports,
@@ -5463,7 +5481,89 @@ class AssetReconciliationReportView(LoginRequiredMixin, View):
         except ValueError:
             pass
 
-        base_qs = Asset.objects.filter(organization=org, is_deleted=False)
+        base_qs = Asset.objects.filter(organization=org, is_deleted=False).select_related(
+            'category', 'sub_category', 'group', 'sub_group', 'brand_new', 'supplier',
+            'site', 'branch', 'building', 'floor', 'location', 'room', 'sub_location',
+            'department', 'created_by'
+        )
+
+        # Report-like filters (matching depreciation/advanced report filters)
+        q = (request.GET.get('q') or '').strip()
+        if q:
+            base_qs = base_qs.filter(
+                Q(asset_tag__icontains=q) |
+                Q(name__icontains=q) |
+                Q(asset_code__icontains=q) |
+                Q(serial_number__icontains=q)
+            )
+
+        depr_product_name = (request.GET.get('depr_product_name') or '').strip()
+        if depr_product_name:
+            base_qs = base_qs.filter(name__icontains=depr_product_name)
+
+        fk_filters = {
+            'depr_category': 'category_id',
+            'depr_subcategory': 'sub_category_id',
+            'depr_group': 'group_id',
+            'depr_sub_group': 'sub_group_id',
+            'depr_brand': 'brand_new_id',
+            'depr_supplier': 'supplier_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_floor': 'floor_id',
+            'depr_location': 'location_id',
+            'depr_room': 'room_id',
+            'depr_sub_location': 'sub_location_id',
+            'depr_department': 'department_id',
+            'depr_created_by': 'created_by_id',
+        }
+        for param, field in fk_filters.items():
+            val = (request.GET.get(param) or '').strip()
+            if val:
+                base_qs = base_qs.filter(**{field: val})
+
+        depr_status = (request.GET.get('depr_status') or '').strip()
+        if depr_status:
+            base_qs = base_qs.filter(status=depr_status)
+
+        depr_condition = (request.GET.get('depr_condition') or '').strip()
+        if depr_condition:
+            base_qs = base_qs.filter(condition=depr_condition)
+
+        depr_label_type = (request.GET.get('depr_label_type') or '').strip()
+        if depr_label_type:
+            base_qs = base_qs.filter(label_type=depr_label_type)
+
+        depr_tagging_status = (request.GET.get('depr_tagging_status') or '').strip()
+        if depr_tagging_status:
+            base_qs = base_qs.filter(tagging_status=depr_tagging_status)
+
+        depr_purchase_date_from = (request.GET.get('depr_purchase_date_from') or '').strip()
+        depr_purchase_date_to = (request.GET.get('depr_purchase_date_to') or '').strip()
+        if depr_purchase_date_from:
+            try:
+                base_qs = base_qs.filter(purchase_date__gte=datetime.strptime(depr_purchase_date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        if depr_purchase_date_to:
+            try:
+                base_qs = base_qs.filter(purchase_date__lte=datetime.strptime(depr_purchase_date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
+        depr_registered_date_from = (request.GET.get('depr_registered_date_from') or '').strip()
+        depr_registered_date_to = (request.GET.get('depr_registered_date_to') or '').strip()
+        if depr_registered_date_from:
+            try:
+                base_qs = base_qs.filter(created_at__date__gte=datetime.strptime(depr_registered_date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        if depr_registered_date_to:
+            try:
+                base_qs = base_qs.filter(created_at__date__lte=datetime.strptime(depr_registered_date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
 
         # --- Period slicing ---
         if date_from:
@@ -5629,6 +5729,57 @@ class AssetReconciliationReportView(LoginRequiredMixin, View):
             'by_site': by_site,
             # Currency
             'currency': 'AED',
+            # Filter options
+            'categories': Category.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'subcategories': SubCategory.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'groups': Group.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'subgroups': SubGroup.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'brands': Brand.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'suppliers': Supplier.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'sites': Site.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'branches': Branch.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'buildings': Building.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'floors': Floor.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'locations': Location.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'rooms': Room.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'sublocations': SubLocation.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'departments': Department.objects.filter(organization=org).only('id', 'name').order_by('name'),
+            'creators': User.objects.filter(organization=org).only('id', 'first_name', 'last_name', 'username').order_by('first_name', 'last_name', 'username'),
+            'statuses': Asset.Status.choices,
+            'conditions': Asset.Condition.choices,
+            'label_types': Asset.LabelType.choices,
+            # Selected filter values
+            'depr_category': request.GET.get('depr_category', ''),
+            'depr_subcategory': request.GET.get('depr_subcategory', ''),
+            'depr_group': request.GET.get('depr_group', ''),
+            'depr_sub_group': request.GET.get('depr_sub_group', ''),
+            'depr_status': request.GET.get('depr_status', ''),
+            'depr_condition': request.GET.get('depr_condition', ''),
+            'depr_label_type': request.GET.get('depr_label_type', ''),
+            'depr_tagging_status': request.GET.get('depr_tagging_status', ''),
+            'depr_brand': request.GET.get('depr_brand', ''),
+            'depr_supplier': request.GET.get('depr_supplier', ''),
+            'depr_product_name': request.GET.get('depr_product_name', ''),
+            'depr_site': request.GET.get('depr_site', ''),
+            'depr_branch': request.GET.get('depr_branch', ''),
+            'depr_building': request.GET.get('depr_building', ''),
+            'depr_floor': request.GET.get('depr_floor', ''),
+            'depr_location': request.GET.get('depr_location', ''),
+            'depr_room': request.GET.get('depr_room', ''),
+            'depr_sub_location': request.GET.get('depr_sub_location', ''),
+            'depr_department': request.GET.get('depr_department', ''),
+            'depr_purchase_date_from': request.GET.get('depr_purchase_date_from', ''),
+            'depr_purchase_date_to': request.GET.get('depr_purchase_date_to', ''),
+            'depr_registered_date_from': request.GET.get('depr_registered_date_from', ''),
+            'depr_registered_date_to': request.GET.get('depr_registered_date_to', ''),
+            'depr_created_by': request.GET.get('depr_created_by', ''),
+            'has_advanced_filters': any((request.GET.get(k) or '').strip() for k in [
+                'q', 'depr_category', 'depr_subcategory', 'depr_group', 'depr_sub_group', 'depr_status', 'depr_condition',
+                'depr_label_type', 'depr_tagging_status', 'depr_brand', 'depr_supplier', 'depr_product_name',
+                'depr_site', 'depr_branch', 'depr_building', 'depr_floor', 'depr_location', 'depr_room',
+                'depr_sub_location', 'depr_department', 'depr_purchase_date_from', 'depr_purchase_date_to',
+                'depr_registered_date_from', 'depr_registered_date_to', 'depr_created_by', 'date_from', 'date_to'
+            ]),
         }
         return render(request, self.template_name, context)
 
@@ -5658,6 +5809,83 @@ class AssetReconciliationReportPDFView(LoginRequiredMixin, View):
             pass
 
         base_qs = Asset.objects.filter(organization=org, is_deleted=False)
+
+        q = (request.GET.get('q') or '').strip()
+        if q:
+            base_qs = base_qs.filter(
+                Q(asset_tag__icontains=q) |
+                Q(name__icontains=q) |
+                Q(asset_code__icontains=q) |
+                Q(serial_number__icontains=q)
+            )
+
+        depr_product_name = (request.GET.get('depr_product_name') or '').strip()
+        if depr_product_name:
+            base_qs = base_qs.filter(name__icontains=depr_product_name)
+
+        fk_filters = {
+            'depr_category': 'category_id',
+            'depr_subcategory': 'sub_category_id',
+            'depr_group': 'group_id',
+            'depr_sub_group': 'sub_group_id',
+            'depr_brand': 'brand_new_id',
+            'depr_supplier': 'supplier_id',
+            'depr_site': 'site_id',
+            'depr_branch': 'branch_id',
+            'depr_building': 'building_id',
+            'depr_floor': 'floor_id',
+            'depr_location': 'location_id',
+            'depr_room': 'room_id',
+            'depr_sub_location': 'sub_location_id',
+            'depr_department': 'department_id',
+            'depr_created_by': 'created_by_id',
+        }
+        for param, field in fk_filters.items():
+            val = (request.GET.get(param) or '').strip()
+            if val:
+                base_qs = base_qs.filter(**{field: val})
+
+        depr_status = (request.GET.get('depr_status') or '').strip()
+        if depr_status:
+            base_qs = base_qs.filter(status=depr_status)
+
+        depr_condition = (request.GET.get('depr_condition') or '').strip()
+        if depr_condition:
+            base_qs = base_qs.filter(condition=depr_condition)
+
+        depr_label_type = (request.GET.get('depr_label_type') or '').strip()
+        if depr_label_type:
+            base_qs = base_qs.filter(label_type=depr_label_type)
+
+        depr_tagging_status = (request.GET.get('depr_tagging_status') or '').strip()
+        if depr_tagging_status:
+            base_qs = base_qs.filter(tagging_status=depr_tagging_status)
+
+        depr_purchase_date_from = (request.GET.get('depr_purchase_date_from') or '').strip()
+        depr_purchase_date_to = (request.GET.get('depr_purchase_date_to') or '').strip()
+        if depr_purchase_date_from:
+            try:
+                base_qs = base_qs.filter(purchase_date__gte=datetime.strptime(depr_purchase_date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        if depr_purchase_date_to:
+            try:
+                base_qs = base_qs.filter(purchase_date__lte=datetime.strptime(depr_purchase_date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
+        depr_registered_date_from = (request.GET.get('depr_registered_date_from') or '').strip()
+        depr_registered_date_to = (request.GET.get('depr_registered_date_to') or '').strip()
+        if depr_registered_date_from:
+            try:
+                base_qs = base_qs.filter(created_at__date__gte=datetime.strptime(depr_registered_date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        if depr_registered_date_to:
+            try:
+                base_qs = base_qs.filter(created_at__date__lte=datetime.strptime(depr_registered_date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
 
         if date_from:
             period_qs = base_qs.filter(purchase_date__gte=date_from)

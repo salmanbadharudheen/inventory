@@ -29,6 +29,10 @@
     <form method="get" class="filter-form">
       <div class="filter-row">
         <div class="filter-group">
+          <label>Search</label>
+          <input type="text" name="q" value="{{ request.GET.q }}" class="filter-input" placeholder="Tag, name, serial...">
+        </div>
+        <div class="filter-group">
           <label>From Date</label>
           <input type="date" name="date_from" value="{{ date_from }}" class="filter-input">
         </div>
@@ -37,9 +41,218 @@
           <input type="date" name="date_to" value="{{ date_to }}" class="filter-input">
         </div>
       </div>
+
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Category</label>
+          <select name="depr_category" class="filter-input">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == depr_category %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Sub Category</label>
+          <select name="depr_subcategory" class="filter-input">
+            <option value="">All Sub Categories</option>
+            {% for sc in subcategories %}
+            <option value="{{ sc.id }}" {% if sc.id|stringformat:"s" == depr_subcategory %}selected{% endif %}>{{ sc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Group</label>
+          <select name="depr_group" class="filter-input">
+            <option value="">All Groups</option>
+            {% for g in groups %}
+            <option value="{{ g.id }}" {% if g.id|stringformat:"s" == depr_group %}selected{% endif %}>{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Sub Group</label>
+          <select name="depr_sub_group" class="filter-input">
+            <option value="">All Sub Groups</option>
+            {% for sg in subgroups %}
+            <option value="{{ sg.id }}" {% if sg.id|stringformat:"s" == depr_sub_group %}selected{% endif %}>{{ sg.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Status</label>
+          <select name="depr_status" class="filter-input">
+            <option value="">All Statuses</option>
+            {% for value, label in statuses %}
+            <option value="{{ value }}" {% if value == depr_status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Condition</label>
+          <select name="depr_condition" class="filter-input">
+            <option value="">All Conditions</option>
+            {% for value, label in conditions %}
+            <option value="{{ value }}" {% if value == depr_condition %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Label Type</label>
+          <select name="depr_label_type" class="filter-input">
+            <option value="">All Types</option>
+            {% for value, label in label_types %}
+            <option value="{{ value }}" {% if value == depr_label_type %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Tag Status</label>
+          <select name="depr_tagging_status" class="filter-input">
+            <option value="">All Statuses</option>
+            <option value="TAGGED" {% if depr_tagging_status == 'TAGGED' %}selected{% endif %}>Tagged</option>
+            <option value="UNTAGGED" {% if depr_tagging_status == 'UNTAGGED' %}selected{% endif %}>Untagged</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Brand</label>
+          <select name="depr_brand" class="filter-input">
+            <option value="">All Brands</option>
+            {% for br in brands %}
+            <option value="{{ br.id }}" {% if br.id|stringformat:"s" == depr_brand %}selected{% endif %}>{{ br.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Supplier</label>
+          <select name="depr_supplier" class="filter-input">
+            <option value="">All Suppliers</option>
+            {% for sup in suppliers %}
+            <option value="{{ sup.id }}" {% if sup.id|stringformat:"s" == depr_supplier %}selected{% endif %}>{{ sup.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Product Name</label>
+          <input type="text" name="depr_product_name" value="{{ depr_product_name }}" class="filter-input" placeholder="Filter by product name">
+        </div>
+        <div class="filter-group">
+          <label>Registered By</label>
+          <select name="depr_created_by" class="filter-input">
+            <option value="">All Users</option>
+            {% for u in creators %}
+            <option value="{{ u.id }}" {% if u.id|stringformat:"s" == depr_created_by %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Site</label>
+          <select name="depr_site" class="filter-input">
+            <option value="">All Sites</option>
+            {% for s in sites %}
+            <option value="{{ s.id }}" {% if s.id|stringformat:"s" == depr_site %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Branch</label>
+          <select name="depr_branch" class="filter-input">
+            <option value="">All Branches</option>
+            {% for b in branches %}
+            <option value="{{ b.id }}" {% if b.id|stringformat:"s" == depr_branch %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Building</label>
+          <select name="depr_building" class="filter-input">
+            <option value="">All Buildings</option>
+            {% for bld in buildings %}
+            <option value="{{ bld.id }}" {% if bld.id|stringformat:"s" == depr_building %}selected{% endif %}>{{ bld.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Floor</label>
+          <select name="depr_floor" class="filter-input">
+            <option value="">All Floors</option>
+            {% for fl in floors %}
+            <option value="{{ fl.id }}" {% if fl.id|stringformat:"s" == depr_floor %}selected{% endif %}>{{ fl.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Location</label>
+          <select name="depr_location" class="filter-input">
+            <option value="">All Locations</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if loc.id|stringformat:"s" == depr_location %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Room</label>
+          <select name="depr_room" class="filter-input">
+            <option value="">All Rooms</option>
+            {% for r in rooms %}
+            <option value="{{ r.id }}" {% if r.id|stringformat:"s" == depr_room %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Sub Location</label>
+          <select name="depr_sub_location" class="filter-input">
+            <option value="">All Sub Locations</option>
+            {% for sl in sublocations %}
+            <option value="{{ sl.id }}" {% if sl.id|stringformat:"s" == depr_sub_location %}selected{% endif %}>{{ sl.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Department</label>
+          <select name="depr_department" class="filter-input">
+            <option value="">All Departments</option>
+            {% for dept in departments %}
+            <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == depr_department %}selected{% endif %}>{{ dept.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Purchase Date From</label>
+          <input type="date" name="depr_purchase_date_from" value="{{ depr_purchase_date_from }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+          <label>Purchase Date To</label>
+          <input type="date" name="depr_purchase_date_to" value="{{ depr_purchase_date_to }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+          <label>Registered Date From</label>
+          <input type="date" name="depr_registered_date_from" value="{{ depr_registered_date_from }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+          <label>Registered Date To</label>
+          <input type="date" name="depr_registered_date_to" value="{{ depr_registered_date_to }}" class="filter-input">
+        </div>
+      </div>
+
       <div class="filter-actions">
         <button type="submit" class="btn-apply">Apply</button>
-        {% if date_from or date_to %}
+        {% if has_advanced_filters %}
         <a href="{% url 'reconciliation-report' %}" class="btn-clear">Clear</a>
         {% endif %}
       </div>
