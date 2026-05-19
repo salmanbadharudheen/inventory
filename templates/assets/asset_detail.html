@@ -3,15 +3,138 @@
 {% block page_title %}{{ asset.asset_tag }} - {{ asset.name }}{% endblock %}
 
 {% block content %}
+<style>
+    .image-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .image-modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .image-modal-content {
+        position: relative;
+        max-width: 90vw;
+        max-height: 90vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: zoomIn 0.3s ease;
+    }
+    
+    .image-modal-content img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 12px;
+    }
+    
+    .image-modal-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: #fff;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.5);
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: background 0.2s ease;
+    }
+    
+    .image-modal-close:hover {
+        background: rgba(0, 0, 0, 0.8);
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes zoomIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+</style>
+
+<!-- Image Lightbox Modal -->
+<div id="imageModal" class="image-modal">
+    <div class="image-modal-content">
+        <button class="image-modal-close" onclick="closeImageModal()" title="Close">×</button>
+        {% if asset.image %}
+        <img id="modalImage" src="{{ asset.image.url }}" alt="{{ asset.name }}" />
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function openImageModal() {
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    // Close modal when clicking outside the image
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeImageModal();
+                }
+            });
+            
+            // Close with Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && modal.classList.contains('show')) {
+                    closeImageModal();
+                }
+            });
+        }
+    });
+</script>
 <div class="asset-detail-container" style="max-width: 1200px; margin: 0 auto; padding-bottom: 4rem;">
     <!-- Top Header Card -->
     <div class="card" style="margin-bottom: 2rem; border-radius: 16px; padding: 1.5rem 2rem;">
         <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1.5rem;">
             <div style="display: flex; gap: 1.5rem; align-items: center;">
                 {% if asset.image %}
-                <div class="asset-image-preview" style="width: 80px; height: 80px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: #f8fafc;">
+                <button type="button" onclick="openImageModal()" class="asset-image-preview" style="width: 80px; height: 80px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: #f8fafc; cursor: pointer; padding: 0; margin: 0; transition: transform 0.2s ease, box-shadow 0.2s ease;" title="Click to enlarge">
                     <img src="{{ asset.image.url }}" alt="{{ asset.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
+                </button>
+                <style>
+                    .asset-image-preview:hover {
+                        transform: scale(1.05);
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    }
+                </style>
                 {% else %}
                 <div class="asset-image-placeholder" style="width: 80px; height: 80px; border-radius: 12px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
                     <i data-lucide="package" style="width: 32px; height: 32px;"></i>
