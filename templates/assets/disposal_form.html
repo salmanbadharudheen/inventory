@@ -4,13 +4,12 @@
 
 {% block content %}
 <div class="form-container">
-    <!-- Header -->
-    <div class="form-header">
+    <div class="hero-panel">
         <a href="{% url 'disposal-list' %}" class="btn-back-link">
             <i data-lucide="arrow-left"></i> Back to Disposals
         </a>
         <h1>{% if form.instance.pk %}Edit Asset Disposal Request{% else %}Request Asset Disposal{% endif %}</h1>
-        <p class="form-subtitle">{% if form.instance.pk %}Update disposal request details for this transaction.{% else %}Submit a disposal request for assets that are no longer needed{% endif %}</p>
+        <p class="form-subtitle">{% if form.instance.pk %}Update disposal request details for this transaction.{% else %}Submit disposal requests with complete details for faster review and approval.{% endif %}</p>
     </div>
 
     <div class="form-grid">
@@ -31,6 +30,7 @@
                     {% endif %}
 
                     {% if selected_assets %}
+                    <div class="section-title">Asset Selection</div>
                     <div class="field-group">
                         <label>Selected Assets for Disposal <span class="req">*</span></label>
                         <div class="selected-assets-box">
@@ -44,26 +44,65 @@
                         <span class="field-hint">{{ selected_assets|length }} asset(s) selected from inventory list.</span>
                     </div>
                     {% else %}
+                    <div class="section-title">Asset Selection</div>
                     <div class="field-group">
                         <label for="{{ form.selected_assets.id_for_label }}">Assets to Dispose <span class="req">*</span></label>
                         <div class="asset-picker">
                             <div class="asset-picker-toolbar">
-                                <input type="text" id="asset-picker-search" class="asset-picker-search" placeholder="Search by asset tag or name...">
+                                <div class="asset-picker-search-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                    <input type="text" id="asset-picker-search" class="asset-picker-search" placeholder="Search by asset tag or name...">
+                                </div>
                                 <div class="asset-picker-actions">
+                                    <button type="button" class="asset-picker-btn" id="asset-select-all">Select Visible</button>
                                     <button type="button" class="asset-picker-btn" id="asset-clear-selected">Clear</button>
                                 </div>
                             </div>
-                            {{ form.selected_assets }}
+                            <div class="asset-picker-header">
+                                <label class="asset-master-check">
+                                    <input type="checkbox" id="asset-master-checkbox">
+                                    <span>Select all visible assets</span>
+                                </label>
+                            </div>
+                            <div class="asset-checkbox-head">
+                                <span></span>
+                                <span>Asset Tag</span>
+                                <span>Asset Name</span>
+                            </div>
+                            <div id="asset-picker-list" class="asset-checkbox-list">
+                                {% with selected_vals=form.selected_assets.value %}
+                                    {% for asset in form.fields.selected_assets.queryset %}
+                                    <label class="asset-checkbox-item" data-search-text="{{ asset.asset_tag|default:''|lower }} {{ asset.name|default:''|lower }}">
+                                        <input
+                                            type="checkbox"
+                                            name="selected_assets"
+                                            value="{{ asset.id }}"
+                                            class="asset-checkbox-input"
+                                            {% if selected_vals and asset.id|stringformat:'s' in selected_vals %}checked{% endif %}
+                                        >
+                                        <span class="asset-checkbox-tag">{{ asset.asset_tag|default:'NO-TAG' }}</span>
+                                        <span class="asset-checkbox-name">{{ asset.name|default:'Unnamed Asset' }}</span>
+                                    </label>
+                                    {% empty %}
+                                    <div class="asset-picker-tip">No eligible assets available for disposal.</div>
+                                    {% endfor %}
+                                {% endwith %}
+                                <div id="asset-picker-no-match" class="asset-picker-tip asset-picker-no-match" style="display:none;">No assets match your search.</div>
+                            </div>
                             <div class="asset-picker-footer">
                                 <span id="asset-picker-count" class="asset-picker-count">0 selected</span>
+                                <span id="asset-picker-visible" class="asset-picker-visible">0 visible</span>
                             </div>
-                            <div id="asset-picker-preview" class="asset-picker-preview" aria-live="polite"></div>
                         </div>
                         {% if form.selected_assets.errors %}<span class="field-error">{{ form.selected_assets.errors.0 }}</span>{% endif %}
                         <span class="field-hint">Search and select one or more assets to dispose.</span>
                     </div>
                     {% endif %}
 
+                    <div class="section-title">Disposal Details</div>
                     <div class="field-row">
                         <div class="field-group">
                             <label for="{{ form.disposal_method.id_for_label }}">Disposal Method</label>
@@ -81,9 +120,10 @@
                         <label for="{{ form.reason.id_for_label }}">Reason for Disposal</label>
                         {{ form.reason }}
                         {% if form.reason.errors %}<span class="field-error">{{ form.reason.errors.0 }}</span>{% endif %}
-                        <span class="field-hint">Explain why this asset needs to be disposed (e.g., End of life, Damaged, Obsolete)</span>
+                        <span class="field-hint">Explain why this asset needs disposal (for example: end of life, damaged, obsolete).</span>
                     </div>
 
+                    <div class="section-title">Financial and Notes</div>
                     <div class="field-group">
                         <label for="{{ form.estimated_salvage_value.id_for_label }}">Estimated Salvage Value</label>
                         {{ form.estimated_salvage_value }}
@@ -109,7 +149,7 @@
 
         <!-- Sidebar -->
         <div class="form-sidebar">
-            <div class="sidebar-card sidebar-amber">
+            <div class="sidebar-card sidebar-muted">
                 <h3><i data-lucide="info"></i> Disposal Methods</h3>
                 <ul>
                     <li><strong>Scrap:</strong> Discard as scrap metal/material</li>
@@ -120,7 +160,7 @@
                 </ul>
             </div>
 
-            <div class="sidebar-card sidebar-blue">
+            <div class="sidebar-card sidebar-muted">
                 <h3><i data-lucide="shield-check"></i> Approval Process</h3>
                 <p>Your disposal request will go through a two-step approval: first by your manager, then by a senior manager or admin. You'll be notified once a decision is made.</p>
             </div>
@@ -129,147 +169,684 @@
 </div>
 
 <style>
-/* Layout */
-.form-container { max-width:1100px; margin:18px auto; padding:16px; }
-.form-header { margin-bottom:20px; }
-.form-header h1 { font-size:1.4rem; font-weight:700; color:#111827; margin:8px 0 4px; }
-.form-subtitle { color:#6b7280; font-size:0.9rem; margin:0; }
-.btn-back-link { color:#4f46e5; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:500; }
-.btn-back-link:hover { text-decoration:underline; }
-.btn-back-link i, .btn-back-link svg { width:16px; height:16px; }
+/* Page layout */
+.form-container {
+    max-width: 1220px;
+    margin: 22px auto;
+    padding: 0 18px 24px;
+}
 
-.form-grid { display:grid; grid-template-columns:1fr 320px; gap:20px; }
-@media (max-width:900px) { .form-grid { grid-template-columns:1fr; } }
+.hero-panel {
+    margin-bottom: 18px;
+    border-radius: 14px;
+    padding: 18px 20px;
+    background: linear-gradient(160deg, #ffffff 0%, #f6f8ff 55%, #eef2ff 100%);
+    border: 1px solid #e6eaf5;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+}
 
-/* Form Card */
-.form-card { background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:24px; }
+.hero-panel h1 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 10px 0 6px;
+}
 
-.form-alert { display:flex; align-items:flex-start; gap:8px; padding:12px 14px; background:#fee2e2; border:1px solid #fecaca; border-radius:6px; color:#991b1b; margin-bottom:18px; font-size:0.875rem; }
-.form-alert i, .form-alert svg { width:16px; height:16px; margin-top:2px; flex-shrink:0; }
-.form-alert p { margin:0; }
+.form-subtitle {
+    color: #5b6474;
+    font-size: 0.9rem;
+    margin: 0;
+    max-width: 760px;
+}
 
-.field-group { margin-bottom:18px; }
-.field-group label { display:block; font-size:0.8rem; font-weight:600; color:#374151; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px; }
-.field-group .req { color:#ef4444; }
-.field-group input, .field-group select, .field-group textarea { width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:0.875rem; font-family:inherit; transition:border-color 0.15s; background:#fff; }
-.field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.08); }
-.field-group textarea { resize:vertical; min-height:90px; }
-.field-group select[multiple] { min-height:210px; padding:6px; }
-.asset-picker select { min-height:200px; padding:6px; }
-.field-hint { display:block; font-size:0.78rem; color:#9ca3af; margin-top:4px; }
-.field-error { display:block; font-size:0.78rem; color:#ef4444; margin-top:4px; }
+.btn-back-link {
+    color: #334155;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border: 1px solid #dbe1ee;
+    border-radius: 8px;
+    background: #fff;
+}
 
-.asset-picker { border:1px solid #dbeafe; border-radius:8px; padding:10px; background:#f8fbff; }
-.asset-picker-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
-.asset-picker-search { flex:1; height:34px; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:0.82rem; background:#fff; }
-.asset-picker-search:focus { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.08); }
-.asset-picker-actions { display:flex; gap:6px; }
-.asset-picker-btn { border:1px solid #bfdbfe; background:#fff; color:#1e3a8a; border-radius:6px; padding:6px 10px; font-size:0.76rem; font-weight:600; cursor:pointer; }
-.asset-picker-btn:hover { background:#eef2ff; }
-.asset-picker .form-control[multiple] { min-height:260px; background:#fff; }
-.asset-picker-footer { margin-top:7px; display:flex; justify-content:space-between; gap:8px; align-items:center; font-size:0.74rem; color:#475569; }
-.asset-picker-count { font-weight:700; color:#1e3a8a; }
-.asset-picker-tip { color:#64748b; }
-.asset-picker-preview { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
-.asset-preview-chip { background:#e0e7ff; border:1px solid #c7d2fe; color:#3730a3; border-radius:999px; padding:3px 8px; font-size:0.72rem; line-height:1.2; }
+.btn-back-link:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
 
-.selected-assets-box { border:1px solid #dbeafe; background:#f8fbff; border-radius:6px; max-height:220px; overflow:auto; }
-.selected-asset-row { display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid #e5efff; }
-.selected-asset-row:last-child { border-bottom:none; }
-.selected-asset-tag { display:inline-block; font-size:0.72rem; font-weight:700; color:#1e40af; background:#dbeafe; border:1px solid #bfdbfe; border-radius:999px; padding:2px 8px; white-space:nowrap; }
-.selected-asset-name { font-size:0.82rem; color:#1f2937; }
+.btn-back-link i,
+.btn-back-link svg {
+    width: 16px;
+    height: 16px;
+}
 
-.field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-@media (max-width:600px) { .field-row { grid-template-columns:1fr; } }
+.form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 18px;
+}
 
-.form-actions { display:flex; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid #f1f3f5; }
+@media (max-width: 980px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
 
-/* Buttons */
-.btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:6px; font-size:0.875rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; transition:all 0.15s; }
-.btn i, .btn svg { width:16px; height:16px; }
-.btn-primary { background:#4f46e5; color:#fff; }
-.btn-primary:hover { background:#4338ca; color:#fff; }
-.btn-secondary { background:#fff; color:#374151; border:1px solid #d1d5db; }
-.btn-secondary:hover { background:#f9fafb; }
+/* Main card */
+.form-card {
+    background: #fff;
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.form-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #991b1b;
+    margin-bottom: 18px;
+    font-size: 0.875rem;
+}
+
+.form-alert i,
+.form-alert svg {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.form-alert p {
+    margin: 0;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.77rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #4338ca;
+    margin: 4px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e7eaf5;
+}
+
+.section-title::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #6366f1;
+}
+
+.field-group {
+    margin-bottom: 18px;
+}
+
+.field-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+}
+
+.field-group .req {
+    color: #ef4444;
+}
+
+.field-group input,
+.field-group select,
+.field-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d3d9e4;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    background: #fff;
+    color: #0f172a;
+}
+
+.field-group input:focus,
+.field-group select:focus,
+.field-group textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+.field-group textarea {
+    resize: vertical;
+    min-height: 92px;
+}
+
+.field-hint {
+    display: block;
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 5px;
+}
+
+.field-error {
+    display: block;
+    font-size: 0.78rem;
+    color: #dc2626;
+    margin-top: 5px;
+}
+
+/* Asset picker */
+.asset-picker {
+    border: 1px solid #d6ddea;
+    border-radius: 12px;
+    padding: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.asset-picker-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.asset-picker-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 170px;
+}
+
+.asset-picker-search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.asset-picker-search {
+    width: 100%;
+    height: 38px;
+    border: 1px solid #d3d9e4;
+    border-radius: 9px;
+    padding: 8px 10px 8px 33px;
+    font-size: 0.83rem;
+    background: #fff;
+}
+
+.asset-picker-search:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+.asset-picker-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.asset-picker-btn {
+    border: 1px solid #cfd7e4;
+    background: #fff;
+    color: #334155;
+    border-radius: 9px;
+    padding: 8px 11px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.asset-picker-btn:hover {
+    background: #f1f5f9;
+}
+
+.asset-picker-header {
+    margin-bottom: 8px;
+    padding: 9px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #f8fafc;
+}
+
+.asset-master-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.77rem;
+    color: #334155;
+    font-weight: 700;
+}
+
+.asset-master-check input {
+    width: 14px;
+    height: 14px;
+}
+
+.asset-checkbox-head {
+    display: grid;
+    grid-template-columns: 20px 115px 1fr;
+    gap: 8px;
+    padding: 7px 12px;
+    margin-bottom: 0;
+    border: 1px solid #dfe5ef;
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.71rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.asset-checkbox-list {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid #dfe5ef;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    background: #fff;
+}
+
+.asset-checkbox-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.asset-checkbox-list::-webkit-scrollbar-thumb {
+    background: #cfd8e3;
+    border-radius: 6px;
+}
+
+.asset-checkbox-item {
+    display: grid;
+    grid-template-columns: 20px 115px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #edf2f7;
+    cursor: pointer;
+    transition: background 0.15s ease, border-left-color 0.15s ease;
+    border-left: 3px solid transparent;
+}
+
+.asset-checkbox-item:last-child {
+    border-bottom: none;
+}
+
+.asset-checkbox-item:hover {
+    background: #f8fafc;
+}
+
+.asset-checkbox-item.is-selected {
+    background: #eef2ff;
+    border-left-color: #6366f1;
+}
+
+.asset-checkbox-input {
+    width: 14px;
+    height: 14px;
+}
+
+.asset-checkbox-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #1f2937;
+    background: #eef2f7;
+    border: 1px solid #dbe2ec;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.asset-checkbox-name {
+    font-size: 0.83rem;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.asset-picker-footer {
+    margin-top: 9px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.74rem;
+    color: #64748b;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 9px;
+}
+
+.asset-picker-count {
+    font-weight: 800;
+    color: #334155;
+}
+
+.asset-picker-visible {
+    color: #64748b;
+}
+
+.asset-picker-tip {
+    color: #64748b;
+}
+
+.asset-picker-no-match {
+    padding: 14px 10px;
+    border-top: 1px dashed #e2e8f0;
+    text-align: center;
+    font-weight: 600;
+}
+
+.selected-assets-box {
+    border: 1px solid #dfe5ef;
+    background: #fff;
+    border-radius: 10px;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.selected-asset-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 11px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.selected-asset-row:last-child {
+    border-bottom: none;
+}
+
+.selected-asset-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #1f2937;
+    background: #eef2f7;
+    border: 1px solid #dbe2ec;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.selected-asset-name {
+    font-size: 0.83rem;
+    color: #0f172a;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+@media (max-width: 760px) {
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid #e8edf5;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.btn i,
+.btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-primary {
+    background: #4f46e5;
+    color: #fff;
+    box-shadow: 0 10px 18px rgba(79, 70, 229, 0.2);
+}
+
+.btn-primary:hover {
+    background: #4338ca;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #cfd7e4;
+}
+
+.btn-secondary:hover {
+    background: #f8fafc;
+}
 
 /* Sidebar */
-.sidebar-card { border-radius:8px; padding:16px; margin-bottom:14px; border:1px solid transparent; }
-.sidebar-card h3 { font-size:0.85rem; font-weight:600; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
-.sidebar-card h3 i, .sidebar-card h3 svg { width:16px; height:16px; }
-.sidebar-card ul { margin:0; padding-left:18px; font-size:0.8rem; line-height:1.7; }
-.sidebar-card p { margin:0; font-size:0.8rem; line-height:1.6; }
-.sidebar-amber { background:#fffbeb; border-color:#fcd34d; color:#78350f; }
-.sidebar-amber h3 { color:#92400e; }
-.sidebar-blue { background:#eff6ff; border-color:#bfdbfe; color:#1e3a5f; }
-.sidebar-blue h3 { color:#1e40af; }
+.form-sidebar {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+}
+
+.sidebar-card {
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.sidebar-card h3 {
+    font-size: 0.87rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.sidebar-card h3 i,
+.sidebar-card h3 svg {
+    width: 16px;
+    height: 16px;
+}
+
+.sidebar-card ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.8rem;
+    line-height: 1.7;
+}
+
+.sidebar-card p {
+    margin: 0;
+    font-size: 0.81rem;
+    line-height: 1.6;
+}
+
+.sidebar-muted {
+    color: #334155;
+}
+
+.sidebar-muted h3 {
+    color: #0f172a;
+}
+
+@media (max-width: 980px) {
+    .form-sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .asset-picker-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .asset-picker-actions {
+        width: 100%;
+    }
+
+    .asset-picker-btn {
+        flex: 1;
+    }
+
+    .asset-checkbox-head,
+    .asset-checkbox-item {
+        grid-template-columns: 20px 88px 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
 
-    const selectEl = document.getElementById('{{ form.selected_assets.id_for_label }}');
+    const listEl = document.getElementById('asset-picker-list');
     const searchEl = document.getElementById('asset-picker-search');
     const clearBtn = document.getElementById('asset-clear-selected');
+    const selectAllBtn = document.getElementById('asset-select-all');
+    const masterCheckbox = document.getElementById('asset-master-checkbox');
     const countEl = document.getElementById('asset-picker-count');
-    const previewEl = document.getElementById('asset-picker-preview');
+    const visibleEl = document.getElementById('asset-picker-visible');
+    const noMatchEl = document.getElementById('asset-picker-no-match');
 
-    if (!selectEl || !searchEl) {
+    if (!listEl || !searchEl) {
         return;
     }
 
-    function renderSelectionSummary() {
-        const selected = Array.from(selectEl.options).filter(opt => opt.selected && opt.value);
+    function getVisibleCheckboxes() {
+        return Array.from(listEl.querySelectorAll('.asset-checkbox-item')).filter(item => item.style.display !== 'none');
+    }
+
+    function getAllCheckboxes() {
+        return Array.from(listEl.querySelectorAll('.asset-checkbox-input'));
+    }
+
+    function syncRowSelectedState() {
+        Array.from(listEl.querySelectorAll('.asset-checkbox-item')).forEach(item => {
+            const cb = item.querySelector('.asset-checkbox-input');
+            item.classList.toggle('is-selected', !!(cb && cb.checked));
+        });
+    }
+
+    function renderSelectionCount() {
+        const selected = getAllCheckboxes().filter(cb => cb.checked);
+        const visible = getVisibleCheckboxes();
+        const visibleChecked = visible
+            .map(item => item.querySelector('.asset-checkbox-input'))
+            .filter(cb => cb && cb.checked)
+            .length;
+
         if (countEl) {
             countEl.textContent = `${selected.length} selected`;
         }
-        if (previewEl) {
-            previewEl.innerHTML = '';
-            if (selected.length === 0) {
-                const empty = document.createElement('span');
-                empty.className = 'asset-picker-tip';
-                empty.textContent = 'No assets selected yet.';
-                previewEl.appendChild(empty);
-            } else {
-                selected.slice(0, 6).forEach(opt => {
-                    const chip = document.createElement('span');
-                    chip.className = 'asset-preview-chip';
-                    chip.textContent = (opt.textContent || '').trim();
-                    previewEl.appendChild(chip);
-                });
-                if (selected.length > 6) {
-                    const more = document.createElement('span');
-                    more.className = 'asset-picker-tip';
-                    more.textContent = `+${selected.length - 6} more`;
-                    previewEl.appendChild(more);
-                }
-            }
+        if (visibleEl) {
+            visibleEl.textContent = `${visible.length} visible`;
         }
+        if (masterCheckbox) {
+            masterCheckbox.checked = visible.length > 0 && visibleChecked === visible.length;
+            masterCheckbox.indeterminate = visibleChecked > 0 && visibleChecked < visible.length;
+        }
+        syncRowSelectedState();
     }
 
     function filterOptions() {
         const q = (searchEl.value || '').trim().toLowerCase();
-        Array.from(selectEl.options).forEach(opt => {
-            const visible = !q || opt.textContent.toLowerCase().includes(q);
-            opt.hidden = !visible;
+        Array.from(listEl.querySelectorAll('.asset-checkbox-item')).forEach(item => {
+            const text = item.getAttribute('data-search-text') || '';
+            const visible = !q || text.includes(q);
+            item.style.display = visible ? 'grid' : 'none';
         });
+        const visible = getVisibleCheckboxes().length;
+        if (noMatchEl) {
+            noMatchEl.style.display = visible === 0 ? 'block' : 'none';
+        }
+        renderSelectionCount();
     }
 
     searchEl.addEventListener('input', filterOptions);
 
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() {
-            Array.from(selectEl.options).forEach(opt => {
-                opt.selected = false;
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            getVisibleCheckboxes().forEach(item => {
+                const cb = item.querySelector('.asset-checkbox-input');
+                if (cb) cb.checked = true;
             });
-            searchEl.value = '';
-            filterOptions();
-            renderSelectionSummary();
+            renderSelectionCount();
         });
     }
 
-    selectEl.addEventListener('change', renderSelectionSummary);
-    renderSelectionSummary();
+    if (masterCheckbox) {
+        masterCheckbox.addEventListener('change', function() {
+            const targetState = !!masterCheckbox.checked;
+            getVisibleCheckboxes().forEach(item => {
+                const cb = item.querySelector('.asset-checkbox-input');
+                if (cb) cb.checked = targetState;
+            });
+            renderSelectionCount();
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            getAllCheckboxes().forEach(cb => { cb.checked = false; });
+            searchEl.value = '';
+            filterOptions();
+            renderSelectionCount();
+        });
+    }
+
+    listEl.addEventListener('change', function(event) {
+        if (event.target && event.target.classList.contains('asset-checkbox-input')) {
+            renderSelectionCount();
+        }
+    });
+
+    filterOptions();
 });
 </script>
 {% endblock %}
