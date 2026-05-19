@@ -378,6 +378,7 @@
                         <th>Status</th>
                         <th>Joined</th>
                         <th>Last Login</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -418,6 +419,12 @@
                             {% else %}
                                 <span style="color: var(--text-secondary); font-size: 0.75rem;">Never</span>
                             {% endif %}
+                        </td>
+                        <td onclick="event.stopPropagation();">
+                            <a href="{% url 'user-edit' user.id %}" class="btn btn-secondary" style="padding: 0.4rem 0.7rem; font-size: 0.75rem;">
+                                <svg data-lucide="pencil" style="width: 14px; height: 14px;"></svg>
+                                Edit
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
