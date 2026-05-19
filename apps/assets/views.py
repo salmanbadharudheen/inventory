@@ -263,12 +263,17 @@ ASSET_IMPORT_FIELDS = [
     'salvage_value', 'depreciation_method', 'remarks', 'notes'
 ]
 
+SAMPLE_ASSET_IMPORT_FIELDS = [
+    ('purchase_date (required, YYYY-MM-DD)' if field == 'purchase_date' else field)
+    for field in ASSET_IMPORT_FIELDS
+]
+
 def download_sample_csv(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="sample_assets.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(ASSET_IMPORT_FIELDS)
+    writer.writerow(SAMPLE_ASSET_IMPORT_FIELDS)
     
     # Sample Row
     writer.writerow([
@@ -311,7 +316,7 @@ def download_sample_excel(request):
     alt_row_fill = PatternFill(start_color='F2F7FB', end_color='F2F7FB', fill_type='solid')
 
     # Header row
-    ws.append(ASSET_IMPORT_FIELDS)
+    ws.append(SAMPLE_ASSET_IMPORT_FIELDS)
 
     # Sample row
     sample_data = [
@@ -330,7 +335,7 @@ def download_sample_excel(request):
     ws.append(sample_data)
 
     # Apply header styles
-    for col_idx, header in enumerate(ASSET_IMPORT_FIELDS, 1):
+    for col_idx, header in enumerate(SAMPLE_ASSET_IMPORT_FIELDS, 1):
         cell = ws.cell(row=1, column=col_idx)
         cell.font = header_font
         cell.fill = header_fill
@@ -338,7 +343,7 @@ def download_sample_excel(request):
         cell.border = thin_border
 
     # Apply data row styles
-    for col_idx in range(1, len(ASSET_IMPORT_FIELDS) + 1):
+    for col_idx in range(1, len(SAMPLE_ASSET_IMPORT_FIELDS) + 1):
         cell = ws.cell(row=2, column=col_idx)
         cell.font = data_font
         cell.alignment = data_alignment
@@ -346,7 +351,7 @@ def download_sample_excel(request):
         cell.fill = alt_row_fill
 
     # Auto-fit column widths based on content
-    for col_idx, header in enumerate(ASSET_IMPORT_FIELDS, 1):
+    for col_idx, header in enumerate(SAMPLE_ASSET_IMPORT_FIELDS, 1):
         col_letter = get_column_letter(col_idx)
         header_len = len(str(header))
         data_val = sample_data[col_idx - 1] if col_idx - 1 < len(sample_data) else ''
@@ -1617,6 +1622,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'employee number': 'employee_number', 'employee no': 'employee_number',
         'employee id': 'employee_number', 'emp no': 'employee_number',
         'purchase date': 'purchase_date', 'purchase price': 'purchase_price',
+        'purchase_date (required, yyyy-mm-dd)': 'purchase_date',
+        'purchase_date_(required,_yyyy-mm-dd)': 'purchase_date',
         'invoice number': 'invoice_number', 'invoice no': 'invoice_number',
         'invoice date': 'invoice_date', 'po number': 'po_number',
         'po date': 'po_date', 'do number': 'do_number', 'do date': 'do_date',
@@ -2188,6 +2195,13 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     try: return int(float(str(val)))
                     except: return default
 
+                raw_purchase_date = row.get('purchase_date')
+                purchase_date = self.parse_date(raw_purchase_date)
+                if purchase_date is None:
+                    if raw_purchase_date in (None, '') or str(raw_purchase_date).strip() == '':
+                        raise ValueError('Purchase Date is required.')
+                    raise ValueError(f"Invalid Purchase Date '{raw_purchase_date}'. Use a valid date format.")
+
                 # Create Asset Instance (in memory)
                 asset = Asset(
                     organization=org,
@@ -2226,7 +2240,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     site=site,
                     location=location,
                     sub_location=sub_location,
-                    purchase_date=self.parse_date(row.get('purchase_date')),
+                    purchase_date=purchase_date,
                     purchase_price=parse_decimal(row.get('purchase_price')),
                     currency=str(row.get('currency') or 'AED')[:10],
                     invoice_number=str(row.get('invoice_number') or '')[:100],

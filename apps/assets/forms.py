@@ -67,6 +67,10 @@ class AssetForm(forms.ModelForm):
             self.request = kwargs.pop('request', None)
             super().__init__(*args, **kwargs)
 
+            # Purchase date is required for asset creation/edit flows.
+            if 'purchase_date' in self.fields:
+                self.fields['purchase_date'].required = True
+
             # Set initial for label_type (multi-select from comma-separated string)
             if not self.instance.pk:
                 self.initial['label_type'] = ['QR_CODE', 'BARCODE']
@@ -198,6 +202,9 @@ class AssetForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+
+        if not cleaned_data.get('purchase_date'):
+            self.add_error('purchase_date', _('Purchase date is required.'))
 
         field_rules = {
             'image': (ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_UPLOAD_BYTES),
