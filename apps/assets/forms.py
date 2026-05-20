@@ -795,15 +795,25 @@ class AssetDisposalForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
-        
-        # Filter assets by organization - supports searching by asset_tag and name
+
+        # Keep initial GET lightweight: do not preload all eligible assets.
+        self.fields['selected_assets'].queryset = Asset.objects.none()
+
         if self.request and self.request.user.is_authenticated and hasattr(self.request.user, 'organization') and self.request.user.organization:
             org = self.request.user.organization
-            self.fields['selected_assets'].queryset = Asset.objects.filter(
+            eligible_qs = Asset.objects.filter(
                 organization=org,
                 is_deleted=False,
                 status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE]
-            ).order_by('asset_tag')
+            )
+
+            # For bound forms (POST), bind queryset to submitted IDs so validation works
+            # without loading every eligible asset.
+            if self.is_bound:
+                selected_key = self.add_prefix('selected_assets')
+                submitted_ids = list(dict.fromkeys(self.data.getlist(selected_key)))
+                if submitted_ids:
+                    self.fields['selected_assets'].queryset = eligible_qs.filter(id__in=submitted_ids)
         
         self.fields['disposal_date'].required = False
         self.fields['estimated_salvage_value'].required = False

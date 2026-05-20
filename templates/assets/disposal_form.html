@@ -72,26 +72,11 @@
                                 <span>Asset Tag</span>
                                 <span>Asset Name</span>
                             </div>
-                            <div id="asset-picker-list" class="asset-checkbox-list">
-                                {% with selected_vals=form.selected_assets.value %}
-                                    {% for asset in form.fields.selected_assets.queryset %}
-                                    <label class="asset-checkbox-item" data-search-text="{{ asset.asset_tag|default:''|lower }} {{ asset.name|default:''|lower }}">
-                                        <input
-                                            type="checkbox"
-                                            name="selected_assets"
-                                            value="{{ asset.id }}"
-                                            class="asset-checkbox-input"
-                                            {% if selected_vals and asset.id|stringformat:'s' in selected_vals %}checked{% endif %}
-                                        >
-                                        <span class="asset-checkbox-tag">{{ asset.asset_tag|default:'NO-TAG' }}</span>
-                                        <span class="asset-checkbox-name">{{ asset.name|default:'Unnamed Asset' }}</span>
-                                    </label>
-                                    {% empty %}
-                                    <div class="asset-picker-tip">No eligible assets available for disposal.</div>
-                                    {% endfor %}
-                                {% endwith %}
+                            <div id="asset-picker-list" class="asset-checkbox-list" data-selected="{% with selected_vals=form.selected_assets.value %}{% if selected_vals %}{{ selected_vals|join:',' }}{% endif %}{% endwith %}">
+                                <div class="asset-picker-tip" id="asset-picker-loading">Loading assets...</div>
                                 <div id="asset-picker-no-match" class="asset-picker-tip asset-picker-no-match" style="display:none;">No assets match your search.</div>
                             </div>
+                            <div id="asset-selected-hidden"></div>
                             <div class="asset-picker-footer">
                                 <span id="asset-picker-count" class="asset-picker-count">0 selected</span>
                                 <span id="asset-picker-visible" class="asset-picker-visible">0 visible</span>
@@ -745,7 +730,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
 
+    const SEARCH_URL = '{% url "ajax-search-disposal-assets" %}';
     const listEl = document.getElementById('asset-picker-list');
+    const hiddenSelectedEl = document.getElementById('asset-selected-hidden');
     const searchEl = document.getElementById('asset-picker-search');
     const clearBtn = document.getElementById('asset-clear-selected');
     const selectAllBtn = document.getElementById('asset-select-all');
@@ -753,36 +740,68 @@ document.addEventListener('DOMContentLoaded', function() {
     const countEl = document.getElementById('asset-picker-count');
     const visibleEl = document.getElementById('asset-picker-visible');
     const noMatchEl = document.getElementById('asset-picker-no-match');
+    const loadingEl = document.getElementById('asset-picker-loading');
 
     if (!listEl || !searchEl) {
         return;
     }
 
-    function getVisibleCheckboxes() {
-        return Array.from(listEl.querySelectorAll('.asset-checkbox-item')).filter(item => item.style.display !== 'none');
+    const selectedFromServer = (listEl.getAttribute('data-selected') || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+    const selectedSet = new Set(selectedFromServer);
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
-    function getAllCheckboxes() {
-        return Array.from(listEl.querySelectorAll('.asset-checkbox-input'));
+    function getVisibleRows() {
+        return Array.from(listEl.querySelectorAll('.asset-checkbox-item'));
+    }
+
+    function getVisibleCheckboxes() {
+        return getVisibleRows()
+            .map(item => item.querySelector('.asset-checkbox-input'))
+            .filter(Boolean);
     }
 
     function syncRowSelectedState() {
-        Array.from(listEl.querySelectorAll('.asset-checkbox-item')).forEach(item => {
+        getVisibleRows().forEach(item => {
             const cb = item.querySelector('.asset-checkbox-input');
-            item.classList.toggle('is-selected', !!(cb && cb.checked));
+            const checked = !!(cb && selectedSet.has(cb.value));
+            if (cb) {
+                cb.checked = checked;
+            }
+            item.classList.toggle('is-selected', checked);
+        });
+    }
+
+    function syncHiddenSelectedInputs() {
+        if (!hiddenSelectedEl) {
+            return;
+        }
+        hiddenSelectedEl.innerHTML = '';
+        selectedSet.forEach(function(assetId) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'selected_assets';
+            input.value = assetId;
+            hiddenSelectedEl.appendChild(input);
         });
     }
 
     function renderSelectionCount() {
-        const selected = getAllCheckboxes().filter(cb => cb.checked);
         const visible = getVisibleCheckboxes();
-        const visibleChecked = visible
-            .map(item => item.querySelector('.asset-checkbox-input'))
-            .filter(cb => cb && cb.checked)
-            .length;
+        const visibleChecked = visible.filter(cb => selectedSet.has(cb.value)).length;
 
         if (countEl) {
-            countEl.textContent = `${selected.length} selected`;
+            countEl.textContent = `${selectedSet.size} selected`;
         }
         if (visibleEl) {
             visibleEl.textContent = `${visible.length} visible`;
@@ -792,29 +811,86 @@ document.addEventListener('DOMContentLoaded', function() {
             masterCheckbox.indeterminate = visibleChecked > 0 && visibleChecked < visible.length;
         }
         syncRowSelectedState();
+        syncHiddenSelectedInputs();
     }
 
-    function filterOptions() {
-        const q = (searchEl.value || '').trim().toLowerCase();
-        Array.from(listEl.querySelectorAll('.asset-checkbox-item')).forEach(item => {
-            const text = item.getAttribute('data-search-text') || '';
-            const visible = !q || text.includes(q);
-            item.style.display = visible ? 'grid' : 'none';
-        });
-        const visible = getVisibleCheckboxes().length;
-        if (noMatchEl) {
-            noMatchEl.style.display = visible === 0 ? 'block' : 'none';
+    function renderRows(assets) {
+        getVisibleRows().forEach(row => row.remove());
+
+        if (!assets.length) {
+            if (noMatchEl) {
+                noMatchEl.style.display = 'block';
+            }
+            renderSelectionCount();
+            return;
         }
+
+        if (noMatchEl) {
+            noMatchEl.style.display = 'none';
+        }
+
+        assets.forEach(function(asset) {
+            const row = document.createElement('label');
+            row.className = 'asset-checkbox-item';
+            row.innerHTML = `
+                <input type="checkbox" class="asset-checkbox-input" value="${escapeHtml(asset.id)}">
+                <span class="asset-checkbox-tag">${escapeHtml(asset.asset_tag || 'NO-TAG')}</span>
+                <span class="asset-checkbox-name">${escapeHtml(asset.name || 'Unnamed Asset')}</span>
+            `;
+            listEl.insertBefore(row, noMatchEl);
+        });
+
         renderSelectionCount();
     }
 
-    searchEl.addEventListener('input', filterOptions);
+    let pendingRequest = null;
+    async function fetchAssets(query) {
+        const params = new URLSearchParams({ q: query || '', limit: '120' });
+        const url = `${SEARCH_URL}?${params.toString()}`;
+
+        if (loadingEl) {
+            loadingEl.style.display = 'block';
+        }
+
+        try {
+            pendingRequest = url;
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) {
+                throw new Error('Failed to load assets');
+            }
+            const payload = await response.json();
+            if (pendingRequest !== url) {
+                return;
+            }
+            const assets = Array.isArray(payload.assets) ? payload.assets : [];
+            renderRows(assets);
+        } catch (error) {
+            if (noMatchEl) {
+                noMatchEl.textContent = 'Unable to load assets right now. Please retry.';
+                noMatchEl.style.display = 'block';
+            }
+            renderRows([]);
+        } finally {
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
+        }
+    }
+
+    let searchDebounce = null;
+    searchEl.addEventListener('input', function() {
+        if (searchDebounce) {
+            window.clearTimeout(searchDebounce);
+        }
+        searchDebounce = window.setTimeout(function() {
+            fetchAssets((searchEl.value || '').trim());
+        }, 220);
+    });
 
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
-            getVisibleCheckboxes().forEach(item => {
-                const cb = item.querySelector('.asset-checkbox-input');
-                if (cb) cb.checked = true;
+            getVisibleCheckboxes().forEach(cb => {
+                selectedSet.add(cb.value);
             });
             renderSelectionCount();
         });
@@ -823,9 +899,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (masterCheckbox) {
         masterCheckbox.addEventListener('change', function() {
             const targetState = !!masterCheckbox.checked;
-            getVisibleCheckboxes().forEach(item => {
-                const cb = item.querySelector('.asset-checkbox-input');
-                if (cb) cb.checked = targetState;
+            getVisibleCheckboxes().forEach(cb => {
+                if (targetState) {
+                    selectedSet.add(cb.value);
+                } else {
+                    selectedSet.delete(cb.value);
+                }
             });
             renderSelectionCount();
         });
@@ -833,20 +912,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
-            getAllCheckboxes().forEach(cb => { cb.checked = false; });
+            selectedSet.clear();
             searchEl.value = '';
-            filterOptions();
+            fetchAssets('');
             renderSelectionCount();
         });
     }
 
     listEl.addEventListener('change', function(event) {
         if (event.target && event.target.classList.contains('asset-checkbox-input')) {
+            if (event.target.checked) {
+                selectedSet.add(event.target.value);
+            } else {
+                selectedSet.delete(event.target.value);
+            }
             renderSelectionCount();
         }
     });
 
-    filterOptions();
+    renderSelectionCount();
+    fetchAssets('');
 });
 </script>
 {% endblock %}

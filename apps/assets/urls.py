@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     AssetListView, AssetCreateView, AssetDetailView, AssetUpdateView, AssetDeleteView, AssetImportView, 
     BulkAssetActionView, ExportAssetExcelView, DepreciationReportCategoryView, DepreciationReportGroupView, DepreciationReportLocationView, DepreciationReportDepartmentView,
-    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset, ajax_search_assets,
+    download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset, ajax_search_assets, ajax_search_disposal_assets,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
     label_print_center, print_asset_labels_bulk, mark_assets_tagged,
@@ -65,6 +65,7 @@ urlpatterns = [
     path('ajax/locations/', get_locations, name='get-locations'),
     path('ajax/lookup/', lookup_asset, name='asset-lookup'),
     path('ajax/search/', ajax_search_assets, name='ajax-search-assets'),
+    path('ajax/disposals/search/', ajax_search_disposal_assets, name='ajax-search-disposal-assets'),
     path('add/', AssetCreateView.as_view(), name='asset-create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset-detail'),
     path('<uuid:pk>/edit/', AssetUpdateView.as_view(), name='asset-update'),

@@ -248,6 +248,58 @@ def ajax_search_assets(request):
 
     return JsonResponse({'assets': assets, 'total': qs.count()})
 
+
+def ajax_search_disposal_assets(request):
+    """Return eligible assets for disposal picker without rendering full list server-side."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    org = getattr(request.user, 'organization', None)
+    if not org:
+        return JsonResponse({'assets': [], 'total': 0})
+
+    q = (request.GET.get('q') or '').strip()
+    raw_limit = request.GET.get('limit', '100')
+    try:
+        limit = min(max(int(raw_limit), 1), 200)
+    except (TypeError, ValueError):
+        limit = 100
+
+    _active_disposal_statuses = [
+        AssetDisposal.Status.PENDING,
+        AssetDisposal.Status.MANAGER_APPROVED,
+        AssetDisposal.Status.APPROVED,
+        AssetDisposal.Status.COMPLETED,
+    ]
+
+    qs = Asset.objects.filter(
+        organization=org,
+        is_deleted=False,
+        status__in=[Asset.Status.ACTIVE, Asset.Status.IN_STORAGE, Asset.Status.UNDER_MAINTENANCE],
+    ).exclude(
+        disposals__status__in=_active_disposal_statuses
+    )
+
+    if q:
+        qs = qs.filter(
+            Q(asset_tag__icontains=q)
+            | Q(name__icontains=q)
+            | Q(custom_asset_tag__icontains=q)
+            | Q(serial_number__icontains=q)
+        )
+
+    qs = qs.order_by('asset_tag')
+    assets = [
+        {
+            'id': str(a.id),
+            'asset_tag': a.asset_tag or 'NO-TAG',
+            'name': a.name or 'Unnamed Asset',
+        }
+        for a in qs[:limit]
+    ]
+
+    return JsonResponse({'assets': assets, 'total': qs.count()})
+
 ASSET_IMPORT_FIELDS = [
     'name', 'description', 'short_description', 'asset_tag',
     'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
