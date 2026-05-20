@@ -310,7 +310,7 @@
             display: flex; align-items: center; justify-content: space-between;
             padding: calc(2px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad));
             font-size: calc(0.6rem * var(--custom-font-scale)); color: #374151; flex-shrink: 0;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: none;
         }
         .label-classic .lbl-header .org-name {
             --org-base-size: 0.6rem;
@@ -322,19 +322,19 @@
         }
         .label-classic .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: calc(14px * var(--custom-inner-pad));
+            padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(8px * var(--custom-inner-pad));
         }
         .label-classic .lbl-qr { flex: 0 0 auto; }
         .label-classic .lbl-qr img {
-            width: calc(120px * var(--custom-qr-scale)); height: calc(120px * var(--custom-qr-scale));
-            border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
-            background: #fff;
+            width: calc(108px * var(--custom-qr-scale)); height: calc(108px * var(--custom-qr-scale));
+            border: none; border-radius: 0; padding: 0;
+            background: transparent;
         }
-        .label-classic .lbl-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-        .label-classic .lbl-right img { width: 100%; height: calc(70px * var(--custom-barcode-scale)); object-fit: contain; }
+        .label-classic .lbl-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+        .label-classic .lbl-right img { width: 100%; height: calc(92px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.72rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
+            font-size: calc(0.66rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.05em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -556,32 +556,34 @@
                 padding: 1pt 5pt;
                 font-size: calc(7pt * var(--custom-font-scale));
                 line-height: 1.2;
+                border-bottom: none;
             }
             .label-classic .lbl-header .tag-num {
                 font-size: calc(6.2pt * var(--custom-font-scale));
             }
             .label-classic .lbl-body {
-                padding: 2pt 5pt;
-                gap: 8pt;
+                padding: 1.5pt 4pt;
+                gap: 5pt;
                 flex: 1;
             }
             .label-classic .lbl-qr img {
-                width: calc(0.76in * var(--custom-qr-scale));
-                height: calc(0.76in * var(--custom-qr-scale));
-                padding: 1pt;
-                border: 0.3pt solid #ccc;
+                width: calc(0.66in * var(--custom-qr-scale));
+                height: calc(0.66in * var(--custom-qr-scale));
+                padding: 0;
+                border: none !important;
+                background: transparent !important;
             }
             .label-classic .lbl-right {
-                gap: 4pt;
+                gap: 2pt;
             }
             .label-classic .lbl-right img {
-                height: calc(0.42in * var(--custom-barcode-scale));
+                height: calc(0.58in * var(--custom-barcode-scale));
                 width: 100%;
                 object-fit: contain;
             }
             .label-classic .lbl-right .lbl-tag {
-                font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
-                letter-spacing: 0.05em;
+                font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
+                letter-spacing: 0.04em;
             }
 
             /* ── COMPACT print ─────────────────────────── */
@@ -948,7 +950,7 @@
             body.size-roll-133x19 .label-detailed .lbl-right img,
             body.size-roll-133x19 .label-modern .lbl-barcode-inline img,
             body.size-roll-133x19 .label-barcode-only .lbl-barcode-img img {
-                height: calc(5.5mm * var(--custom-barcode-scale)) !important;
+                height: calc(6.8mm * var(--custom-barcode-scale)) !important;
             }
 
             body.size-roll-133x19 .label-classic .org-name,
@@ -1674,10 +1676,10 @@ async function sendToExternalPrintApp() {
                    CSS width:100%/height:auto scales the whole SVG
                    proportionally, so this controls the aspect ratio
                    rather than absolute pixel size on the sticker. */
-                height: 120,
+                     height: 160,
                 /* quiet zone: minimum 10x narrow bar width required
                    by GS1/ISO for reliable scanning. */
-                margin: 12
+                     margin: 6
             });
             /* IMPORTANT: do NOT set preserveAspectRatio="none".
                That scales X and Y independently, producing non-integer
