@@ -406,7 +406,10 @@ def _sample_asset_import_values():
 
 def download_sample_csv(request):
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="sample_assets.csv"'
+    response['Content-Disposition'] = 'attachment; filename="sample_assets_v2.csv"'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
 
     writer = csv.writer(response)
     writer.writerow(SAMPLE_ASSET_IMPORT_FIELDS)
@@ -479,7 +482,10 @@ def download_sample_excel(request):
     ws.freeze_panes = 'A2'
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="sample_assets.xlsx"'
+    response['Content-Disposition'] = 'attachment; filename="sample_assets_v2.xlsx"'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
     wb.save(response)
     return response
 
