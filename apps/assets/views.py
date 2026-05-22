@@ -91,10 +91,11 @@ def get_locations(request):
     return JsonResponse([], safe=False)
 
 def lookup_asset(request):
-    # Support lookup by free-text `q` (tag/name/code), `asset_tag`, or by explicit `asset_id`.
+    # Support lookup by free-text `q` (tag/name/code/RFID), `asset_tag`, `rfid_tag`, or explicit `asset_id`.
     asset_id = request.GET.get('asset_id')
     query = request.GET.get('q')
     asset_tag = request.GET.get('asset_tag')
+    rfid_tag = request.GET.get('rfid_tag')
 
     asset = None
     org = getattr(request.user, 'organization', None)
@@ -110,11 +111,12 @@ def lookup_asset(request):
             asset = None
 
     elif asset_tag:
-        # Search by asset tag, asset code, ERP number (exact) then partial
+        # Search by asset tag, asset code, ERP number, RFID (exact) then partial
         asset = Asset.objects.filter(
             Q(asset_tag__iexact=asset_tag) |
             Q(asset_code__iexact=asset_tag) |
-            Q(erp_asset_number__iexact=asset_tag),
+            Q(erp_asset_number__iexact=asset_tag) |
+            Q(rfid_tag__iexact=asset_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -127,6 +129,7 @@ def lookup_asset(request):
             asset = Asset.objects.filter(
                 Q(asset_tag__icontains=asset_tag) |
                 Q(asset_code__icontains=asset_tag) |
+                Q(rfid_tag__icontains=asset_tag) |
                 Q(name__icontains=asset_tag),
                 organization=org
             ).select_related(
@@ -135,12 +138,24 @@ def lookup_asset(request):
                 'company', 'custodian'
             ).first()
 
+    elif rfid_tag:
+        asset = Asset.objects.filter(
+            Q(rfid_tag__iexact=rfid_tag) |
+            Q(asset_tag__iexact=rfid_tag),
+            organization=org
+        ).select_related(
+            'department', 'branch', 'building', 'floor', 'room',
+            'region', 'site', 'location', 'sub_location', 'assigned_to',
+            'company', 'custodian'
+        ).first()
+
     elif query:
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
             Q(asset_tag__iexact=query) |
             Q(asset_code__iexact=query) |
-            Q(erp_asset_number__iexact=query),
+            Q(erp_asset_number__iexact=query) |
+            Q(rfid_tag__iexact=query),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -179,6 +194,7 @@ def lookup_asset(request):
         'id': str(asset.id),
         'name': asset.name,
         'asset_tag': asset.asset_tag,
+        'rfid_tag': asset.rfid_tag,
         'department': {'id': asset.department.id, 'name': asset.department.name} if asset.department else None,
         'branch': {'id': asset.branch.id, 'name': asset.branch.name} if asset.branch else None,
         'building': {'id': asset.building.id, 'name': asset.building.name} if asset.building else None,
@@ -233,7 +249,8 @@ def ajax_search_assets(request):
             Q(asset_tag__icontains=q) |
             Q(name__icontains=q) |
             Q(custom_asset_tag__icontains=q) |
-            Q(serial_number__icontains=q)
+            Q(serial_number__icontains=q) |
+            Q(rfid_tag__icontains=q)
         )
 
     assets = []
@@ -286,6 +303,7 @@ def ajax_search_disposal_assets(request):
             | Q(name__icontains=q)
             | Q(custom_asset_tag__icontains=q)
             | Q(serial_number__icontains=q)
+            | Q(rfid_tag__icontains=q)
         )
 
     qs = qs.order_by('asset_tag')
@@ -302,7 +320,7 @@ def ajax_search_disposal_assets(request):
 
 ASSET_IMPORT_FIELDS = [
     'name', 'description', 'short_description', 'asset_tag',
-    'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 
+    'asset_code', 'erp_asset_number', 'quantity', 'label_type', 'serial_number', 'rfid_tag', 
     'category', 'sub_category', 'asset_type', 'group', 'sub_group', 'brand', 
     'model', 'condition', 'status', 'department', 'cost_center', 'company', 
     'supplier', 'vendor', 'custodian', 'employee_number', 'branch', 'building', 
@@ -330,7 +348,7 @@ def download_sample_csv(request):
     # Sample Row
     writer.writerow([
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', '1', 'BARCODE', 'SN123456', 
+        'C001', 'ERP-100', '1', 'BARCODE', 'SN123456', 'RFID-0001',
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
@@ -373,7 +391,7 @@ def download_sample_excel(request):
     # Sample row
     sample_data = [
         'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', 1, 'BARCODE', 'SN123456',
+        'C001', 'ERP-100', 1, 'BARCODE', 'SN123456', 'RFID-0001',
         'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell',
         'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp',
         'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building',
@@ -461,6 +479,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                 Q(asset_code__icontains=query) |
                 Q(erp_asset_number__icontains=query) |
                 Q(serial_number__icontains=query) |
+                Q(rfid_tag__icontains=query) |
                 Q(model__icontains=query) |
                 Q(brand__icontains=query) |
                 Q(brand_new__name__icontains=query) |
@@ -535,7 +554,10 @@ class AssetListView(LoginRequiredMixin, ListView):
         if tag_type == 'BARCODE':
             queryset = queryset.filter(barcode_image__isnull=False)
         elif tag_type == 'RFID':
-            queryset = queryset.filter(label_type__iexact='RFID')
+            queryset = queryset.filter(
+                Q(label_type__icontains='RFID') |
+                (Q(rfid_tag__isnull=False) & ~Q(rfid_tag=''))
+            )
         
         # Date Range Filters
         purchase_date_from = self.request.GET.get('purchase_date_from')
@@ -1093,7 +1115,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             headers = [
                 # Identification
                 'Asset Tag', 'Asset Code', 'ERP Asset Number', 'Name', 'Short Description', 'Description',
-                'Serial Number', 'Quantity', 'Label Type', 'Asset Type', 'Status', 'Condition',
+                'Serial Number', 'RFID Tag', 'Quantity', 'Label Type', 'Asset Type', 'Status', 'Condition',
                 # Classification
                 'Category', 'Sub Category', 'Group', 'Sub Group', 'Brand', 'Model',
                 # Ownership
@@ -1178,7 +1200,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             numeric_col_indexes.extend([col, col + 1])  # Accumulated Depreciation, Current NBV
         else:
             # Quantity, Purchase Price, Salvage Value, Accumulated Depreciation, Current NBV, Maintenance Frequency
-            numeric_col_indexes = [8, 36, 37, 56, 57, 59]
+            numeric_col_indexes = [9, 37, 38, 57, 58, 60]
 
         totals = {idx: 0.0 for idx in numeric_col_indexes}
         row_count = 0
@@ -1240,6 +1262,7 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                     asset.short_description or '',
                     asset.description or '',
                     asset.serial_number or '',
+                    asset.rfid_tag or '',
                     int(asset.quantity or 0),
                     asset.get_label_type_display() if asset.label_type else '',
                     asset.get_asset_type_display() if asset.asset_type else '',
@@ -1670,6 +1693,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
         'asset code': 'asset_code', 'asset type': 'asset_type',
         'label type': 'label_type', 'serial number': 'serial_number',
+        'rfid': 'rfid_tag', 'rfid tag': 'rfid_tag', 'rfid number': 'rfid_tag',
         'serial no': 'serial_number', 'cost center': 'cost_center',
         'employee number': 'employee_number', 'employee no': 'employee_number',
         'employee id': 'employee_number', 'emp no': 'employee_number',
@@ -2267,6 +2291,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     quantity=parse_int(row.get('quantity'), 1),
                     label_type=label_type,
                     serial_number=row.get('serial_number'),
+                    rfid_tag=row.get('rfid_tag'),
                     category=category,
                     sub_category=sub_category,
                     asset_type=asset_type,
@@ -3365,6 +3390,7 @@ class MastersListView(LoginRequiredMixin, View):
             assets_qs = assets_qs.filter(
                 Q(asset_tag__icontains=search_query) |
                 Q(name__icontains=search_query) |
+                Q(rfid_tag__icontains=search_query) |
                 Q(serial_number__icontains=search_query) |
                 Q(category__name__icontains=search_query)
             )
@@ -3530,6 +3556,7 @@ class MastersExportExcelView(LoginRequiredMixin, View):
             assets_qs = assets_qs.filter(
                 Q(asset_tag__icontains=search_query) |
                 Q(name__icontains=search_query) |
+                Q(rfid_tag__icontains=search_query) |
                 Q(serial_number__icontains=search_query) |
                 Q(category__name__icontains=search_query)
             )
@@ -3693,7 +3720,7 @@ class MastersExportExcelView(LoginRequiredMixin, View):
         # Define headers (matching the table columns)
         headers = [
             'Asset Tag', 'Name', 'Category', 'Sub Category', 'Asset Type', 'Group', 'Sub Group',
-            'Brand', 'Model', 'Condition', 'Serial Number', 'Supplier', 'Vendor', 'Company',
+            'Brand', 'Model', 'Condition', 'Serial Number', 'RFID Tag', 'Supplier', 'Vendor', 'Company',
             'Department', 'Custodian', 'Employee Number', 'Region', 'Branch', 'Building', 
             'Floor', 'Room', 'Location', 'Site', 'Purchase Date', 'Purchase Price', 'Currency',
             'Invoice Number', 'PO Number', 'GRN Number', 'Warranty Start', 'Warranty End',
@@ -3724,6 +3751,7 @@ class MastersExportExcelView(LoginRequiredMixin, View):
                 asset.model or '',
                 asset.get_condition_display() if asset.condition else '',
                 asset.serial_number or '',
+                asset.rfid_tag or '',
                 asset.supplier.name if asset.supplier else '',
                 asset.vendor.name if asset.vendor else '',
                 asset.company.name if asset.company else '',
@@ -4815,6 +4843,7 @@ class AssetDisposalApproveView(LoginRequiredMixin, UpdateView):
                 'asset_code': asset.asset_code,
                 'name': asset.name,
                 'serial_number': asset.serial_number,
+                'rfid_tag': asset.rfid_tag,
                 'status': asset.status,
                 'category': str(asset.category) if asset.category else None,
                 'sub_category': str(asset.sub_category) if asset.sub_category else None,
@@ -4892,6 +4921,7 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
+                Q(rfid_tag__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(category__name__icontains=query)
             )
@@ -5083,6 +5113,7 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
+                Q(rfid_tag__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(department__name__icontains=query)
             )
@@ -5267,6 +5298,7 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
+                Q(rfid_tag__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(location__name__icontains=query)
             )
@@ -5451,6 +5483,7 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
                 Q(name__icontains=query) |
                 Q(asset_tag__icontains=query) |
                 Q(asset_code__icontains=query) |
+                Q(rfid_tag__icontains=query) |
                 Q(serial_number__icontains=query) |
                 Q(group__name__icontains=query)
             )
@@ -5851,6 +5884,7 @@ class AssetReconciliationReportView(LoginRequiredMixin, View):
                 Q(asset_tag__icontains=q) |
                 Q(name__icontains=q) |
                 Q(asset_code__icontains=q) |
+                Q(rfid_tag__icontains=q) |
                 Q(serial_number__icontains=q)
             )
 
@@ -6173,6 +6207,7 @@ class AssetReconciliationReportPDFView(LoginRequiredMixin, View):
                 Q(asset_tag__icontains=q) |
                 Q(name__icontains=q) |
                 Q(asset_code__icontains=q) |
+                Q(rfid_tag__icontains=q) |
                 Q(serial_number__icontains=q)
             )
 

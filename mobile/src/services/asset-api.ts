@@ -60,6 +60,19 @@ export async function lookupAssetByTag(
     if (res.status === 404) throw new Error("Asset not found");
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail ?? "Failed to look up asset");
+
+  export async function lookupAssetByRfidTag(
+    rfidTag: string
+  ): Promise<AssetDetail> {
+    const url = `${API.ASSETS.LOOKUP}?rfid_tag=${encodeURIComponent(rfidTag)}`;
+    const res = await authFetch(url);
+    if (!res.ok) {
+      if (res.status === 404) throw new Error("Asset not found");
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail ?? "Failed to look up asset by RFID");
+    }
+    return res.json();
+  }
   }
   return res.json();
 }

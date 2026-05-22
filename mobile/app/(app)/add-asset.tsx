@@ -93,6 +93,7 @@ export default function AddAssetScreen() {
   const [description, setDescription] = useState("");
   const [shortDesc, setShortDesc] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
+  const [rfidTag, setRfidTag] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [condition, setCondition] = useState<AssetCondition>("NEW");
   const [assetType, setAssetType] = useState<AssetType>("TAGGABLE");
@@ -209,6 +210,7 @@ export default function AddAssetScreen() {
     if (description.trim()) p.description = description.trim();
     if (shortDesc.trim()) p.short_description = shortDesc.trim();
     if (serialNumber.trim()) p.serial_number = serialNumber.trim();
+    if (rfidTag.trim()) p.rfid_tag = rfidTag.trim();
     const qty = parseInt(quantity, 10);
     if (qty > 1) p.quantity = qty;
     if (brandText.trim()) p.brand = brandText.trim();
@@ -345,6 +347,15 @@ export default function AddAssetScreen() {
 
               <Label text="Serial Number" />
               <Input value={serialNumber} onChangeText={setSerialNumber} placeholder="e.g. SN-12345" />
+
+
+              <Label text="RFID Tag" />
+              <Input
+                value={rfidTag}
+                onChangeText={setRfidTag}
+                placeholder="e.g. E20034120123456789ABCDEF"
+                autoCapitalize="characters"
+              />
 
               <Label text="Quantity" />
               <Input

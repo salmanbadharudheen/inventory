@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Camera, CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
+import { lookupAssetByRfidTag } from "../../src/services/asset-api";
 
 /* ─── Exported screen ─── */
 export default function ScanAssetScreen() {
@@ -19,7 +20,7 @@ export default function ScanAssetScreen() {
   const [scanned, setScanned] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualValue, setManualValue] = useState("");
-  const [searchMode, setSearchMode] = useState<"tag" | "id">("tag");
+  const [searchMode, setSearchMode] = useState<"tag" | "id" | "rfid">("tag");
   const [cameraReady, setCameraReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const processingRef = useRef(false);
@@ -69,11 +70,22 @@ export default function ScanAssetScreen() {
   const handleManualSubmit = () => {
     const value = manualValue.trim();
     if (!value) {
-      Alert.alert("Required", searchMode === "tag" ? "Please enter an asset tag." : "Please enter an asset ID.");
+      Alert.alert("Required", searchMode === "tag" ? "Please enter an asset tag." : searchMode === "rfid" ? "Please enter an RFID tag." : "Please enter an asset ID.");
       return;
     }
     if (searchMode === "id") {
       navigateToDetailById(value);
+    } else if (searchMode === "rfid") {
+      lookupAssetByRfidTag(value)
+        .then((asset) => {
+          router.push({
+            pathname: "/(app)/asset-detail",
+            params: { asset_id: asset.id, from_scan: "1" },
+          });
+        })
+        .catch((err: any) => {
+          Alert.alert("Not Found", err.message ?? "No asset found with that RFID tag.");
+        });
     } else {
       navigateToDetail(value);
     }
@@ -153,11 +165,21 @@ export default function ScanAssetScreen() {
                 Asset ID
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.toggleBtn, searchMode === "rfid" && s.toggleBtnActive]}
+              onPress={() => { setSearchMode("rfid"); setManualValue(""); }}
+            >
+              <Text style={[s.toggleBtnText, searchMode === "rfid" && s.toggleBtnTextActive]}>
+                RFID Tag
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={s.subtitle}>
             {searchMode === "tag"
               ? "Type the asset tag printed below the barcode"
+              : searchMode === "rfid"
+              ? "Enter the RFID tag number (e.g. E20034120123456789ABCDEF)"
               : "Enter the numeric/UUID asset ID"}
           </Text>
 
@@ -165,9 +187,9 @@ export default function ScanAssetScreen() {
             style={s.input}
             value={manualValue}
             onChangeText={setManualValue}
-            placeholder={searchMode === "tag" ? "e.g. ABC-0001-26" : "e.g. 1042 or UUID"}
+            placeholder={searchMode === "tag" ? "e.g. ABC-0001-26" : searchMode === "rfid" ? "e.g. E20034120123456789ABCDEF" : "e.g. 1042 or UUID"}
             placeholderTextColor="#9CA3AF"
-            autoCapitalize={searchMode === "tag" ? "characters" : "none"}
+            autoCapitalize={searchMode === "tag" || searchMode === "rfid" ? "characters" : "none"}
             autoCorrect={false}
             autoFocus
             returnKeyType="search"

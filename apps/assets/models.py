@@ -315,6 +315,7 @@ class Asset(TenantAwareModel):
     )
     
     serial_number = models.CharField(max_length=100, blank=True, null=True)
+    rfid_tag = models.CharField(max_length=100, blank=True, null=True, verbose_name="RFID Tag")
     
     # Hierarchy
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children', verbose_name="Parent Asset")
@@ -664,6 +665,7 @@ class Asset(TenantAwareModel):
         indexes = [
             models.Index(fields=['asset_tag']),
             models.Index(fields=['serial_number']),
+            models.Index(fields=['rfid_tag']),
             models.Index(fields=['status']),
             models.Index(fields=['organization']),
             models.Index(fields=['organization', 'category']),

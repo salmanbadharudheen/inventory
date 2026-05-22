@@ -212,7 +212,7 @@ class AssetReadSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'short_description',
             'asset_tag', 'asset_code', 'erp_asset_number',
-            'serial_number', 'quantity', 'label_type', 'tagging_status',
+            'serial_number', 'rfid_tag', 'quantity', 'label_type', 'tagging_status',
             # classification
             'category', 'category_name', 'sub_category',
             'group', 'group_name', 'sub_group',
@@ -271,7 +271,7 @@ class AssetCreateSerializer(serializers.ModelSerializer):
             # identification
             'name', 'description', 'short_description',
             'asset_code', 'erp_asset_number',
-            'serial_number', 'quantity', 'label_type',
+            'serial_number', 'rfid_tag', 'quantity', 'label_type',
             # classification
             'category', 'sub_category', 'group', 'sub_group',
             'asset_type', 'brand', 'model', 'condition',

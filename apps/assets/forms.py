@@ -59,6 +59,7 @@ class AssetForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 3}),
             'short_description': forms.TextInput(attrs={'placeholder': 'Brief summary'}),
             'erp_asset_number': forms.TextInput(attrs={'placeholder': 'ERP Reference'}),
+            'rfid_tag': forms.TextInput(attrs={'placeholder': 'e.g. E20034120123456789ABCDEF'}),
             'parent': forms.HiddenInput(), # Hidden, populated by JS lookup
         }
 

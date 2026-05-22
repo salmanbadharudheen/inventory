@@ -600,9 +600,10 @@ class AssetLookupByTagAPIView(APIView):
         from django.db.models import Q
 
         tag = request.query_params.get('asset_tag', '').strip()
-        if not tag:
+        rfid_tag = request.query_params.get('rfid_tag', '').strip()
+        if not tag and not rfid_tag:
             return Response(
-                {'detail': 'asset_tag query parameter is required.'},
+                {'detail': 'asset_tag or rfid_tag query parameter is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -617,7 +618,7 @@ class AssetLookupByTagAPIView(APIView):
             organization=org,
             is_deleted=False,
         ).filter(
-            Q(asset_tag__iexact=tag) | Q(custom_asset_tag__iexact=tag)
+            Q(asset_tag__iexact=tag) | Q(custom_asset_tag__iexact=tag) if tag else Q(rfid_tag__iexact=rfid_tag)
         ).select_related(
             'category', 'sub_category', 'group', 'sub_group',
             'company', 'department', 'site', 'building',
@@ -697,7 +698,8 @@ class AssetListAPIView(APIView):
             qs = qs.filter(
                 Q(name__icontains=search) |
                 Q(asset_tag__icontains=search) |
-                Q(serial_number__icontains=search)
+                Q(serial_number__icontains=search) |
+                Q(rfid_tag__icontains=search)
             )
 
         # simple pagination

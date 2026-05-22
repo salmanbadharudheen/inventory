@@ -129,6 +129,7 @@ export interface AssetCreatePayload {
   description?: string;
   short_description?: string;
   serial_number?: string;
+  rfid_tag?: string;
   quantity?: number;
   asset_type?: AssetType;
   condition?: AssetCondition;
@@ -179,6 +180,7 @@ export interface AssetDetail {
   description: string;
   short_description: string;
   serial_number: string;
+  rfid_tag: string | null;
   quantity: number;
   status: AssetStatus;
   condition: AssetCondition;

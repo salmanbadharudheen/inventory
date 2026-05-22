@@ -375,6 +375,15 @@ export default function AssetDetailScreen() {
               <View style={styles.tagChip}>
                 <Text style={styles.tagChipLabel}>Serial No.</Text>
                 <Text style={styles.tagChipValue}>{a.serial_number}</Text>
+
+                        {a.rfid_tag ? (
+                          <View style={[styles.tagRow, { marginTop: 0 }]}>
+                            <View style={[styles.tagChip, { flex: 1 }]}>
+                              <Text style={styles.tagChipLabel}>RFID Tag</Text>
+                              <Text style={styles.tagChipValue}>{a.rfid_tag}</Text>
+                            </View>
+                          </View>
+                        ) : null}
               </View>
             ) : null}
           </View>
