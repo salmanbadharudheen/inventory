@@ -338,27 +338,79 @@ SAMPLE_ASSET_IMPORT_FIELDS = [
     for field in ASSET_IMPORT_FIELDS
 ]
 
+SAMPLE_ASSET_IMPORT_ROW = {
+    'name': 'Laptop Dell XPS',
+    'description': 'High-end laptop',
+    'short_description': 'Dell XPS 15',
+    'asset_tag': 'TAG-001',
+    'asset_code': 'C001',
+    'erp_asset_number': 'ERP-100',
+    'quantity': '1',
+    'label_type': 'BARCODE',
+    'serial_number': 'SN123456',
+    'rfid_tag': 'RFID-0001',
+    'category': 'IT',
+    'sub_category': 'Laptops',
+    'asset_type': 'TAGGABLE',
+    'group': 'IT Equipment',
+    'sub_group': 'Computers',
+    'brand': 'Dell',
+    'model': 'XPS 15',
+    'condition': 'NEW',
+    'status': 'ACTIVE',
+    'department': 'IT Dept',
+    'cost_center': 'CC-101',
+    'company': 'ABC Corp',
+    'supplier': 'Tech Supplies Ltd',
+    'vendor': 'Main Vendor',
+    'employee_number': 'E123',
+    'branch': 'Main Branch',
+    'building': 'HQ Building',
+    'floor': '2nd Floor',
+    'room': 'Room 201',
+    'region': 'North Region',
+    'site': 'Main Site',
+    'location': 'Main Location',
+    'sub_location': 'Sub 1',
+    'purchase_date': '2023-01-01',
+    'purchase_price': '5000',
+    'currency': 'AED',
+    'invoice_number': 'INV-001',
+    'invoice_date': '2023-01-01',
+    'po_number': 'PO-100',
+    'po_date': '2022-12-15',
+    'do_number': 'DO-100',
+    'do_date': '2022-12-28',
+    'grn_number': 'GRN-100',
+    'warranty_start': '2023-01-01',
+    'warranty_end': '2026-01-01',
+    'tagged_date': '2023-01-02',
+    'date_placed_in_service': '2023-01-10',
+    'insurance_start_date': '2023-01-01',
+    'insurance_end_date': '2024-01-01',
+    'maintenance_start_date': '2023-01-01',
+    'maintenance_end_date': '2024-01-01',
+    'next_maintenance_date': '2023-06-01',
+    'maintenance_frequency_days': '180',
+    'expected_units': '1000',
+    'useful_life_years': '5',
+    'salvage_value': '500',
+    'depreciation_method': 'STRAIGHT_LINE',
+    'remarks': 'Needs Setup',
+    'notes': 'Initial deployment',
+}
+
+
+def _sample_asset_import_values():
+    return [SAMPLE_ASSET_IMPORT_ROW.get(field, '') for field in ASSET_IMPORT_FIELDS]
+
 def download_sample_csv(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="sample_assets.csv"'
 
     writer = csv.writer(response)
     writer.writerow(SAMPLE_ASSET_IMPORT_FIELDS)
-    
-    # Sample Row
-    writer.writerow([
-        'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', '1', 'BARCODE', 'SN123456', 'RFID-0001',
-        'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell', 
-        'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp', 
-        'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building', 
-        '2nd Floor', 'Room 201', 'North Region', 'Main Site', 'Main Location', 'Sub 1', '2023-01-01', 
-        '5000', 'AED', 'INV-001', '2023-01-01', 'PO-100', 
-        '2022-12-15', 'DO-100', '2022-12-28', 'GRN-100', '2023-01-01', '2026-01-01', 
-        '2023-01-02', '2023-01-10', '2023-01-01', '2024-01-01', 
-        '2023-01-01', '2024-01-01', '2023-06-01', '180', '1000', '5', '500', 
-        'STRAIGHT_LINE', 'Needs Setup', 'Initial deployment'
-    ])
+    writer.writerow(_sample_asset_import_values())
     
     return response
 
@@ -389,19 +441,7 @@ def download_sample_excel(request):
     ws.append(SAMPLE_ASSET_IMPORT_FIELDS)
 
     # Sample row
-    sample_data = [
-        'Laptop Dell XPS', 'High-end laptop', 'Dell XPS 15', '', 'TAG-001',
-        'C001', 'ERP-100', 1, 'BARCODE', 'SN123456', 'RFID-0001',
-        'IT', 'Laptops', 'TAGGABLE', 'IT Equipment', 'Computers', 'Dell',
-        'XPS 15', 'NEW', 'ACTIVE', 'IT Dept', 'CC-101', 'ABC Corp',
-        'Tech Supplies Ltd', 'Main Vendor', 'EMP001', 'E123', 'Main Branch', 'HQ Building',
-        '2nd Floor', 'Room 201', 'North Region', 'Main Site', 'Main Location', 'Sub 1', '2023-01-01',
-        5000, 'AED', 'INV-001', '2023-01-01', 'PO-100',
-        '2022-12-15', 'DO-100', '2022-12-28', 'GRN-100', '2023-01-01', '2026-01-01',
-        '2023-01-02', '2023-01-10', '2023-01-01', '2024-01-01',
-        '2023-01-01', '2024-01-01', '2023-06-01', '180', '1000', '5', '500',
-        'STRAIGHT_LINE', 'Needs Setup', 'Initial deployment'
-    ]
+    sample_data = _sample_asset_import_values()
     ws.append(sample_data)
 
     # Apply header styles
