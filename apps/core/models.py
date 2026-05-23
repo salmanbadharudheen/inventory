@@ -1,5 +1,13 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 import uuid
+
+
+def validate_logo_file_size(value):
+    # Keep organization branding lightweight and fast to load.
+    max_size = 2 * 1024 * 1024
+    if value and value.size > max_size:
+        raise ValidationError('Logo file size must be 2MB or less.')
 
 class Organization(models.Model):
     class TagSegment(models.TextChoices):
@@ -24,6 +32,7 @@ class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
+    logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True, validators=[validate_logo_file_size])
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

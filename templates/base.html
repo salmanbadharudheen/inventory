@@ -622,8 +622,8 @@
     {% if not request.user.is_superuser or '/users/admin/' not in request.path %}
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-            <img src="{% static 'branding/logo software.png' %}" alt="Accounts Middle East" class="brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-            <span class="brand-fallback">Accounts Middle East</span>
+            <img src="{% if request.user.organization and request.user.organization.logo %}{{ request.user.organization.logo.url }}{% else %}{% static 'branding/logo software.png' %}{% endif %}" alt="{% if request.user.organization %}{{ request.user.organization.name }}{% else %}Accounts Middle East{% endif %}" class="brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+            <span class="brand-fallback">{% if request.user.organization %}{{ request.user.organization.name }}{% else %}Accounts Middle East{% endif %}</span>
         </div>
 
         <nav class="nav-menu">
