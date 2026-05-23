@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Asset Management{% endblock %} | Inventory Pro</title>
+    <title>{% block title %}Asset Management{% endblock %} | Accounts Middle East</title>
 
     <!-- Fonts - Async loading to avoid render blocking -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -109,26 +109,31 @@
 
         .brand {
             padding: 1.5rem;
-            font-size: 1.25rem;
-            font-weight: 800;
-            letter-spacing: -0.025em;
             color: var(--text-on-sidebar);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
             border-bottom: 1px solid var(--border-sidebar);
+            min-height: 88px;
         }
 
-        .brand i {
-            color: var(--primary);
-            min-width: 24px;
-            flex-shrink: 0;
+        .brand-logo {
+            width: 100%;
+            max-width: 220px;
+            height: auto;
+            display: block;
         }
 
         .brand span {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .brand-fallback {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            display: none;
         }
 
         .nav-menu {
@@ -617,8 +622,8 @@
     {% if not request.user.is_superuser or '/users/admin/' not in request.path %}
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-            <i data-lucide="box"></i>
-            <span>Inventory</span>
+            <img src="{% static 'branding/accounts-logo.svg' %}" alt="Accounts Middle East" class="brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+            <span class="brand-fallback">Accounts Middle East</span>
         </div>
 
         <nav class="nav-menu">
@@ -773,7 +778,7 @@
         </nav>
 
         <div class="sidebar-footer">
-            Inventory Pro v1.0
+            Accounts Middle East v1.0
         </div>
     </aside>
     {% endif %}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-label="Accounts Middle East 25 Years">
+  <rect width="1200" height="320" fill="none"/>
+  <g fill="#f8392a" font-family="Segoe UI, Arial, sans-serif">
+    <text x="20" y="170" font-size="112" font-weight="400">Accounts</text>
+    <text x="280" y="242" font-size="72" font-weight="400">Middle East</text>
+  </g>
+
+  <g fill="#f92523">
+    <path d="M680 65c10 0 17 3 23 8l118 92c17 13 17 38 0 51l-118 92c-25 20-63 2-63-29V94c0-21 17-29 40-29z"/>
+    <path d="M830 65c10 0 17 3 23 8l118 92c17 13 17 38 0 51l-118 92c-25 20-63 2-63-29V94c0-21 17-29 40-29z"/>
+  </g>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-weight="700">
+    <text x="1005" y="258" font-size="170" fill="#14919b">2</text>
+    <text x="1080" y="150" font-size="165" fill="#14919b">5</text>
+    <text x="1092" y="238" font-size="160" fill="#f92523">0</text>
+    <text x="1110" y="172" font-size="34" fill="#14919b">YEARS</text>
+  </g>
+</svg>

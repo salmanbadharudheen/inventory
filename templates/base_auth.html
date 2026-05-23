@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sign In{% endblock %} | Company Logo</title>
+    <title>{% block title %}Sign In{% endblock %} | Accounts Middle East</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,19 +54,22 @@
         .brand-header {
             text-align: center;
             margin-bottom: 2rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #0F172A;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.75rem;
         }
 
-        .brand-header i {
-            color: var(--primary);
-            width: 32px;
-            height: 32px;
+        .brand-logo {
+            width: min(100%, 380px);
+            height: auto;
+            display: block;
+        }
+
+        .brand-fallback {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0F172A;
+            display: none;
         }
 
         .card {
@@ -132,7 +135,8 @@
 <body>
     <div class="auth-container">
         <div class="brand-header">
-            <i data-lucide="box"></i> Company Logo
+            <img src="{% static 'branding/accounts-logo.svg' %}" alt="Accounts Middle East" class="brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+            <span class="brand-fallback">Accounts Middle East</span>
         </div>
         {% block content %}{% endblock %}
     </div>
