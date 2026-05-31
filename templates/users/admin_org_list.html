@@ -782,6 +782,27 @@
         </div>
 
         <div class="org-actions">
+            {% if user.is_superuser or user.organization_id == org.id %}
+            <form method="post" action="{% url 'admin-org-logo-update' pk=org.pk %}" enctype="multipart/form-data" style="margin:0; display:grid; gap:8px; grid-column:1 / -1;">
+                {% csrf_token %}
+                <input type="file" name="logo" accept="image/*" required style="font-size:0.78rem; border:1px solid #d1d5db; border-radius:8px; padding:6px; background:#fff;">
+                <button type="submit" class="org-action-btn soft wide" title="Upload organization logo">
+                    <svg data-lucide="image-up" style="width:12px;height:12px;"></svg>
+                    Upload Logo
+                </button>
+            </form>
+            {% if org.logo %}
+            <form method="post" action="{% url 'admin-org-logo-update' pk=org.pk %}" style="margin:0; grid-column:1 / -1;">
+                {% csrf_token %}
+                <input type="hidden" name="clear_logo" value="1">
+                <button type="submit" class="org-action-btn soft wide" title="Remove organization logo">
+                    <svg data-lucide="image-off" style="width:12px;height:12px;"></svg>
+                    Remove Logo
+                </button>
+            </form>
+            {% endif %}
+            {% endif %}
+
             {% if user.is_superuser %}
             {% if org.is_active %}
             <a href="{% url 'admin-org-login' pk=org.pk %}" class="org-action primary full" title="Login to Organization">

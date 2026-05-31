@@ -5,7 +5,7 @@ from .views import (
     AdminUserDeleteView, AdminUserToggleStatusView, UserProfileView,
     OrgAssetTagSettingsView, OrgTagPreviewAPI,
     AdminOrgCreateView, AdminOrgUpdateView, AdminOrgDeleteView, AdminOrgAssignAdminView, AdminOrgDashboardView,
-    AdminOrgToggleStatusView,
+    AdminOrgToggleStatusView, AdminOrgLogoUpdateView,
     OwnerLoginView, OwnerLogoutView, AdminOrgLoginView, OwnerExitOrgModeView,
 )
 
@@ -29,6 +29,7 @@ urlpatterns = [
     path('admin/organizations/<uuid:pk>/login/', AdminOrgLoginView.as_view(), name='admin-org-login'),
     path('admin/organizations/create/', AdminOrgCreateView.as_view(), name='admin-org-create'),
     path('admin/organizations/<uuid:pk>/edit/', AdminOrgUpdateView.as_view(), name='admin-org-edit'),
+    path('admin/organizations/<uuid:pk>/logo/', AdminOrgLogoUpdateView.as_view(), name='admin-org-logo-update'),
     path('admin/organizations/<uuid:pk>/delete/', AdminOrgDeleteView.as_view(), name='admin-org-delete'),
     path('admin/organizations/<uuid:pk>/toggle-status/', AdminOrgToggleStatusView.as_view(), name='admin-org-toggle-status'),
     path('admin/organizations/<uuid:pk>/assign-admin/', AdminOrgAssignAdminView.as_view(), name='admin-org-assign-admin'),

@@ -6,6 +6,7 @@ from django.urls import reverse_lazy, reverse
 from django.views.generic import CreateView, ListView, TemplateView, DetailView, UpdateView, DeleteView, FormView, View
 from django.http import Http404, JsonResponse
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from .models import User
 from .forms import AdminCreationForm, UserCreationForm, UserUpdateForm, OrganizationForm, AssignOrganizationAdminForm, OrganizationCreateWithAdminForm
 from apps.core.models import Organization
@@ -403,6 +404,44 @@ class AdminOrgUpdateView(SuperuserRequiredMixin, UpdateView):
         response = super().form_valid(form)
         messages.success(self.request, f'Organization "{self.object.name}" updated successfully.')
         return response
+
+
+class AdminOrgLogoUpdateView(AdminRequiredMixin, View):
+    """Upload/remove organization logo from the organizations list page."""
+
+    def post(self, request, pk):
+        org = get_object_or_404(Organization, pk=pk)
+
+        # Superuser can update any org logo; admins only their own org.
+        if not request.user.is_superuser:
+            if not request.user.organization_id or request.user.organization_id != org.id:
+                raise Http404("Organization not found")
+
+        if request.POST.get('clear_logo') == '1':
+            if org.logo:
+                org.logo.delete(save=False)
+                org.logo = None
+                org.save(update_fields=['logo'])
+                messages.success(request, f'Logo removed for "{org.name}".')
+            else:
+                messages.info(request, f'"{org.name}" does not have a logo to remove.')
+            return redirect('admin-orgs')
+
+        logo_file = request.FILES.get('logo')
+        if not logo_file:
+            messages.error(request, 'Please choose a logo file before uploading.')
+            return redirect('admin-orgs')
+
+        org.logo = logo_file
+        try:
+            org.full_clean(validate_unique=False)
+        except ValidationError as exc:
+            messages.error(request, '; '.join(exc.messages) or 'Invalid logo file.')
+            return redirect('admin-orgs')
+
+        org.save(update_fields=['logo'])
+        messages.success(request, f'Logo updated for "{org.name}".')
+        return redirect('admin-orgs')
 
 
 class AdminOrgDeleteView(SuperuserRequiredMixin, DeleteView):
