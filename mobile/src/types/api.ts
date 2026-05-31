@@ -117,6 +117,10 @@ export type AssetCondition = "NEW" | "USED" | "DAMAGED" | "UNDER_REPAIR";
 
 export type AssetType = "TAGGABLE" | "BUILDING_IMPROVEMENTS" | "NTA" | "CAPEX";
 
+export type LabelType = "RFID" | "QR_CODE" | "BARCODE";
+
+export type LabelStatus = "TAGGED" | "UNTAGGED";
+
 export type DepreciationMethod =
   | "STRAIGHT_LINE"
   | "DOUBLE_DECLINING"
@@ -134,6 +138,8 @@ export interface AssetCreatePayload {
   asset_type?: AssetType;
   condition?: AssetCondition;
   status?: AssetStatus;
+  label_type?: LabelType;
+  tagging_status?: LabelStatus;
   // classification
   sub_category?: number | null;
   group?: number | null;

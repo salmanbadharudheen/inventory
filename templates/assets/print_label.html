@@ -320,12 +320,34 @@
             min-width: 0;
             flex: 1;
         }
+        body.logo-pos-left .label-classic .lbl-header-main {
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+        body.logo-pos-center .label-classic .lbl-header-main {
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 2px;
+        }
+        body.logo-pos-center .label-classic .lbl-header .org-name {
+            text-align: center;
+        }
+        body.logo-pos-right .label-classic .lbl-header-main {
+            flex-direction: row-reverse;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
         .label-classic .org-logo {
             width: calc(18px * var(--custom-logo-scale));
             height: calc(18px * var(--custom-logo-scale));
             object-fit: contain;
             flex: 0 0 auto;
             border-radius: 2px;
+            /* Keep logo smooth; barcode/QR use separate sharpness rules. */
+            image-rendering: auto !important;
+            filter: contrast(1.04) saturate(1.03);
         }
         .label-classic .lbl-header .org-name {
             --org-base-size: 0.6rem;
@@ -686,6 +708,10 @@
         .hide-org .company,
         .hide-org .lbl-company,
         .hide-org .org-logo {
+            display: none !important;
+        }
+
+        .hide-logo .org-logo {
             display: none !important;
         }
 
@@ -1059,19 +1085,43 @@
             width: 100%;
             height: auto;        /* preserve aspect ratio — no bar distortion */
             shape-rendering: crispEdges;  /* eliminates antialiasing on bar edges */
-            image-rendering: pixelated;
+            image-rendering: auto;
             flex-shrink: 0;
         }
-        /* Screen preview: constrain containers so bars don't overflow */
+        /* Preserve barcode quiet-zones so scanners can read consistently. */
+        .label-classic .lbl-right,
+        .label-detailed .lbl-right,
+        .label-barcode-only .lbl-barcode-img,
+        .label-modern .lbl-barcode-inline {
+            padding: 0 3px;
+            box-sizing: border-box;
+            background: #fff;
+        }
+
+        /* Screen preview: avoid clipping barcode side quiet-zones. */
         .label-classic .lbl-right,
         .label-detailed .lbl-right {
-            overflow: hidden;
+            overflow: visible;
         }
         .label-barcode-only .lbl-barcode-img,
         .label-modern .lbl-barcode-inline {
-            overflow: hidden;
+            overflow: visible;
         }
         @media print {
+            .label {
+                opacity: 1 !important;
+                filter: none !important;
+            }
+
+            .label-classic .lbl-right,
+            .label-detailed .lbl-right,
+            .label-barcode-only .lbl-barcode-img,
+            .label-modern .lbl-barcode-inline {
+                padding: 0 0.8mm !important;
+                overflow: visible !important;
+                background: #fff !important;
+            }
+
             /* On print, just let width:100%/height:auto do the work —
                no explicit height so bars never get distorted by dual-axis scaling */
             .label-classic .lbl-right .lbl-barcode-svg,
@@ -1081,7 +1131,7 @@
                 width: 100% !important;
                 height: auto !important;
                 shape-rendering: crispEdges !important;
-                image-rendering: pixelated !important;
+                image-rendering: auto !important;
             }
             body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-detailed .lbl-right .lbl-barcode-svg,
@@ -1194,17 +1244,30 @@
     </div>
 
     <div class="field">
-        <label for="logo-size">Logo Size <span class="control-value" id="logo-size-value">Medium</span></label>
+        <label for="logo-size">Logo Size <span class="control-value" id="logo-size-value">Large</span></label>
         <select id="logo-size">
             <option value="0.7">Tiny</option>
             <option value="0.8">Small</option>
             <option value="0.9">Compact</option>
-            <option value="1" selected>Medium</option>
-            <option value="1.15">Large</option>
+            <option value="1">Medium</option>
+            <option value="1.15" selected>Large</option>
             <option value="1.3">XL</option>
             <option value="1.5">2XL</option>
             <option value="1.7">3XL</option>
             <option value="2">4XL</option>
+            <option value="2.4">5XL</option>
+            <option value="2.8">6XL</option>
+            <option value="3.2">7XL</option>
+            <option value="3.6">8XL</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="logo-position">Logo Position</label>
+        <select id="logo-position">
+            <option value="left" selected>Left Top</option>
+            <option value="center">Middle Top</option>
+            <option value="right">Right Top</option>
         </select>
     </div>
 
@@ -1216,8 +1279,8 @@
     <div class="field">
         <label for="org-align">Organization Align</label>
         <select id="org-align">
-            <option value="left" selected>Left</option>
-            <option value="center">Center</option>
+            <option value="left">Left</option>
+            <option value="center" selected>Center</option>
             <option value="right">Right</option>
         </select>
     </div>
@@ -1297,6 +1360,7 @@
 
     <div class="toggles">
         <label class="toggle"><input type="checkbox" id="toggle-org" checked> Show organization</label>
+        <label class="toggle"><input type="checkbox" id="toggle-logo" checked> Show logo</label>
         <label class="toggle"><input type="checkbox" id="toggle-tag" checked> Show asset tag</label>
         <label class="toggle"><input type="checkbox" id="toggle-qr" checked> Show QR code</label>
         <label class="toggle"><input type="checkbox" id="toggle-barcode" checked> Show barcode</label>
@@ -1702,6 +1766,13 @@ async function sendToExternalPrintApp() {
         var tag = svg.dataset.tag;
         if (!tag) return;
         try {
+            var selectedSize = getSelectedPrintSize();
+            var isSmallSticker = selectedSize.wMm <= 55;
+            var moduleWidth = isSmallSticker ? 1 : 2;
+            if (String(tag).length >= 12) {
+                moduleWidth = 1;
+            }
+
             JsBarcode(svg, tag, {
                 format: 'CODE128',
                 displayValue: false,
@@ -1711,15 +1782,16 @@ async function sendToExternalPrintApp() {
                    Integer value is critical — fractional widths cause
                    sub-pixel antialiasing that blurs bars on small stickers.
                    3px gives bars thick enough to survive scaling to 2≨1″. */
-                width: 3,
+                     width: moduleWidth,
                 /* height = bar height in SVG coordinates.
                    CSS width:100%/height:auto scales the whole SVG
                    proportionally, so this controls the aspect ratio
                    rather than absolute pixel size on the sticker. */
-                     height: 160,
+                            height: isSmallSticker ? 72 : 110,
                 /* quiet zone: minimum 10x narrow bar width required
                    by GS1/ISO for reliable scanning. */
-                     margin: 6
+                            margin: 10,
+                     flat: true
             });
             /* IMPORTANT: do NOT set preserveAspectRatio="none".
                That scales X and Y independently, producing non-integer
@@ -1782,6 +1854,7 @@ async function sendToExternalPrintApp() {
         font: document.getElementById('font-scale'),
         orgFont: document.getElementById('org-font-scale'),
         logoSize: document.getElementById('logo-size'),
+        logoPosition: document.getElementById('logo-position'),
         tagFont: document.getElementById('tag-font-scale'),
         orgAlign: document.getElementById('org-align'),
         qr: document.getElementById('qr-scale'),
@@ -1794,6 +1867,7 @@ async function sendToExternalPrintApp() {
         bgcolor: document.getElementById('bg-color'),
         copies: document.getElementById('copies-count'),
         org: document.getElementById('toggle-org'),
+        logo: document.getElementById('toggle-logo'),
         tag: document.getElementById('toggle-tag'),
         showQr: document.getElementById('toggle-qr'),
         barcodeToggle: document.getElementById('toggle-barcode'),
@@ -1809,9 +1883,10 @@ async function sendToExternalPrintApp() {
         fontFamily: 'segoe',
         font: '1',
         orgFont: '1',
-        logoSize: '1',
+        logoSize: '1.15',
+        logoPosition: 'left',
         tagFont: '1',
-        orgAlign: 'left',
+        orgAlign: 'center',
         qr: '1',
         barcode: '1',
         spacing: '1',
@@ -1822,6 +1897,7 @@ async function sendToExternalPrintApp() {
         bgcolor: '#ffffff',
         copies: '1',
         org: true,
+        logo: true,
         tag: true,
         showQr: true,
         barcodeToggle: true,
@@ -1894,6 +1970,7 @@ async function sendToExternalPrintApp() {
             font: controls.font.value,
             orgFont: controls.orgFont.value,
             logoSize: controls.logoSize.value,
+            logoPosition: controls.logoPosition.value,
             tagFont: controls.tagFont.value,
             orgAlign: controls.orgAlign.value,
             qr: controls.qr.value,
@@ -1906,6 +1983,7 @@ async function sendToExternalPrintApp() {
             bgcolor: controls.bgcolor.value,
             copies: controls.copies.value,
             org: controls.org.checked,
+            logo: controls.logo.checked,
             tag: controls.tag.checked,
             showQr: controls.showQr.checked,
             barcodeToggle: controls.barcodeToggle.checked,
@@ -1934,7 +2012,15 @@ async function sendToExternalPrintApp() {
         root.style.setProperty('--custom-accent', state.accent);
         root.style.setProperty('--custom-bg', state.bgcolor || '#ffffff');
 
+        var logoPosition = (state.logoPosition || defaults.logoPosition || 'left');
+        body.classList.remove('logo-pos-left', 'logo-pos-center', 'logo-pos-right');
+        if (logoPosition !== 'left' && logoPosition !== 'center' && logoPosition !== 'right') {
+            logoPosition = 'left';
+        }
+        body.classList.add('logo-pos-' + logoPosition);
+
         body.classList.toggle('hide-org', !state.org);
+        body.classList.toggle('hide-logo', !state.logo);
         body.classList.toggle('hide-tag', !state.tag);
         body.classList.toggle('hide-qr', !state.showQr);
         body.classList.toggle('hide-barcode', !state.barcodeToggle);
@@ -1964,7 +2050,11 @@ async function sendToExternalPrintApp() {
                 '1.3': 'XL',
                 '1.5': '2XL',
                 '1.7': '3XL',
-                '2': '4XL'
+                '2': '4XL',
+                '2.4': '5XL',
+                '2.8': '6XL',
+                '3.2': '7XL',
+                '3.6': '8XL'
             };
             logoSizeValue.textContent = logoMap[String(state.logoSize || defaults.logoSize)] || 'Medium';
         }
@@ -1986,6 +2076,7 @@ async function sendToExternalPrintApp() {
         controls.font.value = state.font;
         controls.orgFont.value = state.orgFont || defaults.orgFont;
         controls.logoSize.value = String(state.logoSize || defaults.logoSize);
+        controls.logoPosition.value = state.logoPosition || defaults.logoPosition;
         controls.tagFont.value = state.tagFont || defaults.tagFont;
         controls.orgAlign.value = state.orgAlign || defaults.orgAlign;
 
@@ -2005,6 +2096,7 @@ async function sendToExternalPrintApp() {
         controls.bgcolor.value = state.bgcolor || '#ffffff';
         controls.copies.value = state.copies || '1';
         controls.org.checked = state.org;
+        controls.logo.checked = (typeof state.logo === 'boolean') ? state.logo : defaults.logo;
         controls.tag.checked = state.tag;
         controls.showQr.checked = (typeof state.showQr === 'boolean') ? state.showQr : defaults.showQr;
         controls.barcodeToggle.checked = state.barcodeToggle;
