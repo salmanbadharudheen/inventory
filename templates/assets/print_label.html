@@ -252,6 +252,7 @@
             --custom-inner-pad: 1;
             --custom-qr-scale: 1;
             --custom-barcode-scale: 1;
+            --custom-logo-scale: 1;
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
@@ -311,6 +312,20 @@
             padding: calc(2px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad));
             font-size: calc(0.6rem * var(--custom-font-scale)); color: #374151; flex-shrink: 0;
             border-bottom: none;
+        }
+        .label-classic .lbl-header-main {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            flex: 1;
+        }
+        .label-classic .org-logo {
+            width: calc(18px * var(--custom-logo-scale));
+            height: calc(18px * var(--custom-logo-scale));
+            object-fit: contain;
+            flex: 0 0 auto;
+            border-radius: 2px;
         }
         .label-classic .lbl-header .org-name {
             --org-base-size: 0.6rem;
@@ -558,6 +573,10 @@
                 line-height: 1.2;
                 border-bottom: none;
             }
+            .label-classic .org-logo {
+                width: calc(10pt * var(--custom-logo-scale));
+                height: calc(10pt * var(--custom-logo-scale));
+            }
             .label-classic .lbl-header .tag-num {
                 font-size: calc(6.2pt * var(--custom-font-scale));
             }
@@ -665,7 +684,8 @@
 
         .hide-org .org-name,
         .hide-org .company,
-        .hide-org .lbl-company {
+        .hide-org .lbl-company,
+        .hide-org .org-logo {
             display: none !important;
         }
 
@@ -1174,6 +1194,15 @@
     </div>
 
     <div class="field">
+        <label for="logo-size">Logo Size <span class="control-value" id="logo-size-value">Medium</span></label>
+        <select id="logo-size">
+            <option value="0.8">Small</option>
+            <option value="1" selected>Medium</option>
+            <option value="1.25">Large</option>
+        </select>
+    </div>
+
+    <div class="field">
         <label for="tag-font-scale">Asset ID Size <span class="control-value" id="tag-font-scale-value">1.00x</span></label>
         <input id="tag-font-scale" type="range" min="0.7" max="1.8" step="0.05" value="1">
     </div>
@@ -1332,7 +1361,12 @@ function updateBatchParam(batchNum) {
     <div class="label label-classic" data-design="CLASSIC" {% if design != 'CLASSIC' %}style="display:none"{% endif %}>
         <div class="lbl-accent"></div>
         <div class="lbl-header">
-            <span class="org-name org-text">{{ org.name }}</span>
+            <div class="lbl-header-main">
+                {% if org.logo %}
+                <img class="org-logo" src="{{ org.logo.url }}" alt="{{ org.name }} Logo" loading="lazy">
+                {% endif %}
+                <span class="org-name org-text">{{ org.name }}</span>
+            </div>
         </div>
         <div class="lbl-body">
             <div class="lbl-qr">
@@ -1741,6 +1775,7 @@ async function sendToExternalPrintApp() {
         fontFamily: document.getElementById('font-family'),
         font: document.getElementById('font-scale'),
         orgFont: document.getElementById('org-font-scale'),
+        logoSize: document.getElementById('logo-size'),
         tagFont: document.getElementById('tag-font-scale'),
         orgAlign: document.getElementById('org-align'),
         qr: document.getElementById('qr-scale'),
@@ -1768,6 +1803,7 @@ async function sendToExternalPrintApp() {
         fontFamily: 'segoe',
         font: '1',
         orgFont: '1',
+        logoSize: '1',
         tagFont: '1',
         orgAlign: 'left',
         qr: '1',
@@ -1851,6 +1887,7 @@ async function sendToExternalPrintApp() {
             fontFamily: controls.fontFamily.value,
             font: controls.font.value,
             orgFont: controls.orgFont.value,
+            logoSize: controls.logoSize.value,
             tagFont: controls.tagFont.value,
             orgAlign: controls.orgAlign.value,
             qr: controls.qr.value,
@@ -1879,6 +1916,7 @@ async function sendToExternalPrintApp() {
         root.style.setProperty('--custom-font-family', resolveFontFamily(state.fontFamily));
         root.style.setProperty('--custom-font-scale', state.font);
         root.style.setProperty('--custom-org-font-scale', state.orgFont);
+        root.style.setProperty('--custom-logo-scale', state.logoSize || defaults.logoSize);
         root.style.setProperty('--custom-tag-font-scale', state.tagFont || defaults.tagFont);
         root.style.setProperty('--custom-org-align', state.orgAlign);
         root.style.setProperty('--custom-qr-scale', state.qr);
@@ -1901,6 +1939,7 @@ async function sendToExternalPrintApp() {
         body.classList.toggle('hide-qr-border', !state.qrBorder);
 
         var orgFontScaleValue = document.getElementById('org-font-scale-value');
+        var logoSizeValue = document.getElementById('logo-size-value');
         var tagFontScaleValue = document.getElementById('tag-font-scale-value');
         var qrScaleValue = document.getElementById('qr-scale-value');
         var barcodeScaleValue = document.getElementById('barcode-scale-value');
@@ -1909,6 +1948,14 @@ async function sendToExternalPrintApp() {
         var borderWidthValue = document.getElementById('border-width-value');
 
         if (orgFontScaleValue) orgFontScaleValue.textContent = parseFloat(state.orgFont).toFixed(2) + 'x';
+        if (logoSizeValue) {
+            var logoMap = {
+                '0.8': 'Small',
+                '1': 'Medium',
+                '1.25': 'Large'
+            };
+            logoSizeValue.textContent = logoMap[String(state.logoSize || defaults.logoSize)] || 'Medium';
+        }
         if (tagFontScaleValue) tagFontScaleValue.textContent = parseFloat(state.tagFont || defaults.tagFont).toFixed(2) + 'x';
         if (qrScaleValue) qrScaleValue.textContent = parseFloat(state.qr).toFixed(2) + 'x';
         if (barcodeScaleValue) barcodeScaleValue.textContent = parseFloat(state.barcode).toFixed(2) + 'x';
@@ -1926,6 +1973,7 @@ async function sendToExternalPrintApp() {
         controls.fontFamily.value = state.fontFamily || defaults.fontFamily;
         controls.font.value = state.font;
         controls.orgFont.value = state.orgFont || defaults.orgFont;
+        controls.logoSize.value = String(state.logoSize || defaults.logoSize);
         controls.tagFont.value = state.tagFont || defaults.tagFont;
         controls.orgAlign.value = state.orgAlign || defaults.orgAlign;
 
