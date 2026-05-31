@@ -1196,9 +1196,15 @@
     <div class="field">
         <label for="logo-size">Logo Size <span class="control-value" id="logo-size-value">Medium</span></label>
         <select id="logo-size">
+            <option value="0.7">Tiny</option>
             <option value="0.8">Small</option>
+            <option value="0.9">Compact</option>
             <option value="1" selected>Medium</option>
-            <option value="1.25">Large</option>
+            <option value="1.15">Large</option>
+            <option value="1.3">XL</option>
+            <option value="1.5">2XL</option>
+            <option value="1.7">3XL</option>
+            <option value="2">4XL</option>
         </select>
     </div>
 
@@ -1950,9 +1956,15 @@ async function sendToExternalPrintApp() {
         if (orgFontScaleValue) orgFontScaleValue.textContent = parseFloat(state.orgFont).toFixed(2) + 'x';
         if (logoSizeValue) {
             var logoMap = {
+                '0.7': 'Tiny',
                 '0.8': 'Small',
+                '0.9': 'Compact',
                 '1': 'Medium',
-                '1.25': 'Large'
+                '1.15': 'Large',
+                '1.3': 'XL',
+                '1.5': '2XL',
+                '1.7': '3XL',
+                '2': '4XL'
             };
             logoSizeValue.textContent = logoMap[String(state.logoSize || defaults.logoSize)] || 'Medium';
         }
