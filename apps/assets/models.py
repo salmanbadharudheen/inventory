@@ -468,16 +468,23 @@ class Asset(TenantAwareModel):
                 acc_dep = 0.0
 
         elif self.depreciation_method == DepreciationMethod.SYD:
-            # Sum of Years Digits
-            # Denominator = n(n+1)/2
+            # Sum of Years Digits using full-year steps plus a partial-year prorate.
             n = int(life)
-            denominator = n * (n + 1) / 2
+            denominator = n * (n + 1) / 2 if n > 0 else 0
             depreciable = cost - salvage
-            
-            # This is hard to calc "years_passed" continuously.
-            # We'll just show 0 or implement detailed loop later if requested.
-            # Simple approximation for now:
-            acc_dep = 0.0 # Placeholder for complex SYD calc on property
+            if denominator > 0 and depreciable > 0:
+                full_years = int(years_passed)
+                remainder = years_passed - full_years
+
+                for year_index in range(full_years):
+                    remaining_life = n - year_index
+                    if remaining_life <= 0:
+                        break
+                    acc_dep += depreciable * (remaining_life / denominator)
+
+                remaining_life = n - full_years
+                if remainder > 0 and remaining_life > 0:
+                    acc_dep += depreciable * (remaining_life / denominator) * remainder
 
         # Cap at depreciable amount
         depreciable_amount = cost - salvage
@@ -552,6 +559,24 @@ class Asset(TenantAwareModel):
                 acc_dep = rate_per_unit * float(self.units_consumed)
             else:
                 acc_dep = 0.0
+
+        elif self.depreciation_method == DepreciationMethod.SYD:
+            n = int(life)
+            denominator = n * (n + 1) / 2 if n > 0 else 0
+            depreciable = cost - salvage
+            if denominator > 0 and depreciable > 0:
+                full_years = int(years_passed)
+                remainder = years_passed - full_years
+
+                for year_index in range(full_years):
+                    remaining_life = n - year_index
+                    if remaining_life <= 0:
+                        break
+                    acc_dep += depreciable * (remaining_life / denominator)
+
+                remaining_life = n - full_years
+                if remainder > 0 and remaining_life > 0:
+                    acc_dep += depreciable * (remaining_life / denominator) * remainder
         
         # Cap at depreciable amount
         depreciable_amount = cost - salvage

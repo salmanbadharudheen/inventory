@@ -1285,7 +1285,7 @@
         
         {% if opening_date %}
         <div class="depr-card">
-            <span class="stat-label">Opening Value ({{ depr_date_from }})</span>
+            <span class="stat-label">Opening Value ({% if opening_value_date %}{{ opening_value_date|date:'Y-m-d' }}{% else %}{{ depr_date_from }}{% endif %})</span>
             <span class="stat-value" style="color:#3b82f6;">
                 AED {{ total_opening_value|floatformat:2|intcomma }}
             </span>
@@ -1294,7 +1294,7 @@
         
         {% if closing_date %}
         <div class="depr-card">
-            <span class="stat-label">Closing Value ({{ depr_date_to }})</span>
+            <span class="stat-label">Closing Value ({% if closing_value_date %}{{ closing_value_date|date:'Y-m-d' }}{% else %}{{ depr_date_to }}{% endif %})</span>
             <span class="stat-value" style="color:#8b5cf6;">
                 AED {{ total_closing_value|floatformat:2|intcomma }}
             </span>
@@ -1370,7 +1370,7 @@
                         {% if closing_date %}<td class="depr-right" style="color:#8b5cf6; font-weight:600;">{{ asset.currency }} {{ asset.closing_value|floatformat:2|intcomma }}</td>{% endif %}
                         {% if opening_date and closing_date %}<td class="depr-right" style="color:#ef4444;">-{{ asset.currency }} {{ asset.period_depreciation|floatformat:2|intcomma }}</td>{% endif %}
                         <td class="depr-right" style="color:#dc2626;">{% if asset.display_acc_dep %}-{{ asset.currency }} {{ asset.display_acc_dep|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
-                        <td class="depr-right" style="font-weight:600; color:#22c55e;">{{ asset.currency }} {{ asset.current_value|floatformat:2|intcomma }}</td>
+                        <td class="depr-right" style="font-weight:600; color:#22c55e;">{{ asset.currency }} {% if closing_date %}{{ asset.closing_value|floatformat:2|intcomma }}{% else %}{{ asset.current_value|floatformat:2|intcomma }}{% endif %}</td>
                     </tr>
                     <!-- Asset Details Row -->
                     <tr id="depr-detail-{{ asset.id }}" class="depr-detail-row" style="display:none;">
@@ -1472,7 +1472,7 @@
 {% if grouped_data %}
 <!-- Chart: NBV by Category -->
 <div class="depr-chart-card" style="margin-top:1.5rem;">
-    <h3>Category Breakdown</h3>
+    <h3>{{ grouped_title|default:'Category Breakdown' }}</h3>
     <div style="position:relative; height:280px;">
         <canvas id="deprCategoryChart" aria-label="Net book value by category" role="img"></canvas>
     </div>
