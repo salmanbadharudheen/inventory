@@ -42,8 +42,11 @@ export async function getDashboard(force = false): Promise<DashboardData> {
   inFlightPromise = (async () => {
     let res: Response;
     try {
-      res = await authFetch(API.DASHBOARD);
+      // Dashboard is heavier than auth/profile endpoints; allow a longer timeout.
+      res = await authFetch(API.DASHBOARD, {}, 90_000);
     } catch (err: any) {
+      const cached = await getCachedDashboard();
+      if (cached) return cached;
       throw new Error(err.message || "Network error. Please check your connection.");
     }
     if (!res.ok) {

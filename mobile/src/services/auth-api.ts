@@ -53,7 +53,8 @@ async function fetchWithTimeout(
 
 async function authFetch(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs = DEFAULT_TIMEOUT
 ): Promise<Response> {
   let token = await getAccessToken();
 
@@ -69,7 +70,7 @@ async function authFetch(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  let res = await fetchWithTimeout(`${API.BASE_URL}${path}`, { ...options, headers });
+  let res = await fetchWithTimeout(`${API.BASE_URL}${path}`, { ...options, headers }, timeoutMs);
 
   // If 401 try refreshing the token once (with mutex to avoid concurrent refreshes)
   if (res.status === 401) {
@@ -79,7 +80,7 @@ async function authFetch(
     const refreshed = await refreshPromise;
     if (refreshed) {
       headers["Authorization"] = `Bearer ${refreshed}`;
-      res = await fetchWithTimeout(`${API.BASE_URL}${path}`, { ...options, headers });
+      res = await fetchWithTimeout(`${API.BASE_URL}${path}`, { ...options, headers }, timeoutMs);
     }
   }
 

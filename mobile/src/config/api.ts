@@ -1,11 +1,18 @@
 import { Platform } from "react-native";
 
-// Web runs in the browser on the same machine as Django → use localhost
-// Native runs on a phone on the same LAN → use the LAN IP from .env
-const API_URL =
+const DEFAULT_REMOTE_API_URL = "https://web-production-62fee.up.railway.app";
+
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+// Web runs in the browser on the same machine as Django -> localhost.
+// Native release builds must not fall back to localhost; use deployed API.
+const API_URL = normalizeBaseUrl(
   Platform.OS === "web"
     ? "http://localhost:8000"
-    : (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000");
+    : (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_REMOTE_API_URL)
+);
 
 /** All API paths matching Django backend */
 const API = {

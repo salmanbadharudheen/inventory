@@ -413,13 +413,21 @@ class DashboardAPIView(APIView):
         )
         total_purchase = agg['total_purchase']
 
-        # Depreciation
-        assets_with_price = qs.filter(purchase_price__isnull=False)
+        # Financial aggregates can be expensive because depreciation is computed per asset.
+        # Keep mobile dashboard responsive by using exact calculations only on manageable sets.
         total_nbv = Decimal('0')
         total_dep = Decimal('0')
-        for asset in assets_with_price.only('purchase_price', 'purchase_date', 'useful_life_years', 'depreciation_method').iterator(chunk_size=500):
-            total_nbv += asset.current_value
-            total_dep += asset.accumulated_depreciation
+        if show_financial and total_purchase > 0:
+            assets_with_price = qs.filter(purchase_price__isnull=False)
+            priced_count = assets_with_price.count()
+            if priced_count <= 1000:
+                for asset in assets_with_price.only('purchase_price', 'purchase_date', 'useful_life_years', 'depreciation_method', 'salvage_value', 'expected_units', 'units_consumed').iterator(chunk_size=500):
+                    total_nbv += asset.current_value
+                    total_dep += asset.accumulated_depreciation
+            else:
+                # Fallback for very large datasets to avoid request timeouts.
+                total_nbv = total_purchase
+                total_dep = Decimal('0')
 
         dep_pct = float((total_dep / total_purchase) * 100) if total_purchase > 0 else 0
 
