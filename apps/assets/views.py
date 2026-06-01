@@ -334,7 +334,11 @@ ASSET_IMPORT_FIELDS = [
 ]
 
 SAMPLE_ASSET_IMPORT_FIELDS = [
-    ('purchase_date (required, YYYY-MM-DD)' if field == 'purchase_date' else field)
+    (
+        'asset_id (auto-generated)' if field == 'asset_tag'
+        else 'purchase_date (required, YYYY-MM-DD)' if field == 'purchase_date'
+        else field
+    )
     for field in ASSET_IMPORT_FIELDS
 ]
 
@@ -1736,6 +1740,9 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'supplier name': 'supplier', 'vendor name': 'vendor',
         'asset name': 'name', 'asset description': 'description',
         'asset tag': 'asset_tag',
+        'asset id': 'asset_tag', 'assetid': 'asset_tag',
+        'asset_id': 'asset_tag', 'asset no': 'asset_tag',
+        'asset number': 'asset_tag',
         'erp asset number': 'erp_asset_number', 'erp number': 'erp_asset_number',
         'asset code': 'asset_code', 'asset type': 'asset_type',
         'label type': 'label_type', 'serial number': 'serial_number',
@@ -1791,6 +1798,15 @@ class AssetImportView(LoginRequiredMixin, FormView):
         val_str = str(value).strip()
         if not val_str or val_str.lower() in ('none', 'null', 'nan'):
             return None
+
+        # Accept ISO-8601 datetime strings from spreadsheets/APIs,
+        # e.g. 2014-02-01T00:00:00, 2014-02-01T00:00:00Z, 2014-02-01T00:00:00+00:00
+        try:
+            iso_str = val_str[:-1] + '+00:00' if val_str.endswith('Z') else val_str
+            return datetime.fromisoformat(iso_str).date()
+        except (ValueError, TypeError):
+            pass
+
         for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S',
                     '%d/%m/%Y %I:%M:%S %p', '%m/%d/%Y %I:%M:%S %p',
                     '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S',
@@ -1801,6 +1817,35 @@ class AssetImportView(LoginRequiredMixin, FormView):
             except (ValueError, TypeError):
                 continue
         return None
+
+    def _validate_model_field_length(self, model, field_name, value, label):
+        """Validate max length for a model CharField and raise a clear ValueError."""
+        if value is None:
+            return
+        text_value = str(value)
+        if text_value == '':
+            return
+        field = model._meta.get_field(field_name)
+        max_length = getattr(field, 'max_length', None)
+        if max_length and len(text_value) > max_length:
+            raise ValueError(
+                f"{label} exceeds {max_length} characters (got {len(text_value)})."
+            )
+
+    def _validate_instance_charfield_lengths(self, instance):
+        """Validate all CharField values on a model instance before DB write."""
+        for field in instance._meta.concrete_fields:
+            if not isinstance(field, models.CharField):
+                continue
+            value = getattr(instance, field.name, None)
+            if value is None:
+                continue
+            text_value = str(value)
+            if field.max_length and len(text_value) > field.max_length:
+                field_label = str(field.verbose_name or field.name).replace('_', ' ').title()
+                raise ValueError(
+                    f"{field_label} exceeds {field.max_length} characters (got {len(text_value)})."
+                )
 
     def _build_cache(self, model, field='name', org=None):
         qs = model.objects.all()
@@ -1935,14 +1980,27 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         # Auto-create selected new entities
         selected = request.POST.getlist('create_entities')
+        entity_errors = []
+
+        def _validate_entity_name(model, entity_type, value):
+            try:
+                self._validate_model_field_length(model, 'name', value, f"{entity_type} '{value}'")
+                return True
+            except ValueError as exc:
+                entity_errors.append(str(exc))
+                return False
 
         # Groups must be created before SubGroups (dependency order)
         if 'groups' in selected:
             for name in new_entities.get('groups', []):
+                if not _validate_entity_name(Group, 'Group', name):
+                    continue
                 Group.objects.get_or_create(organization=org, name=name)
 
         if 'sub_groups' in selected:
             for name in new_entities.get('sub_groups', []):
+                if not _validate_entity_name(SubGroup, 'Sub-group', name):
+                    continue
                 # Find the parent group from the first matching row
                 parent_group = None
                 for row in rows:
@@ -1961,6 +2019,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
         # Categories must be created before SubCategories (dependency order)
         if 'categories' in selected:
             for name in new_entities.get('categories', []):
+                if not _validate_entity_name(Category, 'Category', name):
+                    continue
                 # Find the sub_group from the first matching row
                 parent_sub_group = None
                 for row in rows:
@@ -1978,6 +2038,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         if 'subcategories' in selected:
             for name in new_entities.get('subcategories', []):
+                if not _validate_entity_name(SubCategory, 'Sub-category', name):
+                    continue
                 parent_cat = None
                 for row in rows:
                     if str(row.get('sub_category') or '').strip().lower() == name.lower():
@@ -1996,14 +2058,20 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         if 'brands' in selected:
             for name in new_entities.get('brands', []):
+                if not _validate_entity_name(Brand, 'Brand', name):
+                    continue
                 Brand.objects.get_or_create(organization=org, name=name)
 
         if 'regions' in selected:
             for name in new_entities.get('regions', []):
+                if not _validate_entity_name(Region, 'Region', name):
+                    continue
                 Region.objects.get_or_create(organization=org, name=name)
 
         if 'sites' in selected:
             for name in new_entities.get('sites', []):
+                if not _validate_entity_name(Site, 'Site', name):
+                    continue
                 # Link site to its region from the file row
                 parent_region = None
                 for row in rows:
@@ -2022,6 +2090,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         if 'buildings' in selected:
             for name in new_entities.get('buildings', []):
+                if not _validate_entity_name(Building, 'Building', name):
+                    continue
                 # Link building to its branch from the file row
                 parent_branch = None
                 for row in rows:
@@ -2040,6 +2110,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         if 'floors' in selected:
             for name in new_entities.get('floors', []):
+                if not _validate_entity_name(Floor, 'Floor', name):
+                    continue
                 # Link floor to its building from the file row
                 parent_building = None
                 for row in rows:
@@ -2055,6 +2127,13 @@ class AssetImportView(LoginRequiredMixin, FormView):
                         building=parent_building, name=name,
                         defaults={'organization': org}
                     )
+
+        if entity_errors:
+            for err in entity_errors[:15]:
+                messages.error(request, err)
+            if len(entity_errors) > 15:
+                messages.error(request, f"...and {len(entity_errors) - 15} more entity validation errors.")
+            return redirect('asset-import')
 
         created_types = [t.replace('_', ' ').title() for t in selected]
         if created_types:
@@ -2222,9 +2301,9 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 _company_val = row.get('company')
                 _row_company = get_from_cache(companies, _company_val)
 
-                asset_tag = str(row.get('asset_tag') or '').strip()
-                if not asset_tag:
-                    asset_tag = generate_tag_for_row(_row_company, category)
+                # Asset ID is always system-generated during import.
+                # Any provided asset_id/asset_tag column value is ignored.
+                asset_tag = generate_tag_for_row(_row_company, category)
 
                 # 2. Enums / Choices
                 def get_choice(val, choices_model, default):
@@ -2265,6 +2344,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 # Special case: Auto-create room if missing but floor exists
                 if not room and floor and row.get('room'):
                     room_name = str(row.get('room')).strip()
+                    self._validate_model_field_length(Room, 'name', room_name, 'Room name')
                     room = Room.objects.create(organization=org, floor=floor, name=room_name)
                     # Add to cache to prevent duplicate creation in this session
                     rooms[room_name.lower()] = room
@@ -2390,6 +2470,9 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     asset_remarks=asset_remarks,
                     notes=str(row.get('notes') or '')
                 )
+
+                # bulk_create bypasses model/form validation; enforce CharField limits here.
+                self._validate_instance_charfield_lengths(asset)
 
                 # Performance: Manually apply inheritance from category (since bulk_create bypasses save())
                 if asset.category:
