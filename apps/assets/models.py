@@ -662,6 +662,13 @@ class Asset(TenantAwareModel):
 
     class Meta:
         unique_together = [('organization', 'asset_tag')]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'asset_code'],
+                condition=models.Q(asset_code__isnull=False) & ~models.Q(asset_code=''),
+                name='unique_asset_code_per_org_non_blank',
+            )
+        ]
         indexes = [
             models.Index(fields=['asset_tag']),
             models.Index(fields=['serial_number']),

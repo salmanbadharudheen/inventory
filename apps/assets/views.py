@@ -333,13 +333,15 @@ ASSET_IMPORT_FIELDS = [
     'salvage_value', 'depreciation_method', 'remarks', 'notes'
 ]
 
+# Asset ID (asset_tag) is system-generated during import, so templates should not ask for it.
+TEMPLATE_ASSET_IMPORT_FIELDS = [field for field in ASSET_IMPORT_FIELDS if field != 'asset_tag']
+
 SAMPLE_ASSET_IMPORT_FIELDS = [
     (
-        'asset_id (auto-generated)' if field == 'asset_tag'
-        else 'purchase_date (required, YYYY-MM-DD)' if field == 'purchase_date'
+        'purchase_date (required, YYYY-MM-DD)' if field == 'purchase_date'
         else field
     )
-    for field in ASSET_IMPORT_FIELDS
+    for field in TEMPLATE_ASSET_IMPORT_FIELDS
 ]
 
 SAMPLE_ASSET_IMPORT_ROW = {
@@ -406,7 +408,7 @@ SAMPLE_ASSET_IMPORT_ROW = {
 
 
 def _sample_asset_import_values():
-    return [SAMPLE_ASSET_IMPORT_ROW.get(field, '') for field in ASSET_IMPORT_FIELDS]
+    return [SAMPLE_ASSET_IMPORT_ROW.get(field, '') for field in TEMPLATE_ASSET_IMPORT_FIELDS]
 
 def download_sample_csv(request):
     response = HttpResponse(content_type='text/csv')
@@ -2196,6 +2198,19 @@ class AssetImportView(LoginRequiredMixin, FormView):
         errors = []
         assets_to_create = []
 
+        # Enforce non-duplicate Asset Code during import:
+        # 1) reject codes that already exist in this organization
+        # 2) reject duplicate codes within the same uploaded file
+        existing_asset_codes = {
+            str(code).strip().lower()
+            for code in Asset.objects.filter(
+                organization=org,
+                asset_code__isnull=False,
+            ).exclude(asset_code='').values_list('asset_code', flat=True)
+            if str(code).strip()
+        }
+        import_asset_codes_seen = set()
+
         # --- STRUCTURED ASSET TAG GENERATION (matches the rest of the app) ---
         # Use the same configuration the org uses for manual asset creation
         # (apps.assets.models.generate_asset_tag), but maintain an in-memory
@@ -2283,6 +2298,16 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 name = str(row.get('name') or '').strip()
                 if not name:
                     raise ValueError("Asset Name is required.")
+
+                asset_code_raw = row.get('asset_code')
+                asset_code = str(asset_code_raw).strip() if asset_code_raw is not None else ''
+                if asset_code:
+                    normalized_asset_code = asset_code.lower()
+                    if normalized_asset_code in existing_asset_codes:
+                        raise ValueError(f"Asset Code '{asset_code}' already exists.")
+                    if normalized_asset_code in import_asset_codes_seen:
+                        raise ValueError(f"Duplicate Asset Code '{asset_code}' in import file.")
+                    import_asset_codes_seen.add(normalized_asset_code)
 
                 cat_val = str(row.get('category') or '').strip()
                 category = get_from_cache(categories_by_code, cat_val) or get_from_cache(categories_by_name, cat_val)
@@ -2412,7 +2437,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     description=str(row.get('description') or ''),
                     short_description=str(row.get('short_description') or ''),
                     asset_tag=asset_tag,
-                    asset_code=row.get('asset_code'),
+                    asset_code=asset_code or None,
                     erp_asset_number=row.get('erp_asset_number'),
                     quantity=parse_int(row.get('quantity'), 1),
                     label_type=label_type,
