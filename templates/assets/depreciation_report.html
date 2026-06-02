@@ -939,6 +939,30 @@
     
     <form method="get" style="display: contents;">
         <input type="hidden" name="view" value="depreciation">
+        <input type="hidden" name="depr_category" value="{{ depr_category }}">
+        <input type="hidden" name="depr_subcategory" value="{{ depr_subcategory }}">
+        <input type="hidden" name="depr_group" value="{{ depr_group }}">
+        <input type="hidden" name="depr_sub_group" value="{{ depr_sub_group }}">
+        <input type="hidden" name="depr_status" value="{{ depr_status }}">
+        <input type="hidden" name="depr_condition" value="{{ depr_condition }}">
+        <input type="hidden" name="depr_label_type" value="{{ depr_label_type }}">
+        <input type="hidden" name="depr_tagging_status" value="{{ depr_tagging_status }}">
+        <input type="hidden" name="depr_brand" value="{{ depr_brand }}">
+        <input type="hidden" name="depr_supplier" value="{{ depr_supplier }}">
+        <input type="hidden" name="depr_product_name" value="{{ depr_product_name }}">
+        <input type="hidden" name="depr_site" value="{{ depr_site }}">
+        <input type="hidden" name="depr_branch" value="{{ depr_branch }}">
+        <input type="hidden" name="depr_building" value="{{ depr_building }}">
+        <input type="hidden" name="depr_floor" value="{{ depr_floor }}">
+        <input type="hidden" name="depr_location" value="{{ depr_location }}">
+        <input type="hidden" name="depr_room" value="{{ depr_room }}">
+        <input type="hidden" name="depr_sub_location" value="{{ depr_sub_location }}">
+        <input type="hidden" name="depr_department" value="{{ depr_department }}">
+        <input type="hidden" name="depr_purchase_date_from" value="{{ depr_purchase_date_from }}">
+        <input type="hidden" name="depr_purchase_date_to" value="{{ depr_purchase_date_to }}">
+        <input type="hidden" name="depr_registered_date_from" value="{{ depr_registered_date_from }}">
+        <input type="hidden" name="depr_registered_date_to" value="{{ depr_registered_date_to }}">
+        <input type="hidden" name="depr_created_by" value="{{ depr_created_by }}">
         
         <!-- Single row: filters + actions -->
         <div class="depr-filter-grid">
@@ -996,7 +1020,7 @@
             </div>
 
             <div class="depr-filter-action-group">
-                {% if request.GET.q or depr_date_from or depr_date_to %}
+                {% if request.GET.q or depr_date_from or depr_date_to or depr_category or depr_subcategory or depr_group or depr_sub_group or depr_status or depr_condition or depr_label_type or depr_tagging_status or depr_brand or depr_supplier or depr_product_name or depr_site or depr_branch or depr_building or depr_floor or depr_location or depr_room or depr_sub_location or depr_department or depr_purchase_date_from or depr_purchase_date_to or depr_registered_date_from or depr_registered_date_to or depr_created_by %}
                 <a href="?view=depreciation" class="depr-btn-reset">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
@@ -1254,7 +1278,7 @@
 </div><!-- /depr-filters-section -->
 
 <!-- Active Filters Indicator -->
-{% if request.GET.q or depr_date_from or depr_date_to %}
+{% if request.GET.q or depr_date_from or depr_date_to or depr_category or depr_subcategory or depr_group or depr_sub_group or depr_status or depr_condition or depr_label_type or depr_tagging_status or depr_brand or depr_supplier or depr_product_name or depr_site or depr_branch or depr_building or depr_floor or depr_location or depr_room or depr_sub_location or depr_department or depr_purchase_date_from or depr_purchase_date_to or depr_registered_date_from or depr_registered_date_to or depr_created_by %}
 <div class="depr-active-filters">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
@@ -1263,6 +1287,10 @@
         Filters Applied: 
         {% if request.GET.q %}Search ({{ request.GET.q }}){% endif %}
         {% if depr_date_from or depr_date_to %} • Date Range{% endif %}
+        {% if depr_category or depr_subcategory or depr_group or depr_sub_group or depr_department %} • Classification Filters{% endif %}
+        {% if depr_brand or depr_supplier or depr_product_name or depr_status or depr_condition or depr_label_type or depr_tagging_status %} • Asset Filters{% endif %}
+        {% if depr_site or depr_branch or depr_building or depr_floor or depr_location or depr_room or depr_sub_location %} • Location Filters{% endif %}
+        {% if depr_purchase_date_from or depr_purchase_date_to or depr_registered_date_from or depr_registered_date_to or depr_created_by %} • Advanced Date/Owner Filters{% endif %}
     </span>
     <a href="?view=depreciation" style="margin-left: auto; font-size: 0.75rem; color: var(--primary); font-weight: 600; text-decoration: none; cursor: pointer;">Clear All</a>
 </div>

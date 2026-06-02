@@ -1088,16 +1088,28 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             # Match depreciation report behavior: only assets with value
             queryset = queryset.filter(purchase_price__isnull=False, purchase_price__gt=0)
 
+            depr_product_name = (request.GET.get('depr_product_name') or '').strip()
+            if depr_product_name:
+                queryset = queryset.filter(name__icontains=depr_product_name)
+
             # Apply depreciation dimension filters from report pages
             depr_filters = {
                 'depr_category': 'category_id',
+                'depr_subcategory': 'sub_category_id',
                 'depr_group': 'group_id',
+                'depr_sub_group': 'sub_group_id',
+                'depr_brand': 'brand_new_id',
+                'depr_supplier': 'supplier_id',
                 'depr_department': 'department_id',
                 'depr_site': 'site_id',
                 'depr_branch': 'branch_id',
                 'depr_building': 'building_id',
+                'depr_floor': 'floor_id',
                 'depr_location': 'location_id',
+                'depr_room': 'room_id',
+                'depr_sub_location': 'sub_location_id',
                 'depr_tagging_status': 'tagging_status',
+                'depr_created_by': 'created_by_id',
             }
 
             for param, field in depr_filters.items():
@@ -1105,8 +1117,48 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 if val:
                     queryset = queryset.filter(**{field: val})
 
+            depr_status = (request.GET.get('depr_status') or '').strip()
+            if depr_status:
+                queryset = queryset.filter(status=depr_status)
+
+            depr_condition = (request.GET.get('depr_condition') or '').strip()
+            if depr_condition:
+                queryset = queryset.filter(condition=depr_condition)
+
+            depr_label_type = (request.GET.get('depr_label_type') or '').strip()
+            if depr_label_type:
+                queryset = queryset.filter(label_type=depr_label_type)
+
             depr_date_from = request.GET.get('depr_date_from')
             depr_date_to = request.GET.get('depr_date_to')
+
+            depr_purchase_date_from = (request.GET.get('depr_purchase_date_from') or '').strip()
+            if depr_purchase_date_from:
+                try:
+                    queryset = queryset.filter(purchase_date__gte=datetime.strptime(depr_purchase_date_from, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
+
+            depr_purchase_date_to = (request.GET.get('depr_purchase_date_to') or '').strip()
+            if depr_purchase_date_to:
+                try:
+                    queryset = queryset.filter(purchase_date__lte=datetime.strptime(depr_purchase_date_to, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
+
+            depr_registered_date_from = (request.GET.get('depr_registered_date_from') or '').strip()
+            if depr_registered_date_from:
+                try:
+                    queryset = queryset.filter(created_at__date__gte=datetime.strptime(depr_registered_date_from, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
+
+            depr_registered_date_to = (request.GET.get('depr_registered_date_to') or '').strip()
+            if depr_registered_date_to:
+                try:
+                    queryset = queryset.filter(created_at__date__lte=datetime.strptime(depr_registered_date_to, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
 
             if depr_date_from:
                 try:
@@ -1123,6 +1175,9 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             # Keep only assets existing up to closing date
             if closing_date:
                 queryset = queryset.filter(Q(purchase_date__lte=closing_date) | Q(purchase_date__isnull=True))
+
+        opening_acc_reference_date = (opening_date - timedelta(days=1)) if (is_depreciation_view and opening_date) else None
+        opening_value_date = opening_acc_reference_date if (is_depreciation_view and opening_date and closing_date) else opening_date
         
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -1216,22 +1271,61 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
         if is_depreciation_view:
             depr_fk_filters = [
                 ("Depreciation Category", 'depr_category', Category),
+                ("Depreciation Sub Category", 'depr_subcategory', SubCategory),
                 ("Depreciation Group", 'depr_group', Group),
+                ("Depreciation Sub Group", 'depr_sub_group', SubGroup),
                 ("Depreciation Department", 'depr_department', Department),
                 ("Depreciation Site", 'depr_site', Site),
                 ("Depreciation Branch", 'depr_branch', Branch),
                 ("Depreciation Building", 'depr_building', Building),
+                ("Depreciation Floor", 'depr_floor', Floor),
                 ("Depreciation Location", 'depr_location', Location),
+                ("Depreciation Room", 'depr_room', Room),
+                ("Depreciation Sub Location", 'depr_sub_location', SubLocation),
+                ("Depreciation Brand", 'depr_brand', Brand),
+                ("Depreciation Supplier", 'depr_supplier', Supplier),
             ]
             for label, param, model_cls in depr_fk_filters:
                 raw_val = request.GET.get(param)
                 if raw_val:
                     applied_filters.append((label, resolve_name(model_cls, raw_val)))
 
+            if request.GET.get('depr_product_name'):
+                applied_filters.append(("Depreciation Product Name", request.GET.get('depr_product_name')))
+
+            if request.GET.get('depr_status'):
+                status_val = request.GET.get('depr_status')
+                applied_filters.append(("Depreciation Status", status_map.get(status_val, status_val)))
+
+            if request.GET.get('depr_condition'):
+                condition_val = request.GET.get('depr_condition')
+                applied_filters.append(("Depreciation Condition", condition_map.get(condition_val, condition_val)))
+
+            if request.GET.get('depr_label_type'):
+                label_type_val = request.GET.get('depr_label_type')
+                applied_filters.append(("Depreciation Label Type", label_type_map.get(label_type_val, label_type_val)))
+
+            if request.GET.get('depr_tagging_status'):
+                tagging_val = request.GET.get('depr_tagging_status')
+                applied_filters.append(("Depreciation Tagging Status", tagging_val.title()))
+
+            if request.GET.get('depr_created_by'):
+                applied_filters.append(("Depreciation Registered By", resolve_creator(request.GET.get('depr_created_by'))))
+
             if request.GET.get('depr_date_from') or request.GET.get('depr_date_to'):
                 from_val = request.GET.get('depr_date_from', '')
                 to_val = request.GET.get('depr_date_to', '')
                 applied_filters.append(("Depreciation Date Range", f"{from_val} to {to_val}"))
+
+            if request.GET.get('depr_purchase_date_from') or request.GET.get('depr_purchase_date_to'):
+                from_val = request.GET.get('depr_purchase_date_from', '')
+                to_val = request.GET.get('depr_purchase_date_to', '')
+                applied_filters.append(("Depreciation Purchase Date Range", f"{from_val} to {to_val}"))
+
+            if request.GET.get('depr_registered_date_from') or request.GET.get('depr_registered_date_to'):
+                from_val = request.GET.get('depr_registered_date_from', '')
+                to_val = request.GET.get('depr_registered_date_to', '')
+                applied_filters.append(("Depreciation Registered Date Range", f"{from_val} to {to_val}"))
 
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, NamedStyle
         from openpyxl.utils import get_column_letter
@@ -1269,8 +1363,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 'Asset Tag', 'Name', 'Category', 'Status',
                 'Purchase Date', 'Purchase Price', 'Currency'
             ]
-            if opening_date:
-                headers.append(f'Opening Value ({opening_date.strftime("%Y-%m-%d")})')
+            if opening_value_date:
+                headers.append(f'Opening Value ({opening_value_date.strftime("%Y-%m-%d")})')
             if closing_date:
                 headers.append(f'Closing Value ({closing_date.strftime("%Y-%m-%d")})')
             if opening_date and closing_date:
@@ -1372,12 +1466,10 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
 
         for asset in queryset:
             if is_depreciation_view:
-                opening_value = asset.get_value_at_date(opening_date) if opening_date else asset.current_value
+                opening_value = asset.get_value_at_date(opening_value_date) if opening_value_date else asset.current_value
                 closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
-
-                # If opening date is provided and asset has no opening value, skip it
-                if opening_date and opening_value <= 0:
-                    continue
+                opening_acc_dep = asset.get_accumulated_dep_at_date(opening_acc_reference_date) if opening_acc_reference_date else Decimal('0')
+                closing_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
 
                 row = [
                     asset.asset_tag,
@@ -1394,10 +1486,10 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
                 if closing_date:
                     row.append(float(closing_value))
                 if opening_date and closing_date:
-                    row.append(float(opening_value - closing_value))
+                    row.append(float(closing_acc_dep - opening_acc_dep))
 
                 row.extend([
-                    float(asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation),
+                    float(closing_acc_dep),
                     float(closing_value),
                 ])
 
