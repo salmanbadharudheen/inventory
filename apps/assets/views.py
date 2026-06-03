@@ -798,61 +798,59 @@ class AssetListView(LoginRequiredMixin, ListView):
                     queryset = queryset.filter(**{field: val})
                     context[param] = val
             
-            # Use database aggregation directly for efficiency
-            # Only aggregate purchase_price (a database field)
-            agg = queryset.aggregate(
-                total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
-                total_count=Count('id')
-            )
-            
-            total_cost = agg['total_cost']
-            total_count = agg['total_count']
-            
-            # Calculate opening and closing values
+            # Calculate opening and closing values on the visible depreciation slice.
+            # Assets with zero displayed NBV are excluded from the report rows and totals.
             total_opening_value = Decimal('0')
             total_closing_value = Decimal('0')
-            
-            # Calculate exact values by iterating all assets in batches
-            # This matches the dashboard calculation for consistency
+            total_cost = Decimal('0')
+
+            # Calculate exact values by iterating all assets in batches.
             BATCH_SIZE = 1000
-            
             total_acc_dep = Decimal('0')
             total_nbv = Decimal('0')
             total_period_dep = Decimal('0')
+            report_assets = []
             opening_acc_reference_date = (opening_date - timedelta(days=1)) if opening_date else None
             opening_value_date = opening_acc_reference_date if (opening_date and closing_date) else opening_date
-            
-            if opening_date or closing_date:
-                # Need to calculate period-based values
-                for i in range(0, total_count, BATCH_SIZE):
-                    batch = list(queryset[i:i+BATCH_SIZE])
-                    for asset in batch:
-                        if opening_value_date:
-                            total_opening_value += asset.get_value_at_date(opening_value_date)
-                        else:
-                            total_opening_value += asset.current_value
-                        
-                        if closing_date:
-                            total_closing_value += asset.get_value_at_date(closing_date)
-                        else:
-                            total_closing_value += asset.current_value
 
-                        opening_acc_dep = asset.get_accumulated_dep_at_date(opening_acc_reference_date) if opening_acc_reference_date else Decimal('0')
-                        closing_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
-                        total_acc_dep += closing_acc_dep
-                        total_period_dep += (closing_acc_dep - opening_acc_dep)
-                
-                total_nbv = total_closing_value
-            else:
-                # No date range - just compute current values
-                for i in range(0, total_count, BATCH_SIZE):
-                    batch = list(queryset[i:i+BATCH_SIZE])
-                    for asset in batch:
-                        cv = asset.current_value
-                        total_nbv += cv
-                        total_acc_dep += asset.accumulated_depreciation
-                        total_period_dep += asset.accumulated_depreciation
-                
+            all_assets = list(queryset)
+
+            for i in range(0, len(all_assets), BATCH_SIZE):
+                batch = all_assets[i:i + BATCH_SIZE]
+                for asset in batch:
+                    if opening_value_date:
+                        opening_value = asset.get_value_at_date(opening_value_date)
+                    else:
+                        opening_value = asset.current_value
+
+                    if closing_date:
+                        closing_value = asset.get_value_at_date(closing_date)
+                    else:
+                        closing_value = asset.current_value
+
+                    if closing_value <= Decimal('0.00'):
+                        continue
+
+                    opening_acc_dep = asset.get_accumulated_dep_at_date(opening_acc_reference_date) if opening_acc_reference_date else Decimal('0')
+                    closing_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
+                    period_dep = closing_acc_dep - opening_acc_dep
+
+                    asset.opening_value = opening_value
+                    asset.closing_value = closing_value
+                    asset.period_depreciation = period_dep
+                    asset.display_acc_dep = closing_acc_dep
+                    report_assets.append(asset)
+
+                    total_cost += asset.purchase_price or Decimal('0')
+                    total_opening_value += opening_value
+                    total_closing_value += closing_value
+                    total_acc_dep += closing_acc_dep
+                    total_period_dep += period_dep
+
+            total_count = len(report_assets)
+            total_nbv = total_closing_value
+
+            if not (opening_date or closing_date):
                 total_opening_value = total_nbv
                 total_closing_value = total_nbv
             
@@ -908,35 +906,34 @@ class AssetListView(LoginRequiredMixin, ListView):
             context['grouped_title'] = 'Category Breakdown'
             
             if group_by == 'category':
-                # Efficient category grouping without loading all assets
-                grouped_data = queryset.values('category', 'category__name').annotate(
-                    count=Count('id'),
-                    total_cost=Sum('purchase_price')
-                ).order_by('-total_cost')[:100]  # Limit to top 100 categories
-                
-                # Calculate exact depreciation for each category
-                grouped_list = []
-                for group in grouped_data:
-                    cat_id = group['category']
-                    cat_qs = queryset.filter(category_id=cat_id)
-                    
-                    cat_assets = list(cat_qs)
-                    total_cat_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
-                    
-                    grouped_list.append({
-                        'id': cat_id,
-                        'name': group['category__name'] or 'Uncategorized',
-                        'total_cost': group['total_cost'] or Decimal('0'),
-                        'total_acc_dep': total_cat_dep,
-                        'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
-                        'count': group['count'],
-                    })
-                context['grouped_data'] = grouped_list
+                grouped_map = {}
+                for asset in report_assets:
+                    cat_id = asset.category_id
+                    if cat_id not in grouped_map:
+                        grouped_map[cat_id] = {
+                            'id': cat_id,
+                            'name': asset.category.name if asset.category else 'Uncategorized',
+                            'total_cost': Decimal('0'),
+                            'total_acc_dep': Decimal('0'),
+                            'total_nbv': Decimal('0'),
+                            'count': 0,
+                        }
+
+                    grouped_map[cat_id]['total_cost'] += asset.purchase_price or Decimal('0')
+                    grouped_map[cat_id]['total_acc_dep'] += asset.display_acc_dep
+                    grouped_map[cat_id]['total_nbv'] += asset.closing_value
+                    grouped_map[cat_id]['count'] += 1
+
+                context['grouped_data'] = sorted(
+                    grouped_map.values(),
+                    key=lambda item: item['total_cost'],
+                    reverse=True,
+                )[:100]
             elif group_by in ('yearly', 'monthly'):
                 from datetime import date as _date
                 import calendar
 
-                assets_for_group = list(queryset)
+                assets_for_group = report_assets
                 if assets_for_group:
                     first_purchase = min(
                         (a.purchase_date for a in assets_for_group if a.purchase_date),
@@ -1034,31 +1031,11 @@ class AssetListView(LoginRequiredMixin, ListView):
             
             # Paginate the filtered depreciation assets
             from django.core.paginator import Paginator
-            paginator = Paginator(queryset, 25)  # 25 items per page
+            paginator = Paginator(report_assets, 25)  # 25 items per page
             page_number = self.request.GET.get('page', 1)
             page_obj = paginator.get_page(page_number)
-            
-            # Add opening and closing values to each asset
-            assets_with_values = []
-            for asset in page_obj.object_list:
-                asset_dict = asset
-                if opening_date:
-                    asset_dict.opening_value = asset.get_value_at_date(opening_date)
-                else:
-                    asset_dict.opening_value = asset.current_value
-                
-                if closing_date:
-                    asset_dict.closing_value = asset.get_value_at_date(closing_date)
-                else:
-                    asset_dict.closing_value = asset.current_value
 
-                opening_acc_dep = asset.get_accumulated_dep_at_date(opening_acc_reference_date) if opening_acc_reference_date else Decimal('0')
-                closing_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
-                asset_dict.period_depreciation = closing_acc_dep - opening_acc_dep
-                asset_dict.display_acc_dep = closing_acc_dep
-                assets_with_values.append(asset_dict)
-            
-            context['assets'] = assets_with_values
+            context['assets'] = list(page_obj.object_list)
             context['page_obj'] = page_obj
             context['is_paginated'] = page_obj.has_other_pages()
         
@@ -1494,6 +1471,8 @@ class ExportAssetExcelView(LoginRequiredMixin, View):
             if is_depreciation_view:
                 opening_value = asset.get_value_at_date(opening_value_date) if opening_value_date else asset.current_value
                 closing_value = asset.get_value_at_date(closing_date) if closing_date else asset.current_value
+                if closing_value <= Decimal('0.00'):
+                    continue
                 opening_acc_dep = asset.get_accumulated_dep_at_date(opening_acc_reference_date) if opening_acc_reference_date else Decimal('0')
                 closing_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
 
