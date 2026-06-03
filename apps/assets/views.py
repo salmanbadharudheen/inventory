@@ -875,6 +875,32 @@ class AssetListView(LoginRequiredMixin, ListView):
             context['opening_value_date'] = opening_value_date
             context['closing_value_date'] = closing_date
             context['opening_acc_reference_date'] = opening_acc_reference_date
+            context.update({
+                'depr_category': self.request.GET.get('depr_category', ''),
+                'depr_subcategory': self.request.GET.get('depr_subcategory', ''),
+                'depr_group': self.request.GET.get('depr_group', ''),
+                'depr_sub_group': self.request.GET.get('depr_sub_group', ''),
+                'depr_status': self.request.GET.get('depr_status', ''),
+                'depr_condition': self.request.GET.get('depr_condition', ''),
+                'depr_label_type': self.request.GET.get('depr_label_type', ''),
+                'depr_tagging_status': self.request.GET.get('depr_tagging_status', ''),
+                'depr_brand': self.request.GET.get('depr_brand', ''),
+                'depr_supplier': self.request.GET.get('depr_supplier', ''),
+                'depr_product_name': self.request.GET.get('depr_product_name', ''),
+                'depr_site': self.request.GET.get('depr_site', ''),
+                'depr_branch': self.request.GET.get('depr_branch', ''),
+                'depr_building': self.request.GET.get('depr_building', ''),
+                'depr_floor': self.request.GET.get('depr_floor', ''),
+                'depr_location': self.request.GET.get('depr_location', ''),
+                'depr_room': self.request.GET.get('depr_room', ''),
+                'depr_sub_location': self.request.GET.get('depr_sub_location', ''),
+                'depr_department': self.request.GET.get('depr_department', ''),
+                'depr_purchase_date_from': self.request.GET.get('depr_purchase_date_from', ''),
+                'depr_purchase_date_to': self.request.GET.get('depr_purchase_date_to', ''),
+                'depr_registered_date_from': self.request.GET.get('depr_registered_date_from', ''),
+                'depr_registered_date_to': self.request.GET.get('depr_registered_date_to', ''),
+                'depr_created_by': self.request.GET.get('depr_created_by', ''),
+            })
             
             # Support grouped summaries
             group_by = self.request.GET.get('group_by')
