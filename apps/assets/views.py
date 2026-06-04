@@ -798,7 +798,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                     queryset = queryset.filter(**{field: val})
                     context[param] = val
 
-            report_assets = None
+            visible_assets = None
 
             # Calculate opening and closing values
             total_opening_value = Decimal('0')
@@ -815,8 +815,14 @@ class AssetListView(LoginRequiredMixin, ListView):
             opening_value_date = opening_acc_reference_date if (opening_date and closing_date) else opening_date
 
             if opening_date or closing_date:
-                report_assets = []
-                total_count = 0
+                agg = queryset.aggregate(
+                    total_cost=Coalesce(Sum('purchase_price'), Decimal('0')),
+                    total_count=Count('id')
+                )
+
+                total_cost = agg['total_cost']
+                total_count = agg['total_count']
+                visible_assets = []
                 # Need to calculate period-based values
                 all_assets = list(queryset)
                 for i in range(0, len(all_assets), BATCH_SIZE):
@@ -832,25 +838,24 @@ class AssetListView(LoginRequiredMixin, ListView):
                         else:
                             closing_value = asset.current_value
 
-                        if opening_value <= Decimal('0.00') and closing_value <= Decimal('0.00'):
-                            continue
-
                         opening_acc_dep = asset.get_accumulated_dep_at_date(opening_acc_reference_date) if opening_acc_reference_date else Decimal('0')
                         closing_acc_dep = asset.get_accumulated_dep_at_date(closing_date) if closing_date else asset.accumulated_depreciation
                         period_dep = closing_acc_dep - opening_acc_dep
+
+                        total_acc_dep += closing_acc_dep
+                        total_nbv += closing_value
+                        total_opening_value += opening_value
+                        total_closing_value += closing_value
+                        total_period_dep += period_dep
+
+                        if opening_value <= Decimal('0.00') and closing_value <= Decimal('0.00'):
+                            continue
 
                         asset.opening_value = opening_value
                         asset.closing_value = closing_value
                         asset.period_depreciation = period_dep
                         asset.display_acc_dep = closing_acc_dep
-                        report_assets.append(asset)
-
-                        total_count += 1
-                        total_cost += asset.purchase_price or Decimal('0')
-                        total_opening_value += opening_value
-                        total_closing_value += closing_value
-                        total_acc_dep += closing_acc_dep
-                        total_period_dep += period_dep
+                        visible_assets.append(asset)
 
                 total_nbv = total_closing_value
             else:
@@ -926,60 +931,35 @@ class AssetListView(LoginRequiredMixin, ListView):
             context['grouped_title'] = 'Category Breakdown'
             
             if group_by == 'category':
-                if report_assets is not None:
-                    grouped_map = {}
-                    for asset in report_assets:
-                        cat_id = asset.category_id
-                        if cat_id not in grouped_map:
-                            grouped_map[cat_id] = {
-                                'id': cat_id,
-                                'name': asset.category.name if asset.category else 'Uncategorized',
-                                'total_cost': Decimal('0'),
-                                'total_acc_dep': Decimal('0'),
-                                'total_nbv': Decimal('0'),
-                                'count': 0,
-                            }
+                # Efficient category grouping without loading all assets
+                grouped_data = queryset.values('category', 'category__name').annotate(
+                    count=Count('id'),
+                    total_cost=Sum('purchase_price')
+                ).order_by('-total_cost')[:100]  # Limit to top 100 categories
 
-                        grouped_map[cat_id]['total_cost'] += asset.purchase_price or Decimal('0')
-                        grouped_map[cat_id]['total_acc_dep'] += asset.display_acc_dep
-                        grouped_map[cat_id]['total_nbv'] += asset.closing_value
-                        grouped_map[cat_id]['count'] += 1
+                # Calculate exact depreciation for each category
+                grouped_list = []
+                for group in grouped_data:
+                    cat_id = group['category']
+                    cat_qs = queryset.filter(category_id=cat_id)
 
-                    context['grouped_data'] = sorted(
-                        grouped_map.values(),
-                        key=lambda item: item['total_cost'],
-                        reverse=True,
-                    )[:100]
-                else:
-                    # Efficient category grouping without loading all assets
-                    grouped_data = queryset.values('category', 'category__name').annotate(
-                        count=Count('id'),
-                        total_cost=Sum('purchase_price')
-                    ).order_by('-total_cost')[:100]  # Limit to top 100 categories
+                    cat_assets = list(cat_qs)
+                    total_cat_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
 
-                    # Calculate exact depreciation for each category
-                    grouped_list = []
-                    for group in grouped_data:
-                        cat_id = group['category']
-                        cat_qs = queryset.filter(category_id=cat_id)
-
-                        cat_assets = list(cat_qs)
-                        total_cat_dep = sum(a.get_accumulated_dep_at_date(closing_date) if closing_date else a.accumulated_depreciation for a in cat_assets) if cat_assets else Decimal('0')
-
-                        grouped_list.append({
-                            'id': cat_id,
-                            'name': group['category__name'] or 'Uncategorized',
-                            'total_cost': group['total_cost'] or Decimal('0'),
-                            'total_acc_dep': total_cat_dep,
-                            'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
-                            'count': group['count'],
-                        })
-                    context['grouped_data'] = grouped_list
+                    grouped_list.append({
+                        'id': cat_id,
+                        'name': group['category__name'] or 'Uncategorized',
+                        'total_cost': group['total_cost'] or Decimal('0'),
+                        'total_acc_dep': total_cat_dep,
+                        'total_nbv': (group['total_cost'] or Decimal('0')) - total_cat_dep,
+                        'count': group['count'],
+                    })
+                context['grouped_data'] = grouped_list
             elif group_by in ('yearly', 'monthly'):
                 from datetime import date as _date
                 import calendar
 
-                assets_for_group = report_assets if report_assets is not None else list(queryset)
+                assets_for_group = list(queryset)
                 if assets_for_group:
                     first_purchase = min(
                         (a.purchase_date for a in assets_for_group if a.purchase_date),
@@ -1077,7 +1057,7 @@ class AssetListView(LoginRequiredMixin, ListView):
             
             # Paginate the filtered depreciation assets
             from django.core.paginator import Paginator
-            pagination_source = report_assets if report_assets is not None else queryset
+            pagination_source = visible_assets if visible_assets is not None else queryset
             paginator = Paginator(pagination_source, 25)  # 25 items per page
             page_number = self.request.GET.get('page', 1)
             page_obj = paginator.get_page(page_number)
@@ -5421,19 +5401,35 @@ class DepreciationReportCategoryView(LoginRequiredMixin, ListView):
             total_count=Count('id')
         )
         
-        total_cost = agg['total_cost']
+        total_cost = Decimal('0') if (getattr(self, '_opening_date', None) or getattr(self, '_closing_date', None)) else agg['total_cost']
         total_count = agg['total_count']
         
         # Calculate exact values by iterating in batches
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _od = getattr(self, '_opening_date', None)
         _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
-                total_nbv += asset.current_value
-                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
+                in_period = not (_od or _cd)
+                if _od or _cd:
+                    purchase_date = asset.purchase_date
+                    in_period = True
+                    if purchase_date:
+                        if _od and purchase_date < _od:
+                            in_period = False
+                        if _cd and purchase_date > _cd:
+                            in_period = False
+                    else:
+                        in_period = False
+
+                    if in_period:
+                        total_cost += asset.purchase_price or Decimal('0')
+                if in_period:
+                    total_nbv += asset.current_value
+                    total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -5612,19 +5608,35 @@ class DepreciationReportDepartmentView(LoginRequiredMixin, ListView):
             total_count=Count('id')
         )
         
-        total_cost = agg['total_cost']
+        total_cost = Decimal('0') if (getattr(self, '_opening_date', None) or getattr(self, '_closing_date', None)) else agg['total_cost']
         total_count = agg['total_count']
         
         # Calculate exact values by iterating in batches
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _od = getattr(self, '_opening_date', None)
         _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
-                total_nbv += asset.current_value
-                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
+                in_period = not (_od or _cd)
+                if _od or _cd:
+                    purchase_date = asset.purchase_date
+                    in_period = True
+                    if purchase_date:
+                        if _od and purchase_date < _od:
+                            in_period = False
+                        if _cd and purchase_date > _cd:
+                            in_period = False
+                    else:
+                        in_period = False
+
+                    if in_period:
+                        total_cost += asset.purchase_price or Decimal('0')
+                if in_period:
+                    total_nbv += asset.current_value
+                    total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -5797,19 +5809,35 @@ class DepreciationReportLocationView(LoginRequiredMixin, ListView):
             total_count=Count('id')
         )
         
-        total_cost = agg['total_cost']
+        total_cost = Decimal('0') if (getattr(self, '_opening_date', None) or getattr(self, '_closing_date', None)) else agg['total_cost']
         total_count = agg['total_count']
         
         # Calculate exact values by iterating in batches
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _od = getattr(self, '_opening_date', None)
         _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
-                total_nbv += asset.current_value
-                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
+                in_period = not (_od or _cd)
+                if _od or _cd:
+                    purchase_date = asset.purchase_date
+                    in_period = True
+                    if purchase_date:
+                        if _od and purchase_date < _od:
+                            in_period = False
+                        if _cd and purchase_date > _cd:
+                            in_period = False
+                    else:
+                        in_period = False
+
+                    if in_period:
+                        total_cost += asset.purchase_price or Decimal('0')
+                if in_period:
+                    total_nbv += asset.current_value
+                    total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
@@ -5982,19 +6010,35 @@ class DepreciationReportGroupView(LoginRequiredMixin, ListView):
             total_count=Count('id')
         )
         
-        total_cost = agg['total_cost']
+        total_cost = Decimal('0') if (getattr(self, '_opening_date', None) or getattr(self, '_closing_date', None)) else agg['total_cost']
         total_count = agg['total_count']
         
         # Calculate exact values by iterating in batches
         BATCH_SIZE = 1000
         total_acc_dep = Decimal('0')
         total_nbv = Decimal('0')
+        _od = getattr(self, '_opening_date', None)
         _cd = getattr(self, '_closing_date', None)
         for i in range(0, total_count, BATCH_SIZE):
             batch = list(queryset[i:i+BATCH_SIZE])
             for asset in batch:
-                total_nbv += asset.current_value
-                total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
+                in_period = not (_od or _cd)
+                if _od or _cd:
+                    purchase_date = asset.purchase_date
+                    in_period = True
+                    if purchase_date:
+                        if _od and purchase_date < _od:
+                            in_period = False
+                        if _cd and purchase_date > _cd:
+                            in_period = False
+                    else:
+                        in_period = False
+
+                    if in_period:
+                        total_cost += asset.purchase_price or Decimal('0')
+                if in_period:
+                    total_nbv += asset.current_value
+                    total_acc_dep += asset.get_accumulated_dep_at_date(_cd) if _cd else asset.accumulated_depreciation
         
         context['total_cost'] = total_cost
         context['total_acc_dep'] = total_acc_dep
