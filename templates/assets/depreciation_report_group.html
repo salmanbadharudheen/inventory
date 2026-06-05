@@ -235,12 +235,12 @@ body          { display:flex!important; height:auto!important; min-height:100vh!
                     <div class="dr-filter-actions">
                         <a href="{% url 'depreciation-group' %}" class="dr-btn dr-btn-ghost">✕ Reset</a>
                         <button type="button" id="dr-adv-toggle" class="dr-btn dr-btn-outline" onclick="toggleAdvFilters()">⚙ More Filters</button>
-                        <button type="submit" class="dr-btn dr-btn-primary">Apply</button>
+                        <button type="submit" id="dr-quick-apply" class="dr-btn dr-btn-primary">Apply</button>
                     </div>
                 </form>
             </div>
             <div id="dr-adv-panel" class="dr-adv-panel" style="display:none;">
-                <form method="get">
+                <form method="get" id="dr-adv-form">
                     <input type="hidden" name="q" value="{{ search_query }}">
                     <input type="hidden" name="depr_date_from" value="{{ depr_date_from }}">
                     <input type="hidden" name="depr_date_to" value="{{ depr_date_to }}">
@@ -382,6 +382,26 @@ body          { display:flex!important; height:auto!important; min-height:100vh!
 </main>
 
 <script>
+function syncQuickApplyVisibility() {
+    const panel = document.getElementById('dr-adv-panel');
+    const quickApply = document.getElementById('dr-quick-apply');
+    if (!panel || !quickApply) return;
+    const isOpen = panel.style.display !== 'none';
+    quickApply.style.display = isOpen ? 'none' : '';
+}
+
+function syncTopFiltersToAdvancedForm() {
+    const topForm = document.getElementById('dr-filter-form');
+    const advForm = document.getElementById('dr-adv-form');
+    if (!topForm || !advForm) return;
+
+    ['q', 'depr_date_from', 'depr_date_to', 'depr_group'].forEach((name) => {
+        const source = topForm.querySelector(`[name="${name}"]`);
+        const target = advForm.querySelector(`input[type="hidden"][name="${name}"]`);
+        if (source && target) target.value = source.value;
+    });
+}
+
 function toggleAdvFilters() {
     const panel = document.getElementById('dr-adv-panel');
     const btn   = document.getElementById('dr-adv-toggle');
@@ -390,8 +410,12 @@ function toggleAdvFilters() {
     panel.style.display = open ? 'none' : 'block';
     btn.textContent = open ? '⚙ More Filters' : '✕ Hide Filters';
     btn.classList.toggle('active', !open);
+    syncQuickApplyVisibility();
 }
 (function() {
+    const advForm = document.getElementById('dr-adv-form');
+    if (advForm) advForm.addEventListener('submit', syncTopFiltersToAdvancedForm);
+
     const panel = document.getElementById('dr-adv-panel');
     if (!panel) return;
     const params = new URLSearchParams(window.location.search);
@@ -404,6 +428,7 @@ function toggleAdvFilters() {
             break;
         }
     }
+    syncQuickApplyVisibility();
 })();
 </script>
 

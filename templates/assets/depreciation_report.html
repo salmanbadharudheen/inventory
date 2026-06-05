@@ -937,7 +937,7 @@
         Filters
     </div>
     
-    <form method="get" style="display: contents;">
+    <form method="get" id="depr-filter-form" style="display: contents;">
         <input type="hidden" name="view" value="depreciation">
         <input type="hidden" name="depr_category" value="{{ depr_category }}">
         <input type="hidden" name="depr_subcategory" value="{{ depr_subcategory }}">
@@ -1009,7 +1009,7 @@
                 </select>
             </div>
 
-            <div class="depr-filter-action-group">
+            <div id="depr-quick-apply-group" class="depr-filter-action-group">
                 <button type="submit" class="depr-btn-apply">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
@@ -1048,7 +1048,7 @@
 
     <!-- Advanced Filter Panel -->
     <div id="depr-adv-panel" class="depr-adv-panel" style="display:none;">
-        <form method="get">
+        <form method="get" id="depr-adv-form">
             <input type="hidden" name="view" value="depreciation">
             <input type="hidden" name="q" value="{{ request.GET.q }}">
             <input type="hidden" name="depr_date_from" value="{{ depr_date_from }}">
@@ -1300,7 +1300,7 @@
     <h3 class="depr-section-title">Summary Overview</h3>
     <div class="depr-cards" style="margin-top: 1.5rem;">
         <div class="depr-card">
-            <span class="stat-label">Total Purchase Cost</span>
+                <span class="stat-label">Total Purchase Cost</span>
             <span class="stat-value">
                 {% if total_cost %}
                     AED {{ total_cost|floatformat:2|intcomma }}
@@ -1607,6 +1607,33 @@ function toggleDeprDetails(rowId) {
 {% endif %}
 
 <script>
+function syncQuickApplyVisibility() {
+    const panel = document.getElementById('depr-adv-panel');
+    const quickApply = document.getElementById('depr-quick-apply-group');
+    if (!panel || !quickApply) return;
+    const isOpen = panel.style.display !== 'none' && panel.style.display !== '';
+    quickApply.style.display = isOpen ? 'none' : 'flex';
+}
+
+function syncTopFiltersToAdvancedForm() {
+    const topForm = document.getElementById('depr-filter-form');
+    const advForm = document.getElementById('depr-adv-form');
+    if (!topForm || !advForm) return;
+
+    ['q', 'depr_date_from', 'depr_date_to', 'group_by', 'sort_by'].forEach((name) => {
+        const source = topForm.querySelector(`[name="${name}"]`);
+        let target = advForm.querySelector(`input[type="hidden"][name="${name}"]`);
+        if (!source) return;
+        if (!target) {
+            target = document.createElement('input');
+            target.type = 'hidden';
+            target.name = name;
+            advForm.prepend(target);
+        }
+        target.value = source.value;
+    });
+}
+
 function toggleAdvFilters() {
     const panel = document.getElementById('depr-adv-panel');
     const btn = document.getElementById('depr-adv-toggle');
@@ -1614,10 +1641,14 @@ function toggleAdvFilters() {
     const open = panel.style.display === 'none' || panel.style.display === '';
     panel.style.display = open ? 'block' : 'none';
     if (btn) btn.classList.toggle('active', open);
+    syncQuickApplyVisibility();
 }
 
 // Auto-open advanced panel if any advanced filter is active
 ;(() => {
+    const advForm = document.getElementById('depr-adv-form');
+    if (advForm) advForm.addEventListener('submit', syncTopFiltersToAdvancedForm);
+
     const basicKeys = new Set(['q','depr_date_from','depr_date_to','group_by','sort_by','view','page']);
     const params = new URLSearchParams(window.location.search);
     let hasAdv = false;
@@ -1630,6 +1661,7 @@ function toggleAdvFilters() {
         if (panel) panel.style.display = 'block';
         if (btn) btn.classList.add('active');
     }
+    syncQuickApplyVisibility();
 })();
 </script>
 </div>

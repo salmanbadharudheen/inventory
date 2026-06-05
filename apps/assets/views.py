@@ -780,16 +780,31 @@ class AssetListView(LoginRequiredMixin, ListView):
             if closing_date:
                 queryset = queryset.filter(Q(purchase_date__lte=closing_date) | Q(purchase_date__isnull=True))
             
-            # Add location and category filters for depreciation report
+            depr_product_name = (self.request.GET.get('depr_product_name') or '').strip()
+            if depr_product_name:
+                queryset = queryset.filter(name__icontains=depr_product_name)
+
+            # Add advanced filters for depreciation report
             depr_filters = {
                 'depr_category': 'category_id',
+                'depr_subcategory': 'sub_category_id',
                 'depr_group': 'group_id',
+                'depr_sub_group': 'sub_group_id',
+                'depr_status': 'status',
+                'depr_condition': 'condition',
+                'depr_label_type': 'label_type',
+                'depr_brand': 'brand_new_id',
+                'depr_supplier': 'supplier_id',
                 'depr_department': 'department_id',
                 'depr_site': 'site_id',
                 'depr_branch': 'branch_id',
                 'depr_building': 'building_id',
+                'depr_floor': 'floor_id',
                 'depr_location': 'location_id',
+                'depr_room': 'room_id',
+                'depr_sub_location': 'sub_location_id',
                 'depr_tagging_status': 'tagging_status',
+                'depr_created_by': 'created_by_id',
             }
             
             for param, field in depr_filters.items():
@@ -797,6 +812,34 @@ class AssetListView(LoginRequiredMixin, ListView):
                 if val:
                     queryset = queryset.filter(**{field: val})
                     context[param] = val
+
+            depr_purchase_date_from = (self.request.GET.get('depr_purchase_date_from') or '').strip()
+            if depr_purchase_date_from:
+                try:
+                    queryset = queryset.filter(purchase_date__gte=datetime.strptime(depr_purchase_date_from, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
+
+            depr_purchase_date_to = (self.request.GET.get('depr_purchase_date_to') or '').strip()
+            if depr_purchase_date_to:
+                try:
+                    queryset = queryset.filter(purchase_date__lte=datetime.strptime(depr_purchase_date_to, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
+
+            depr_registered_date_from = (self.request.GET.get('depr_registered_date_from') or '').strip()
+            if depr_registered_date_from:
+                try:
+                    queryset = queryset.filter(created_at__date__gte=datetime.strptime(depr_registered_date_from, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
+
+            depr_registered_date_to = (self.request.GET.get('depr_registered_date_to') or '').strip()
+            if depr_registered_date_to:
+                try:
+                    queryset = queryset.filter(created_at__date__lte=datetime.strptime(depr_registered_date_to, '%Y-%m-%d').date())
+                except (ValueError, TypeError):
+                    pass
 
             visible_assets = None
 
