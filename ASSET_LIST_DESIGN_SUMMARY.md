@@ -205,3 +205,11 @@ Danger:            #fee2e2 (Light red)
 
 **Status**: ✅ Complete - Ready for Production
 **Last Updated**: February 24, 2026
+
+
+
+
+
+# purchase rate need to update with date and group or category filter 
+# filter option apply button (single button)
+# purchase date from , to address is not working 
