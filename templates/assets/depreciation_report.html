@@ -198,11 +198,11 @@
     }
     .depr-filter-grid {
         display: grid;
-        grid-template-columns: 1.3fr repeat(4, 1fr) auto auto auto;
+        grid-template-columns: repeat(3, 1fr) auto auto auto;
         gap: 0.625rem;
         margin-bottom: 0;
         align-items: end;
-        min-width: 980px;
+        min-width: 820px;
     }
     .depr-filter-group {
         display: flex;
@@ -513,7 +513,7 @@
 
     @media (max-width: 768px) {
         .depr-filter-grid {
-            grid-template-columns: 220px repeat(4, 150px) auto auto auto;
+            grid-template-columns: repeat(3, 150px) auto auto auto;
         }
     }
 
@@ -939,7 +939,6 @@
     
     <form method="get" id="depr-filter-form" style="display: contents;">
         <input type="hidden" name="view" value="depreciation">
-        <input type="hidden" name="depr_category" value="{{ depr_category }}">
         <input type="hidden" name="depr_subcategory" value="{{ depr_subcategory }}">
         <input type="hidden" name="depr_group" value="{{ depr_group }}">
         <input type="hidden" name="depr_sub_group" value="{{ depr_sub_group }}">
@@ -966,10 +965,14 @@
         
         <!-- Single row: filters + actions -->
         <div class="depr-filter-grid">
-            <!-- Search -->
             <div class="depr-filter-group">
-                <label>Search</label>
-                <input type="text" name="q" placeholder="Name or tag..." value="{{ request.GET.q }}">
+                <label>Category</label>
+                <select name="depr_category">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == depr_category %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
             
             <!-- From Date -->
@@ -982,31 +985,6 @@
             <div class="depr-filter-group">
                 <label>To</label>
                 <input type="date" name="depr_date_to" value="{{ depr_date_to }}">
-            </div>
-            
-            <!-- Group By -->
-            <div class="depr-filter-group">
-                <label>Group By</label>
-                <select name="group_by">
-                    <option value="">None</option>
-                    <option value="monthly" {% if request.GET.group_by == 'monthly' %}selected{% endif %}>Monthly</option>
-                    <option value="yearly" {% if request.GET.group_by == 'yearly' %}selected{% endif %}>Yearly</option>
-                    <option value="category" {% if request.GET.group_by == 'category' %}selected{% endif %}>Category</option>
-                </select>
-            </div>
-            
-            <!-- Sort By -->
-            <div class="depr-filter-group">
-                <label>Sort By</label>
-                <select name="sort_by">
-                    <option value="">Default</option>
-                    <option value="cost_high" {% if request.GET.sort_by == 'cost_high' %}selected{% endif %}>Cost (High)</option>
-                    <option value="cost_low" {% if request.GET.sort_by == 'cost_low' %}selected{% endif %}>Cost (Low)</option>
-                    <option value="depr_high" {% if request.GET.sort_by == 'depr_high' %}selected{% endif %}>Depreciation (High)</option>
-                    <option value="depr_low" {% if request.GET.sort_by == 'depr_low' %}selected{% endif %}>Depreciation (Low)</option>
-                    <option value="nbv_high" {% if request.GET.sort_by == 'nbv_high' %}selected{% endif %}>NBV (High)</option>
-                    <option value="nbv_low" {% if request.GET.sort_by == 'nbv_low' %}selected{% endif %}>NBV (Low)</option>
-                </select>
             </div>
 
             <div id="depr-quick-apply-group" class="depr-filter-action-group">
@@ -1050,11 +1028,8 @@
     <div id="depr-adv-panel" class="depr-adv-panel" style="display:none;">
         <form method="get" id="depr-adv-form">
             <input type="hidden" name="view" value="depreciation">
-            <input type="hidden" name="q" value="{{ request.GET.q }}">
             <input type="hidden" name="depr_date_from" value="{{ depr_date_from }}">
             <input type="hidden" name="depr_date_to" value="{{ depr_date_to }}">
-            <input type="hidden" name="group_by" value="{{ request.GET.group_by }}">
-            <input type="hidden" name="sort_by" value="{{ request.GET.sort_by }}">
 
             <!-- Identity & Classification -->
             <div class="depr-adv-section">
@@ -1620,9 +1595,9 @@ function syncTopFiltersToAdvancedForm() {
     const advForm = document.getElementById('depr-adv-form');
     if (!topForm || !advForm) return;
 
-    ['q', 'depr_date_from', 'depr_date_to', 'group_by', 'sort_by'].forEach((name) => {
+    ['depr_category', 'depr_date_from', 'depr_date_to'].forEach((name) => {
         const source = topForm.querySelector(`[name="${name}"]`);
-        let target = advForm.querySelector(`input[type="hidden"][name="${name}"]`);
+        let target = advForm.querySelector(`[name="${name}"]`);
         if (!source) return;
         if (!target) {
             target = document.createElement('input');
@@ -1649,7 +1624,7 @@ function toggleAdvFilters() {
     const advForm = document.getElementById('depr-adv-form');
     if (advForm) advForm.addEventListener('submit', syncTopFiltersToAdvancedForm);
 
-    const basicKeys = new Set(['q','depr_date_from','depr_date_to','group_by','sort_by','view','page']);
+    const basicKeys = new Set(['depr_category','depr_date_from','depr_date_to','view','page']);
     const params = new URLSearchParams(window.location.search);
     let hasAdv = false;
     for (const [k, v] of params.entries()) {
