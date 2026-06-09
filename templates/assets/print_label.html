@@ -242,6 +242,7 @@
             --sticker-h: 192px;
             --print-page-w: 2in;
             --print-page-h: 1in;
+            --print-ink: #000000;
             --custom-font-scale: 1;
             --custom-org-font-scale: 1;
             --custom-tag-font-scale: 1;
@@ -269,6 +270,51 @@
             font-size: calc(1rem * var(--custom-font-scale));
             box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
             transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        /* Hard boundaries: keep all children inside sticker bounds. */
+        .label > * {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .label .lbl-header,
+        .label .lbl-body,
+        .label .lbl-right,
+        .label .lbl-text,
+        .label .lbl-modern-body,
+        .label .lbl-modern-info,
+        .label .lbl-barcode-img,
+        .label .lbl-barcode-inline,
+        .label .lbl-qr,
+        .label .lbl-qr-main {
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .label .org-text,
+        .label .lbl-tag,
+        .label .lbl-tag-bottom,
+        .label .lbl-asset-name,
+        .label .lbl-category,
+        .label .lbl-location,
+        .label .tag,
+        .label .tag-num,
+        .label .company,
+        .label .org-name,
+        .label .lbl-company {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .label img,
+        .label svg {
+            max-width: 100%;
+            max-height: 100%;
         }
 
         .label:hover {
@@ -347,6 +393,8 @@
             height: calc(18px * var(--custom-logo-scale));
             object-fit: contain;
             flex: 0 0 auto;
+            max-width: 64px;
+            max-height: 64px;
             border-radius: 2px;
             /* Keep logo smooth; barcode/QR use separate sharpness rules. */
             image-rendering: auto !important;
@@ -363,14 +411,36 @@
         .label-classic .lbl-body {
             flex: 1; display: flex; align-items: center;
             padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(8px * var(--custom-inner-pad));
+            min-width: 0;
+            overflow: hidden;
         }
-        .label-classic .lbl-qr { flex: 0 0 auto; }
+        .label-classic .lbl-qr {
+            flex: 0 0 34%;
+            width: 34%;
+            min-width: 64px;
+            max-width: 34%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         .label-classic .lbl-qr img {
-            width: calc(108px * var(--custom-qr-scale)); height: calc(108px * var(--custom-qr-scale));
+            width: min(100%, calc(108px * var(--custom-qr-scale)));
+            height: auto;
+            aspect-ratio: 1 / 1;
             border: none; border-radius: 0; padding: 0;
             background: transparent;
         }
-        .label-classic .lbl-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+        .label-classic .lbl-right {
+            flex: 1 1 66%;
+            min-width: 0;
+            max-width: 66%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
         .label-classic .lbl-right img { width: 100%; height: calc(92px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
@@ -385,9 +455,21 @@
             flex-direction: row; align-items: center;
             padding: calc(8px * var(--custom-inner-pad)) calc(14px * var(--custom-inner-pad)); gap: 0;
         }
-        .label-compact .lbl-qr { flex: 0 0 auto; }
+        .label-compact .lbl-qr {
+            flex: 0 0 42%;
+            width: 42%;
+            min-width: 64px;
+            max-width: 42%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         .label-compact .lbl-qr img {
-            width: calc(130px * var(--custom-qr-scale)); height: calc(130px * var(--custom-qr-scale)); padding: 2px;
+            width: min(100%, calc(130px * var(--custom-qr-scale)));
+            height: auto;
+            aspect-ratio: 1 / 1;
+            padding: 2px;
         }
         .label-compact .lbl-divider {
             width: 1.5px; height: 60%; background: #d4d4d8;
@@ -395,6 +477,10 @@
         }
         .label-compact .lbl-text {
             display: flex; flex-direction: column; gap: 4px;
+            flex: 1 1 54%;
+            min-width: 0;
+            max-width: 54%;
+            overflow: hidden;
         }
         .label-compact .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
@@ -427,15 +513,35 @@
         .label-detailed .lbl-body {
             flex: 1; display: flex; align-items: center;
             padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: calc(14px * var(--custom-inner-pad));
+            min-width: 0;
+            overflow: hidden;
         }
-        .label-detailed .lbl-qr { flex: 0 0 auto; }
+        .label-detailed .lbl-qr {
+            flex: 0 0 36%;
+            width: 36%;
+            min-width: 64px;
+            max-width: 36%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         .label-detailed .lbl-qr img {
-            width: calc(115px * var(--custom-qr-scale)); height: calc(115px * var(--custom-qr-scale));
+            width: min(100%, calc(115px * var(--custom-qr-scale)));
+            height: auto;
+            aspect-ratio: 1 / 1;
             border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
             background: #fff;
         }
         .label-detailed .lbl-right {
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+            flex: 1 1 64%;
+            min-width: 0;
+            max-width: 64%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
         }
         .label-detailed .lbl-right img { width: 100%; height: calc(65px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-detailed .lbl-right .lbl-tag {
@@ -456,7 +562,16 @@
             color: #6b7280; font-weight: 600;
             letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
         }
-        .label-barcode-only .lbl-barcode-img { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .label-barcode-only .lbl-barcode-img {
+            flex: 1;
+            width: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         .label-barcode-only .lbl-barcode-img img {
             width: 92%; height: calc(100px * var(--custom-barcode-scale)); object-fit: contain;
         }
@@ -480,6 +595,7 @@
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                color-adjust: exact !important;
             }
 
             html, body {
@@ -559,7 +675,8 @@
                 font-smooth: never !important;
                 line-height: 1.05 !important;
                 letter-spacing: 0.02em !important;
-                font-weight: 700 !important;
+                font-weight: 800 !important;
+                -webkit-text-stroke: 0.12pt #000 !important;
             }
 
             .label .lbl-qr img,
@@ -572,20 +689,40 @@
             /* Force high-contrast black print to avoid faded color labels */
             .label {
                 background: #ffffff !important;
-                border-color: #000000 !important;
+                border-color: var(--print-ink) !important;
             }
             .label * {
-                color: #000000 !important;
+                color: var(--print-ink) !important;
+                opacity: 1 !important;
+                text-shadow: none !important;
+                box-shadow: none !important;
+            }
+            .label svg,
+            .label svg * {
+                shape-rendering: crispEdges !important;
+                vector-effect: non-scaling-stroke !important;
+                text-rendering: geometricPrecision !important;
+            }
+            .label .lbl-barcode-svg * {
+                fill: #000 !important;
+                stroke: #000 !important;
+            }
+            .label .lbl-qr img,
+            .label .lbl-qr-main img,
+            .label .lbl-right img,
+            .label .lbl-barcode-img img,
+            .label .lbl-barcode-inline img {
+                filter: contrast(1.35) brightness(0.9) saturate(0) !important;
             }
             .label-classic .lbl-accent,
             .label-detailed .lbl-header,
             .label-modern .lbl-modern-header {
                     background: transparent !important;
-                    color: #000000 !important;
+                    color: var(--print-ink) !important;
             }
             .label-detailed .lbl-header *,
             .label-modern .lbl-modern-header * {
-                    color: #000000 !important;
+                    color: var(--print-ink) !important;
             }
 
             /* ── CLASSIC print ─────────────────────────── */
@@ -702,7 +839,7 @@
             }
             .label-barcode-only .lbl-barcode-img img {
                 height: calc(0.66in * var(--custom-barcode-scale));
-                width: 1.85in;
+                width: 100%;
                 object-fit: contain;
             }
             .label-barcode-only .lbl-tag {
@@ -774,15 +911,35 @@
             flex: 1; display: flex; align-items: stretch;
             padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad));
             gap: calc(8px * var(--custom-inner-pad));
+            min-width: 0;
+            overflow: hidden;
         }
-        .label-modern .lbl-qr { flex: 0 0 auto; display: flex; align-items: center; }
+        .label-modern .lbl-qr {
+            flex: 0 0 34%;
+            width: 34%;
+            min-width: 64px;
+            max-width: 34%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         .label-modern .lbl-qr img {
-            width: calc(108px * var(--custom-qr-scale)); height: calc(108px * var(--custom-qr-scale));
+            width: min(100%, calc(108px * var(--custom-qr-scale)));
+            height: auto;
+            aspect-ratio: 1 / 1;
             border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px; background: #fff;
             image-rendering: pixelated;
         }
         .label-modern .lbl-modern-info {
-            flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden;
+            flex: 1 1 66%;
+            min-width: 0;
+            max-width: 66%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 3px;
+            overflow: hidden;
         }
         .label-modern .lbl-asset-name {
             font-weight: 700; font-size: calc(0.68rem * var(--custom-font-scale));
@@ -814,8 +971,22 @@
             flex-direction: column; align-items: center; justify-content: center;
             padding: calc(4px * var(--custom-inner-pad)); gap: 4px;
         }
+        .label-qr-only .lbl-qr-main {
+            flex: 1;
+            width: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         .label-qr-only .lbl-qr-main img {
-            width: calc(140px * var(--custom-qr-scale)); height: calc(140px * var(--custom-qr-scale)); padding: 2px;
+            width: min(100%, calc(140px * var(--custom-qr-scale)));
+            height: auto;
+            max-height: 100%;
+            aspect-ratio: 1 / 1;
+            padding: 2px;
             image-rendering: pixelated;
         }
         .label-qr-only .lbl-tag-bottom {
@@ -1091,6 +1262,8 @@
             display: block;
             width: 100%;
             height: auto;        /* preserve aspect ratio — no bar distortion */
+            max-width: 100%;
+            max-height: 100%;
             shape-rendering: crispEdges;  /* eliminates antialiasing on bar edges */
             image-rendering: auto;
             flex-shrink: 0;
@@ -1105,14 +1278,14 @@
             background: #fff;
         }
 
-        /* Screen preview: avoid clipping barcode side quiet-zones. */
+        /* Screen preview: keep barcode fully inside sticker bounds. */
         .label-classic .lbl-right,
         .label-detailed .lbl-right {
-            overflow: visible;
+            overflow: hidden;
         }
         .label-barcode-only .lbl-barcode-img,
         .label-modern .lbl-barcode-inline {
-            overflow: visible;
+            overflow: hidden;
         }
         @media print {
             .label {
@@ -1125,7 +1298,7 @@
             .label-barcode-only .lbl-barcode-img,
             .label-modern .lbl-barcode-inline {
                 padding: 0 0.8mm !important;
-                overflow: visible !important;
+                overflow: hidden !important;
                 background: #fff !important;
             }
 
@@ -1135,8 +1308,10 @@
             .label-detailed .lbl-right .lbl-barcode-svg,
             .label-barcode-only .lbl-barcode-img .lbl-barcode-svg,
             .label-modern .lbl-barcode-inline .lbl-barcode-svg {
-                width: auto !important;
+                width: 100% !important;
+                height: auto !important;
                 max-width: 100% !important;
+                max-height: 100% !important;
                 shape-rendering: crispEdges !important;
                 image-rendering: auto !important;
             }
@@ -1256,12 +1431,12 @@
 
     <div class="field">
         <label for="font-scale">Font Size</label>
-        <input id="font-scale" type="range" min="0.8" max="1.4" step="0.05" value="1">
+        <input id="font-scale" type="range" min="0.8" max="1.2" step="0.05" value="1">
     </div>
 
     <div class="field">
         <label for="org-font-scale">Organization Size <span class="control-value" id="org-font-scale-value">1.00x</span></label>
-        <input id="org-font-scale" type="range" min="0.7" max="1.8" step="0.05" value="1">
+        <input id="org-font-scale" type="range" min="0.7" max="1.4" step="0.05" value="1">
     </div>
 
     <div class="field">
@@ -1275,11 +1450,6 @@
             <option value="1.3">XL</option>
             <option value="1.5">2XL</option>
             <option value="1.7">3XL</option>
-            <option value="2">4XL</option>
-            <option value="2.4">5XL</option>
-            <option value="2.8">6XL</option>
-            <option value="3.2">7XL</option>
-            <option value="3.6">8XL</option>
         </select>
     </div>
 
@@ -1294,7 +1464,7 @@
 
     <div class="field">
         <label for="tag-font-scale">Asset ID Size <span class="control-value" id="tag-font-scale-value">1.00x</span></label>
-        <input id="tag-font-scale" type="range" min="0.7" max="1.8" step="0.05" value="1">
+        <input id="tag-font-scale" type="range" min="0.7" max="1.4" step="0.05" value="1">
     </div>
 
     <div class="field">
@@ -1308,17 +1478,17 @@
 
     <div class="field">
         <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">1.00x</span></label>
-        <input id="qr-scale" type="range" min="0.7" max="1.5" step="0.05" value="1">
+        <input id="qr-scale" type="range" min="0.7" max="1.2" step="0.05" value="1">
     </div>
 
     <div class="field">
         <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.00x</span></label>
-        <input id="barcode-scale" type="range" min="0.8" max="1.4" step="0.05" value="0.9">
+        <input id="barcode-scale" type="range" min="0.8" max="1.2" step="0.05" value="0.9">
     </div>
 
     <div class="field">
         <label for="padding-scale">Spacing <span class="control-value" id="padding-scale-value">1.00x</span></label>
-        <input id="padding-scale" type="range" min="0.7" max="1.4" step="0.05" value="1">
+        <input id="padding-scale" type="range" min="0.75" max="1.15" step="0.05" value="1">
     </div>
 
     <div class="field">
@@ -2017,7 +2187,58 @@ renderAllBarcodes();
         };
     }
 
+    function clampNumber(value, min, max, fallback) {
+        var parsed = parseFloat(value);
+        if (Number.isNaN(parsed)) {
+            parsed = fallback;
+        }
+        return Math.min(max, Math.max(min, parsed));
+    }
+
+    function sanitizeState(rawState) {
+        var state = Object.assign({}, defaults, rawState || {});
+        var allowedLogoSizes = ['0.7', '0.8', '0.9', '1', '1.15', '1.3', '1.5', '1.7'];
+
+        state.size = (state.size === '2x1') ? '2x1' : defaults.size;
+        state.fontFamily = state.fontFamily || defaults.fontFamily;
+        state.orgAlign = ['left', 'center', 'right'].includes(state.orgAlign) ? state.orgAlign : defaults.orgAlign;
+        state.logoPosition = ['left', 'center', 'right'].includes(state.logoPosition) ? state.logoPosition : defaults.logoPosition;
+
+        state.font = clampNumber(state.font, 0.8, 1.2, parseFloat(defaults.font)).toFixed(2);
+        state.orgFont = clampNumber(state.orgFont, 0.7, 1.4, parseFloat(defaults.orgFont)).toFixed(2);
+        state.tagFont = clampNumber(state.tagFont, 0.7, 1.4, parseFloat(defaults.tagFont)).toFixed(2);
+        state.qr = clampNumber(state.qr, 0.7, 1.2, parseFloat(defaults.qr)).toFixed(2);
+        state.barcode = clampNumber(state.barcode, 0.8, 1.2, parseFloat(defaults.barcode)).toFixed(2);
+        state.spacing = clampNumber(state.spacing, 0.75, 1.15, parseFloat(defaults.spacing)).toFixed(2);
+        state.radius = String(Math.round(clampNumber(state.radius, 0, 10, parseFloat(defaults.radius))));
+        state.borderWidth = clampNumber(state.borderWidth, 0, 3, parseFloat(defaults.borderWidth)).toFixed(1);
+
+        state.logoSize = String(state.logoSize || defaults.logoSize);
+        if (!allowedLogoSizes.includes(state.logoSize)) {
+            state.logoSize = defaults.logoSize;
+        }
+
+        state.borderColor = state.borderColor || defaults.borderColor;
+        state.accent = state.accent || defaults.accent;
+        state.bgcolor = state.bgcolor || defaults.bgcolor;
+        state.copies = ['1', '2', '3', '5'].includes(String(state.copies)) ? String(state.copies) : defaults.copies;
+
+        state.org = Boolean(state.org);
+        state.logo = Boolean(state.logo);
+        state.tag = Boolean(state.tag);
+        state.showQr = Boolean(state.showQr);
+        state.barcodeToggle = Boolean(state.barcodeToggle);
+        state.name = Boolean(state.name);
+        state.category = Boolean(state.category);
+        state.location = Boolean(state.location);
+        state.border = Boolean(state.border);
+        state.qrBorder = Boolean(state.qrBorder);
+
+        return state;
+    }
+
     function applyState(state) {    
+        state = sanitizeState(state);
         applyPrintSize(state.size);
         root.style.setProperty('--custom-font-family', resolveFontFamily(state.fontFamily));
         root.style.setProperty('--custom-font-scale', state.font);
@@ -2071,12 +2292,7 @@ renderAllBarcodes();
                 '1.15': 'Large',
                 '1.3': 'XL',
                 '1.5': '2XL',
-                '1.7': '3XL',
-                '2': '4XL',
-                '2.4': '5XL',
-                '2.8': '6XL',
-                '3.2': '7XL',
-                '3.6': '8XL'
+                '1.7': '3XL'
             };
             logoSizeValue.textContent = logoMap[String(state.logoSize || defaults.logoSize)] || 'Medium';
         }
@@ -2094,6 +2310,7 @@ renderAllBarcodes();
     }
 
     function setControls(state) {
+        state = sanitizeState(state);
         controls.size.value = state.size === '2x1' ? '2x1' : defaults.size;
         controls.fontFamily.value = state.fontFamily || defaults.fontFamily;
         controls.font.value = state.font;
@@ -2103,12 +2320,7 @@ renderAllBarcodes();
         controls.tagFont.value = state.tagFont || defaults.tagFont;
         controls.orgAlign.value = state.orgAlign || defaults.orgAlign;
 
-        var qrValue = parseFloat(state.qr);
-        if (Number.isNaN(qrValue)) {
-            qrValue = parseFloat(defaults.qr);
-        }
-        qrValue = Math.max(0.7, Math.min(1.5, qrValue));
-        controls.qr.value = String(qrValue);
+        controls.qr.value = state.qr;
 
         controls.barcode.value = state.barcode;
         controls.spacing.value = state.spacing;
