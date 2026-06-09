@@ -1979,18 +1979,20 @@ function renderAllBarcodes() {
             var parentWidth = svg.parentElement ? svg.parentElement.clientWidth : 0;
             var targetWidth = parentWidth > 0 ? parentWidth : fallbackWidth;
 
-            // CODE128 has variable symbols; this approximation keeps bars readable and not over-thick.
-            var estimatedModules = (11 * (String(tag).length + 2)) + 35;
-            var marginPx = isSmallSticker ? 6 : 8;
+            // CODE128 has variable symbol widths; slightly over-estimating module count keeps bars thinner.
+            var tagLen = String(tag).length;
+            var estimatedModules = (11 * (tagLen + 3)) + 46;
+            var marginPx = isSmallSticker ? 4 : 6;
             var safeWidth = Math.max(60, targetWidth - (marginPx * 2));
             var moduleWidth = safeWidth / estimatedModules;
 
-            var minModuleWidth = isSmallSticker ? 0.72 : 0.8;
-            var maxModuleWidth = isSmallSticker ? 1.05 : 1.2;
-            if (String(tag).length >= 12) {
-                maxModuleWidth = isSmallSticker ? 0.95 : 1.05;
+            var minModuleWidth = isSmallSticker ? 0.46 : 0.56;
+            var maxModuleWidth = isSmallSticker ? 0.86 : 0.98;
+            if (tagLen >= 12) {
+                maxModuleWidth = isSmallSticker ? 0.76 : 0.88;
             }
             moduleWidth = Math.max(minModuleWidth, Math.min(maxModuleWidth, moduleWidth));
+            moduleWidth = Math.round(moduleWidth * 100) / 100;
 
             var baseHeight;
             if (inBarcodeOnlyDesign) {
