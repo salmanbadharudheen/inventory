@@ -1767,6 +1767,8 @@ function switchDesign(value) {
     var url = new URL(window.location);
     url.searchParams.set('design', value);
     window.history.replaceState({}, '', url);
+    // Re-render barcode using visible layout bounds after design changes.
+    requestAnimationFrame(renderAllBarcodes);
 }
 
 /* ── Refresh Missing Codes ───────────────────────────── */
@@ -1960,16 +1962,45 @@ function renderAllBarcodes() {
         try {
             var selectedSize = getSelectedPrintSize();
             var isSmallSticker = selectedSize.wMm <= 55;
-            var moduleWidth = isSmallSticker ? 1 : 1.4;
-            if (String(tag).length >= 12) {
-                moduleWidth = 1;
+            var labelEl = svg.closest('.label');
+            var inClassicDesign = Boolean(svg.closest('.label-classic'));
+            var inDetailedDesign = Boolean(svg.closest('.label-detailed'));
+            var inModernDesign = Boolean(svg.closest('.label-modern'));
+            var inBarcodeOnlyDesign = Boolean(svg.closest('.label-barcode-only'));
+
+            var designWidthRatio = 0.56;
+            if (inModernDesign) {
+                designWidthRatio = 0.6;
+            } else if (inBarcodeOnlyDesign) {
+                designWidthRatio = 0.88;
             }
 
-            var inClassicDesign = Boolean(svg.closest('.label-classic'));
-            var baseHeight = inClassicDesign
-                ? (isSmallSticker ? 58 : 92)
-                : (isSmallSticker ? 72 : 110);
-            var scaledHeight = Math.max(36, Math.round(baseHeight * barcodeScale));
+            var fallbackWidth = Math.max(90, Math.round(selectedSize.wPx * designWidthRatio));
+            var parentWidth = svg.parentElement ? svg.parentElement.clientWidth : 0;
+            var targetWidth = parentWidth > 0 ? parentWidth : fallbackWidth;
+
+            // CODE128 has variable symbols; this approximation keeps bars readable and not over-thick.
+            var estimatedModules = (11 * (String(tag).length + 2)) + 35;
+            var marginPx = isSmallSticker ? 6 : 8;
+            var safeWidth = Math.max(60, targetWidth - (marginPx * 2));
+            var moduleWidth = safeWidth / estimatedModules;
+
+            var minModuleWidth = isSmallSticker ? 0.72 : 0.8;
+            var maxModuleWidth = isSmallSticker ? 1.05 : 1.2;
+            if (String(tag).length >= 12) {
+                maxModuleWidth = isSmallSticker ? 0.95 : 1.05;
+            }
+            moduleWidth = Math.max(minModuleWidth, Math.min(maxModuleWidth, moduleWidth));
+
+            var baseHeight;
+            if (inBarcodeOnlyDesign) {
+                baseHeight = isSmallSticker ? 62 : 98;
+            } else if (inClassicDesign || inDetailedDesign || inModernDesign) {
+                baseHeight = isSmallSticker ? 56 : 90;
+            } else {
+                baseHeight = isSmallSticker ? 56 : 90;
+            }
+            var scaledHeight = Math.max(34, Math.round(baseHeight * barcodeScale));
 
             JsBarcode(svg, tag, {
                 format: 'CODE128',
@@ -1978,7 +2009,7 @@ function renderAllBarcodes() {
                 lineColor: '#000000',
                 width: moduleWidth,
                 height: scaledHeight,
-                margin: isSmallSticker ? 6 : 8,
+                margin: marginPx,
                 flat: true
             });
         } catch (e) {
