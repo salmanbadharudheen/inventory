@@ -595,7 +595,6 @@
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                color-adjust: exact !important;
             }
 
             html, body {
@@ -675,8 +674,7 @@
                 font-smooth: never !important;
                 line-height: 1.05 !important;
                 letter-spacing: 0.02em !important;
-                font-weight: 800 !important;
-                -webkit-text-stroke: 0.12pt #000 !important;
+                font-weight: 700 !important;
             }
 
             .label .lbl-qr img,
@@ -700,19 +698,14 @@
             .label svg,
             .label svg * {
                 shape-rendering: crispEdges !important;
-                vector-effect: non-scaling-stroke !important;
                 text-rendering: geometricPrecision !important;
-            }
-            .label .lbl-barcode-svg * {
-                fill: #000 !important;
-                stroke: #000 !important;
             }
             .label .lbl-qr img,
             .label .lbl-qr-main img,
             .label .lbl-right img,
             .label .lbl-barcode-img img,
             .label .lbl-barcode-inline img {
-                filter: contrast(1.35) brightness(0.9) saturate(0) !important;
+                filter: none !important;
             }
             .label-classic .lbl-accent,
             .label-detailed .lbl-header,
@@ -1967,7 +1960,7 @@ function renderAllBarcodes() {
         try {
             var selectedSize = getSelectedPrintSize();
             var isSmallSticker = selectedSize.wMm <= 55;
-            var moduleWidth = isSmallSticker ? 1 : 2;
+            var moduleWidth = isSmallSticker ? 1 : 1.4;
             if (String(tag).length >= 12) {
                 moduleWidth = 1;
             }
@@ -1985,7 +1978,7 @@ function renderAllBarcodes() {
                 lineColor: '#000000',
                 width: moduleWidth,
                 height: scaledHeight,
-                margin: isSmallSticker ? 8 : 10,
+                margin: isSmallSticker ? 6 : 8,
                 flat: true
             });
         } catch (e) {
