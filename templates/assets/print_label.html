@@ -628,18 +628,35 @@
                 box-sizing: border-box !important;
                 border: 0.55mm solid #000 !important;
                 outline: 0.15mm solid #000 !important;
-                /* advance the sticker roll after every label */
-                page-break-after:  always !important;
-                break-after: page  !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 display: flex !important;
                 opacity: 1 !important;
             }
+
+            /* JS marks visible labels before print for stable pagination across browsers. */
+            .label._print-visible {
+                page-break-after: always !important;
+                break-after: page !important;
+            }
+
+            /* Last visible label must not emit an extra blank sheet. */
+            .label._print-visible._print-last-visible {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            /* Fallback if JS hooks do not run. */
+            .label:not([style*="display:none"]):not([style*="display: none"]):not(:last-child) {
+                page-break-after: always !important;
+                break-after: page !important;
+            }
+
             .label:last-child {
                 page-break-after: auto !important;
                 break-after: auto !important;
             }
+
             /* Hidden design variants must not leave blank feeds */
             .label[style*="display:none"],
             .label[style*="display: none"] {
@@ -1769,6 +1786,26 @@ function switchDesign(value) {
     window.history.replaceState({}, '', url);
     // Re-render barcode using visible layout bounds after design changes.
     requestAnimationFrame(renderAllBarcodes);
+    updatePrintPaginationClasses();
+}
+
+function updatePrintPaginationClasses() {
+    var labels = Array.from(document.querySelectorAll('#label-grid .label'));
+    labels.forEach(function(el) {
+        el.classList.remove('_print-visible', '_print-last-visible');
+    });
+
+    var visible = labels.filter(function(el) {
+        return window.getComputedStyle(el).display !== 'none';
+    });
+
+    visible.forEach(function(el) {
+        el.classList.add('_print-visible');
+    });
+
+    if (visible.length) {
+        visible[visible.length - 1].classList.add('_print-last-visible');
+    }
 }
 
 /* ── Refresh Missing Codes ───────────────────────────── */
@@ -1816,12 +1853,15 @@ function doPrint() {
         }
     });
 
+    updatePrintPaginationClasses();
+
     var size = getSelectedPrintSize();
     ensureRuntimePrintStyle(size);
     document.body.setAttribute('data-print-size', escapePrintHtml(size.label));
 
     function cleanupCopies() {
         clones.forEach(function(c) { if (c.parentNode) c.parentNode.removeChild(c); });
+        updatePrintPaginationClasses();
         window.removeEventListener('afterprint', cleanupCopies);
     }
 
@@ -2026,6 +2066,8 @@ function renderAllBarcodes() {
 }
 
 renderAllBarcodes();
+updatePrintPaginationClasses();
+window.addEventListener('beforeprint', updatePrintPaginationClasses);
 
 /* ── Wait for all images, then enable Print ─────────── */
 (function() {
