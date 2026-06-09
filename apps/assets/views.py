@@ -520,7 +520,7 @@ class AssetListView(LoginRequiredMixin, ListView):
             'category', 'sub_category', 'branch', 'assigned_to', 
             'site', 'building', 'brand_new', 'room', 'department',
             'sub_location', 'group'
-        ).prefetch_related('attachments')
+        )
 
         # Search across many asset fields and common related names
         query = self.request.GET.get('q')
@@ -669,7 +669,10 @@ class AssetListView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(id__in=asset_ids)
             except Exception:
                 pass
-        return queryset.order_by('-created_at')
+        queryset = queryset.order_by('-created_at')
+        # Cache the fully filtered queryset for reuse in get_context_data.
+        self._filtered_queryset = queryset
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -680,12 +683,16 @@ class AssetListView(LoginRequiredMixin, ListView):
         show_financial = user.role in [user.Role.CHECKER, user.Role.SENIOR_MANAGER, user.Role.ADMIN] or user.is_superuser
         context['show_financial'] = show_financial
         
-        # Calculate total values for filtered assets
-        if show_financial:
+        # Calculate expensive financial totals only on depreciation view.
+        # For the main /assets/ list page these values are not rendered and
+        # recomputing them can add significant latency on larger datasets.
+        if show_financial and self.request.GET.get('view') == 'depreciation':
             from django.db.models import Sum, Count
             from django.db.models.functions import Coalesce
             
-            filtered_queryset = self.get_queryset()
+            filtered_queryset = getattr(self, '_filtered_queryset', None)
+            if filtered_queryset is None:
+                filtered_queryset = self.get_queryset()
             
             # Calculate aggregates
             aggregates = filtered_queryset.aggregate(

@@ -307,6 +307,9 @@
         .label-classic .lbl-accent {
               display: none;
         }
+        .label-classic {
+            border: none;
+        }
         .label-classic .lbl-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: calc(2px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad));
@@ -588,6 +591,10 @@
             /* ── CLASSIC print ─────────────────────────── */
             .label-classic .lbl-accent {
                 display: none;
+            }
+            .label-classic {
+                border: none !important;
+                outline: none !important;
             }
             .label-classic .lbl-header {
                 padding: 1pt 5pt;
@@ -1128,17 +1135,31 @@
             .label-detailed .lbl-right .lbl-barcode-svg,
             .label-barcode-only .lbl-barcode-img .lbl-barcode-svg,
             .label-modern .lbl-barcode-inline .lbl-barcode-svg {
-                width: 100% !important;
-                height: auto !important;
+                width: auto !important;
+                max-width: 100% !important;
                 shape-rendering: crispEdges !important;
                 image-rendering: auto !important;
             }
+
+            /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
+            .label-classic .lbl-right .lbl-barcode-svg {
+                height: calc(0.46in * var(--custom-barcode-scale)) !important;
+            }
+            .label-detailed .lbl-right .lbl-barcode-svg {
+                height: calc(0.40in * var(--custom-barcode-scale)) !important;
+            }
+            .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
+                height: calc(0.66in * var(--custom-barcode-scale)) !important;
+            }
+            .label-modern .lbl-barcode-inline .lbl-barcode-svg {
+                height: calc(0.30in * var(--custom-barcode-scale)) !important;
+            }
+
             body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-detailed .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-modern .lbl-barcode-inline .lbl-barcode-svg,
             body.size-roll-133x19 .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
-                width: 100% !important;
-                height: auto !important;
+                height: calc(6.8mm * var(--custom-barcode-scale)) !important;
             }
         }
     </style>
@@ -1292,7 +1313,7 @@
 
     <div class="field">
         <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.00x</span></label>
-        <input id="barcode-scale" type="range" min="0.8" max="1.4" step="0.05" value="1">
+        <input id="barcode-scale" type="range" min="0.8" max="1.4" step="0.05" value="0.9">
     </div>
 
     <div class="field">
@@ -1760,11 +1781,19 @@ async function sendToExternalPrintApp() {
 }
 
 /* ── JsBarcode: render all barcodes directly in browser ─ */
-(function() {
+function renderAllBarcodes() {
     if (typeof JsBarcode === 'undefined') return;
+
+    var barcodeScaleControl = document.getElementById('barcode-scale');
+    var barcodeScale = barcodeScaleControl ? parseFloat(barcodeScaleControl.value) : 1;
+    if (Number.isNaN(barcodeScale)) {
+        barcodeScale = 1;
+    }
+
     document.querySelectorAll('.lbl-barcode-svg').forEach(function(svg) {
         var tag = svg.dataset.tag;
         if (!tag) return;
+
         try {
             var selectedSize = getSelectedPrintSize();
             var isSmallSticker = selectedSize.wMm <= 55;
@@ -1773,36 +1802,29 @@ async function sendToExternalPrintApp() {
                 moduleWidth = 1;
             }
 
+            var inClassicDesign = Boolean(svg.closest('.label-classic'));
+            var baseHeight = inClassicDesign
+                ? (isSmallSticker ? 58 : 92)
+                : (isSmallSticker ? 72 : 110);
+            var scaledHeight = Math.max(36, Math.round(baseHeight * barcodeScale));
+
             JsBarcode(svg, tag, {
                 format: 'CODE128',
                 displayValue: false,
                 background: '#ffffff',
                 lineColor: '#000000',
-                /* width = px per narrow bar module.
-                   Integer value is critical — fractional widths cause
-                   sub-pixel antialiasing that blurs bars on small stickers.
-                   3px gives bars thick enough to survive scaling to 2≨1″. */
-                     width: moduleWidth,
-                /* height = bar height in SVG coordinates.
-                   CSS width:100%/height:auto scales the whole SVG
-                   proportionally, so this controls the aspect ratio
-                   rather than absolute pixel size on the sticker. */
-                            height: isSmallSticker ? 72 : 110,
-                /* quiet zone: minimum 10x narrow bar width required
-                   by GS1/ISO for reliable scanning. */
-                            margin: 10,
-                     flat: true
+                width: moduleWidth,
+                height: scaledHeight,
+                margin: isSmallSticker ? 8 : 10,
+                flat: true
             });
-            /* IMPORTANT: do NOT set preserveAspectRatio="none".
-               That scales X and Y independently, producing non-integer
-               bar widths after CSS scaling — the main cause of blurry
-               unreadable barcodes on small stickers.
-               Default xMidYMid meet keeps bars in correct ratio. */
-        } catch(e) {
+        } catch (e) {
             svg.style.display = 'none';
         }
     });
-})();
+}
+
+renderAllBarcodes();
 
 /* ── Wait for all images, then enable Print ─────────── */
 (function() {
@@ -1888,7 +1910,7 @@ async function sendToExternalPrintApp() {
         tagFont: '1',
         orgAlign: 'center',
         qr: '1',
-        barcode: '1',
+        barcode: '0.9',
         spacing: '1',
         radius: '4',
         borderWidth: '1.5',
@@ -2068,6 +2090,7 @@ async function sendToExternalPrintApp() {
 
     function update() {
         applyState(readState());
+        renderAllBarcodes();
     }
 
     function setControls(state) {
