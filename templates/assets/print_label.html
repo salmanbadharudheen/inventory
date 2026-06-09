@@ -439,12 +439,12 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 3px;
+            gap: 2px;
         }
-        .label-classic .lbl-right img { width: 100%; height: calc(92px * var(--custom-barcode-scale)); object-fit: contain; }
+        .label-classic .lbl-right img { width: 100%; height: calc(102px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.66rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.05em;
+            font-size: calc(0.58rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.04em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -755,13 +755,13 @@
                 gap: 2pt;
             }
             .label-classic .lbl-right img {
-                height: calc(0.58in * var(--custom-barcode-scale));
+                height: calc(0.64in * var(--custom-barcode-scale));
                 width: 100%;
                 object-fit: contain;
             }
             .label-classic .lbl-right .lbl-tag {
-                font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
-                letter-spacing: 0.04em;
+                font-size: calc(6pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
+                letter-spacing: 0.03em;
             }
 
             /* ── COMPACT print ─────────────────────────── */
@@ -1311,7 +1311,7 @@
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
             .label-classic .lbl-right .lbl-barcode-svg {
-                height: calc(0.46in * var(--custom-barcode-scale)) !important;
+                height: calc(0.52in * var(--custom-barcode-scale)) !important;
             }
             .label-detailed .lbl-right .lbl-barcode-svg {
                 height: calc(0.40in * var(--custom-barcode-scale)) !important;
@@ -1983,6 +1983,9 @@ function renderAllBarcodes() {
             var tagLen = String(tag).length;
             var estimatedModules = (11 * (tagLen + 3)) + 46;
             var marginPx = isSmallSticker ? 4 : 6;
+            if (inClassicDesign) {
+                marginPx = isSmallSticker ? 3 : 5;
+            }
             var safeWidth = Math.max(60, targetWidth - (marginPx * 2));
             var moduleWidth = safeWidth / estimatedModules;
 
@@ -1997,7 +2000,9 @@ function renderAllBarcodes() {
             var baseHeight;
             if (inBarcodeOnlyDesign) {
                 baseHeight = isSmallSticker ? 62 : 98;
-            } else if (inClassicDesign || inDetailedDesign || inModernDesign) {
+            } else if (inClassicDesign) {
+                baseHeight = isSmallSticker ? 64 : 102;
+            } else if (inDetailedDesign || inModernDesign) {
                 baseHeight = isSmallSticker ? 56 : 90;
             } else {
                 baseHeight = isSmallSticker ? 56 : 90;
