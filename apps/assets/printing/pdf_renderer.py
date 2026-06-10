@@ -60,7 +60,7 @@ class PDFLabelRenderer(LabelRenderer):
 
     # ── Layout ────────────────────────────────────────────────────────────
     def _draw_label(self, c, data: LabelData, spec: LabelSpec, W: float, H: float) -> None:
-        margin = 1.0 * mm
+        margin = 1.8 * mm
         tag = data.safe_tag()
         if not tag:
             return
@@ -94,10 +94,10 @@ class PDFLabelRenderer(LabelRenderer):
         self._draw_qr_and_barcode(c, data, spec, margin, content_bottom, content_w, content_h)
 
     def _draw_header(self, c, data: LabelData, W: float, H: float, margin: float) -> float:
-        header_h = 3.6 * mm
+        header_h = 3.2 * mm
         baseline = H - margin - header_h + 0.9 * mm
         text = data.org_name.strip()
-        font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin - 6 * mm, 8.0, 5.0)
+        font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin - 6 * mm, 6.5, 4.5)
 
         logo_drawn = 0.0
         if data.logo_path:
@@ -112,8 +112,9 @@ class PDFLabelRenderer(LabelRenderer):
 
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
-        gap = 1.4 * mm
-        qr_side = min(h, w * 0.40)
+        gap = 1.6 * mm
+        # Keep the QR comfortably inside the content box (leave vertical breathing room).
+        qr_side = min(h * 0.86, w * 0.34)
         qr_x = x
         qr_y = y + (h - qr_side) / 2.0
         self._draw_qr(c, data.safe_tag(), qr_x, qr_y, qr_side)
@@ -122,13 +123,16 @@ class PDFLabelRenderer(LabelRenderer):
         right_w = max(0.0, (x + w) - right_x)
 
         tag = data.safe_tag()
-        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 7.0, 4.0)
+        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 6.0, 3.5)
         tag_h = tag_font * 1.1
-        bar_h = max(4 * mm, h - tag_h - 1.0 * mm)
+        # Barcode occupies the top of the right column, leaving margin around it.
+        bar_h = max(3.5 * mm, (h * 0.92) - tag_h - 1.0 * mm)
 
-        # Barcode occupies the top of the right column.
+        # Slight horizontal inset so bars never touch the sticker edge.
+        bar_w = right_w * 0.96
+        bar_x = right_x + (right_w - bar_w) / 2.0
         bar_y = y + tag_h + 0.6 * mm
-        self._draw_barcode_fitted(c, tag, right_x, bar_y, right_w, bar_h)
+        self._draw_barcode_fitted(c, tag, bar_x, bar_y, bar_w, bar_h)
 
         # Human-readable tag centred under the barcode.
         c.setFont(FONT_MONO, tag_font)

@@ -1396,9 +1396,9 @@
         🔄 Refresh codes
     </button>
     <label for="print-mode" style="margin-left:6px;">Mode:</label>
-    <select id="print-mode" title="Browser Print uses the on-screen layout. PDF Print generates an exact-size vector PDF (best for thermal/sticker printers — no browser scaling).">
-        <option value="browser" selected>Browser Print</option>
-        <option value="pdf">PDF Print (vector)</option>
+    <select id="print-mode" title="PDF Print generates an exact-size vector PDF (prints at true 2x1 with no scaling). Zebra ZPL downloads a native .zpl for pixel-exact 203 DPI printing on the ZD220.">
+        <option value="pdf" selected>PDF Print (exact size)</option>
+        <option value="zpl">Zebra ZPL (.zpl)</option>
     </select>
     <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
@@ -1859,17 +1859,18 @@ function refreshMissingCodes(btn) {
     }
 })();
 
-/* ── Copies-aware Print ──────────────────────────────── */
+/* ── Print mode (PDF exact-size / Zebra ZPL) ──────────── */
 function getPrintMode() {
     var el = document.getElementById('print-mode');
-    return el ? el.value : 'browser';
+    return el ? el.value : 'pdf';
 }
 
-/* Build the server-side PDF endpoint URL, reusing the current selection
-   filters (ids/tag range/etc.) and overriding size/copies/design. */
-function buildPdfLabelUrl() {
+/* Build the server-side label endpoint URL for a given mode, reusing the
+   current selection filters (ids/tag range/etc.) and overriding
+   size/copies/design. */
+function buildLabelUrl(mode) {
     var params = new URLSearchParams(window.location.search);
-    params.delete('batch');      // PDF endpoint paginates internally
+    params.delete('batch');      // endpoint paginates internally
     params.delete('autoprint');
     var sizeControl = document.getElementById('sticker-size');
     var copiesControl = document.getElementById('copies-count');
@@ -1877,21 +1878,34 @@ function buildPdfLabelUrl() {
     params.set('size', sizeControl ? sizeControl.value : '2x1');
     params.set('copies', String(parseInt(copiesControl && copiesControl.value, 10) || 1));
     params.set('design', designControl ? designControl.value : 'CLASSIC');
-    params.set('mode', 'pdf');
+    params.set('mode', mode || 'pdf');
     return '{% url "print-asset-labels-pdf" %}?' + params.toString();
 }
 
-/* Open the exact-size vector PDF in a new tab. The browser prints it at
-   full device DPI with no scaling — ideal for thermal/sticker printers. */
+/* Open the exact-size vector PDF in a new tab. The PDF embeds PrintScaling
+   None so it prints at the exact sticker size with no browser scaling. */
 function openPdfLabels() {
-    window.open(buildPdfLabelUrl(), '_blank');
+    window.open(buildLabelUrl('pdf'), '_blank');
+}
+
+/* Download native Zebra ZPL (.zpl) for pixel-exact 203 DPI printing on the
+   ZD220 (send via Zebra Setup Utilities or a raw printer port). */
+function downloadZplLabels() {
+    window.location.href = buildLabelUrl('zpl');
 }
 
 function doPrint() {
-    if (getPrintMode() === 'pdf') {
-        openPdfLabels();
+    if (getPrintMode() === 'zpl') {
+        downloadZplLabels();
         return;
     }
+    // Default: exact-size PDF (no browser window.print scaling).
+    openPdfLabels();
+}
+
+/* Legacy browser window.print() path — retained only as an internal helper;
+   it is no longer wired to any button. */
+function doBrowserPrint() {
     var copies = parseInt(document.getElementById('copies-count').value) || 1;
     var grid = document.getElementById('label-grid');
     var labels = Array.from(grid.children).filter(function(el) {

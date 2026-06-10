@@ -82,6 +82,8 @@ class LabelRenderer(ABC):
     file_extension: str = 'bin'
     #: Human-friendly mode identifier.
     mode: str = 'base'
+    #: Content-Disposition: 'inline' (view/print in browser) or 'attachment'.
+    disposition: str = 'inline'
 
     @abstractmethod
     def render(self, labels: list[LabelData], spec: LabelSpec) -> bytes:

@@ -7591,8 +7591,10 @@ def print_asset_labels_pdf(request):
 
     response = HttpResponse(payload, content_type=renderer.content_type)
     filename = f'asset_labels_{size_key}.{renderer.file_extension}'
+    disposition = getattr(renderer, 'disposition', 'inline')
     # inline => opens in a new browser tab for print-to-PDF / direct printing.
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    # attachment => downloads (e.g. native .zpl for Zebra Setup Utilities).
+    response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
     return response
 
 
