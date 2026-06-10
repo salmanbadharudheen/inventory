@@ -103,12 +103,11 @@ class PDFLabelRenderer(LabelRenderer):
         if data.logo_path:
             logo_drawn = self._try_draw_logo(c, data.logo_path, margin, baseline - 0.6 * mm, header_h - 1.0 * mm)
 
+        # Always centre the org name (parity with the on-screen label). The logo,
+        # when present, sits at the far left and does not shift the centred text.
         c.setFont(FONT_BOLD, font_size)
         c.setFillColorRGB(0, 0, 0)
-        if logo_drawn:
-            c.drawString(margin + logo_drawn + 1.2 * mm, baseline, text)
-        else:
-            c.drawCentredString(W / 2.0, baseline, text)
+        c.drawCentredString(W / 2.0, baseline, text)
         return header_h
 
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
