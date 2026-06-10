@@ -2045,12 +2045,13 @@ function renderAllBarcodes() {
             }
             var heightMm = Math.max(5, baseHeightMm * barcodeScale);
 
-            // High integer scale => dense pure-black bitmap that stays crisp
-            // when CSS scales it to the printed size (image-rendering: pixelated).
+            // Very high integer scale => ultra-dense pure-black bitmap that
+            // stays razor-sharp when CSS scales it down to the printed size
+            // (image-rendering: crisp-edges). Higher = crisper on thermal heads.
             bwipjs.toCanvas(canvas, {
                 bcid: 'code128',
                 text: String(tag),
-                scale: 4,
+                scale: 8,
                 height: heightMm,
                 includetext: false,
                 paddingwidth: isSmallSticker ? 2 : 4,
@@ -2064,7 +2065,7 @@ function renderAllBarcodes() {
         }
     });
 
-    // ── QR codes → crisp raster PNG (replaces faded vector SVG) ─
+    // ── QR codes → crisp high-res raster PNG (replaces faded vector SVG) ─
     document.querySelectorAll('img[data-qr-tag]').forEach(function(img) {
         var tag = img.dataset.qrTag;
         if (!tag) return;
@@ -2073,7 +2074,7 @@ function renderAllBarcodes() {
             bwipjs.toCanvas(qrCanvas, {
                 bcid: 'qrcode',
                 text: String(tag),
-                scale: 6,
+                scale: 12,
                 eclevel: 'M',
                 padding: 2,
                 backgroundcolor: 'ffffff',
