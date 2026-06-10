@@ -243,6 +243,8 @@
             --print-page-w: 2in;
             --print-page-h: 1in;
             --print-ink: #000000;
+            /* Safety shrink so the label border never spills onto a 2nd sheet in print. */
+            --print-edge-gap: 1mm;
             --custom-font-scale: 1;
             --custom-org-font-scale: 1;
             --custom-tag-font-scale: 1;
@@ -358,8 +360,9 @@
         }
         .label-classic .lbl-header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: calc(2px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad));
-            font-size: calc(0.6rem * var(--custom-font-scale)); color: #374151; flex-shrink: 0;
+            padding: calc(1px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad));
+            font-size: calc(0.55rem * var(--custom-font-scale)); color: #374151; flex-shrink: 0;
+            line-height: 1.1;
             border-bottom: none;
         }
         .label-classic .lbl-header-main {
@@ -389,28 +392,28 @@
             justify-content: flex-start;
         }
         .label-classic .org-logo {
-            width: calc(18px * var(--custom-logo-scale));
-            height: calc(18px * var(--custom-logo-scale));
+            width: calc(14px * var(--custom-logo-scale));
+            height: calc(14px * var(--custom-logo-scale));
             object-fit: contain;
             flex: 0 0 auto;
-            max-width: 64px;
-            max-height: 64px;
+            max-width: 48px;
+            max-height: 48px;
             border-radius: 2px;
             /* Keep logo smooth; barcode/QR use separate sharpness rules. */
             image-rendering: auto !important;
             filter: contrast(1.04) saturate(1.03);
         }
         .label-classic .lbl-header .org-name {
-            --org-base-size: 0.6rem;
+            --org-base-size: 0.55rem;
             font-weight: 700; letter-spacing: 0.02em;
         }
         .label-classic .lbl-header .tag-num {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-weight: 600; font-size: calc(0.58rem * var(--custom-font-scale)); color: #6b7280; flex-shrink: 0;
+            font-weight: 600; font-size: calc(0.52rem * var(--custom-font-scale)); color: #6b7280; flex-shrink: 0;
         }
         .label-classic .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(8px * var(--custom-inner-pad));
+            padding: calc(2px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(7px * var(--custom-inner-pad));
             min-width: 0;
             overflow: hidden;
         }
@@ -425,7 +428,7 @@
             overflow: hidden;
         }
         .label-classic .lbl-qr img {
-            width: min(100%, calc(108px * var(--custom-qr-scale)));
+            width: min(100%, calc(92px * var(--custom-qr-scale)));
             height: auto;
             aspect-ratio: 1 / 1;
             border: none; border-radius: 0; padding: 0;
@@ -441,10 +444,10 @@
             justify-content: center;
             gap: 2px;
         }
-        .label-classic .lbl-right img { width: 100%; height: calc(102px * var(--custom-barcode-scale)); object-fit: contain; }
+        .label-classic .lbl-right img { width: 100%; height: calc(82px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-right .lbl-tag {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: calc(0.58rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.04em;
+            font-size: calc(0.54rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.04em;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -614,20 +617,23 @@
                 margin:  0 !important;
             }
 
-            /* One sticker = one page feed */
+            /* One sticker = one page feed.
+               Label is sized a hair SMALLER than the page so the right/bottom
+               border never tips onto a second sheet due to sub-pixel rounding
+               (Edge/Chrome). --print-edge-gap is that safety shrink. */
             .label {
-                width:  var(--print-page-w) !important;
-                height: var(--print-page-h) !important;
-                max-width:  var(--print-page-w) !important;
-                max-height: var(--print-page-h) !important;
+                width:  calc(var(--print-page-w) - var(--print-edge-gap)) !important;
+                height: calc(var(--print-page-h) - var(--print-edge-gap)) !important;
+                max-width:  calc(var(--print-page-w) - var(--print-edge-gap)) !important;
+                max-height: calc(var(--print-page-h) - var(--print-edge-gap)) !important;
                 border-radius: 0    !important;
                 box-shadow:    none !important;
                 overflow:  hidden !important;
                 margin:  0 !important;
                 padding: 0 !important;
                 box-sizing: border-box !important;
-                border: 0.55mm solid #000 !important;
-                outline: 0.15mm solid #000 !important;
+                border: 0.35mm solid #000 !important;
+                outline: none !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 display: flex !important;
@@ -744,40 +750,48 @@
                 outline: none !important;
             }
             .label-classic .lbl-header {
-                padding: 1pt 5pt;
-                font-size: calc(7pt * var(--custom-font-scale));
-                line-height: 1.2;
+                padding: 0.5pt 5pt;
+                font-size: calc(6pt * var(--custom-font-scale));
+                line-height: 1.1;
                 border-bottom: none;
             }
             .label-classic .org-logo {
-                width: calc(10pt * var(--custom-logo-scale));
-                height: calc(10pt * var(--custom-logo-scale));
+                width: calc(8.5pt * var(--custom-logo-scale));
+                height: calc(8.5pt * var(--custom-logo-scale));
             }
             .label-classic .lbl-header .tag-num {
-                font-size: calc(6.2pt * var(--custom-font-scale));
+                font-size: calc(5.6pt * var(--custom-font-scale));
             }
             .label-classic .lbl-body {
-                padding: 1.5pt 4pt;
-                gap: 5pt;
+                padding: 1pt 4pt;
+                gap: 4pt;
                 flex: 1;
             }
             .label-classic .lbl-qr img {
-                width: calc(0.66in * var(--custom-qr-scale));
-                height: calc(0.66in * var(--custom-qr-scale));
+                width: calc(0.56in * var(--custom-qr-scale));
+                height: calc(0.56in * var(--custom-qr-scale));
+                max-height: 0.56in;
                 padding: 0;
                 border: none !important;
                 background: transparent !important;
             }
+            .label-classic .lbl-qr {
+                max-height: 0.62in;
+                overflow: hidden;
+            }
             .label-classic .lbl-right {
-                gap: 2pt;
+                gap: 1.5pt;
+                max-height: 0.62in;
+                overflow: hidden;
             }
             .label-classic .lbl-right img {
-                height: calc(0.64in * var(--custom-barcode-scale));
+                height: calc(0.50in * var(--custom-barcode-scale));
+                max-height: 0.50in;
                 width: 100%;
                 object-fit: contain;
             }
             .label-classic .lbl-right .lbl-tag {
-                font-size: calc(6pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
+                font-size: calc(5.4pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.03em;
             }
 
@@ -1328,7 +1342,7 @@
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
             .label-classic .lbl-right .lbl-barcode-svg {
-                height: calc(0.52in * var(--custom-barcode-scale)) !important;
+                height: calc(0.42in * var(--custom-barcode-scale)) !important;
             }
             .label-detailed .lbl-right .lbl-barcode-svg {
                 height: calc(0.40in * var(--custom-barcode-scale)) !important;
