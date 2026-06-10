@@ -26,6 +26,9 @@ whitenoise==6.11.0
 # For PDF export
 fpdf2==2.8.3
 
+# Vector PDF label generation (thermal/sticker printers)
+reportlab==4.2.5
+
 # Cloud file storage (S3 / Cloudflare R2)
 django-storages==1.14.6
 boto3==1.43.3

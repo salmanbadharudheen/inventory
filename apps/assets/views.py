@@ -7505,6 +7505,97 @@ def print_asset_labels_bulk(request):
     })
 
 
+def _filter_label_assets(request, org):
+    """Shared queryset builder for label printing (mirrors the bulk view)."""
+    qs = Asset.objects.filter(organization=org, is_deleted=False)
+    ids = request.GET.get('ids', '')
+    if ids:
+        id_list = [i.strip() for i in ids.split(',') if i.strip()]
+        qs = qs.filter(id__in=id_list)
+    else:
+        tag_from = request.GET.get('tag_from', '')
+        tag_to = request.GET.get('tag_to', '')
+        category = request.GET.get('category', '')
+        branch = request.GET.get('branch', '')
+        specific_tags = request.GET.get('specific_tags', '')
+        if tag_from and tag_to:
+            qs = qs.filter(asset_tag__gte=tag_from, asset_tag__lte=tag_to)
+        elif category or branch:
+            if category:
+                qs = qs.filter(category_id=category)
+            if branch:
+                qs = qs.filter(branch_id=branch)
+        elif specific_tags:
+            tags = [t.strip() for t in specific_tags.replace('\n', ',').split(',') if t.strip()]
+            qs = qs.filter(asset_tag__in=tags)
+    return qs.select_related('category', 'location').order_by('asset_tag')
+
+
+@login_required
+def print_asset_labels_pdf(request):
+    """Generate exact-size, vector PDF labels for thermal/sticker printers.
+
+    Query params: ids|tag_from/tag_to|category|branch|specific_tags (selection),
+    ``size`` (sticker size key), ``design``, ``copies``, ``mode`` (default pdf).
+    Returns the file inline so the browser can print it without scaling.
+    """
+    from .printing import LabelData, LabelSpec, get_renderer, LABEL_SIZES, DEFAULT_SIZE_KEY
+
+    org = request.user.organization
+
+    size_key = request.GET.get('size', DEFAULT_SIZE_KEY)
+    if size_key not in LABEL_SIZES:
+        size_key = DEFAULT_SIZE_KEY
+    design = (request.GET.get('design', 'CLASSIC') or 'CLASSIC').upper()
+    mode = request.GET.get('mode', 'pdf')
+    try:
+        copies = max(1, min(int(request.GET.get('copies', 1)), 100))
+    except (ValueError, TypeError):
+        copies = 1
+
+    qs = _filter_label_assets(request, org)
+
+    # Safety cap on total rendered pages to avoid runaway documents.
+    MAX_PAGES = 5000
+    max_assets = max(1, MAX_PAGES // copies)
+    assets = list(qs[:max_assets])
+
+    if not assets:
+        return HttpResponse('No assets matched the selection.', status=404)
+
+    org_name = getattr(org, 'name', '') or ''
+    logo_path = None
+    try:
+        if getattr(org, 'logo', None):
+            logo_path = org.logo.name
+    except Exception:
+        logo_path = None
+
+    labels = []
+    for a in assets:
+        labels.append(LabelData(
+            asset_tag=a.asset_tag or '',
+            org_name=org_name,
+            asset_name=getattr(a, 'name', '') or '',
+            category=(a.category.name if getattr(a, 'category_id', None) else ''),
+            location=(a.location.name if getattr(a, 'location_id', None) else ''),
+            logo_path=logo_path,
+        ))
+
+    spec = LabelSpec(size_key=size_key, design=design, copies=copies)
+    renderer = get_renderer(mode)
+    try:
+        payload = renderer.render(labels, spec)
+    except NotImplementedError as e:
+        return HttpResponse(str(e), status=501)
+
+    response = HttpResponse(payload, content_type=renderer.content_type)
+    filename = f'asset_labels_{size_key}.{renderer.file_extension}'
+    # inline => opens in a new browser tab for print-to-PDF / direct printing.
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+
 @login_required
 @require_POST
 def mark_assets_tagged(request):

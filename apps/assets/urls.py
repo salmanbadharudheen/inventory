@@ -5,7 +5,7 @@ from .views import (
     download_sample_csv, download_sample_excel, get_subcategories, get_departments, get_buildings, get_buildings_by_site, get_floors, get_rooms, get_locations, lookup_asset, ajax_search_assets, ajax_search_disposal_assets,
     ajax_create_category, ajax_create_subcategory,
     generate_asset_codes, download_asset_barcode, download_asset_qr, download_asset_label, download_barcode_batch,
-    label_print_center, print_asset_labels_bulk, mark_assets_tagged,
+    label_print_center, print_asset_labels_bulk, print_asset_labels_pdf, mark_assets_tagged,
     asset_attachment_upload, asset_attachment_delete,
     CategoryListView, CategoryCreateView, CategoryUpdateView,
     SubCategoryListView, SubCategoryCreateView, SubCategoryUpdateView,
@@ -79,6 +79,7 @@ urlpatterns = [
     path('barcodes/download/batch/', download_barcode_batch, name='download-barcode-batch'),
     path('labels/print/', label_print_center, name='label-print-center'),
     path('labels/print/bulk/', print_asset_labels_bulk, name='print-asset-labels-bulk'),
+    path('labels/print/pdf/', print_asset_labels_pdf, name='print-asset-labels-pdf'),
     path('labels/print/tag/', mark_assets_tagged, name='mark-assets-tagged'),
 
     # Asset Attachments
