@@ -41,6 +41,15 @@ class PDFLabelRenderer(LabelRenderer):
         c = canvas.Canvas(buffer, pagesize=(page_w, page_h))
         c.setTitle('Asset Labels')
 
+        # Tell PDF viewers (Chrome/Adobe) to print at the exact page size and
+        # NOT scale to fit the destination paper. This is what makes the label
+        # land precisely on the sticker without the user toggling "Actual size".
+        try:
+            c.setViewerPreference('PrintScaling', 'None')
+            c.setViewerPreference('FitWindow', 'true')
+        except Exception:
+            pass
+
         for data in labels:
             for _ in range(spec.copies):
                 self._draw_label(c, data, spec, page_w, page_h)
