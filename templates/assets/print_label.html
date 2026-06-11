@@ -1282,7 +1282,7 @@
             }
         }
 
-        /* ── bwip-js barcode containers (inline vector <svg>) ──── */
+        /* ── bwip-js barcode <canvas> elements ──────────────── */
         .lbl-barcode-svg {
             display: block;
             width: 100%;
@@ -1293,13 +1293,6 @@
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges; /* keep bars hard-edged when scaled */
             flex-shrink: 0;
-        }
-        /* The injected SVG fills its container and stays vector until print. */
-        .lbl-barcode-svg svg {
-            display: block;
-            width: 100%;
-            height: 100%;
-            shape-rendering: crispEdges;
         }
         /* Preserve barcode quiet-zones so scanners can read consistently. */
         .label-classic .lbl-right,
@@ -1395,11 +1388,6 @@
             title="Scan all assets in this filter and regenerate only missing QR/barcode files. Existing codes are not touched.">
         🔄 Refresh codes
     </button>
-    <label for="print-mode" style="margin-left:6px;">Mode:</label>
-    <select id="print-mode" title="PDF Print generates an exact-size vector PDF (prints at true 2x1 with no scaling). Zebra ZPL downloads a native .zpl for pixel-exact 203 DPI printing on the ZD220.">
-        <option value="pdf" selected>PDF Print (exact size)</option>
-        <option value="zpl">Zebra ZPL (.zpl)</option>
-    </select>
     <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
     <button class="btn btn-tag-print" id="btn-print-and-tag" onclick="doPrintAndTag();" disabled
@@ -1674,7 +1662,7 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
             <div class="lbl-right">
-                <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                <canvas class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></canvas>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
@@ -1706,7 +1694,7 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
             <div class="lbl-right">
-                <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                <canvas class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></canvas>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
@@ -1716,7 +1704,7 @@ function updateBatchParam(batchNum) {
     <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
         <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
-            <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+            <canvas class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></canvas>
         </div>
         <div class="lbl-tag">{{ asset.asset_tag }}</div>
     </div>
@@ -1737,7 +1725,7 @@ function updateBatchParam(batchNum) {
                 {% if asset.category %}<div class="lbl-category">{{ asset.category.name }}</div>{% endif %}
                 {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
                 <div class="lbl-barcode-inline">
-                    <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                    <canvas class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></canvas>
                 </div>
                 <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
@@ -1859,53 +1847,8 @@ function refreshMissingCodes(btn) {
     }
 })();
 
-/* ── Print mode (PDF exact-size / Zebra ZPL) ──────────── */
-function getPrintMode() {
-    var el = document.getElementById('print-mode');
-    return el ? el.value : 'pdf';
-}
-
-/* Build the server-side label endpoint URL for a given mode, reusing the
-   current selection filters (ids/tag range/etc.) and overriding
-   size/copies/design. */
-function buildLabelUrl(mode) {
-    var params = new URLSearchParams(window.location.search);
-    params.delete('batch');      // endpoint paginates internally
-    params.delete('autoprint');
-    var sizeControl = document.getElementById('sticker-size');
-    var copiesControl = document.getElementById('copies-count');
-    var designControl = document.getElementById('design-picker');
-    params.set('size', sizeControl ? sizeControl.value : '2x1');
-    params.set('copies', String(parseInt(copiesControl && copiesControl.value, 10) || 1));
-    params.set('design', designControl ? designControl.value : 'CLASSIC');
-    params.set('mode', mode || 'pdf');
-    return '{% url "print-asset-labels-pdf" %}?' + params.toString();
-}
-
-/* Open the exact-size vector PDF in a new tab. The PDF embeds PrintScaling
-   None so it prints at the exact sticker size with no browser scaling. */
-function openPdfLabels() {
-    window.open(buildLabelUrl('pdf'), '_blank');
-}
-
-/* Download native Zebra ZPL (.zpl) for pixel-exact 203 DPI printing on the
-   ZD220 (send via Zebra Setup Utilities or a raw printer port). */
-function downloadZplLabels() {
-    window.location.href = buildLabelUrl('zpl');
-}
-
+/* ── Copies-aware Print ──────────────────────────────── */
 function doPrint() {
-    if (getPrintMode() === 'zpl') {
-        downloadZplLabels();
-        return;
-    }
-    // Default: exact-size PDF (no browser window.print scaling).
-    openPdfLabels();
-}
-
-/* Legacy browser window.print() path — retained only as an internal helper;
-   it is no longer wired to any button. */
-function doBrowserPrint() {
     var copies = parseInt(document.getElementById('copies-count').value) || 1;
     var grid = document.getElementById('label-grid');
     var labels = Array.from(grid.children).filter(function(el) {
@@ -2059,32 +2002,10 @@ async function sendToExternalPrintApp() {
 }
 
 /* ── bwip-js: render scanner-grade Code128 barcodes + QR codes ─
-   We emit pure vector SVG (bwip-js toSVG) so the barcode/QR stay
-   resolution-independent and remain vector all the way until the
-   printer rasterises them at full device DPI — no faded, anti-aliased
-   raster edges. (A canvas fallback is kept for very old browsers.) */
-function injectVectorSvg(container, svgString) {
-    container.innerHTML = svgString;
-    var svg = container.querySelector('svg');
-    if (svg) {
-        svg.removeAttribute('width');
-        svg.removeAttribute('height');
-        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-        svg.setAttribute('shape-rendering', 'crispEdges');
-        svg.style.display = 'block';
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-    }
-    return svg;
-}
-
-function svgToDataUri(svgString) {
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-}
-
+   bwip-js draws pure black/white pixels to a <canvas> (no faded
+   anti-aliased edges), which prints sharp on thermal/sticker printers. */
 function renderAllBarcodes() {
     if (typeof bwipjs === 'undefined') return;
-    var hasSvg = typeof bwipjs.toSVG === 'function';
 
     var barcodeScaleControl = document.getElementById('barcode-scale');
     var barcodeScale = barcodeScaleControl ? parseFloat(barcodeScaleControl.value) : 1;
@@ -2095,23 +2016,23 @@ function renderAllBarcodes() {
     var selectedSize = getSelectedPrintSize();
     var isSmallSticker = selectedSize.wMm <= 55;
 
-    // ── Code128 barcodes → inline vector SVG ──────────────────
+    // ── Code128 barcodes → canvas ─────────────────────────────
     document.querySelectorAll('.lbl-barcode-svg').forEach(function(el) {
         var tag = el.dataset.tag;
         if (!tag) return;
 
-        // Normalise legacy <canvas>/<svg> nodes to a plain container.
-        var container = el;
-        if (el.tagName.toLowerCase() === 'canvas') {
-            container = document.createElement('div');
-            container.className = el.className;
-            container.setAttribute('data-tag', tag);
-            el.parentNode.replaceChild(container, el);
+        // Convert any legacy <svg> placeholder to a <canvas> once.
+        var canvas = el;
+        if (el.tagName.toLowerCase() !== 'canvas') {
+            canvas = document.createElement('canvas');
+            canvas.className = el.className;
+            canvas.setAttribute('data-tag', tag);
+            el.parentNode.replaceChild(canvas, el);
         }
 
         try {
-            var inModernDesign = Boolean(container.closest('.label-modern'));
-            var inBarcodeOnlyDesign = Boolean(container.closest('.label-barcode-only'));
+            var inModernDesign = Boolean(canvas.closest('.label-modern'));
+            var inBarcodeOnlyDesign = Boolean(canvas.closest('.label-barcode-only'));
 
             // Bar height in millimetres (bwip-js unit), scaled by the slider.
             var baseHeightMm;
@@ -2124,55 +2045,43 @@ function renderAllBarcodes() {
             }
             var heightMm = Math.max(5, baseHeightMm * barcodeScale);
 
-            var opts = {
+            // High integer scale => dense pure-black bitmap that stays crisp
+            // when CSS scales it to the printed size (image-rendering: pixelated).
+            bwipjs.toCanvas(canvas, {
                 bcid: 'code128',
                 text: String(tag),
+                scale: 4,
                 height: heightMm,
                 includetext: false,
                 paddingwidth: isSmallSticker ? 2 : 4,
                 paddingheight: 0,
                 backgroundcolor: 'ffffff',
                 barcolor: '000000'
-            };
-
-            if (hasSvg) {
-                injectVectorSvg(container, bwipjs.toSVG(opts));
-            } else {
-                // Fallback: high-res canvas for browsers without toSVG.
-                var canvas = document.createElement('canvas');
-                opts.scale = 8;
-                bwipjs.toCanvas(canvas, opts);
-                container.innerHTML = '';
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
-                container.appendChild(canvas);
-            }
-            container.style.display = '';
+            });
+            canvas.style.display = '';
         } catch (e) {
-            container.style.display = 'none';
+            canvas.style.display = 'none';
         }
     });
 
-    // ── QR codes → vector SVG (data URI keeps the <img>/CSS intact) ─
+    // ── QR codes → crisp raster PNG (replaces faded vector SVG) ─
     document.querySelectorAll('img[data-qr-tag]').forEach(function(img) {
         var tag = img.dataset.qrTag;
         if (!tag) return;
         try {
-            if (hasSvg) {
-                var qrSvg = bwipjs.toSVG({
-                    bcid: 'qrcode',
-                    text: String(tag),
-                    eclevel: 'M',
-                    padding: 2,
-                    backgroundcolor: 'ffffff',
-                    barcolor: '000000'
-                });
-                img.src = svgToDataUri(qrSvg);
-            }
-            // If toSVG is unavailable, keep the server-rendered SVG (already
-            // vector) — we intentionally do NOT rasterise it to PNG.
+            var qrCanvas = document.createElement('canvas');
+            bwipjs.toCanvas(qrCanvas, {
+                bcid: 'qrcode',
+                text: String(tag),
+                scale: 6,
+                eclevel: 'M',
+                padding: 2,
+                backgroundcolor: 'ffffff',
+                barcolor: '000000'
+            });
+            img.src = qrCanvas.toDataURL('image/png');
         } catch (e) {
-            /* Keep the server-rendered QR SVG as a fallback. */
+            /* Keep the server-rendered QR as a fallback. */
         }
     });
 }
