@@ -60,16 +60,17 @@ class PDFLabelRenderer(LabelRenderer):
 
     # ── Layout ────────────────────────────────────────────────────────────
     def _draw_label(self, c, data: LabelData, spec: LabelSpec, W: float, H: float) -> None:
-        margin = 1.8 * mm
+        margin = 1.5 * mm
         tag = data.safe_tag()
         if not tag:
             return
 
-        # Thin sticker frame for visual parity with the on-screen label.
-        c.setLineWidth(0.4)
-        c.rect(0.4 * mm, 0.4 * mm, W - 0.8 * mm, H - 0.8 * mm, stroke=1, fill=0)
+        # Thin sticker frame.
+        c.setLineWidth(0.3)
+        c.rect(0.3 * mm, 0.3 * mm, W - 0.6 * mm, H - 0.6 * mm, stroke=1, fill=0)
 
         design = (spec.design or 'CLASSIC').upper()
+        # Show header only on labels tall enough to spare the space.
         has_room_for_header = (H >= 22 * mm) and spec.show_org and bool(data.org_name)
 
         # Header (org name, optional small logo)
@@ -94,17 +95,16 @@ class PDFLabelRenderer(LabelRenderer):
         self._draw_qr_and_barcode(c, data, spec, margin, content_bottom, content_w, content_h)
 
     def _draw_header(self, c, data: LabelData, W: float, H: float, margin: float) -> float:
-        header_h = 3.2 * mm
-        baseline = H - margin - header_h + 0.9 * mm
+        header_h = 2.0 * mm
+        baseline = H - margin - header_h + 0.55 * mm
         text = data.org_name.strip()
-        font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin - 6 * mm, 6.5, 4.5)
+        # Very small font — stays under 4 pt so it reads but never dominates.
+        font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin, 4.0, 2.5)
 
         logo_drawn = 0.0
         if data.logo_path:
-            logo_drawn = self._try_draw_logo(c, data.logo_path, margin, baseline - 0.6 * mm, header_h - 1.0 * mm)
+            logo_drawn = self._try_draw_logo(c, data.logo_path, margin, baseline - 0.5 * mm, header_h - 0.8 * mm)
 
-        # Always centre the org name (parity with the on-screen label). The logo,
-        # when present, sits at the far left and does not shift the centred text.
         c.setFont(FONT_BOLD, font_size)
         c.setFillColorRGB(0, 0, 0)
         c.drawCentredString(W / 2.0, baseline, text)
@@ -112,32 +112,35 @@ class PDFLabelRenderer(LabelRenderer):
 
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
-        gap = 1.6 * mm
-        # Keep the QR comfortably inside the content box (leave vertical breathing room).
-        qr_side = min(h * 0.86, w * 0.34)
+        # QR: hard cap 9 mm on a 2x1 label.
+        qr_side = min(9.0 * mm, h * 0.72, w * 0.28)
         qr_x = x
         qr_y = y + (h - qr_side) / 2.0
         self._draw_qr(c, data.safe_tag(), qr_x, qr_y, qr_side)
 
+        gap = 1.4 * mm
         right_x = qr_x + qr_side + gap
-        right_w = max(0.0, (x + w) - right_x)
+        right_w = max(0.0, (x + w) - right_x - 0.5 * mm)
 
         tag = data.safe_tag()
-        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 6.0, 3.5)
-        tag_h = tag_font * 1.1
-        # Barcode occupies the top of the right column, leaving margin around it.
-        bar_h = max(3.5 * mm, (h * 0.92) - tag_h - 1.0 * mm)
+        # Tag text: small fixed font, never too big.
+        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 5.0, 3.0)
+        tag_h = tag_font * 1.3
 
-        # Slight horizontal inset so bars never touch the sticker edge.
-        bar_w = right_w * 0.96
+        # Barcode: capped at 6 mm tall; vertically centred in the right column.
+        bar_h = min(6.0 * mm, max(3.5 * mm, h - tag_h - 1.5 * mm))
+        # Total block height (barcode + gap + tag).
+        block_h = bar_h + 0.8 * mm + tag_h
+        block_y = y + (h - block_h) / 2.0   # vertically centre the block
+
+        bar_w = right_w * 0.92
         bar_x = right_x + (right_w - bar_w) / 2.0
-        bar_y = y + tag_h + 0.6 * mm
+        bar_y = block_y + tag_h + 0.8 * mm
         self._draw_barcode_fitted(c, tag, bar_x, bar_y, bar_w, bar_h)
 
-        # Human-readable tag centred under the barcode.
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
-        c.drawCentredString(right_x + right_w / 2.0, y + 0.4 * mm, tag)
+        c.drawCentredString(right_x + right_w / 2.0, block_y, tag)
 
     def _draw_centered_qr(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
         tag_font = self._fit_font(c, tag, FONT_MONO, w, 8.0, 4.0)
