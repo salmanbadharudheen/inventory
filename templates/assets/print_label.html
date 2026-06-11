@@ -1287,7 +1287,7 @@
             }
         }
 
-        /* ── bwip-js barcode SVG containers ──────────────── */
+        /* ── bwip-js barcode containers ───────────────────── */
         .lbl-barcode-svg {
             display: block;
             width: 100%;
@@ -1354,7 +1354,8 @@
                 max-width: 100% !important;
                 max-height: 100% !important;
                 shape-rendering: crispEdges !important;
-                image-rendering: auto !important;
+                image-rendering: -webkit-optimize-contrast !important;
+                image-rendering: crisp-edges !important;
             }
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
@@ -1379,7 +1380,7 @@
             }
         }
     </style>
-    <!-- bwip-js: scanner-grade Code128 + QR rendering to SVG for sharp thermal/sticker prints -->
+    <!-- bwip-js: scanner-grade Code128 + QR rendering for sharp thermal/sticker prints -->
     <script src="https://cdn.jsdelivr.net/npm/bwip-js@4.11.1/dist/bwip-js-min.js"></script>
 </head>
 <body>
@@ -1405,6 +1406,16 @@
     </button>
     <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
+    <button class="btn" id="btn-print-pdf" onclick="openQualityPrint('pdf');"
+            style="background:#111827;color:#fff;"
+            title="Open exact-size vector PDF labels for sharper browser printing.">
+        PDF Print
+    </button>
+    <button class="btn" id="btn-print-zpl" onclick="openQualityPrint('zpl');"
+            style="background:#374151;color:#fff;"
+            title="Download native Zebra ZPL for direct thermal-printer output.">
+        Zebra ZPL
+    </button>
     <button class="btn btn-tag-print" id="btn-print-and-tag" onclick="doPrintAndTag();" disabled
         style="opacity:0.5; cursor:not-allowed;" title="Print labels and mark all shown assets as Tagged">&#x1F5A8; Print &amp; Tag</button>
     <span id="tag-status" style="font-size:0.78rem;font-weight:600;display:none;"></span>
@@ -1798,11 +1809,11 @@ function getSelectedPrintSize(sizeValue) {
     var sizeControl = document.getElementById('sticker-size');
     var selectedValue = sizeValue || (sizeControl ? sizeControl.value : '2x1');
     var map = {
-        '133x19': { wMm: 133, hMm: 19, wPx: 506, hPx: 72, label: '133mm x 19mm' },
-        '2x1': { wMm: 50.8, hMm: 25.4, wPx: 384, hPx: 192, label: '2in x 1in' },
-        '2x1.5': { wMm: 50.8, hMm: 38.1, wPx: 384, hPx: 288, label: '2in x 1.5in' },
-        '3x1': { wMm: 76.2, hMm: 25.4, wPx: 576, hPx: 192, label: '3in x 1in' },
-        '3x2': { wMm: 76.2, hMm: 50.8, wPx: 576, hPx: 384, label: '3in x 2in' }
+        '133x19': { key: '133x19', wMm: 133, hMm: 19, wPx: 506, hPx: 72, label: '133mm x 19mm' },
+        '2x1': { key: '2x1', wMm: 50.8, hMm: 25.4, wPx: 384, hPx: 192, label: '2in x 1in' },
+        '2x1.5': { key: '2x1.5', wMm: 50.8, hMm: 38.1, wPx: 384, hPx: 288, label: '2in x 1.5in' },
+        '3x1': { key: '3x1', wMm: 76.2, hMm: 25.4, wPx: 576, hPx: 192, label: '3in x 1in' },
+        '3x2': { key: '3x2', wMm: 76.2, hMm: 50.8, wPx: 576, hPx: 384, label: '3in x 2in' }
     };
     return map[selectedValue] || map['2x1'];
 }
@@ -1933,6 +1944,14 @@ async function doPrintAndTag() {
     }
 }
 
+function openQualityPrint(mode) {
+    var params = new URLSearchParams(window.location.search);
+    params.set('mode', mode || 'pdf');
+    params.set('size', getSelectedPrintSize().key || '2x1');
+    params.set('design', document.getElementById('design-picker') ? document.getElementById('design-picker').value : '{{ design }}');
+    window.open('{% url "print-asset-labels-pdf" %}?' + params.toString(), '_blank');
+}
+
 async function sendToExternalPrintApp() {
     var statusEl = document.getElementById('external-print-status');
     var endpointInput = document.getElementById('external-bridge-url');
@@ -2017,30 +2036,11 @@ async function sendToExternalPrintApp() {
 }
 
 /* ── bwip-js: render scanner-grade Code128 barcodes + QR codes ─
-   SVG is preferred so the printer rasterizes clean vector edges at print time.
-   Canvas remains a high-resolution fallback only if bwip-js SVG is unavailable. */
-function injectBarcodeSvg(container, svgString) {
-    container.innerHTML = svgString;
-    var svg = container.querySelector('svg');
-    if (!svg) return null;
-
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    svg.setAttribute('shape-rendering', 'crispEdges');
-    svg.style.display = 'block';
-    svg.style.width = '100%';
-    svg.style.height = '100%';
-    return svg;
-}
-
-function svgToDataUri(svgString) {
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-}
+   Use high-resolution PNG canvas output for browser printing. Chrome/Edge can
+   anti-alias SVG bar edges when sending tiny labels to thermal printer drivers. */
 
 function renderAllBarcodes() {
     if (typeof bwipjs === 'undefined') return;
-    var hasSvg = typeof bwipjs.toSVG === 'function';
 
     var barcodeScaleControl = document.getElementById('barcode-scale');
     var barcodeScale = barcodeScaleControl ? parseFloat(barcodeScaleControl.value) : 1;
@@ -2051,7 +2051,7 @@ function renderAllBarcodes() {
     var selectedSize = getSelectedPrintSize();
     var isSmallSticker = selectedSize.wMm <= 55;
 
-    // ── Code128 barcodes → SVG at the same CSS size ───────────
+    // ── Code128 barcodes → high-resolution canvas at the same CSS size ─────
     document.querySelectorAll('.lbl-barcode-svg').forEach(function(el) {
         var tag = el.dataset.tag;
         if (!tag) return;
@@ -2090,39 +2090,26 @@ function renderAllBarcodes() {
                 barcolor: '000000'
             };
 
-            if (hasSvg) {
-                injectBarcodeSvg(container, bwipjs.toSVG(opts));
-            } else {
-                var canvas = document.createElement('canvas');
-                opts.scale = 10;
-                bwipjs.toCanvas(canvas, opts);
-                container.innerHTML = '';
-                container.appendChild(canvas);
-            }
+            var canvas = document.createElement('canvas');
+            opts.scale = 10;
+            bwipjs.toCanvas(canvas, opts);
+            canvas.style.display = 'block';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.imageRendering = 'crisp-edges';
+            container.innerHTML = '';
+            container.appendChild(canvas);
             container.style.display = '';
         } catch (e) {
             container.style.display = 'none';
         }
     });
 
-    // ── QR codes → SVG first, high-resolution PNG fallback ─────
+    // ── QR codes → high-resolution PNG canvas data URI ─────────
     document.querySelectorAll('img[data-qr-tag]').forEach(function(img) {
         var tag = img.dataset.qrTag;
         if (!tag) return;
         try {
-            if (hasSvg) {
-                var qrSvg = bwipjs.toSVG({
-                    bcid: 'qrcode',
-                    text: String(tag),
-                    eclevel: 'M',
-                    padding: 2,
-                    backgroundcolor: 'ffffff',
-                    barcolor: '000000'
-                });
-                img.src = svgToDataUri(qrSvg);
-                return;
-            }
-
             var qrCanvas = document.createElement('canvas');
             bwipjs.toCanvas(qrCanvas, {
                 bcid: 'qrcode',

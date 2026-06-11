@@ -95,15 +95,18 @@ class PDFLabelRenderer(LabelRenderer):
         self._draw_qr_and_barcode(c, data, spec, margin, content_bottom, content_w, content_h)
 
     def _draw_header(self, c, data: LabelData, W: float, H: float, margin: float) -> float:
-        header_h = 2.0 * mm
-        baseline = H - margin - header_h + 0.55 * mm
+        header_h = 3.8 * mm
+        header_bottom = H - margin - header_h
+        baseline = header_bottom + 1.35 * mm
         text = data.org_name.strip()
         # Very small font — stays under 4 pt so it reads but never dominates.
         font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin, 4.0, 2.5)
 
         logo_drawn = 0.0
         if data.logo_path:
-            logo_drawn = self._try_draw_logo(c, data.logo_path, margin, baseline - 0.5 * mm, header_h - 0.8 * mm)
+            logo_h = header_h - 0.6 * mm
+            logo_y = header_bottom + (header_h - logo_h) / 2.0
+            logo_drawn = self._try_draw_logo(c, data.logo_path, margin, logo_y, logo_h)
 
         c.setFont(FONT_BOLD, font_size)
         c.setFillColorRGB(0, 0, 0)
