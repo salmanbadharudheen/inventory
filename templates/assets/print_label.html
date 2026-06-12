@@ -774,25 +774,25 @@
                 flex: 1;
             }
             .label-classic .lbl-qr img {
-                width: calc(0.56in * var(--custom-qr-scale));
-                height: calc(0.56in * var(--custom-qr-scale));
-                max-height: 0.56in;
+                width: calc(0.60in * var(--custom-qr-scale));
+                height: calc(0.60in * var(--custom-qr-scale));
+                max-height: 0.60in;
                 padding: 0;
                 border: none !important;
                 background: transparent !important;
             }
             .label-classic .lbl-qr {
-                max-height: 0.62in;
+                max-height: 0.66in;
                 overflow: hidden;
             }
             .label-classic .lbl-right {
                 gap: 1.5pt;
-                max-height: 0.62in;
+                max-height: 0.66in;
                 overflow: hidden;
             }
             .label-classic .lbl-right img {
-                height: calc(0.50in * var(--custom-barcode-scale));
-                max-height: 0.50in;
+                height: calc(0.54in * var(--custom-barcode-scale));
+                max-height: 0.54in;
                 width: 100%;
                 object-fit: contain;
             }
@@ -1360,7 +1360,7 @@
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
             .label-classic .lbl-right .lbl-barcode-svg {
-                height: calc(0.42in * var(--custom-barcode-scale)) !important;
+                height: calc(0.46in * var(--custom-barcode-scale)) !important;
             }
             .label-detailed .lbl-right .lbl-barcode-svg {
                 height: calc(0.40in * var(--custom-barcode-scale)) !important;
@@ -1535,7 +1535,7 @@
 
     <div class="field">
         <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.00x</span></label>
-        <input id="barcode-scale" type="range" min="0.8" max="1.2" step="0.05" value="0.9">
+        <input id="barcode-scale" type="range" min="0.8" max="1.2" step="0.05" value="1">
     </div>
 
     <div class="field">
@@ -2075,7 +2075,7 @@ function renderAllBarcodes() {
             } else if (inModernDesign) {
                 baseHeightMm = isSmallSticker ? 7 : 9;
             } else {
-                baseHeightMm = isSmallSticker ? 11 : 14;
+                baseHeightMm = isSmallSticker ? 12.5 : 15;
             }
             var heightMm = Math.max(5, baseHeightMm * barcodeScale);
 
@@ -2215,7 +2215,7 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
         tagFont: '1',
         orgAlign: 'center',
         qr: '1',
-        barcode: '0.9',
+        barcode: '1',
         spacing: '1',
         radius: '4',
         borderWidth: '1.5',
