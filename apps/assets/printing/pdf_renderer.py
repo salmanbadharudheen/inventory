@@ -121,6 +121,10 @@ class PDFLabelRenderer(LabelRenderer):
         barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
         barcode_x = x + qr_col_w + gap / 2.0
 
+        if not self._barcode_fits_width(tag, barcode_box_w, 0.20):
+            self._draw_stacked_qr_and_barcode(c, tag, x, y, w, h)
+            return
+
         tag_font = self._fit_font(c, tag, FONT_MONO, barcode_box_w, 2.4, 1.8)
         tag_h = tag_font
 
@@ -139,6 +143,28 @@ class PDFLabelRenderer(LabelRenderer):
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
         c.drawCentredString(barcode_x + barcode_box_w / 2.0, block_y, tag)
+
+    def _draw_stacked_qr_and_barcode(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
+        """Fallback layout: tiny QR, full-width barcode for long asset tags."""
+        tag_font = self._fit_font(c, tag, FONT_MONO, w, 2.2, 1.7)
+        tag_h = tag_font
+
+        qr_side = min(5.5 * mm, w * 0.14, h * 0.28)
+        bar_h = min(10.8 * mm, max(8.8 * mm, h - tag_h - qr_side - 0.6 * mm))
+        block_h = qr_side + 0.25 * mm + bar_h + 0.2 * mm + tag_h
+        block_y = y + (h - block_h) / 2.0
+
+        bar_x = x
+        bar_y = block_y + tag_h + 0.2 * mm
+        self._draw_barcode_fitted(c, tag, bar_x, bar_y, w, bar_h)
+
+        qr_x = x + (w - qr_side) / 2.0
+        qr_y = bar_y + bar_h + 0.25 * mm
+        self._draw_qr(c, tag, qr_x, qr_y, qr_side)
+
+        c.setFont(FONT_MONO, tag_font)
+        c.setFillColorRGB(0, 0, 0)
+        c.drawCentredString(x + w / 2.0, block_y, tag)
 
     def _draw_centered_qr(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
         tag_font = self._fit_font(c, tag, FONT_MONO, w, 5.0, 2.6)
@@ -202,6 +228,16 @@ class PDFLabelRenderer(LabelRenderer):
         draw_x = x + (max_w - chosen.width) / 2.0
         chosen.drawOn(c, draw_x, y)
         return chosen.width
+
+    def _barcode_fits_width(self, value: str, available_w: float, module_width_mm: float) -> bool:
+        barcode = code128.Code128(
+            value,
+            barHeight=8 * mm,
+            barWidth=module_width_mm * mm,
+            humanReadable=False,
+            quiet=1,
+        )
+        return barcode.width <= available_w
 
     def _draw_qr(self, c, value: str, x: float, y: float, size: float) -> None:
         """Draw a QR code as vector graphics scaled to ``size`` x ``size``."""
