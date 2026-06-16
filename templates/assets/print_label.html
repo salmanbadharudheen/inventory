@@ -446,10 +446,13 @@
             justify-content: center;
             gap: 2px;
         }
-        .label-classic .lbl-right img { width: 100%; height: calc(82px * var(--custom-barcode-scale)); object-fit: contain; }
-        .label-classic .lbl-right .lbl-tag {
+        .label-classic .lbl-right img { width: 100%; height: calc(90px * var(--custom-barcode-scale)); object-fit: contain; }
+        .label-classic .lbl-tag-bottom-center {
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: calc(0.54rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.04em;
+            text-align: center;
+            padding: 1px 4px 2px;
+            line-height: 1;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -548,10 +551,13 @@
             justify-content: center;
             gap: 5px;
         }
-        .label-detailed .lbl-right img { width: 100%; height: calc(65px * var(--custom-barcode-scale)); object-fit: contain; }
-        .label-detailed .lbl-right .lbl-tag {
+        .label-detailed .lbl-right img { width: 100%; height: calc(72px * var(--custom-barcode-scale)); object-fit: contain; }
+        .label-detailed .lbl-tag-bottom-center {
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: calc(0.7rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
+            text-align: center;
+            padding: 1px 4px 2px;
+            line-height: 1;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -793,12 +799,12 @@
                 overflow: hidden;
             }
             .label-classic .lbl-right img {
-                height: calc(0.54in * var(--custom-barcode-scale));
-                max-height: 0.54in;
+                height: calc(0.58in * var(--custom-barcode-scale));
+                max-height: 0.58in;
                 width: 100%;
                 object-fit: contain;
             }
-            .label-classic .lbl-right .lbl-tag {
+            .label-classic .lbl-tag-bottom-center {
                 font-size: calc(5.4pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.03em;
             }
@@ -849,11 +855,11 @@
                 gap: 4pt;
             }
             .label-detailed .lbl-right img {
-                height: calc(0.40in * var(--custom-barcode-scale));
+                height: calc(0.46in * var(--custom-barcode-scale));
                 width: 100%;
                 object-fit: contain;
             }
-            .label-detailed .lbl-right .lbl-tag {
+            .label-detailed .lbl-tag-bottom-center {
                 font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.05em;
             }
@@ -986,13 +992,16 @@
         }
         .label-modern .lbl-barcode-inline { width: 100%; margin-top: 2px; }
         .label-modern .lbl-barcode-inline img {
-            width: 100%; height: calc(46px * var(--custom-barcode-scale)); object-fit: contain;
+            width: 100%; height: calc(54px * var(--custom-barcode-scale)); object-fit: contain;
             image-rendering: crisp-edges;
         }
-        .label-modern .lbl-tag {
+        .label-modern .lbl-tag-bottom-center {
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: calc(0.6rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700;
             color: #111827; letter-spacing: 0.04em; margin-top: 1px;
+            text-align: center;
+            padding: 0 4px 2px;
+            line-height: 1;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -1131,7 +1140,7 @@
         body.size-roll-133x19 .label-detailed .lbl-tag,
         body.size-roll-133x19 .label-compact .lbl-tag,
         body.size-roll-133x19 .label-barcode-only .lbl-tag,
-        body.size-roll-133x19 .label-modern .lbl-tag,
+        body.size-roll-133x19 .label-modern .lbl-tag-bottom-center,
         body.size-roll-133x19 .label-qr-only .lbl-tag-bottom,
         body.size-roll-133x19 .label-classic .tag-num,
         body.size-roll-133x19 .label-detailed .tag,
@@ -1223,7 +1232,7 @@
             body.size-roll-133x19 .label-detailed .lbl-tag,
             body.size-roll-133x19 .label-compact .lbl-tag,
             body.size-roll-133x19 .label-barcode-only .lbl-tag,
-            body.size-roll-133x19 .label-modern .lbl-tag,
+            body.size-roll-133x19 .label-modern .lbl-tag-bottom-center,
             body.size-roll-133x19 .label-qr-only .lbl-tag-bottom,
             body.size-roll-133x19 .label-classic .tag-num,
             body.size-roll-133x19 .label-detailed .tag,
@@ -1247,7 +1256,7 @@
             .label-modern .lbl-category,
             .label-modern .lbl-location { font-size: calc(6pt * var(--custom-font-scale)); }
             .label-modern .lbl-barcode-inline img { height: calc(0.3in * var(--custom-barcode-scale)); width: 100%; object-fit: contain; }
-            .label-modern .lbl-tag { font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
+            .label-modern .lbl-tag-bottom-center { font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
 
             /* ── QR ONLY print ─────────────────────────── */
             .label-qr-only { padding: 3pt !important; gap: 3pt !important; }
@@ -1363,16 +1372,16 @@
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
             .label-classic .lbl-right .lbl-barcode-svg {
-                height: calc(0.50in * var(--custom-barcode-scale)) !important;
+                height: calc(0.56in * var(--custom-barcode-scale)) !important;
             }
             .label-detailed .lbl-right .lbl-barcode-svg {
-                height: calc(0.44in * var(--custom-barcode-scale)) !important;
+                height: calc(0.50in * var(--custom-barcode-scale)) !important;
             }
             .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
-                height: calc(0.66in * var(--custom-barcode-scale)) !important;
+                height: calc(0.72in * var(--custom-barcode-scale)) !important;
             }
             .label-modern .lbl-barcode-inline .lbl-barcode-svg {
-                height: calc(0.34in * var(--custom-barcode-scale)) !important;
+                height: calc(0.40in * var(--custom-barcode-scale)) !important;
             }
 
             body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
@@ -1693,9 +1702,9 @@ function updateBatchParam(batchNum) {
             </div>
             <div class="lbl-right">
                 <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
-                <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
+        <div class="lbl-tag lbl-tag-bottom-center">{{ asset.asset_tag }}</div>
     </div>
 
     {# ── COMPACT ─────────────────────────────────── #}
@@ -1725,9 +1734,9 @@ function updateBatchParam(batchNum) {
             </div>
             <div class="lbl-right">
                 <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
-                <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
+        <div class="lbl-tag lbl-tag-bottom-center">{{ asset.asset_tag }}</div>
     </div>
 
     {# ── BARCODE ONLY ────────────────────────────── #}
@@ -1757,9 +1766,9 @@ function updateBatchParam(batchNum) {
                 <div class="lbl-barcode-inline">
                     <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
                 </div>
-                <div class="lbl-tag">{{ asset.asset_tag }}</div>
             </div>
         </div>
+        <div class="lbl-tag lbl-tag-bottom-center">{{ asset.asset_tag }}</div>
     </div>
 
     {# ── QR ONLY ─────────────────────────────────── #}
@@ -2042,9 +2051,8 @@ async function sendToExternalPrintApp() {
     }
 }
 
-/* ── bwip-js: render scanner-grade Code128 barcodes + QR codes ─
-   Use high-resolution PNG canvas output for browser printing. Chrome/Edge can
-   anti-alias SVG bar edges when sending tiny labels to thermal printer drivers. */
+/* ── bwip-js: render scanner-grade Code128 barcodes + QR codes as SVG ─
+    SVG keeps bars crisp at print scale and avoids bitmap blur on tiny labels. */
 
 function renderAllBarcodes() {
     if (typeof bwipjs === 'undefined') return;
@@ -2058,18 +2066,12 @@ function renderAllBarcodes() {
     var selectedSize = getSelectedPrintSize();
     var isSmallSticker = selectedSize.wMm <= 55;
 
-    // ── Code128 barcodes → high-resolution canvas at the same CSS size ─────
+    // ── Code128 barcodes → vector SVG (sharpest in browser print path) ─────
     document.querySelectorAll('.lbl-barcode-svg').forEach(function(el) {
         var tag = el.dataset.tag;
         if (!tag) return;
 
         var container = el;
-        if (el.tagName.toLowerCase() === 'canvas') {
-            container = document.createElement('div');
-            container.className = el.className;
-            container.setAttribute('data-tag', tag);
-            el.parentNode.replaceChild(container, el);
-        }
 
         try {
             var inModernDesign = Boolean(container.closest('.label-modern'));
@@ -2078,58 +2080,62 @@ function renderAllBarcodes() {
             // Bar height in millimetres (bwip-js unit), scaled by the slider.
             var baseHeightMm;
             if (inBarcodeOnlyDesign) {
-                baseHeightMm = isSmallSticker ? 14 : 18;
+                baseHeightMm = isSmallSticker ? 16 : 20;
             } else if (inModernDesign) {
-                baseHeightMm = isSmallSticker ? 7 : 9;
+                baseHeightMm = isSmallSticker ? 9 : 11;
             } else {
-                baseHeightMm = isSmallSticker ? 14 : 16;
+                baseHeightMm = isSmallSticker ? 16 : 18;
             }
-            var heightMm = Math.max(5, baseHeightMm * barcodeScale);
+            var heightMm = Math.max(6, baseHeightMm * barcodeScale);
 
             var opts = {
                 bcid: 'code128',
                 text: String(tag),
                 height: heightMm,
                 includetext: false,
-                paddingwidth: isSmallSticker ? 0 : 2,
+                paddingwidth: isSmallSticker ? 0 : 1,
                 paddingheight: 0,
                 backgroundcolor: 'ffffff',
                 barcolor: '000000'
             };
 
-            var canvas = document.createElement('canvas');
-            // Bias toward thicker horizontal bars to avoid visual collapse on thermal print.
-            opts.scaleX = isSmallSticker ? 8 : 9;
-            opts.scaleY = 10;
-            bwipjs.toCanvas(canvas, opts);
-            canvas.style.display = 'block';
-            canvas.style.width = '100%';
-            canvas.style.height = 'auto';
-            canvas.style.imageRendering = 'pixelated';
+            // Bias toward thicker bars to avoid visual collapse on thermal print.
+            opts.scaleX = isSmallSticker ? 10 : 11;
+            opts.scaleY = 12;
+
+            var svgMarkup = bwipjs.toSVG(opts);
             container.innerHTML = '';
-            container.appendChild(canvas);
+            container.insertAdjacentHTML('beforeend', svgMarkup);
+
+            var svgNode = container.querySelector('svg');
+            if (svgNode) {
+                svgNode.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                svgNode.style.display = 'block';
+                svgNode.style.width = '100%';
+                svgNode.style.height = '100%';
+                svgNode.style.shapeRendering = 'crispEdges';
+            }
             container.style.display = '';
         } catch (e) {
             container.style.display = 'none';
         }
     });
 
-    // ── QR codes → high-resolution PNG canvas data URI ─────────
+    // ── QR codes → SVG data URI for crisp print edges ─────────
     document.querySelectorAll('img[data-qr-tag]').forEach(function(img) {
         var tag = img.dataset.qrTag;
         if (!tag) return;
         try {
-            var qrCanvas = document.createElement('canvas');
-            bwipjs.toCanvas(qrCanvas, {
+            var qrSvg = bwipjs.toSVG({
                 bcid: 'qrcode',
                 text: String(tag),
-                scale: 12,
+                scale: 8,
                 eclevel: 'M',
                 padding: 2,
                 backgroundcolor: 'ffffff',
                 barcolor: '000000'
             });
-            img.src = qrCanvas.toDataURL('image/png');
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qrSvg);
         } catch (e) {
             /* Keep the server-rendered QR as a fallback. */
         }
