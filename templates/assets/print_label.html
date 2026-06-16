@@ -259,8 +259,8 @@
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
-            --split-qr-width: 30%;
-            --split-barcode-width: 70%;
+            --split-qr-width: 25%;
+            --split-barcode-width: 75%;
         }
 
         /* ── Shared label base ─────────────────────────────── */
@@ -1372,23 +1372,23 @@
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
             .label-classic .lbl-right .lbl-barcode-svg {
-                height: calc(0.56in * var(--custom-barcode-scale)) !important;
+                height: calc(0.60in * var(--custom-barcode-scale)) !important;
             }
             .label-detailed .lbl-right .lbl-barcode-svg {
-                height: calc(0.50in * var(--custom-barcode-scale)) !important;
+                height: calc(0.54in * var(--custom-barcode-scale)) !important;
             }
             .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
-                height: calc(0.72in * var(--custom-barcode-scale)) !important;
+                height: calc(0.76in * var(--custom-barcode-scale)) !important;
             }
             .label-modern .lbl-barcode-inline .lbl-barcode-svg {
-                height: calc(0.40in * var(--custom-barcode-scale)) !important;
+                height: calc(0.44in * var(--custom-barcode-scale)) !important;
             }
 
             body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-detailed .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-modern .lbl-barcode-inline .lbl-barcode-svg,
             body.size-roll-133x19 .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
-                height: calc(6.8mm * var(--custom-barcode-scale)) !important;
+                height: calc(7.4mm * var(--custom-barcode-scale)) !important;
             }
         }
     </style>
@@ -2080,13 +2080,13 @@ function renderAllBarcodes() {
             // Bar height in millimetres (bwip-js unit), scaled by the slider.
             var baseHeightMm;
             if (inBarcodeOnlyDesign) {
-                baseHeightMm = isSmallSticker ? 16 : 20;
+                baseHeightMm = isSmallSticker ? 18 : 22;
             } else if (inModernDesign) {
-                baseHeightMm = isSmallSticker ? 9 : 11;
+                baseHeightMm = isSmallSticker ? 10 : 12;
             } else {
-                baseHeightMm = isSmallSticker ? 16 : 18;
+                baseHeightMm = isSmallSticker ? 18 : 20;
             }
-            var heightMm = Math.max(6, baseHeightMm * barcodeScale);
+            var heightMm = Math.max(7, baseHeightMm * barcodeScale);
 
             var opts = {
                 bcid: 'code128',
@@ -2100,8 +2100,8 @@ function renderAllBarcodes() {
             };
 
             // Bias toward thicker bars to avoid visual collapse on thermal print.
-            opts.scaleX = isSmallSticker ? 10 : 11;
-            opts.scaleY = 12;
+            opts.scaleX = isSmallSticker ? 11 : 12;
+            opts.scaleY = 13;
 
             var svgMarkup = bwipjs.toSVG(opts);
             container.innerHTML = '';
