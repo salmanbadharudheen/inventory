@@ -1404,8 +1404,9 @@
             title="Scan all assets in this filter and regenerate only missing QR/barcode files. Existing codes are not touched.">
         🔄 Refresh codes
     </button>
-    <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
-        style="opacity:0.5; cursor:not-allowed;">🖨 Print All</button>
+    <button class="btn btn-print" id="btn-print-all" onclick="openQualityPrint('zpl');" disabled
+        style="opacity:0.5; cursor:not-allowed;"
+        title="Default high-quality thermal print using native printer commands.">🖨 Print All</button>
     <button class="btn" id="btn-print-pdf" onclick="openQualityPrint('pdf');"
             style="background:#111827;color:#fff;"
             title="Open exact-size vector PDF labels for sharper browser printing.">
@@ -1949,6 +1950,9 @@ function openQualityPrint(mode) {
     params.set('mode', mode || 'pdf');
     params.set('size', getSelectedPrintSize().key || '2x1');
     params.set('design', document.getElementById('design-picker') ? document.getElementById('design-picker').value : '{{ design }}');
+    var copiesInput = document.getElementById('copies-count');
+    var copies = copiesInput ? Math.max(1, parseInt(copiesInput.value || '1', 10) || 1) : 1;
+    params.set('copies', String(copies));
     window.open('{% url "print-asset-labels-pdf" %}?' + params.toString(), '_blank');
 }
 
