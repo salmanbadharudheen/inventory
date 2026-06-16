@@ -259,8 +259,8 @@
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
-            --split-qr-width: 35%;
-            --split-barcode-width: 65%;
+            --split-qr-width: 30%;
+            --split-barcode-width: 70%;
         }
 
         /* ── Shared label base ─────────────────────────────── */
@@ -415,7 +415,7 @@
         }
         .label-classic .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: calc(2px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(7px * var(--custom-inner-pad));
+            padding: calc(2px * var(--custom-inner-pad)) calc(6px * var(--custom-inner-pad)); gap: calc(4px * var(--custom-inner-pad));
             min-width: 0;
             overflow: hidden;
         }
@@ -517,7 +517,7 @@
         }
         .label-detailed .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: calc(6px * var(--custom-inner-pad)) calc(12px * var(--custom-inner-pad)); gap: calc(14px * var(--custom-inner-pad));
+            padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(8px * var(--custom-inner-pad));
             min-width: 0;
             overflow: hidden;
         }
@@ -772,7 +772,7 @@
             }
             .label-classic .lbl-body {
                 padding: 1pt 4pt;
-                gap: 4pt;
+                gap: 2pt;
                 flex: 1;
             }
             .label-classic .lbl-qr img {
@@ -836,7 +836,7 @@
             }
             .label-detailed .lbl-body {
                 padding: 2pt 5pt;
-                gap: 8pt;
+                gap: 4pt;
                 flex: 1;
             }
             .label-detailed .lbl-qr img {
@@ -1305,7 +1305,8 @@
         .lbl-barcode-svg canvas {
             display: block;
             width: 100%;
-            height: 100%;
+            height: auto;
+            image-rendering: pixelated;
         }
         .lbl-barcode-svg svg {
             shape-rendering: crispEdges;
@@ -1316,7 +1317,7 @@
         .label-detailed .lbl-right,
         .label-barcode-only .lbl-barcode-img,
         .label-modern .lbl-barcode-inline {
-            padding: 0 3px;
+            padding: 0 1px;
             box-sizing: border-box;
             background: #fff;
         }
@@ -1340,7 +1341,7 @@
             .label-detailed .lbl-right,
             .label-barcode-only .lbl-barcode-img,
             .label-modern .lbl-barcode-inline {
-                padding: 0 0.8mm !important;
+                padding: 0 0.2mm !important;
                 overflow: hidden !important;
                 background: #fff !important;
             }
@@ -1357,21 +1358,21 @@
                 max-height: 100% !important;
                 shape-rendering: crispEdges !important;
                 image-rendering: -webkit-optimize-contrast !important;
-                image-rendering: crisp-edges !important;
+                image-rendering: pixelated !important;
             }
 
             /* Chrome print: drive barcode size from customization slider for SVG barcodes. */
             .label-classic .lbl-right .lbl-barcode-svg {
-                height: calc(0.46in * var(--custom-barcode-scale)) !important;
+                height: calc(0.50in * var(--custom-barcode-scale)) !important;
             }
             .label-detailed .lbl-right .lbl-barcode-svg {
-                height: calc(0.40in * var(--custom-barcode-scale)) !important;
+                height: calc(0.44in * var(--custom-barcode-scale)) !important;
             }
             .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
                 height: calc(0.66in * var(--custom-barcode-scale)) !important;
             }
             .label-modern .lbl-barcode-inline .lbl-barcode-svg {
-                height: calc(0.30in * var(--custom-barcode-scale)) !important;
+                height: calc(0.34in * var(--custom-barcode-scale)) !important;
             }
 
             body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
@@ -2081,7 +2082,7 @@ function renderAllBarcodes() {
             } else if (inModernDesign) {
                 baseHeightMm = isSmallSticker ? 7 : 9;
             } else {
-                baseHeightMm = isSmallSticker ? 12.5 : 15;
+                baseHeightMm = isSmallSticker ? 14 : 16;
             }
             var heightMm = Math.max(5, baseHeightMm * barcodeScale);
 
@@ -2090,19 +2091,21 @@ function renderAllBarcodes() {
                 text: String(tag),
                 height: heightMm,
                 includetext: false,
-                paddingwidth: isSmallSticker ? 2 : 4,
+                paddingwidth: isSmallSticker ? 0 : 2,
                 paddingheight: 0,
                 backgroundcolor: 'ffffff',
                 barcolor: '000000'
             };
 
             var canvas = document.createElement('canvas');
-            opts.scale = 10;
+            // Bias toward thicker horizontal bars to avoid visual collapse on thermal print.
+            opts.scaleX = isSmallSticker ? 8 : 9;
+            opts.scaleY = 10;
             bwipjs.toCanvas(canvas, opts);
             canvas.style.display = 'block';
             canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            canvas.style.imageRendering = 'crisp-edges';
+            canvas.style.height = 'auto';
+            canvas.style.imageRendering = 'pixelated';
             container.innerHTML = '';
             container.appendChild(canvas);
             container.style.display = '';
