@@ -1,9 +1,9 @@
-"""Vector PDF label renderer (ReportLab).
+"""PDF label renderer (ReportLab).
 
 Renders one asset label per PDF page at the exact physical sticker size.
-Barcodes (Code128) and QR codes are drawn as native vector graphics, so the
-output stays razor-sharp at any printer resolution and prints dark and
-consistent on thermal / sticker printers — no browser scaling, no rasterising.
+QR codes are drawn as vector graphics. Code128 barcodes are embedded as
+high-resolution monochrome images so narrow bars stay black and pixel-aligned
+when printed by browser/PDF thermal-printer paths.
 """
 
 from __future__ import annotations
@@ -117,35 +117,31 @@ class PDFLabelRenderer(LabelRenderer):
 
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
-        # QR: larger, but capped so it stays inside a 2x1 label.
-        qr_side = min(13.8 * mm, h * 0.88, w * 0.38)
-        qr_x = x
-        qr_y = y + (h - qr_side) / 2.0
-        self._draw_qr(c, data.safe_tag(), qr_x, qr_y, qr_side)
-
-        gap = 0.5 * mm
-        right_x = qr_x + qr_side + gap
-        right_w = max(0.0, (x + w) - right_x - 0.1 * mm)
-
         tag = data.safe_tag()
-        # Keep the ID smaller so QR/barcode can use more of the sticker.
-        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 3.5, 2.3)
+        qr_col_w = w * 0.35
+        barcode_col_w = w * 0.65
+        gap = 0.4 * mm
+        qr_box_w = max(0.0, qr_col_w - gap / 2.0)
+        barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
+        barcode_x = x + qr_col_w + gap / 2.0
+
+        tag_font = self._fit_font(c, tag, FONT_MONO, barcode_box_w, 3.5, 2.3)
         tag_h = tag_font * 1.1
 
-        # Barcode: larger, but vertically capped with room for the tag text.
-        bar_h = min(10.8 * mm, max(5.5 * mm, h - tag_h - 0.35 * mm))
-        # Total block height (barcode + gap + tag).
-        block_h = bar_h + 0.25 * mm + tag_h
-        block_y = y + (h - block_h) / 2.0   # vertically centre the block
+        qr_side = min(qr_box_w, h * 0.9)
+        qr_x = x + (qr_box_w - qr_side) / 2.0
+        qr_y = y + (h - qr_side) / 2.0
+        self._draw_qr(c, tag, qr_x, qr_y, qr_side)
 
-        bar_w = right_w
-        bar_x = right_x + (right_w - bar_w) / 2.0
+        bar_h = min(10.2 * mm, max(7.0 * mm, h - tag_h - 0.35 * mm))
+        block_h = bar_h + 0.25 * mm + tag_h
+        block_y = y + (h - block_h) / 2.0
         bar_y = block_y + tag_h + 0.25 * mm
-        self._draw_barcode_fitted(c, tag, bar_x, bar_y, bar_w, bar_h)
+        self._draw_barcode_fitted(c, tag, barcode_x, bar_y, barcode_box_w, bar_h)
 
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
-        c.drawCentredString(right_x + right_w / 2.0, block_y, tag)
+        c.drawCentredString(barcode_x + barcode_box_w / 2.0, block_y, tag)
 
     def _draw_centered_qr(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
         tag_font = self._fit_font(c, tag, FONT_MONO, w, 5.0, 2.6)
@@ -235,7 +231,7 @@ class PDFLabelRenderer(LabelRenderer):
             'foreground': 'black',
             'dpi': dpi,
         })
-        return img.convert('1')
+        return img.convert('L').point(lambda pixel: 0 if pixel < 250 else 255, '1')
 
     def _draw_qr(self, c, value: str, x: float, y: float, size: float) -> None:
         """Draw a QR code as vector graphics scaled to ``size`` x ``size``."""
