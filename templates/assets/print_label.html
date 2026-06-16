@@ -259,8 +259,8 @@
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
-            --split-qr-width: 20%;
-            --split-barcode-width: 80%;
+            --split-qr-width: 15%;
+            --split-barcode-width: 85%;
         }
 
         /* ── Shared label base ─────────────────────────────── */
@@ -1320,6 +1320,8 @@
         .lbl-barcode-svg svg {
             shape-rendering: crispEdges;
             text-rendering: geometricPrecision;
+            color-interpolation: sRGB;
+            color-rendering: optimizeQuality;
         }
         /* Preserve barcode quiet-zones so scanners can read consistently. */
         .label-classic .lbl-right,
@@ -1340,6 +1342,21 @@
         .label-modern .lbl-barcode-inline {
             overflow: hidden;
         }
+
+        /* Auto fallback for dense tags: dedicate full width to barcode. */
+        .label.barcode-priority .lbl-qr {
+            display: none !important;
+        }
+        .label.barcode-priority .lbl-right,
+        .label.barcode-priority .lbl-modern-info {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .label.barcode-priority .lbl-right .lbl-barcode-svg,
+        .label.barcode-priority .lbl-modern-info .lbl-barcode-inline .lbl-barcode-svg {
+            height: calc(0.66in * var(--custom-barcode-scale)) !important;
+        }
         @media print {
             .label {
                 opacity: 1 !important;
@@ -1349,18 +1366,28 @@
             .label-classic .lbl-qr,
             .label-detailed .lbl-qr,
             .label-modern .lbl-qr {
-                flex: 0 0 20% !important;
-                width: 20% !important;
-                max-width: 20% !important;
+                flex: 0 0 15% !important;
+                width: 15% !important;
+                max-width: 15% !important;
                 min-width: 0 !important;
             }
 
             .label-classic .lbl-right,
             .label-detailed .lbl-right,
             .label-modern .lbl-modern-info {
-                flex: 1 1 80% !important;
-                width: 80% !important;
-                max-width: 80% !important;
+                flex: 1 1 85% !important;
+                width: 85% !important;
+                max-width: 85% !important;
+            }
+
+            .label.barcode-priority .lbl-qr {
+                display: none !important;
+            }
+            .label.barcode-priority .lbl-right,
+            .label.barcode-priority .lbl-modern-info {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+                max-width: 100% !important;
             }
 
             .label-classic .lbl-right,
@@ -1401,6 +1428,11 @@
                 height: calc(0.44in * var(--custom-barcode-scale)) !important;
             }
 
+            .label.barcode-priority .lbl-right .lbl-barcode-svg,
+            .label.barcode-priority .lbl-modern-info .lbl-barcode-inline .lbl-barcode-svg {
+                height: calc(0.72in * var(--custom-barcode-scale)) !important;
+            }
+
             body.size-roll-133x19 .label-classic .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-detailed .lbl-right .lbl-barcode-svg,
             body.size-roll-133x19 .label-modern .lbl-barcode-inline .lbl-barcode-svg,
@@ -1409,8 +1441,8 @@
             }
         }
     </style>
-    <!-- bwip-js: scanner-grade Code128 + QR rendering for sharp thermal/sticker prints -->
-    <script src="https://cdn.jsdelivr.net/npm/bwip-js@4.11.1/dist/bwip-js-min.js"></script>
+    <!-- JsBarcode: lightweight SVG Code128 renderer for browser print flow -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
 
@@ -2068,11 +2100,11 @@ async function sendToExternalPrintApp() {
     }
 }
 
-/* ── bwip-js: render scanner-grade Code128 barcodes + QR codes as SVG ─
-    SVG keeps bars crisp at print scale and avoids bitmap blur on tiny labels. */
+/* ── JsBarcode: render Code128 as SVG with conservative module sizing ─
+    Goal: avoid over-dense bars and keep scanner-friendly quiet zones. */
 
 function renderAllBarcodes() {
-    if (typeof bwipjs === 'undefined') return;
+     if (typeof JsBarcode === 'undefined') return;
 
     var barcodeScaleControl = document.getElementById('barcode-scale');
     var barcodeScale = barcodeScaleControl ? parseFloat(barcodeScaleControl.value) : 1;
@@ -2083,50 +2115,61 @@ function renderAllBarcodes() {
     var selectedSize = getSelectedPrintSize();
     var isSmallSticker = selectedSize.wMm <= 55;
 
-    // ── Code128 barcodes → vector SVG (sharpest in browser print path) ─────
+    // ── Code128 barcodes → vector SVG ─────
     document.querySelectorAll('.lbl-barcode-svg').forEach(function(el) {
         var tag = el.dataset.tag;
         if (!tag) return;
 
         var container = el;
+        var labelNode = container.closest('.label');
 
         try {
             var inModernDesign = Boolean(container.closest('.label-modern'));
             var inBarcodeOnlyDesign = Boolean(container.closest('.label-barcode-only'));
 
-            // Bar height in millimetres (bwip-js unit), scaled by the slider.
-            var baseHeightMm;
+            var rect = container.getBoundingClientRect();
+            var targetWidth = Math.max(120, rect.width || 220);
+            var targetHeight = Math.max(36, rect.height || 52);
+
+            // Height in CSS px for JsBarcode, scaled by the slider.
+            var baseHeightPx;
             if (inBarcodeOnlyDesign) {
-                baseHeightMm = isSmallSticker ? 18 : 22;
+                baseHeightPx = isSmallSticker ? 58 : 72;
             } else if (inModernDesign) {
-                baseHeightMm = isSmallSticker ? 10 : 12;
+                baseHeightPx = isSmallSticker ? 44 : 56;
             } else {
-                baseHeightMm = isSmallSticker ? 18 : 20;
+                baseHeightPx = isSmallSticker ? 54 : 64;
             }
-            var heightMm = Math.max(7, baseHeightMm * barcodeScale);
+            var barcodeHeight = Math.max(targetHeight, Math.round(baseHeightPx * barcodeScale));
 
-            var opts = {
-                bcid: 'code128',
-                text: String(tag),
-                height: heightMm,
-                includetext: false,
-                paddingwidth: isSmallSticker ? 0 : 1,
-                paddingheight: 0,
-                backgroundcolor: 'ffffff',
-                barcolor: '000000'
-            };
+            // Approximate Code128 module budget (~11 modules per char + overhead).
+            var estimatedModules = Math.max(60, (String(tag).length * 11) + 35);
+            var moduleWidth = (targetWidth - 12) / estimatedModules;
+            var minModule = isSmallSticker ? 0.90 : 1.00;
+            var maxModule = inModernDesign ? 1.20 : 1.35;
+            var denseThreshold = isSmallSticker ? 1.32 : 1.45;
+            if (labelNode) {
+                labelNode.classList.toggle('barcode-priority', moduleWidth < denseThreshold);
+            }
+            moduleWidth = Math.max(minModule, Math.min(maxModule, moduleWidth));
 
-            // Bias toward thicker bars to avoid visual collapse on thermal print.
-            opts.scaleX = isSmallSticker ? 11 : 12;
-            opts.scaleY = 13;
-
-            var svgMarkup = bwipjs.toSVG(opts);
             container.innerHTML = '';
-            container.insertAdjacentHTML('beforeend', svgMarkup);
+            var svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            container.appendChild(svgNode);
 
-            var svgNode = container.querySelector('svg');
+            JsBarcode(svgNode, String(tag), {
+                format: 'CODE128',
+                width: moduleWidth,
+                height: barcodeHeight,
+                displayValue: false,
+                margin: isSmallSticker ? 4 : 6,
+                lineColor: '#000000',
+                background: '#FFFFFF',
+                flat: true,
+            });
+
             if (svgNode) {
-                svgNode.setAttribute('preserveAspectRatio', 'none');
+                svgNode.setAttribute('preserveAspectRatio', 'xMidYMid meet');
                 svgNode.style.display = 'block';
                 svgNode.style.width = '100%';
                 svgNode.style.height = '100%';
@@ -2135,26 +2178,6 @@ function renderAllBarcodes() {
             container.style.display = '';
         } catch (e) {
             container.style.display = 'none';
-        }
-    });
-
-    // ── QR codes → SVG data URI for crisp print edges ─────────
-    document.querySelectorAll('img[data-qr-tag]').forEach(function(img) {
-        var tag = img.dataset.qrTag;
-        if (!tag) return;
-        try {
-            var qrSvg = bwipjs.toSVG({
-                bcid: 'qrcode',
-                text: String(tag),
-                scale: 8,
-                eclevel: 'M',
-                padding: 2,
-                backgroundcolor: 'ffffff',
-                barcolor: '000000'
-            });
-            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qrSvg);
-        } catch (e) {
-            /* Keep the server-rendered QR as a fallback. */
         }
     });
 }
