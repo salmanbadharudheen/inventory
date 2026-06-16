@@ -259,6 +259,8 @@
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
+            --split-qr-width: 35%;
+            --split-barcode-width: 65%;
         }
 
         /* ── Shared label base ─────────────────────────────── */
@@ -418,10 +420,10 @@
             overflow: hidden;
         }
         .label-classic .lbl-qr {
-            flex: 0 0 34%;
-            width: 34%;
+            flex: 0 0 var(--split-qr-width);
+            width: var(--split-qr-width);
             min-width: 64px;
-            max-width: 34%;
+            max-width: var(--split-qr-width);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -435,9 +437,9 @@
             background: transparent;
         }
         .label-classic .lbl-right {
-            flex: 1 1 66%;
+            flex: 1 1 var(--split-barcode-width);
             min-width: 0;
-            max-width: 66%;
+            max-width: var(--split-barcode-width);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -520,10 +522,10 @@
             overflow: hidden;
         }
         .label-detailed .lbl-qr {
-            flex: 0 0 36%;
-            width: 36%;
+            flex: 0 0 var(--split-qr-width);
+            width: var(--split-qr-width);
             min-width: 64px;
-            max-width: 36%;
+            max-width: var(--split-qr-width);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -537,9 +539,9 @@
             background: #fff;
         }
         .label-detailed .lbl-right {
-            flex: 1 1 64%;
+            flex: 1 1 var(--split-barcode-width);
             min-width: 0;
-            max-width: 64%;
+            max-width: var(--split-barcode-width);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -945,10 +947,10 @@
             overflow: hidden;
         }
         .label-modern .lbl-qr {
-            flex: 0 0 34%;
-            width: 34%;
+            flex: 0 0 var(--split-qr-width);
+            width: var(--split-qr-width);
             min-width: 64px;
-            max-width: 34%;
+            max-width: var(--split-qr-width);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -962,9 +964,9 @@
             image-rendering: pixelated;
         }
         .label-modern .lbl-modern-info {
-            flex: 1 1 66%;
+            flex: 1 1 var(--split-barcode-width);
             min-width: 0;
-            max-width: 66%;
+            max-width: var(--split-barcode-width);
             display: flex;
             flex-direction: column;
             justify-content: center;
