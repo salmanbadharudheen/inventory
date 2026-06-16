@@ -1,9 +1,8 @@
 """PDF label renderer (ReportLab).
 
 Renders one asset label per PDF page at the exact physical sticker size.
-QR codes are drawn as vector graphics. Code128 barcodes are embedded as
-high-resolution monochrome images so narrow bars stay black and pixel-aligned
-when printed by browser/PDF thermal-printer paths.
+Both QR and Code128 are drawn directly as vector graphics so the generated PDF
+stays sharp when printed at actual size on thermal 2x1 labels.
 """
 
 from __future__ import annotations
@@ -17,8 +16,6 @@ from reportlab.graphics.barcode import code128
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
-import barcode as barcode_lib
-from barcode.writer import ImageWriter
 
 from .base import LabelRenderer, LabelData, LabelSpec
 
@@ -42,7 +39,6 @@ class PDFLabelRenderer(LabelRenderer):
 
         c = canvas.Canvas(buffer, pagesize=(page_w, page_h))
         c.setTitle('Asset Labels')
-        c.setPageCompression(0)
 
         # Tell PDF viewers (Chrome/Adobe) to print at the exact page size and
         # NOT scale to fit the destination paper. This is what makes the label
@@ -118,25 +114,26 @@ class PDFLabelRenderer(LabelRenderer):
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
         tag = data.safe_tag()
-        qr_col_w = w * 0.25
-        barcode_col_w = w * 0.75
-        gap = 0.25 * mm
+        qr_col_w = w * 0.22
+        barcode_col_w = w * 0.78
+        gap = 0.7 * mm
         qr_box_w = max(0.0, qr_col_w - gap / 2.0)
         barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
         barcode_x = x + qr_col_w + gap / 2.0
 
-        tag_font = self._fit_font(c, tag, FONT_MONO, barcode_box_w, 2.8, 1.9)
+        tag_font = self._fit_font(c, tag, FONT_MONO, barcode_box_w, 2.4, 1.8)
         tag_h = tag_font
 
-        qr_side = min(qr_box_w, h * 0.82)
+        qr_side = min(qr_box_w, h * 0.76)
         qr_x = x + (qr_box_w - qr_side) / 2.0
         qr_y = y + (h - qr_side) / 2.0
         self._draw_qr(c, tag, qr_x, qr_y, qr_side)
 
-        bar_h = min(12.8 * mm, max(9.0 * mm, h - tag_h - 0.15 * mm))
-        block_h = bar_h + 0.1 * mm + tag_h
+        # Reserve a clear quiet-zone and keep a practical thermal bar height.
+        bar_h = min(10.5 * mm, max(8.5 * mm, h - tag_h - 0.35 * mm))
+        block_h = bar_h + 0.2 * mm + tag_h
         block_y = y + (h - block_h) / 2.0
-        bar_y = block_y + tag_h + 0.1 * mm
+        bar_y = block_y + tag_h + 0.2 * mm
         self._draw_barcode_fitted(c, tag, barcode_x, bar_y, barcode_box_w, bar_h)
 
         c.setFont(FONT_MONO, tag_font)
@@ -165,73 +162,46 @@ class PDFLabelRenderer(LabelRenderer):
     # ── Primitives ────────────────────────────────────────────────────────
     def _draw_barcode_fitted(self, c, value: str, x: float, y: float,
                              max_w: float, bar_h: float) -> float:
-        """Draw a sharp Code128 barcode fitted within ``max_w``."""
-        try:
-            drawn = self._draw_barcode_bitmap(c, value, x, y, max_w, bar_h)
-            if drawn:
-                return drawn
-        except Exception:
-            pass
+        """Draw a vector Code128 barcode without raster conversion.
 
-        base_bw = 0.5
-        bc = code128.Code128(value, barHeight=bar_h, barWidth=base_bw, humanReadable=False)
-        if not bc.width:
-            return 0.0
-        scaled_bw = base_bw * (max_w / bc.width)
-        bc = code128.Code128(value, barHeight=bar_h, barWidth=scaled_bw, humanReadable=False)
-        draw_x = x + (max_w - bc.width) / 2.0
-        bc.drawOn(c, draw_x, y)
-        return bc.width
-
-    def _draw_barcode_bitmap(self, c, value: str, x: float, y: float,
-                             max_w: float, bar_h: float) -> float:
-        """Embed Code128 as a high-DPI 1-bit image with pixel-aligned bars."""
-        dpi = 1200
+        We intentionally keep a minimum practical thermal module width and only
+        fit the symbol inside the available barcode column. This avoids browser
+        or PDF-layer bitmap scaling and preserves crisp vector bar edges.
+        """
         target_w_mm = max_w / mm
-        target_h_mm = max(4.0, bar_h / mm)
-        quiet_zone_mm = 0.8
+        # A practical module width for 203 DPI thermal printing is ~0.20-0.24mm.
+        preferred_bar_widths_mm = (0.24, 0.22, 0.20, 0.18)
 
-        best_img = None
-        best_w_mm = 0.0
-        # Pick the widest whole-pixel module that still fits the available box.
-        for module_px in range(16, 1, -1):
-            module_width_mm = module_px * 25.4 / dpi
-            img = self._render_code128_image(value, module_width_mm, target_h_mm, quiet_zone_mm, dpi)
-            img_w_mm = img.width * 25.4 / dpi
-            if img_w_mm <= target_w_mm:
-                best_img = img
-                best_w_mm = img_w_mm
+        chosen = None
+        for bar_width_mm in preferred_bar_widths_mm:
+            bc = code128.Code128(
+                value,
+                barHeight=bar_h,
+                barWidth=bar_width_mm * mm,
+                humanReadable=False,
+                quiet=1,
+            )
+            if (bc.width / mm) <= target_w_mm:
+                chosen = bc
                 break
 
-        if best_img is None:
-            module_width_mm = 2 * 25.4 / dpi
-            best_img = self._render_code128_image(value, module_width_mm, target_h_mm, quiet_zone_mm, dpi)
-            best_w_mm = best_img.width * 25.4 / dpi
+        if chosen is None:
+            # Last-resort fit: compute the largest vector module width that fits.
+            probe = code128.Code128(value, barHeight=bar_h, barWidth=0.18 * mm, humanReadable=False, quiet=1)
+            if not probe.width:
+                return 0.0
+            scale = max_w / probe.width
+            chosen = code128.Code128(
+                value,
+                barHeight=bar_h,
+                barWidth=0.18 * mm * scale,
+                humanReadable=False,
+                quiet=1,
+            )
 
-        png = io.BytesIO()
-        best_img.save(png, format='PNG', optimize=False)
-        png.seek(0)
-
-        draw_w = min(max_w, best_w_mm * mm)
-        draw_x = x + (max_w - draw_w) / 2.0
-        c.drawImage(ImageReader(png), draw_x, y, width=draw_w, height=bar_h, mask='auto')
-        return draw_w
-
-    def _render_code128_image(self, value: str, module_width_mm: float,
-                              module_height_mm: float, quiet_zone_mm: float, dpi: int):
-        code = barcode_lib.get('code128', value, writer=ImageWriter())
-        img = code.render({
-            'module_width': module_width_mm,
-            'module_height': module_height_mm,
-            'quiet_zone': quiet_zone_mm,
-            'font_size': 0,
-            'text_distance': 0,
-            'write_text': False,
-            'background': 'white',
-            'foreground': 'black',
-            'dpi': dpi,
-        })
-        return img.convert('L').point(lambda pixel: 0 if pixel < 250 else 255, '1')
+        draw_x = x + (max_w - chosen.width) / 2.0
+        chosen.drawOn(c, draw_x, y)
+        return chosen.width
 
     def _draw_qr(self, c, value: str, x: float, y: float, size: float) -> None:
         """Draw a QR code as vector graphics scaled to ``size`` x ``size``."""
