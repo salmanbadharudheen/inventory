@@ -75,6 +75,8 @@ class ZPLLabelRenderer(LabelRenderer):
         z.append(f'^LL{ll}')
         z.append('^LH0,0')
         z.append('^LT0')
+        z.append('^MD30')                    # Maximum darkness for faded thermal labels.
+        z.append('^PR2')                     # Slower print speed keeps bars darker/sharper.
 
         org = _zpl_safe(data.org_name)
         header_h = 0
@@ -122,7 +124,7 @@ class ZPLLabelRenderer(LabelRenderer):
 
         modules = _estimate_code128_modules(tag)
         module_w = max(1, min(3, int(right_w / modules)))
-        z.append(f'^BY{module_w},2.0,{bar_h}')
+        z.append(f'^BY{module_w},2.4,{bar_h}')
         z.append(f'^FO{right_x},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
 
         tag_y = top + bar_h + _dots(0.6, dpi)
@@ -149,7 +151,7 @@ class ZPLLabelRenderer(LabelRenderer):
         right_w = pw - 2 * margin
         modules = _estimate_code128_modules(tag)
         module_w = max(1, min(3, int(right_w / modules)))
-        z.append(f'^BY{module_w},2.0,{bar_h}')
+        z.append(f'^BY{module_w},2.4,{bar_h}')
         z.append(f'^FO{margin},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
         tag_y = top + bar_h + _dots(0.6, dpi)
         z.append(f'^FO0,{tag_y}^A0N,{tag_h},{tag_h}^FB{pw},1,0,C,0^FD{tag}^FS')

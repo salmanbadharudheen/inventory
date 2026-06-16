@@ -63,14 +63,14 @@ class PDFLabelRenderer(LabelRenderer):
 
     # ── Layout ────────────────────────────────────────────────────────────
     def _draw_label(self, c, data: LabelData, spec: LabelSpec, W: float, H: float) -> None:
-        margin = 1.5 * mm
+        margin = 0.8 * mm
         tag = data.safe_tag()
         if not tag:
             return
 
         # Thin sticker frame.
         c.setLineWidth(0.3)
-        c.rect(0.3 * mm, 0.3 * mm, W - 0.6 * mm, H - 0.6 * mm, stroke=1, fill=0)
+        c.rect(0.25 * mm, 0.25 * mm, W - 0.5 * mm, H - 0.5 * mm, stroke=1, fill=0)
 
         design = (spec.design or 'CLASSIC').upper()
         # Show header only on labels tall enough to spare the space.
@@ -98,15 +98,15 @@ class PDFLabelRenderer(LabelRenderer):
         self._draw_qr_and_barcode(c, data, spec, margin, content_bottom, content_w, content_h)
 
     def _draw_header(self, c, data: LabelData, W: float, H: float, margin: float) -> float:
-        header_h = 5.6 * mm
+        header_h = 4.2 * mm
         header_bottom = H - margin - header_h
-        baseline = header_bottom + 1.9 * mm
+        baseline = header_bottom + 1.5 * mm
         text = data.org_name.strip()
-        font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin, 5.2, 3.0)
+        font_size = self._fit_font(c, text, FONT_BOLD, W - 2 * margin, 4.6, 2.8)
 
         logo_drawn = 0.0
         if data.logo_path:
-            logo_h = header_h - 0.6 * mm
+            logo_h = header_h - 0.4 * mm
             logo_y = header_bottom + (header_h - logo_h) / 2.0
             logo_drawn = self._try_draw_logo(c, data.logo_path, margin, logo_y, logo_h)
 
@@ -118,25 +118,25 @@ class PDFLabelRenderer(LabelRenderer):
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
         tag = data.safe_tag()
-        qr_col_w = w * 0.35
-        barcode_col_w = w * 0.65
-        gap = 0.4 * mm
+        qr_col_w = w * 0.25
+        barcode_col_w = w * 0.75
+        gap = 0.25 * mm
         qr_box_w = max(0.0, qr_col_w - gap / 2.0)
         barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
         barcode_x = x + qr_col_w + gap / 2.0
 
-        tag_font = self._fit_font(c, tag, FONT_MONO, barcode_box_w, 3.5, 2.3)
-        tag_h = tag_font * 1.1
+        tag_font = self._fit_font(c, tag, FONT_MONO, barcode_box_w, 2.8, 1.9)
+        tag_h = tag_font
 
-        qr_side = min(qr_box_w, h * 0.9)
+        qr_side = min(qr_box_w, h * 0.82)
         qr_x = x + (qr_box_w - qr_side) / 2.0
         qr_y = y + (h - qr_side) / 2.0
         self._draw_qr(c, tag, qr_x, qr_y, qr_side)
 
-        bar_h = min(10.2 * mm, max(7.0 * mm, h - tag_h - 0.35 * mm))
-        block_h = bar_h + 0.25 * mm + tag_h
+        bar_h = min(12.8 * mm, max(9.0 * mm, h - tag_h - 0.15 * mm))
+        block_h = bar_h + 0.1 * mm + tag_h
         block_y = y + (h - block_h) / 2.0
-        bar_y = block_y + tag_h + 0.25 * mm
+        bar_y = block_y + tag_h + 0.1 * mm
         self._draw_barcode_fitted(c, tag, barcode_x, bar_y, barcode_box_w, bar_h)
 
         c.setFont(FONT_MONO, tag_font)
@@ -186,15 +186,15 @@ class PDFLabelRenderer(LabelRenderer):
     def _draw_barcode_bitmap(self, c, value: str, x: float, y: float,
                              max_w: float, bar_h: float) -> float:
         """Embed Code128 as a high-DPI 1-bit image with pixel-aligned bars."""
-        dpi = 600
+        dpi = 1200
         target_w_mm = max_w / mm
         target_h_mm = max(4.0, bar_h / mm)
-        quiet_zone_mm = 1.0
+        quiet_zone_mm = 0.8
 
         best_img = None
         best_w_mm = 0.0
         # Pick the widest whole-pixel module that still fits the available box.
-        for module_px in range(10, 0, -1):
+        for module_px in range(16, 1, -1):
             module_width_mm = module_px * 25.4 / dpi
             img = self._render_code128_image(value, module_width_mm, target_h_mm, quiet_zone_mm, dpi)
             img_w_mm = img.width * 25.4 / dpi
@@ -204,7 +204,7 @@ class PDFLabelRenderer(LabelRenderer):
                 break
 
         if best_img is None:
-            module_width_mm = 25.4 / dpi
+            module_width_mm = 2 * 25.4 / dpi
             best_img = self._render_code128_image(value, module_width_mm, target_h_mm, quiet_zone_mm, dpi)
             best_w_mm = best_img.width * 25.4 / dpi
 
