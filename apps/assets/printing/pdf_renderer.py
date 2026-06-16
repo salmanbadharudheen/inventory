@@ -115,29 +115,29 @@ class PDFLabelRenderer(LabelRenderer):
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
         # QR: larger, but capped so it stays inside a 2x1 label.
-        qr_side = min(12.5 * mm, h * 0.82, w * 0.35)
+        qr_side = min(13.8 * mm, h * 0.88, w * 0.38)
         qr_x = x
         qr_y = y + (h - qr_side) / 2.0
         self._draw_qr(c, data.safe_tag(), qr_x, qr_y, qr_side)
 
-        gap = 0.8 * mm
+        gap = 0.5 * mm
         right_x = qr_x + qr_side + gap
         right_w = max(0.0, (x + w) - right_x - 0.1 * mm)
 
         tag = data.safe_tag()
         # Keep the ID smaller so QR/barcode can use more of the sticker.
-        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 4.0, 2.5)
+        tag_font = self._fit_font(c, tag, FONT_MONO, right_w, 3.5, 2.3)
         tag_h = tag_font * 1.1
 
         # Barcode: larger, but vertically capped with room for the tag text.
-        bar_h = min(9.5 * mm, max(5.0 * mm, h - tag_h - 0.6 * mm))
+        bar_h = min(10.8 * mm, max(5.5 * mm, h - tag_h - 0.35 * mm))
         # Total block height (barcode + gap + tag).
-        block_h = bar_h + 0.45 * mm + tag_h
+        block_h = bar_h + 0.25 * mm + tag_h
         block_y = y + (h - block_h) / 2.0   # vertically centre the block
 
-        bar_w = right_w * 0.98
+        bar_w = right_w
         bar_x = right_x + (right_w - bar_w) / 2.0
-        bar_y = block_y + tag_h + 0.45 * mm
+        bar_y = block_y + tag_h + 0.25 * mm
         self._draw_barcode_fitted(c, tag, bar_x, bar_y, bar_w, bar_h)
 
         c.setFont(FONT_MONO, tag_font)
@@ -145,20 +145,20 @@ class PDFLabelRenderer(LabelRenderer):
         c.drawCentredString(right_x + right_w / 2.0, block_y, tag)
 
     def _draw_centered_qr(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
-        tag_font = self._fit_font(c, tag, FONT_MONO, w, 6.0, 3.0)
+        tag_font = self._fit_font(c, tag, FONT_MONO, w, 5.0, 2.6)
         tag_h = tag_font * 1.05
-        qr_side = min(h - tag_h - 0.35 * mm, w)
+        qr_side = min(h - tag_h - 0.15 * mm, w)
         qr_side = max(qr_side, 4 * mm)
-        self._draw_qr(c, tag, x + (w - qr_side) / 2.0, y + tag_h + 0.25 * mm, qr_side)
+        self._draw_qr(c, tag, x + (w - qr_side) / 2.0, y + tag_h + 0.15 * mm, qr_side)
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
         c.drawCentredString(x + w / 2.0, y + 0.3 * mm, tag)
 
     def _draw_centered_barcode(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
-        tag_font = self._fit_font(c, tag, FONT_MONO, w, 6.0, 3.0)
+        tag_font = self._fit_font(c, tag, FONT_MONO, w, 5.0, 2.6)
         tag_h = tag_font * 1.05
-        bar_h = max(5 * mm, h - tag_h - 0.35 * mm)
-        self._draw_barcode_fitted(c, tag, x, y + tag_h + 0.25 * mm, w, bar_h)
+        bar_h = max(5.5 * mm, h - tag_h - 0.15 * mm)
+        self._draw_barcode_fitted(c, tag, x, y + tag_h + 0.15 * mm, w, bar_h)
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
         c.drawCentredString(x + w / 2.0, y + 0.3 * mm, tag)
