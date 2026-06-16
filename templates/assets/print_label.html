@@ -1404,9 +1404,9 @@
             title="Scan all assets in this filter and regenerate only missing QR/barcode files. Existing codes are not touched.">
         🔄 Refresh codes
     </button>
-    <button class="btn btn-print" id="btn-print-all" onclick="openQualityPrint('zpl');" disabled
+    <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;"
-        title="Default high-quality thermal print using native printer commands.">🖨 Print All</button>
+        title="Open direct browser print dialog for all visible labels.">🖨 Print All</button>
     <button class="btn" id="btn-print-pdf" onclick="openQualityPrint('pdf');"
             style="background:#111827;color:#fff;"
             title="Open exact-size vector PDF labels for sharper browser printing.">
