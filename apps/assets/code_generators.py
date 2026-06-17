@@ -14,6 +14,7 @@ import barcode
 from barcode.writer import ImageWriter, SVGWriter
 from django.core.files.base import ContentFile
 from django.conf import settings
+from .printing.barcode_utils import barcode_payload
 
 
 class AssetCodeGenerator:
@@ -68,10 +69,11 @@ class AssetCodeGenerator:
             PIL.Image: Barcode image
         """
         try:
+            barcode_value = barcode_payload(asset_tag)
             # Create barcode using python-barcode
             barcode_instance = barcode.get(
                 AssetCodeGenerator.BARCODE_FORMAT,
-                asset_tag,
+                barcode_value,
                 writer=ImageWriter()
             )
             
@@ -130,9 +132,10 @@ class AssetCodeGenerator:
     def generate_barcode_svg_data_uri(asset_tag):
         """Generate a lossless SVG barcode data URI for ultra-sharp browser printing."""
         try:
+            barcode_value = barcode_payload(asset_tag)
             barcode_instance = barcode.get(
                 AssetCodeGenerator.BARCODE_FORMAT,
-                asset_tag,
+                barcode_value,
                 writer=SVGWriter()
             )
 

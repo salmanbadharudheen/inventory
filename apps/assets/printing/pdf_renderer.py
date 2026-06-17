@@ -18,6 +18,7 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
 
 from .base import LabelRenderer, LabelData, LabelSpec
+from .barcode_utils import barcode_payload
 
 
 FONT_REGULAR = 'Helvetica'
@@ -115,6 +116,7 @@ class PDFLabelRenderer(LabelRenderer):
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
         tag = data.safe_tag()
+        barcode_tag = barcode_payload(tag)
         qr_col_w = w * 0.20
         barcode_col_w = w * 0.80
         gap = 0.5 * mm
@@ -125,7 +127,7 @@ class PDFLabelRenderer(LabelRenderer):
         barcode_draw_x = barcode_x + (barcode_box_w - barcode_draw_w) / 2.0
 
         # Trigger full-width fallback sooner to avoid dense/unscannable bars.
-        if not self._barcode_fits_width(tag, barcode_draw_w, 0.22):
+        if not self._barcode_fits_width(barcode_tag, barcode_draw_w, 0.22):
             self._draw_stacked_qr_and_barcode(c, tag, x, y, w, h)
             return
 
@@ -142,7 +144,7 @@ class PDFLabelRenderer(LabelRenderer):
         block_h = bar_h + 0.2 * mm + tag_h
         block_y = y + (h - block_h) / 2.0
         bar_y = block_y + tag_h + 0.2 * mm
-        self._draw_barcode_fitted(c, tag, barcode_draw_x, bar_y, barcode_draw_w, bar_h)
+        self._draw_barcode_fitted(c, barcode_tag, barcode_draw_x, bar_y, barcode_draw_w, bar_h)
 
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
@@ -150,6 +152,7 @@ class PDFLabelRenderer(LabelRenderer):
 
     def _draw_stacked_qr_and_barcode(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
         """Fallback layout: tiny QR, full-width barcode for long asset tags."""
+        barcode_tag = barcode_payload(tag)
         barcode_draw_w = w * BARCODE_WIDTH_SCALE
         barcode_draw_x = x + (w - barcode_draw_w) / 2.0
 
@@ -163,7 +166,7 @@ class PDFLabelRenderer(LabelRenderer):
 
         bar_x = barcode_draw_x
         bar_y = block_y + tag_h + 0.2 * mm
-        self._draw_barcode_fitted(c, tag, bar_x, bar_y, barcode_draw_w, bar_h)
+        self._draw_barcode_fitted(c, barcode_tag, bar_x, bar_y, barcode_draw_w, bar_h)
 
         qr_x = x + (w - qr_side) / 2.0
         qr_y = bar_y + bar_h + 0.25 * mm
@@ -184,13 +187,14 @@ class PDFLabelRenderer(LabelRenderer):
         c.drawCentredString(x + w / 2.0, y + 0.3 * mm, tag)
 
     def _draw_centered_barcode(self, c, tag: str, x: float, y: float, w: float, h: float) -> None:
+        barcode_tag = barcode_payload(tag)
         barcode_draw_w = w * BARCODE_WIDTH_SCALE
         barcode_draw_x = x + (w - barcode_draw_w) / 2.0
 
         tag_font = self._fit_font(c, tag, FONT_MONO, barcode_draw_w, 5.0, 2.6)
         tag_h = tag_font * 1.05
         bar_h = max(5.5 * mm, h - tag_h - 0.15 * mm)
-        self._draw_barcode_fitted(c, tag, barcode_draw_x, y + tag_h + 0.15 * mm, barcode_draw_w, bar_h)
+        self._draw_barcode_fitted(c, barcode_tag, barcode_draw_x, y + tag_h + 0.15 * mm, barcode_draw_w, bar_h)
         c.setFont(FONT_MONO, tag_font)
         c.setFillColorRGB(0, 0, 0)
         c.drawCentredString(barcode_draw_x + barcode_draw_w / 2.0, y + 0.3 * mm, tag)

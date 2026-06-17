@@ -12,6 +12,7 @@ copied to a shared/raw printer port, or streamed by Zebra Browser Print.
 from __future__ import annotations
 
 from .base import LabelRenderer, LabelData, LabelSpec
+from .barcode_utils import barcode_payload
 
 
 def _dots(mm_value: float, dpi: int) -> int:
@@ -108,6 +109,7 @@ class ZPLLabelRenderer(LabelRenderer):
     # ── Layouts ───────────────────────────────────────────────────────────
     def _qr_and_barcode(self, tag, pw, top, content_h, margin, dpi):
         z = []
+        barcode_tag = barcode_payload(tag)
         # QR on the left, max ~8 mm.
         qr_target = min(_dots(8.0, dpi), content_h)
         qr_mag = max(2, min(6, int(round(qr_target / 25.0))))  # ~25 modules assumed
@@ -132,7 +134,7 @@ class ZPLLabelRenderer(LabelRenderer):
         barcode_px_w = modules * module_w
         barcode_x = right_x + max(0, (right_w - barcode_px_w) // 2)
         z.append(f'^BY{module_w},2.4,{bar_h}')
-        z.append(f'^FO{barcode_x},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
+        z.append(f'^FO{barcode_x},{top}^BCN,{bar_h},N,N,N^FD{barcode_tag}^FS')
 
         tag_y = top + bar_h + _dots(0.6, dpi)
         z.append(f'^FO{right_x},{tag_y}^A0N,{tag_h},{tag_h}'
@@ -153,16 +155,17 @@ class ZPLLabelRenderer(LabelRenderer):
 
     def _centered_barcode(self, tag, pw, top, content_h, margin, dpi):
         z = []
+        barcode_tag = barcode_payload(tag)
         tag_h = _dots(2.6, dpi)
         bar_h = max(_dots(8.0, dpi), content_h - tag_h - _dots(1.0, dpi))
         right_w = pw - 2 * margin
         barcode_w = max(_dots(10, dpi), int(round(right_w * BARCODE_WIDTH_SCALE)))
-        modules = _estimate_code128_modules(tag)
+        modules = _estimate_code128_modules(barcode_tag)
         module_w = max(1, min(3, int(barcode_w / modules)))
         barcode_px_w = modules * module_w
         barcode_x = margin + max(0, (right_w - barcode_px_w) // 2)
         z.append(f'^BY{module_w},2.4,{bar_h}')
-        z.append(f'^FO{barcode_x},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
+        z.append(f'^FO{barcode_x},{top}^BCN,{bar_h},N,N,N^FD{barcode_tag}^FS')
         tag_y = top + bar_h + _dots(0.6, dpi)
         z.append(f'^FO0,{tag_y}^A0N,{tag_h},{tag_h}^FB{pw},1,0,C,0^FD{tag}^FS')
         return z
