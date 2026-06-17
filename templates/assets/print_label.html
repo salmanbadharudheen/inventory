@@ -2000,7 +2000,7 @@ async function doPrintAndTag() {
     var btn2 = document.getElementById('btn-print-and-tag');
     var statusEl = document.getElementById('tag-status');
     // Trigger browser print first
-    doPrint();
+    doClassicPrint();
     // After print dialog, call the tag endpoint
     var assetIds = {{ asset_ids_json|safe }};
     if (!assetIds || !assetIds.length) return;
@@ -2216,12 +2216,18 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
 
 /* ── Wait for all images, then enable Print ─────────── */
 (function() {
-    var imgs = Array.from(document.querySelectorAll('.label img'));
+    var imgs = Array.from(document.querySelectorAll('.label img')).filter(function(img) {
+        var label = img.closest('.label');
+        return label && window.getComputedStyle(label).display !== 'none';
+    });
     var status = document.getElementById('load-status');
     var btn    = document.getElementById('btn-print-all');
     var btn2   = document.getElementById('btn-print-and-tag');
+    var isReady = false;
 
     function ready() {
+        if (isReady) return;
+        isReady = true;
         if (status) { status.textContent = '✅ Ready to print'; status.style.color = '#16a34a'; }
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
         if (btn2) { btn2.disabled = false; btn2.style.opacity = '1'; btn2.style.cursor = 'pointer'; }
@@ -2232,6 +2238,8 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
     }
 
     if (imgs.length === 0) { ready(); return; }
+
+    setTimeout(ready, 2500);
 
     var total = imgs.length, loaded = 0;
     imgs.forEach(function(img) {
