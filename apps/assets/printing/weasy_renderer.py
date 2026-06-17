@@ -9,7 +9,7 @@ try:
 except Exception:
     HTML = None
 
-from ..views import LabelData, LabelSpec
+from .base import LabelData, LabelSpec
 
 
 class WeasyLabelRenderer:
