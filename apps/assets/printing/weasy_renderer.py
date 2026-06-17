@@ -26,6 +26,7 @@ class WeasyLabelRenderer:
             raise NotImplementedError('WeasyPrint is not available in this environment.')
 
         context = {
+            'assets': labels,
             'labels': labels,
             'spec': spec,
             'design': spec.design,

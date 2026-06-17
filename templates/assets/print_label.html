@@ -1750,7 +1750,11 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
             <div class="lbl-right">
+                {% if asset.barcode_data_uri %}
+                <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
+                {% else %}
                 <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                {% endif %}
             </div>
         </div>
         <div class="lbl-tag lbl-tag-bottom-center">{{ asset.asset_tag }}</div>
@@ -1781,9 +1785,13 @@ function updateBatchParam(batchNum) {
                 <img data-qr-tag="{{ asset.asset_tag }}" src="{% if asset.qr_svg_data %}{{ asset.qr_svg_data }}{% else %}{{ asset.qr_code_image.url }}?v={{ asset.updated_at|date:'U' }}{% endif %}" alt="QR">
                 {% endif %}
             </div>
-            <div class="lbl-right">
-                <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
-            </div>
+                <div class="lbl-right">
+                    {% if asset.barcode_data_uri %}
+                    <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
+                    {% else %}
+                    <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                    {% endif %}
+                </div>
         </div>
         <div class="lbl-tag lbl-tag-bottom-center">{{ asset.asset_tag }}</div>
     </div>
@@ -1792,7 +1800,11 @@ function updateBatchParam(batchNum) {
     <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
         <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
+            {% if asset.barcode_data_uri %}
+            <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
+            {% else %}
             <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+            {% endif %}
         </div>
         <div class="lbl-tag">{{ asset.asset_tag }}</div>
     </div>

@@ -7540,6 +7540,8 @@ def print_asset_labels_pdf(request):
     Returns the file inline so the browser can print it without scaling.
     """
     from .printing import LabelData, LabelSpec, get_renderer, LABEL_SIZES, DEFAULT_SIZE_KEY
+    from .code_generators import AssetCodeGenerator
+    import io, base64
 
     org = request.user.organization
 
@@ -7573,14 +7575,25 @@ def print_asset_labels_pdf(request):
 
     labels = []
     for a in assets:
-        labels.append(LabelData(
+        ld = LabelData(
             asset_tag=a.asset_tag or '',
             org_name=org_name,
             asset_name=getattr(a, 'name', '') or '',
             category=(a.category.name if getattr(a, 'category_id', None) else ''),
             location=(a.location.name if getattr(a, 'location_id', None) else ''),
             logo_path=logo_path,
-        ))
+        )
+        # Pre-generate high-DPI barcode PNG data URI for server-side PDF/print
+        try:
+            img = AssetCodeGenerator.generate_barcode(a)
+            buf = io.BytesIO()
+            img.convert('1').save(buf, format='PNG', optimize=True)
+            data = base64.b64encode(buf.getvalue()).decode('ascii')
+            ld.barcode_data_uri = f"data:image/png;base64,{data}"
+        except Exception:
+            ld.barcode_data_uri = None
+
+        labels.append(ld)
 
     spec = LabelSpec(size_key=size_key, design=design, copies=copies)
     renderer = get_renderer(mode)
