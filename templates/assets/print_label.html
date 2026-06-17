@@ -2105,8 +2105,9 @@ function renderAllBarcodes() {
 
             var rect = container.getBoundingClientRect();
             // Increase minimum target area to allow taller/wider barcodes for better scanning
-            var targetWidth = Math.max(160, rect.width || 260);
-            var targetHeight = Math.max(48, rect.height || 72);
+            // Force larger minimum target area for barcode display
+            var targetWidth = Math.max(220, rect.width || 300);
+            var targetHeight = Math.max(64, rect.height || 96);
 
             // Height in CSS px for JsBarcode, scaled by the slider.
             var baseHeightPx;
@@ -2150,9 +2151,13 @@ function renderAllBarcodes() {
                 svgNode.setAttribute('preserveAspectRatio', 'xMidYMid meet');
                 svgNode.style.display = 'block';
                 svgNode.style.width = '100%';
-                svgNode.style.height = '100%';
+                // Ensure the SVG has an explicit pixel height matching computed barcodeHeight
+                svgNode.style.height = String(barcodeHeight) + 'px';
                 svgNode.style.shapeRendering = 'crispEdges';
             }
+            // Ensure the container provides enough space for the barcode
+            container.style.minWidth = String(Math.round(targetWidth)) + 'px';
+            container.style.minHeight = String(Math.round(barcodeHeight)) + 'px';
             container.style.display = '';
         } catch (e) {
             container.style.display = 'none';

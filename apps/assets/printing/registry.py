@@ -6,13 +6,16 @@ from .base import LabelRenderer
 from .pdf_renderer import PDFLabelRenderer
 from .zpl_renderer import ZPLLabelRenderer
 from .tspl_renderer import TSPLLabelRenderer
+from .weasy_renderer import WeasyLabelRenderer
 
 
 # Lazily instantiated singletons keyed by mode.
 _RENDERERS: dict[str, LabelRenderer] = {
-    'pdf': PDFLabelRenderer(),
+    # Use Weasy renderer for server-side PDF generation where available.
+    'pdf': WeasyLabelRenderer(),
     'zpl': ZPLLabelRenderer(),
     'tspl': TSPLLabelRenderer(),
+    'weasy': WeasyLabelRenderer(),
 }
 
 DEFAULT_MODE = 'pdf'
