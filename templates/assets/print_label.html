@@ -1591,13 +1591,13 @@
     </div>
 
     <div class="field">
-        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">0.30x</span></label>
-        <input id="qr-scale" type="range" min="0.2" max="1.2" step="0.05" value="0.3">
+        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">0.35x</span></label>
+        <input id="qr-scale" type="range" min="0.2" max="1.8" step="0.05" value="0.35">
     </div>
 
     <div class="field">
-        <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.00x</span></label>
-        <input id="barcode-scale" type="range" min="0.8" max="1.2" step="0.05" value="1">
+        <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.65x</span></label>
+        <input id="barcode-scale" type="range" min="0.8" max="2.5" step="0.05" value="1.65">
     </div>
 
     <div class="field">
@@ -2252,8 +2252,8 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
         logoPosition: 'left',
         tagFont: '1',
         orgAlign: 'center',
-        qr: '0.3',
-        barcode: '1',
+        qr: '0.35',
+        barcode: '1.65',
         spacing: '1',
         radius: '4',
         borderWidth: '1.5',
@@ -2380,8 +2380,8 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
         state.font = clampNumber(state.font, 0.8, 1.2, parseFloat(defaults.font)).toFixed(2);
         state.orgFont = clampNumber(state.orgFont, 0.7, 1.4, parseFloat(defaults.orgFont)).toFixed(2);
         state.tagFont = clampNumber(state.tagFont, 0.7, 1.4, parseFloat(defaults.tagFont)).toFixed(2);
-        state.qr = clampNumber(state.qr, 0.2, 1.2, parseFloat(defaults.qr)).toFixed(2);
-        state.barcode = clampNumber(state.barcode, 0.8, 1.2, parseFloat(defaults.barcode)).toFixed(2);
+        state.qr = clampNumber(state.qr, 0.2, 1.8, parseFloat(defaults.qr)).toFixed(2);
+        state.barcode = clampNumber(state.barcode, 0.8, 2.5, parseFloat(defaults.barcode)).toFixed(2);
         state.spacing = clampNumber(state.spacing, 0.75, 1.15, parseFloat(defaults.spacing)).toFixed(2);
         state.radius = String(Math.round(clampNumber(state.radius, 0, 10, parseFloat(defaults.radius))));
         state.borderWidth = clampNumber(state.borderWidth, 0, 3, parseFloat(defaults.borderWidth)).toFixed(1);
