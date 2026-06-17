@@ -43,7 +43,12 @@ def get_renderer(mode: str | None = None) -> LabelRenderer:
                 _RENDERERS['pdf'] = _P()
             return _RENDERERS['pdf']
         except Exception:
-            raise NotImplementedError('No PDF renderer available: install WeasyPrint or reportlab.')
+            pass
+
+        from .pillow_pdf_renderer import PillowPDFLabelRenderer as _PillowPDF
+        if 'pdf' not in _RENDERERS:
+            _RENDERERS['pdf'] = _PillowPDF()
+        return _RENDERERS['pdf']
 
     return _RENDERERS.get(key, _RENDERERS.get(DEFAULT_MODE))
 
