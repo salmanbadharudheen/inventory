@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from .base import LabelRenderer
-from .pdf_renderer import PDFLabelRenderer
 from .zpl_renderer import ZPLLabelRenderer
 from .tspl_renderer import TSPLLabelRenderer
 from .weasy_renderer import WeasyLabelRenderer
@@ -11,8 +10,6 @@ from .weasy_renderer import WeasyLabelRenderer
 
 # Lazily instantiated singletons keyed by mode.
 _RENDERERS: dict[str, LabelRenderer] = {
-    # Use Weasy renderer for server-side PDF generation where available.
-    'pdf': WeasyLabelRenderer(),
     'zpl': ZPLLabelRenderer(),
     'tspl': TSPLLabelRenderer(),
     'weasy': WeasyLabelRenderer(),
@@ -23,7 +20,27 @@ DEFAULT_MODE = 'pdf'
 
 def get_renderer(mode: str | None = None) -> LabelRenderer:
     """Return the renderer for ``mode`` (defaults to PDF)."""
-    return _RENDERERS.get((mode or DEFAULT_MODE).strip().lower(), _RENDERERS[DEFAULT_MODE])
+    key = (mode or DEFAULT_MODE).strip().lower()
+    # Prefer WeasyPrint for PDF when available
+    if key == 'pdf':
+        try:
+            # If weasy is available, use it
+            from .weasy_renderer import WeasyLabelRenderer as _W
+            # instantiate lazily and cache
+            if 'pdf' not in _RENDERERS:
+                _RENDERERS['pdf'] = _W()
+            return _RENDERERS['pdf']
+        except Exception:
+            # Fall back to ReportLab-based renderer only when needed.
+            try:
+                from .pdf_renderer import PDFLabelRenderer as _P
+                if 'pdf' not in _RENDERERS:
+                    _RENDERERS['pdf'] = _P()
+                return _RENDERERS['pdf']
+            except Exception:
+                raise NotImplementedError('No PDF renderer available in this environment.')
+
+    return _RENDERERS.get(key, _RENDERERS.get(DEFAULT_MODE))
 
 
 def available_modes() -> list[str]:
