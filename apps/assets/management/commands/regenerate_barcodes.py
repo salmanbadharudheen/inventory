@@ -53,7 +53,7 @@ class Command(BaseCommand):
         errors = 0
         for asset in qs.iterator(chunk_size=200):
             try:
-                path = AssetCodeGenerator.save_barcode_to_file(asset.asset_tag)
+                path = AssetCodeGenerator.save_barcode_to_file(asset)
                 if path:
                     asset.barcode_image = path
                     asset.save(update_fields=['barcode_image'])

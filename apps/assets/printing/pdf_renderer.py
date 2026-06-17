@@ -18,7 +18,7 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
 
 from .base import LabelRenderer, LabelData, LabelSpec
-from .barcode_utils import barcode_payload
+from ..barcode_utils import barcode_payload
 
 
 FONT_REGULAR = 'Helvetica'

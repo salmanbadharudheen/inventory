@@ -14,7 +14,7 @@ import barcode
 from barcode.writer import ImageWriter, SVGWriter
 from django.core.files.base import ContentFile
 from django.conf import settings
-from .printing.barcode_utils import barcode_payload
+from .barcode_utils import barcode_payload
 
 
 class AssetCodeGenerator:
@@ -57,7 +57,7 @@ class AssetCodeGenerator:
         return AssetCodeGenerator._load_font(min_size, bold=bold)
     
     @staticmethod
-    def generate_barcode(asset_tag, dpi=300):
+    def generate_barcode(asset_or_tag, dpi=300):
         """
         Generate a barcode image from asset tag.
         
@@ -69,7 +69,7 @@ class AssetCodeGenerator:
             PIL.Image: Barcode image
         """
         try:
-            barcode_value = barcode_payload(asset_tag)
+            barcode_value = barcode_payload(asset_or_tag)
             # Create barcode using python-barcode
             barcode_instance = barcode.get(
                 AssetCodeGenerator.BARCODE_FORMAT,
@@ -82,10 +82,11 @@ class AssetCodeGenerator:
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
                 'dpi': safe_dpi,
-                'module_width': 0.34 if safe_dpi >= 600 else 0.3,
-                'module_height': 18.0 if safe_dpi >= 600 else 12.0,
+                # favour slightly larger module width for print quality
+                'module_width': 0.4 if safe_dpi >= 600 else 0.35,
+                'module_height': 20.0 if safe_dpi >= 600 else 14.0,
                 'write_text': False,       # No text — tag shown separately in label
-                'quiet_zone': 2.0,         # Proper quiet zone on sides
+                'quiet_zone': 3.0,         # Larger quiet zone for better scanning
                 'font_size': 0,            # Ensure no text even on fallback
             })
             buffer.seek(0)
@@ -129,10 +130,10 @@ class AssetCodeGenerator:
             raise ValueError(f"Failed to generate QR code: {str(e)}")
 
     @staticmethod
-    def generate_barcode_svg_data_uri(asset_tag):
+    def generate_barcode_svg_data_uri(asset_or_tag):
         """Generate a lossless SVG barcode data URI for ultra-sharp browser printing."""
         try:
-            barcode_value = barcode_payload(asset_tag)
+            barcode_value = barcode_payload(asset_or_tag)
             barcode_instance = barcode.get(
                 AssetCodeGenerator.BARCODE_FORMAT,
                 barcode_value,
@@ -290,7 +291,7 @@ class AssetCodeGenerator:
             raise ValueError(f"Failed to generate label: {str(e)}")
     
     @staticmethod
-    def save_barcode_to_file(asset_tag, directory='assets/barcodes/'):
+    def save_barcode_to_file(asset_or_tag, directory='assets/barcodes/'):
         """
         Save barcode image to file.
         
@@ -302,13 +303,15 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_barcode(asset_tag, dpi=AssetCodeGenerator.PRINT_DPI)
+            img = AssetCodeGenerator.generate_barcode(asset_or_tag, dpi=AssetCodeGenerator.PRINT_DPI)
 
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
             media_dir.mkdir(parents=True, exist_ok=True)
 
-            filename = f"{asset_tag}_barcode.png"
+            # Create a filename that is safe; if an asset instance was provided use its tag
+            file_tag = asset_or_tag.asset_tag if hasattr(asset_or_tag, 'asset_tag') else str(asset_or_tag)
+            filename = f"{file_tag}_barcode.png"
             filepath = media_dir / filename
             # Barcodes are pure black/white — 1-bit PNG is ~10x smaller
             # than RGB and lossless. optimize+compress_level shrink further.
@@ -399,7 +402,7 @@ def generate_codes_for_asset(asset_instance):
         return
     
     try:
-        barcode_path = AssetCodeGenerator.save_barcode_to_file(asset_instance.asset_tag)
+        barcode_path = AssetCodeGenerator.save_barcode_to_file(asset_instance)
         qr_path = AssetCodeGenerator.save_qr_to_file(asset_instance.asset_tag)
         company_name = None
         if getattr(asset_instance, 'company', None):

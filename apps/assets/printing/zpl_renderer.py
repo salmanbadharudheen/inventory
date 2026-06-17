@@ -12,7 +12,7 @@ copied to a shared/raw printer port, or streamed by Zebra Browser Print.
 from __future__ import annotations
 
 from .base import LabelRenderer, LabelData, LabelSpec
-from .barcode_utils import barcode_payload
+from ..barcode_utils import barcode_payload
 
 
 def _dots(mm_value: float, dpi: int) -> int:

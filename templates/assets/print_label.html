@@ -1465,7 +1465,7 @@
             title="Scan all assets in this filter and regenerate only missing QR/barcode files. Existing codes are not touched.">
         🔄 Refresh codes
     </button>
-    <button class="btn btn-print" id="btn-print-all" onclick="openQualityPrint('pdf');" disabled
+    <button class="btn btn-print" id="btn-print-all" onclick="doClassicPrint();" disabled
         style="opacity:0.5; cursor:not-allowed;"
         title="Open vector PDF labels for the sharpest print output.">🖨 Print All</button>
     <button class="btn" id="btn-print-pdf" onclick="openQualityPrint('pdf');"
@@ -1591,8 +1591,8 @@
     </div>
 
     <div class="field">
-        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">1.00x</span></label>
-        <input id="qr-scale" type="range" min="0.7" max="1.2" step="0.05" value="1">
+        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">0.30x</span></label>
+        <input id="qr-scale" type="range" min="0.2" max="1.2" step="0.05" value="0.3">
     </div>
 
     <div class="field">
@@ -1937,7 +1937,17 @@ function refreshMissingCodes(btn) {
 
 /* ── Copies-aware Print ──────────────────────────────── */
 function doPrint() {
+    // Default print action remains PDF for explicit PDF button
     openQualityPrint('pdf');
+}
+
+function doClassicPrint() {
+    // Classic in-page print: ensure runtime page size and print the rendered labels
+    var size = getSelectedPrintSize();
+    ensureRuntimePrintStyle(size);
+    updatePrintPaginationClasses();
+    // Give the browser a moment to apply styles and then open print dialog
+    setTimeout(function() { window.print(); }, 120);
 }
 
 
@@ -2094,26 +2104,28 @@ function renderAllBarcodes() {
             var inBarcodeOnlyDesign = Boolean(container.closest('.label-barcode-only'));
 
             var rect = container.getBoundingClientRect();
-            var targetWidth = Math.max(120, rect.width || 220);
-            var targetHeight = Math.max(36, rect.height || 52);
+            // Increase minimum target area to allow taller/wider barcodes for better scanning
+            var targetWidth = Math.max(160, rect.width || 260);
+            var targetHeight = Math.max(48, rect.height || 72);
 
             // Height in CSS px for JsBarcode, scaled by the slider.
             var baseHeightPx;
             if (inBarcodeOnlyDesign) {
-                baseHeightPx = isSmallSticker ? 58 : 72;
+                baseHeightPx = isSmallSticker ? 72 : 96;
             } else if (inModernDesign) {
-                baseHeightPx = isSmallSticker ? 44 : 56;
+                baseHeightPx = isSmallSticker ? 60 : 80;
             } else {
-                baseHeightPx = isSmallSticker ? 54 : 64;
+                baseHeightPx = isSmallSticker ? 68 : 88;
             }
             var barcodeHeight = Math.max(targetHeight, Math.round(baseHeightPx * barcodeScale));
 
             // Approximate Code128 module budget (~11 modules per char + overhead).
-            var estimatedModules = Math.max(60, (String(tag).length * 11) + 35);
-            var moduleWidth = (targetWidth - 12) / estimatedModules;
-            var minModule = isSmallSticker ? 0.90 : 1.00;
-            var maxModule = inModernDesign ? 1.20 : 1.35;
-            var denseThreshold = isSmallSticker ? 1.32 : 1.45;
+            var estimatedModules = Math.max(50, (String(tag).length * 10) + 30);
+            var moduleWidth = (targetWidth - 18) / estimatedModules;
+            // Increase minimum module width to favour scannability over extreme density
+            var minModule = isSmallSticker ? 1.05 : 1.15;
+            var maxModule = inModernDesign ? 1.35 : 1.5;
+            var denseThreshold = isSmallSticker ? 1.4 : 1.6;
             if (labelNode) {
                 labelNode.classList.toggle('barcode-priority', moduleWidth < denseThreshold);
             }
@@ -2125,10 +2137,10 @@ function renderAllBarcodes() {
 
             JsBarcode(svgNode, String(tag), {
                 format: 'CODE128',
-                width: moduleWidth,
+                width: Math.max(moduleWidth, minModule),
                 height: barcodeHeight,
                 displayValue: false,
-                margin: isSmallSticker ? 4 : 6,
+                margin: isSmallSticker ? 6 : 8,
                 lineColor: '#000000',
                 background: '#FFFFFF',
                 flat: true,
@@ -2235,7 +2247,7 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
         logoPosition: 'left',
         tagFont: '1',
         orgAlign: 'center',
-        qr: '1',
+        qr: '0.3',
         barcode: '1',
         spacing: '1',
         radius: '4',
@@ -2363,7 +2375,7 @@ window.addEventListener('beforeprint', updatePrintPaginationClasses);
         state.font = clampNumber(state.font, 0.8, 1.2, parseFloat(defaults.font)).toFixed(2);
         state.orgFont = clampNumber(state.orgFont, 0.7, 1.4, parseFloat(defaults.orgFont)).toFixed(2);
         state.tagFont = clampNumber(state.tagFont, 0.7, 1.4, parseFloat(defaults.tagFont)).toFixed(2);
-        state.qr = clampNumber(state.qr, 0.7, 1.2, parseFloat(defaults.qr)).toFixed(2);
+        state.qr = clampNumber(state.qr, 0.2, 1.2, parseFloat(defaults.qr)).toFixed(2);
         state.barcode = clampNumber(state.barcode, 0.8, 1.2, parseFloat(defaults.barcode)).toFixed(2);
         state.spacing = clampNumber(state.spacing, 0.75, 1.15, parseFloat(defaults.spacing)).toFixed(2);
         state.radius = String(Math.round(clampNumber(state.radius, 0, 10, parseFloat(defaults.radius))));
