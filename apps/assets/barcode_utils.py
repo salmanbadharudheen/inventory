@@ -44,9 +44,12 @@ def barcode_payload(asset_or_tag: Any) -> str:
         tag = tag[3:]
     norm = tag.replace('-', '')
 
-    # Extract the numeric suffix (last continuous digit sequence)
+    # Extract the numeric groups and choose the longest group as the meaningful suffix
     nums = re.findall(r"(\d+)", norm)
-    suffix = nums[-1] if nums else ''
+    suffix = ''
+    if nums:
+        # prefer the longest numeric run (preserves leading zeros)
+        suffix = max(nums, key=lambda s: (len(s), s))
 
     # Fallback prefixes when not available from asset
     if not org_prefix:

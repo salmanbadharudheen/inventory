@@ -1753,7 +1753,16 @@ function updateBatchParam(batchNum) {
                 {% if asset.barcode_data_uri %}
                 <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
                 {% else %}
-                <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                {# Force server-generated barcode: try SVG first, then PNG path, else empty placeholder #}
+                {% if asset.barcode_svg_data %}
+                <div class="lbl-barcode-img"><img src="{{ asset.barcode_svg_data }}" alt="barcode"></div>
+                {% elif asset.barcode_data_uri %}
+                <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
+                {% elif asset.barcode_image %}
+                <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
+                {% else %}
+                <div class="lbl-barcode-img placeholder"></div>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -1789,7 +1798,15 @@ function updateBatchParam(batchNum) {
                     {% if asset.barcode_data_uri %}
                     <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
                     {% else %}
-                    <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                    {% if asset.barcode_svg_data %}
+                    <div class="lbl-barcode-img"><img src="{{ asset.barcode_svg_data }}" alt="barcode"></div>
+                    {% elif asset.barcode_data_uri %}
+                    <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
+                    {% elif asset.barcode_image %}
+                    <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
+                    {% else %}
+                    <div class="lbl-barcode-img placeholder"></div>
+                    {% endif %}
                     {% endif %}
                 </div>
         </div>
@@ -1803,7 +1820,15 @@ function updateBatchParam(batchNum) {
             {% if asset.barcode_data_uri %}
             <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
             {% else %}
-            <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+            {% if asset.barcode_svg_data %}
+            <div class="lbl-barcode-img"><img src="{{ asset.barcode_svg_data }}" alt="barcode"></div>
+            {% elif asset.barcode_data_uri %}
+            <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
+            {% elif asset.barcode_image %}
+            <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
+            {% else %}
+            <div class="lbl-barcode-img placeholder"></div>
+            {% endif %}
             {% endif %}
         </div>
         <div class="lbl-tag">{{ asset.asset_tag }}</div>

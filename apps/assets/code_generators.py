@@ -20,7 +20,7 @@ from .barcode_utils import barcode_payload
 class AssetCodeGenerator:
     """Generates barcodes and QR codes for assets"""
     
-    BARCODE_FORMAT = 'code128'  # Most common format
+    BARCODE_FORMAT = 'code39'  # Use Code39 Extended for tolerant mobile scanning
     PRINT_DPI = 600
     QR_VERSION = 1  # Auto-detect size
     QR_ERROR_CORRECTION = qrcode.constants.ERROR_CORRECT_M  # Medium error correction for small labels
@@ -57,7 +57,7 @@ class AssetCodeGenerator:
         return AssetCodeGenerator._load_font(min_size, bold=bold)
     
     @staticmethod
-    def generate_barcode(asset_or_tag, dpi=300):
+    def generate_barcode(asset_or_tag, dpi=300, payload_prefix: str = None):
         """
         Generate a barcode image from asset tag.
         
@@ -69,7 +69,18 @@ class AssetCodeGenerator:
             PIL.Image: Barcode image
         """
         try:
+            # Allow overriding the prefix used in the compact payload (org+cat)
             barcode_value = barcode_payload(asset_or_tag)
+            if payload_prefix:
+                # payload_prefix should be the two-character prefix (e.g. 'TC')
+                # Preserve numeric suffix from barcode_payload and replace its prefix.
+                import re
+                m = re.search(r"(\d+)$", barcode_value)
+                suffix = m.group(1) if m else ''
+                if suffix:
+                    barcode_value = f"{payload_prefix}{suffix}"
+                else:
+                    barcode_value = f"{payload_prefix}{barcode_value}"
             # Create barcode using python-barcode
             barcode_instance = barcode.get(
                 AssetCodeGenerator.BARCODE_FORMAT,
@@ -82,12 +93,12 @@ class AssetCodeGenerator:
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
                 'dpi': safe_dpi,
-                # favour slightly larger module width for print quality
-                'module_width': 0.4 if safe_dpi >= 600 else 0.35,
-                'module_height': 20.0 if safe_dpi >= 600 else 14.0,
-                'write_text': False,       # No text — tag shown separately in label
-                'quiet_zone': 3.0,         # Larger quiet zone for better scanning
-                'font_size': 0,            # Ensure no text even on fallback
+                # Code39 benefits from wider modules and larger quiet zone
+                'module_width': 0.6 if safe_dpi >= 600 else 0.5,
+                'module_height': 24.0 if safe_dpi >= 600 else 18.0,
+                'write_text': False,
+                'quiet_zone': 4.0,
+                'font_size': 0,
             })
             buffer.seek(0)
             
@@ -291,7 +302,7 @@ class AssetCodeGenerator:
             raise ValueError(f"Failed to generate label: {str(e)}")
     
     @staticmethod
-    def save_barcode_to_file(asset_or_tag, directory='assets/barcodes/'):
+    def save_barcode_to_file(asset_or_tag, directory='assets/barcodes/', payload_prefix: str = None):
         """
         Save barcode image to file.
         
@@ -303,7 +314,7 @@ class AssetCodeGenerator:
             str: File path relative to MEDIA_ROOT
         """
         try:
-            img = AssetCodeGenerator.generate_barcode(asset_or_tag, dpi=AssetCodeGenerator.PRINT_DPI)
+            img = AssetCodeGenerator.generate_barcode(asset_or_tag, dpi=AssetCodeGenerator.PRINT_DPI, payload_prefix=payload_prefix)
 
             # Create directory if needed
             media_dir = Path(settings.MEDIA_ROOT) / directory
@@ -390,7 +401,7 @@ class AssetCodeGenerator:
             return None
 
 
-def generate_codes_for_asset(asset_instance):
+def generate_codes_for_asset(asset_instance, payload_prefix: str = None):
     """
     Generate and save barcode/QR/label for an asset.
     Called automatically when asset is created.
@@ -402,7 +413,7 @@ def generate_codes_for_asset(asset_instance):
         return
     
     try:
-        barcode_path = AssetCodeGenerator.save_barcode_to_file(asset_instance)
+        barcode_path = AssetCodeGenerator.save_barcode_to_file(asset_instance, payload_prefix=payload_prefix)
         qr_path = AssetCodeGenerator.save_qr_to_file(asset_instance.asset_tag)
         company_name = None
         if getattr(asset_instance, 'company', None):

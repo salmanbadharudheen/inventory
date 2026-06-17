@@ -20,6 +20,12 @@ class Command(BaseCommand):
             default=False,
             help='Regenerate codes even for assets that already have them.',
         )
+        parser.add_argument(
+            '--payload-prefix',
+            dest='payload_prefix',
+            default=None,
+            help='Optional two-letter payload prefix to force in generated barcodes (e.g. TC).',
+        )
 
     def handle(self, *args, **options):
         org_filter = options['org']
@@ -58,7 +64,7 @@ class Command(BaseCommand):
         errors = 0
         for asset in qs.iterator(chunk_size=200):
             try:
-                generate_codes_for_asset(asset)
+                generate_codes_for_asset(asset, payload_prefix=options.get('payload_prefix'))
                 success += 1
                 if success % 50 == 0:
                     self.stdout.write(f'  {success}/{total} done...')
