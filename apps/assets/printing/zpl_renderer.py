@@ -37,6 +37,9 @@ def _estimate_code128_modules(data: str) -> int:
     return 11 * (n + 1) + 35
 
 
+BARCODE_WIDTH_SCALE = 0.5
+
+
 class ZPLLabelRenderer(LabelRenderer):
     """Render labels to native Zebra ZPL II (default 203 DPI for the ZD220)."""
 
@@ -119,13 +122,17 @@ class ZPLLabelRenderer(LabelRenderer):
         if right_w < _dots(10, dpi):
             right_w = _dots(10, dpi)
 
+        barcode_w = max(_dots(10, dpi), int(round(right_w * BARCODE_WIDTH_SCALE)))
+
         tag_h = _dots(2.4, dpi)
         bar_h = max(_dots(6.0, dpi), content_h - tag_h - _dots(1.0, dpi))
 
         modules = _estimate_code128_modules(tag)
-        module_w = max(1, min(3, int(right_w / modules)))
+        module_w = max(1, min(3, int(barcode_w / modules)))
+        barcode_px_w = modules * module_w
+        barcode_x = right_x + max(0, (right_w - barcode_px_w) // 2)
         z.append(f'^BY{module_w},2.4,{bar_h}')
-        z.append(f'^FO{right_x},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
+        z.append(f'^FO{barcode_x},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
 
         tag_y = top + bar_h + _dots(0.6, dpi)
         z.append(f'^FO{right_x},{tag_y}^A0N,{tag_h},{tag_h}'
@@ -149,10 +156,13 @@ class ZPLLabelRenderer(LabelRenderer):
         tag_h = _dots(2.6, dpi)
         bar_h = max(_dots(8.0, dpi), content_h - tag_h - _dots(1.0, dpi))
         right_w = pw - 2 * margin
+        barcode_w = max(_dots(10, dpi), int(round(right_w * BARCODE_WIDTH_SCALE)))
         modules = _estimate_code128_modules(tag)
-        module_w = max(1, min(3, int(right_w / modules)))
+        module_w = max(1, min(3, int(barcode_w / modules)))
+        barcode_px_w = modules * module_w
+        barcode_x = margin + max(0, (right_w - barcode_px_w) // 2)
         z.append(f'^BY{module_w},2.4,{bar_h}')
-        z.append(f'^FO{margin},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
+        z.append(f'^FO{barcode_x},{top}^BCN,{bar_h},N,N,N^FD{tag}^FS')
         tag_y = top + bar_h + _dots(0.6, dpi)
         z.append(f'^FO0,{tag_y}^A0N,{tag_h},{tag_h}^FB{pw},1,0,C,0^FD{tag}^FS')
         return z
