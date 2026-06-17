@@ -1465,9 +1465,9 @@
             title="Scan all assets in this filter and regenerate only missing QR/barcode files. Existing codes are not touched.">
         🔄 Refresh codes
     </button>
-    <button class="btn btn-print" id="btn-print-all" onclick="doPrint();" disabled
+    <button class="btn btn-print" id="btn-print-all" onclick="openQualityPrint('pdf');" disabled
         style="opacity:0.5; cursor:not-allowed;"
-        title="Open direct browser print dialog for all visible labels.">🖨 Print All</button>
+        title="Open vector PDF labels for the sharpest print output.">🖨 Print All</button>
     <button class="btn" id="btn-print-pdf" onclick="openQualityPrint('pdf');"
             style="background:#111827;color:#fff;"
             title="Open exact-size vector PDF labels for sharper browser printing.">
@@ -1937,41 +1937,7 @@ function refreshMissingCodes(btn) {
 
 /* ── Copies-aware Print ──────────────────────────────── */
 function doPrint() {
-    var copies = parseInt(document.getElementById('copies-count').value) || 1;
-    var grid = document.getElementById('label-grid');
-    var labels = Array.from(grid.children).filter(function(el) {
-        return el.style.display !== 'none' && el.dataset && el.dataset.design;
-    });
-
-    if (!labels.length) {
-        return;
-    }
-
-    var clones = [];
-    labels.forEach(function(lbl) {
-        for (var i = 1; i < copies; i++) {
-            var clone = lbl.cloneNode(true);
-            clone.classList.add('_print-copy');
-            lbl.parentNode.insertBefore(clone, lbl.nextSibling);
-            clones.push(clone);
-        }
-    });
-
-    updatePrintPaginationClasses();
-
-    var size = getSelectedPrintSize();
-    ensureRuntimePrintStyle(size);
-    document.body.setAttribute('data-print-size', escapePrintHtml(size.label));
-
-    function cleanupCopies() {
-        clones.forEach(function(c) { if (c.parentNode) c.parentNode.removeChild(c); });
-        updatePrintPaginationClasses();
-        window.removeEventListener('afterprint', cleanupCopies);
-    }
-
-    window.addEventListener('afterprint', cleanupCopies);
-    window.print();
-    setTimeout(cleanupCopies, 1000);
+    openQualityPrint('pdf');
 }
 
 

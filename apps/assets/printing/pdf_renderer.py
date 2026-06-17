@@ -114,14 +114,15 @@ class PDFLabelRenderer(LabelRenderer):
     def _draw_qr_and_barcode(self, c, data: LabelData, spec: LabelSpec,
                              x: float, y: float, w: float, h: float) -> None:
         tag = data.safe_tag()
-        qr_col_w = w * 0.22
-        barcode_col_w = w * 0.78
-        gap = 0.7 * mm
+        qr_col_w = w * 0.20
+        barcode_col_w = w * 0.80
+        gap = 0.5 * mm
         qr_box_w = max(0.0, qr_col_w - gap / 2.0)
         barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
         barcode_x = x + qr_col_w + gap / 2.0
 
-        if not self._barcode_fits_width(tag, barcode_box_w, 0.20):
+        # Trigger full-width fallback sooner to avoid dense/unscannable bars.
+        if not self._barcode_fits_width(tag, barcode_box_w, 0.22):
             self._draw_stacked_qr_and_barcode(c, tag, x, y, w, h)
             return
 
@@ -196,7 +197,7 @@ class PDFLabelRenderer(LabelRenderer):
         """
         target_w_mm = max_w / mm
         # A practical module width for 203 DPI thermal printing is ~0.20-0.24mm.
-        preferred_bar_widths_mm = (0.24, 0.22, 0.20, 0.18)
+        preferred_bar_widths_mm = (0.26, 0.24, 0.22, 0.20)
 
         chosen = None
         for bar_width_mm in preferred_bar_widths_mm:
@@ -213,14 +214,14 @@ class PDFLabelRenderer(LabelRenderer):
 
         if chosen is None:
             # Last-resort fit: compute the largest vector module width that fits.
-            probe = code128.Code128(value, barHeight=bar_h, barWidth=0.18 * mm, humanReadable=False, quiet=1)
+            probe = code128.Code128(value, barHeight=bar_h, barWidth=0.20 * mm, humanReadable=False, quiet=1)
             if not probe.width:
                 return 0.0
             scale = max_w / probe.width
             chosen = code128.Code128(
                 value,
                 barHeight=bar_h,
-                barWidth=0.18 * mm * scale,
+                barWidth=0.20 * mm * scale,
                 humanReadable=False,
                 quiet=1,
             )
