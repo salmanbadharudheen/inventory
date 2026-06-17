@@ -23,22 +23,27 @@ def get_renderer(mode: str | None = None) -> LabelRenderer:
     key = (mode or DEFAULT_MODE).strip().lower()
     # Prefer WeasyPrint for PDF when available
     if key == 'pdf':
+        # Try Weasy first, but only if it's actually usable (weasy_renderer exposes HTML)
         try:
-            # If weasy is available, use it
-            from .weasy_renderer import WeasyLabelRenderer as _W
-            # instantiate lazily and cache
+            import importlib
+            _weasy_mod = importlib.import_module('apps.assets.printing.weasy_renderer')
+            if getattr(_weasy_mod, 'HTML', None) is not None:
+                _W = getattr(_weasy_mod, 'WeasyLabelRenderer')
+                if 'pdf' not in _RENDERERS:
+                    _RENDERERS['pdf'] = _W()
+                return _RENDERERS['pdf']
+        except Exception:
+            # proceed to try reportlab-backed renderer
+            pass
+
+        # Fall back to ReportLab-based renderer only when available.
+        try:
+            from .pdf_renderer import PDFLabelRenderer as _P
             if 'pdf' not in _RENDERERS:
-                _RENDERERS['pdf'] = _W()
+                _RENDERERS['pdf'] = _P()
             return _RENDERERS['pdf']
         except Exception:
-            # Fall back to ReportLab-based renderer only when needed.
-            try:
-                from .pdf_renderer import PDFLabelRenderer as _P
-                if 'pdf' not in _RENDERERS:
-                    _RENDERERS['pdf'] = _P()
-                return _RENDERERS['pdf']
-            except Exception:
-                raise NotImplementedError('No PDF renderer available in this environment.')
+            raise NotImplementedError('No PDF renderer available: install WeasyPrint or reportlab.')
 
     return _RENDERERS.get(key, _RENDERERS.get(DEFAULT_MODE))
 
