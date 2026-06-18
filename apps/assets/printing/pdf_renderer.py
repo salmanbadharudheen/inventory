@@ -121,7 +121,7 @@ class PDFLabelRenderer(LabelRenderer):
         barcode_tag = barcode_payload(tag)
         qr_col_w = w * QR_WIDTH_RATIO
         barcode_col_w = w * BARCODE_WIDTH_RATIO
-        gap = 0.5 * mm
+        gap = 0.25 * mm
         qr_box_w = max(0.0, qr_col_w - gap / 2.0)
         barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
         barcode_x = x + qr_col_w + gap / 2.0
