@@ -20,7 +20,7 @@ from .barcode_utils import barcode_payload
 class AssetCodeGenerator:
     """Generates barcodes and QR codes for assets"""
     
-    BARCODE_FORMAT = 'code39'  # Use Code39 Extended for tolerant mobile scanning
+    BARCODE_FORMAT = 'code128'  # Code128 matches the browser print flow and scans reliably.
     PRINT_DPI = 600
     QR_VERSION = 1  # Auto-detect size
     QR_ERROR_CORRECTION = qrcode.constants.ERROR_CORRECT_M  # Medium error correction for small labels
@@ -93,8 +93,8 @@ class AssetCodeGenerator:
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
                 'dpi': safe_dpi,
-                # Code39 benefits from wider modules and larger quiet zone
-                'module_width': 0.6 if safe_dpi >= 600 else 0.5,
+                # Code128 is denser than Code39 but still benefits from a stable module width.
+                'module_width': 0.45 if safe_dpi >= 600 else 0.38,
                 'module_height': 24.0 if safe_dpi >= 600 else 18.0,
                 'write_text': False,
                 'quiet_zone': 4.0,
@@ -153,7 +153,7 @@ class AssetCodeGenerator:
 
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
-                'module_width': 0.34,
+                'module_width': 0.32,
                 'module_height': 18.0,
                 'write_text': False,
                 'quiet_zone': 2.0,

@@ -12,7 +12,7 @@ import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
-from reportlab.graphics.barcode import code39
+from reportlab.graphics.barcode import code128
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
@@ -211,17 +211,14 @@ class PDFLabelRenderer(LabelRenderer):
         or PDF-layer bitmap scaling and preserves crisp vector bar edges.
         """
         target_w_mm = max_w / mm
-        # Code39 needs wider modules for reliable mobile scanning.
-        preferred_bar_widths_mm = (0.40, 0.36, 0.32, 0.28)
+        preferred_bar_widths_mm = (0.32, 0.30, 0.28, 0.26)
 
         chosen = None
         for bar_width_mm in preferred_bar_widths_mm:
-            bc = code39.Standard39(
+            bc = code128.Code128(
                 value,
                 barHeight=bar_h,
                 barWidth=bar_width_mm * mm,
-                bearers=0,
-                checksum=False,
             )
             if (bc.width / mm) <= target_w_mm:
                 chosen = bc
@@ -229,16 +226,14 @@ class PDFLabelRenderer(LabelRenderer):
 
         if chosen is None:
             # Last-resort fit: compute the largest vector module width that fits.
-            probe = code39.Standard39(value, barHeight=bar_h, barWidth=0.28 * mm, bearers=0, checksum=False)
+            probe = code128.Code128(value, barHeight=bar_h, barWidth=0.28 * mm)
             if not probe.width:
                 return 0.0
             scale = max_w / probe.width
-            chosen = code39.Standard39(
+            chosen = code128.Code128(
                 value,
                 barHeight=bar_h,
                 barWidth=0.28 * mm * scale,
-                bearers=0,
-                checksum=False,
             )
 
         draw_x = x + (max_w - chosen.width) / 2.0
@@ -246,12 +241,10 @@ class PDFLabelRenderer(LabelRenderer):
         return chosen.width
 
     def _barcode_fits_width(self, value: str, available_w: float, module_width_mm: float) -> bool:
-        barcode = code39.Standard39(
+        barcode = code128.Code128(
             value,
             barHeight=8 * mm,
             barWidth=module_width_mm * mm,
-            bearers=0,
-            checksum=False,
         )
         return barcode.width <= available_w
 
