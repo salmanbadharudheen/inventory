@@ -599,19 +599,24 @@ class AssetCreateAPIView(APIView):
 class AssetLookupByTagAPIView(APIView):
     """
     GET /api/v1/assets/lookup/?asset_tag=XXX
-    Look up a single asset by its asset_tag (from QR/barcode scan).
+    GET /api/v1/assets/lookup/?rfid_tag=XXX
+    GET /api/v1/assets/lookup/?barcode_tag=XXX  (reverse-lookup by barcode_payload value)
+    Look up a single asset by its asset_tag, rfid_tag, or barcode payload (from QR/barcode scan).
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        import re as _re
         from apps.assets.models import Asset
+        from apps.assets.barcode_utils import barcode_payload as _barcode_payload
         from django.db.models import Q
 
         tag = request.query_params.get('asset_tag', '').strip()
         rfid_tag = request.query_params.get('rfid_tag', '').strip()
-        if not tag and not rfid_tag:
+        barcode_tag = request.query_params.get('barcode_tag', '').strip()
+        if not tag and not rfid_tag and not barcode_tag:
             return Response(
-                {'detail': 'asset_tag or rfid_tag query parameter is required.'},
+                {'detail': 'asset_tag, rfid_tag, or barcode_tag query parameter is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -622,16 +627,33 @@ class AssetLookupByTagAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        asset = Asset.objects.filter(
-            organization=org,
-            is_deleted=False,
-        ).filter(
-            Q(asset_tag__iexact=tag) | Q(custom_asset_tag__iexact=tag) if tag else Q(rfid_tag__iexact=rfid_tag)
-        ).select_related(
+        _select = (
             'category', 'sub_category', 'group', 'sub_group',
             'company', 'department', 'site', 'building',
             'floor', 'region', 'assigned_to', 'branch', 'custodian__user',
-        ).first()
+        )
+
+        if barcode_tag:
+            # Reverse-lookup: the barcode_payload() was printed on the label.
+            # Extract the numeric suffix so we can narrow the DB query before
+            # doing the Python-side exact match.
+            nums = _re.findall(r'\d+', barcode_tag)
+            numeric_suffix = max(nums, key=lambda s: (len(s), s)) if nums else ''
+            base_qs = Asset.objects.filter(organization=org, is_deleted=False).select_related(*_select)
+            if numeric_suffix:
+                base_qs = base_qs.filter(asset_tag__icontains=numeric_suffix)
+            asset = None
+            for candidate in base_qs[:500]:
+                if _barcode_payload(candidate) == barcode_tag:
+                    asset = candidate
+                    break
+        else:
+            asset = Asset.objects.filter(
+                organization=org,
+                is_deleted=False,
+            ).filter(
+                Q(asset_tag__iexact=tag) | Q(custom_asset_tag__iexact=tag) if tag else Q(rfid_tag__iexact=rfid_tag)
+            ).select_related(*_select).first()
 
         if not asset:
             return Response(

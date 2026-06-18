@@ -45,8 +45,8 @@ export default function ScanAssetScreen() {
       processingRef.current = true;
       setScanned(true);
 
-      const assetTag = (data || "").trim();
-      if (!assetTag) {
+      const scannedValue = (data || "").trim();
+      if (!scannedValue) {
         Alert.alert("Invalid Code", "The scanned code is empty.", [
           {
             text: "Scan Again",
@@ -59,12 +59,20 @@ export default function ScanAssetScreen() {
         return;
       }
 
-      navigateToDetail(assetTag);
+      // QR codes carry the original asset tag; linear barcodes (code128 etc.)
+      // carry the compact barcode_payload — the server needs a reverse-lookup.
+      const isQr = type.toLowerCase() === "qr";
+      router.push({
+        pathname: "/(app)/asset-detail",
+        params: isQr
+          ? { asset_tag: scannedValue, from_scan: "1" }
+          : { barcode_tag: scannedValue, from_scan: "1" },
+      });
       setTimeout(() => {
         processingRef.current = false;
       }, 1500);
     },
-    [navigateToDetail]
+    []
   );
 
   const handleManualSubmit = () => {

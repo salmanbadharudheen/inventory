@@ -20,6 +20,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import {
   lookupAssetByTag,
+  lookupAssetByBarcodeTag,
   getAssetDetail,
   listAttachments,
   uploadAttachment,
@@ -60,7 +61,7 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 export default function AssetDetailScreen() {
-  const params = useLocalSearchParams<{ asset_tag?: string; asset_id?: string; from_scan?: string }>();
+  const params = useLocalSearchParams<{ asset_tag?: string; asset_id?: string; barcode_tag?: string; from_scan?: string }>();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,6 +85,8 @@ export default function AssetDetailScreen() {
         let data: AssetDetail;
         if (params.asset_id) {
           data = await getAssetDetail(params.asset_id);
+        } else if (params.barcode_tag) {
+          data = await lookupAssetByBarcodeTag(params.barcode_tag);
         } else if (params.asset_tag) {
           data = await lookupAssetByTag(params.asset_tag);
         } else {

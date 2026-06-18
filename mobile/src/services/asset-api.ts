@@ -64,6 +64,19 @@ export async function lookupAssetByTag(
   return res.json();
 }
 
+export async function lookupAssetByBarcodeTag(
+  barcodeTag: string
+): Promise<AssetDetail> {
+  const url = `${API.ASSETS.LOOKUP}?barcode_tag=${encodeURIComponent(barcodeTag)}`;
+  const res = await authFetch(url);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("Asset not found");
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? "Failed to look up asset by barcode");
+  }
+  return res.json();
+}
+
 export async function lookupAssetByRfidTag(
   rfidTag: string
 ): Promise<AssetDetail> {
