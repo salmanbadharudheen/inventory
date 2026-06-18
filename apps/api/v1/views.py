@@ -614,6 +614,12 @@ class AssetLookupByTagAPIView(APIView):
         tag = request.query_params.get('asset_tag', '').strip()
         rfid_tag = request.query_params.get('rfid_tag', '').strip()
         barcode_tag = request.query_params.get('barcode_tag', '').strip()
+
+        # Mobile scanners can append punctuation on low-quality captures.
+        strip_noise = lambda s: _re.sub(r"[\s\.,;:!\"'`]+$", '', (s or '').strip())
+        tag = strip_noise(tag)
+        rfid_tag = strip_noise(rfid_tag)
+        barcode_tag = strip_noise(barcode_tag)
         if not tag and not rfid_tag and not barcode_tag:
             return Response(
                 {'detail': 'asset_tag, rfid_tag, or barcode_tag query parameter is required.'},

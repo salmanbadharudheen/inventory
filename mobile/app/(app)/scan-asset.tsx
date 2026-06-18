@@ -14,6 +14,20 @@ import { Camera, CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { lookupAssetByRfidTag } from "../../src/services/asset-api";
 
+function normalizeScannedIdentifier(value: string, isQr: boolean): string {
+  let normalized = (value || "").trim();
+
+  if (!isQr) {
+    // Code39 scanners may include * start/stop guards.
+    normalized = normalized.replace(/^\*+|\*+$/g, "");
+  }
+
+  // Some camera decoders append punctuation for tiny/blurred labels.
+  normalized = normalized.replace(/[\s.,;:!"'`]+$/g, "");
+
+  return normalized;
+}
+
 /* ─── Exported screen ─── */
 export default function ScanAssetScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -47,8 +61,7 @@ export default function ScanAssetScreen() {
 
       const normalizedType = (type || "").toLowerCase();
       const isQr = normalizedType.includes("qr");
-      const rawValue = (data || "").trim();
-      const scannedValue = isQr ? rawValue : rawValue.replace(/^\*+|\*+$/g, "");
+      const scannedValue = normalizeScannedIdentifier(data || "", isQr);
       if (!scannedValue) {
         Alert.alert("Invalid Code", "The scanned code is empty.", [
           {

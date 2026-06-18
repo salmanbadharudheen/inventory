@@ -60,6 +60,11 @@ const CONDITION_LABELS: Record<string, string> = {
   UNDER_REPAIR: "Under Repair",
 };
 
+function normalizeIdentifier(value?: string) {
+  if (!value) return "";
+  return value.trim().replace(/[\s.,;:!"'`]+$/g, "");
+}
+
 export default function AssetDetailScreen() {
   const params = useLocalSearchParams<{ asset_tag?: string; asset_id?: string; barcode_tag?: string; from_scan?: string }>();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
@@ -82,9 +87,12 @@ export default function AssetDetailScreen() {
         if (!silent) setLoading(true);
         setError(null);
 
-        const assetId = Array.isArray(params.asset_id) ? params.asset_id[0] : params.asset_id;
-        const barcodeTag = Array.isArray(params.barcode_tag) ? params.barcode_tag[0] : params.barcode_tag;
-        const assetTag = Array.isArray(params.asset_tag) ? params.asset_tag[0] : params.asset_tag;
+        const assetIdRaw = Array.isArray(params.asset_id) ? params.asset_id[0] : params.asset_id;
+        const barcodeTagRaw = Array.isArray(params.barcode_tag) ? params.barcode_tag[0] : params.barcode_tag;
+        const assetTagRaw = Array.isArray(params.asset_tag) ? params.asset_tag[0] : params.asset_tag;
+        const assetId = normalizeIdentifier(assetIdRaw);
+        const barcodeTag = normalizeIdentifier(barcodeTagRaw);
+        const assetTag = normalizeIdentifier(assetTagRaw);
 
         let data: AssetDetail;
         if (assetId) {
