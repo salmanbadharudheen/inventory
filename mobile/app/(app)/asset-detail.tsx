@@ -82,13 +82,17 @@ export default function AssetDetailScreen() {
         if (!silent) setLoading(true);
         setError(null);
 
+        const assetId = Array.isArray(params.asset_id) ? params.asset_id[0] : params.asset_id;
+        const barcodeTag = Array.isArray(params.barcode_tag) ? params.barcode_tag[0] : params.barcode_tag;
+        const assetTag = Array.isArray(params.asset_tag) ? params.asset_tag[0] : params.asset_tag;
+
         let data: AssetDetail;
-        if (params.asset_id) {
-          data = await getAssetDetail(params.asset_id);
-        } else if (params.barcode_tag) {
-          data = await lookupAssetByBarcodeTag(params.barcode_tag);
-        } else if (params.asset_tag) {
-          data = await lookupAssetByTag(params.asset_tag);
+        if (assetId) {
+          data = await getAssetDetail(assetId);
+        } else if (barcodeTag && barcodeTag !== "undefined" && barcodeTag !== "null") {
+          data = await lookupAssetByBarcodeTag(barcodeTag);
+        } else if (assetTag && assetTag !== "undefined" && assetTag !== "null") {
+          data = await lookupAssetByTag(assetTag);
         } else {
           throw new Error("No asset identifier provided.");
         }
@@ -129,7 +133,7 @@ export default function AssetDetailScreen() {
         setRefreshing(false);
       }
     },
-    [params.asset_tag, params.asset_id]
+    [params.asset_tag, params.asset_id, params.barcode_tag, params.from_scan]
   );
 
   /* ─── Attachment helpers ─── */
@@ -260,6 +264,12 @@ export default function AssetDetailScreen() {
 
   /* ─── Error state ─── */
   if (error && !asset) {
+    const displayIdentifier =
+      (Array.isArray(params.asset_tag) ? params.asset_tag[0] : params.asset_tag) ??
+      (Array.isArray(params.barcode_tag) ? params.barcode_tag[0] : params.barcode_tag) ??
+      (Array.isArray(params.asset_id) ? params.asset_id[0] : params.asset_id) ??
+      "";
+
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorIcon}>😕</Text>
@@ -268,7 +278,7 @@ export default function AssetDetailScreen() {
         </Text>
         <Text style={styles.errorText}>
           {error === "Asset not found"
-            ? `No asset found with tag "${params.asset_tag ?? params.asset_id}"`
+            ? `No asset found with identifier "${displayIdentifier}"`
             : error}
         </Text>
         <View style={styles.errorActions}>
