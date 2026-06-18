@@ -16,6 +16,7 @@ from ..code_generators import AssetCodeGenerator
 
 
 MM_PER_INCH = 25.4
+QR_WIDTH_RATIO = 0.35
 
 
 class PillowPDFLabelRenderer(LabelRenderer):
@@ -76,13 +77,13 @@ class PillowPDFLabelRenderer(LabelRenderer):
             self._paste_qr(page, tag, content_x, content_y, content_w, content_h, dpi)
             return page
 
-        qr_side = min(round(content_h * 0.72), round(content_w * 0.18))
+        qr_side = min(round(content_h * 0.72), round(content_w * (QR_WIDTH_RATIO - 0.02)))
         gap = max(round(dpi * 0.015), 4)
-        qr_x = content_x + max((round(content_w * 0.20) - qr_side) // 2, 0)
+        qr_x = content_x + max((round(content_w * QR_WIDTH_RATIO) - qr_side) // 2, 0)
         qr_y = content_y + (content_h - qr_side) // 2
         self._paste_qr(page, tag, qr_x, qr_y, qr_side, qr_side, dpi)
 
-        barcode_x = content_x + round(content_w * 0.20) + gap
+        barcode_x = content_x + round(content_w * QR_WIDTH_RATIO) + gap
         barcode_w = width - margin - barcode_x
         self._paste_barcode(page, tag, barcode_x, content_y, barcode_w, content_h, dpi)
         return page

@@ -25,6 +25,8 @@ FONT_REGULAR = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 FONT_MONO = 'Courier-Bold'
 BARCODE_WIDTH_SCALE = 0.5
+QR_WIDTH_RATIO = 0.35
+BARCODE_WIDTH_RATIO = 1.0 - QR_WIDTH_RATIO
 
 
 class PDFLabelRenderer(LabelRenderer):
@@ -117,8 +119,8 @@ class PDFLabelRenderer(LabelRenderer):
                              x: float, y: float, w: float, h: float) -> None:
         tag = data.safe_tag()
         barcode_tag = barcode_payload(tag)
-        qr_col_w = w * 0.20
-        barcode_col_w = w * 0.80
+        qr_col_w = w * QR_WIDTH_RATIO
+        barcode_col_w = w * BARCODE_WIDTH_RATIO
         gap = 0.5 * mm
         qr_box_w = max(0.0, qr_col_w - gap / 2.0)
         barcode_box_w = max(0.0, barcode_col_w - gap / 2.0)
