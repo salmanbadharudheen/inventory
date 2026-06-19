@@ -1858,7 +1858,19 @@ function updateBatchParam(batchNum) {
                 {% if asset.category %}<div class="lbl-category">{{ asset.category.name }}</div>{% endif %}
                 {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
                 <div class="lbl-barcode-inline">
-                    <div class="lbl-barcode-svg" data-tag="{{ asset.asset_tag }}"></div>
+                    {% if asset.barcode_data_uri %}
+                    <img src="{{ asset.barcode_data_uri }}" alt="barcode">
+                    {% else %}
+                    {% if asset.barcode_svg_data %}
+                    <img src="{{ asset.barcode_svg_data }}" alt="barcode">
+                    {% elif asset.barcode_data_uri %}
+                    <img src="{{ asset.barcode_data_uri }}" alt="barcode">
+                    {% elif asset.barcode_image %}
+                    <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode">
+                    {% else %}
+                    <div class="lbl-barcode-img placeholder"></div>
+                    {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
