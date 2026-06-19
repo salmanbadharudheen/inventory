@@ -43,7 +43,7 @@ Issues:
 │  │ Status       │ Category   │ Site      │ Department   │        │
 │  │ [All Status] │ [All Cats] │ [All Sit] │ [All Depts]  │        │
 │  └──────────────┴────────────┴───────────┴──────────────┘        │
-│                                                                    │
+│                                                                  │
 │  [🔍 Apply Filters]           [⚙ More Options]                   │
 │                                                                    │
 └──────────────────────────────────────────────────────────────────┘
@@ -57,14 +57,14 @@ When "More Options" clicked:
 │ │ Group    │ Sub Category │ Building │ Brand    │               │
 │ │ [Sel ▼]  │ [Sel ▼]      │ [Sel ▼]  │ [Sel ▼]  │               │
 │ └──────────┴──────────────┴──────────┴──────────┘               │
-│                                                                   │
-│ ┌──────────────┬──────────────┬──────────────┐                 │
-│ │ Date Range   │ From Date    │ To Date      │                 │
-│ │ [Custom ▼]   │ [YYYY-MM-DD] │ [YYYY-MM-DD] │                 │
-│ └──────────────┴──────────────┴──────────────┘                 │
-│                                                                   │
-│ [↻ Reset All]                        [✓ Apply Filters]          │
-└──────────────────────────────────────────────────────────────────┘
+│                                                                 │
+│ ┌──────────────┬──────────────┬──────────────┐                  │
+│ │ Date Range   │ From Date    │ To Date      │                  │
+│ │ [Custom ▼]   │ [YYYY-MM-DD] │ [YYYY-MM-DD] │                  │
+│ └──────────────┴──────────────┴──────────────┘                  │
+│                                                                 │
+│ [↻ Reset All]                        [✓ Apply Filters]         │
+└──────────────────────────────────────────────────────────────── ┘
 
 Improvements:
 ✅ Prominent, full-width search bar
