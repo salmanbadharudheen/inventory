@@ -415,7 +415,7 @@
         }
         .label-classic .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: calc(2px * var(--custom-inner-pad)) calc(6px * var(--custom-inner-pad)); gap: calc(2px * var(--custom-inner-pad));
+            padding: calc(2px * var(--custom-inner-pad)) calc(6px * var(--custom-inner-pad)); gap: calc(1px * var(--custom-inner-pad));
             min-width: 0;
             overflow: hidden;
         }
@@ -520,7 +520,7 @@
         }
         .label-detailed .lbl-body {
             flex: 1; display: flex; align-items: center;
-            padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(8px * var(--custom-inner-pad));
+            padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad)); gap: calc(4px * var(--custom-inner-pad));
             min-width: 0;
             overflow: hidden;
         }
@@ -786,7 +786,7 @@
             }
             .label-classic .lbl-body {
                 padding: 1pt 4pt;
-                gap: 1pt;
+                gap: 0.5pt;
                 flex: 1;
             }
             .label-classic .lbl-qr img {
@@ -850,7 +850,7 @@
             }
             .label-detailed .lbl-body {
                 padding: 2pt 5pt;
-                gap: 4pt;
+                gap: 2pt;
                 flex: 1;
             }
             .label-detailed .lbl-qr img {
@@ -860,7 +860,7 @@
                 border: 0.3pt solid #ccc;
             }
             .label-detailed .lbl-right {
-                gap: 4pt;
+                gap: 2pt;
             }
             .label-detailed .lbl-right img {
                 height: calc(0.46in * var(--custom-barcode-scale));
@@ -956,7 +956,7 @@
         .label-modern .lbl-modern-body {
             flex: 1; display: flex; align-items: stretch;
             padding: calc(4px * var(--custom-inner-pad)) calc(8px * var(--custom-inner-pad));
-            gap: calc(8px * var(--custom-inner-pad));
+            gap: calc(4px * var(--custom-inner-pad));
             min-width: 0;
             overflow: hidden;
         }
@@ -1258,7 +1258,7 @@
             .label-modern .lbl-modern-header { padding: 1.5pt 5pt; }
             .label-modern .lbl-modern-header .org-name { font-size: calc(6.5pt * var(--custom-font-scale)); }
             .label-modern .lbl-modern-header .tag-num { font-size: calc(6pt * var(--custom-font-scale)); }
-            .label-modern .lbl-modern-body { padding: 2pt 4pt; gap: 5pt; flex: 1; }
+            .label-modern .lbl-modern-body { padding: 2pt 4pt; gap: 2pt; flex: 1; }
             .label-modern .lbl-qr img { width: calc(0.68in * var(--custom-qr-scale)); height: calc(0.68in * var(--custom-qr-scale)); padding: 1pt; }
             .label-modern .lbl-asset-name { font-size: calc(8pt * var(--custom-font-scale)); }
             .label-modern .lbl-category,
@@ -1374,18 +1374,18 @@
             .label-classic .lbl-qr,
             .label-detailed .lbl-qr,
             .label-modern .lbl-qr {
-                flex: 0 0 35% !important;
-                width: 35% !important;
-                max-width: 35% !important;
+                flex: 0 0 32% !important;
+                width: 32% !important;
+                max-width: 32% !important;
                 min-width: 0 !important;
             }
 
             .label-classic .lbl-right,
             .label-detailed .lbl-right,
             .label-modern .lbl-modern-info {
-                flex: 1 1 65% !important;
-                width: 65% !important;
-                max-width: 65% !important;
+                flex: 1 1 68% !important;
+                width: 68% !important;
+                max-width: 68% !important;
             }
 
             .label.barcode-priority .lbl-qr {
