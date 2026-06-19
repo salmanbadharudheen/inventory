@@ -153,10 +153,10 @@ class AssetCodeGenerator:
 
             buffer = io.BytesIO()
             barcode_instance.write(buffer, {
-                'module_width': 0.55,
+                'module_width': 0.32,
                 'module_height': 18.0,
                 'write_text': False,
-                'quiet_zone': 3.0,
+                'quiet_zone': 2.0,
                 'font_size': 0,
             })
             svg_bytes = buffer.getvalue()
