@@ -1758,11 +1758,11 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
             <div class="lbl-right">
-                {# Force server-generated barcode: try SVG first, then PNG path, else empty placeholder #}
-                {% if asset.barcode_image %}
-                <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
-                {% elif asset.barcode_svg_data %}
+                {# Force server-generated barcode: prefer SVG for print sharpness, then PNG path, else empty placeholder #}
+                {% if asset.barcode_svg_data %}
                 <div class="lbl-barcode-img"><img src="{{ asset.barcode_svg_data }}" alt="barcode"></div>
+                {% elif asset.barcode_image %}
+                <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
                 {% elif asset.barcode_data_uri %}
                 <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
                 {% else %}
@@ -1799,10 +1799,10 @@ function updateBatchParam(batchNum) {
                 {% endif %}
             </div>
                 <div class="lbl-right">
-                    {% if asset.barcode_image %}
-                    <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
-                    {% elif asset.barcode_svg_data %}
+                    {% if asset.barcode_svg_data %}
                     <div class="lbl-barcode-img"><img src="{{ asset.barcode_svg_data }}" alt="barcode"></div>
+                    {% elif asset.barcode_image %}
+                    <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
                     {% elif asset.barcode_data_uri %}
                     <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
                     {% else %}
@@ -1817,10 +1817,10 @@ function updateBatchParam(batchNum) {
     <div class="label label-barcode-only" data-design="BARCODE_ONLY" {% if design != 'BARCODE_ONLY' %}style="display:none"{% endif %}>
         <div class="lbl-company org-text">{{ org.name }}</div>
         <div class="lbl-barcode-img">
-            {% if asset.barcode_image %}
-            <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
-            {% elif asset.barcode_svg_data %}
+            {% if asset.barcode_svg_data %}
             <div class="lbl-barcode-img"><img src="{{ asset.barcode_svg_data }}" alt="barcode"></div>
+            {% elif asset.barcode_image %}
+            <div class="lbl-barcode-img"><img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode"></div>
             {% elif asset.barcode_data_uri %}
             <div class="lbl-barcode-img"><img src="{{ asset.barcode_data_uri }}" alt="barcode"></div>
             {% else %}
@@ -1846,10 +1846,10 @@ function updateBatchParam(batchNum) {
                 {% if asset.category %}<div class="lbl-category">{{ asset.category.name }}</div>{% endif %}
                 {% if asset.location %}<div class="lbl-location">{{ asset.location.name }}</div>{% elif asset.branch %}<div class="lbl-location">{{ asset.branch.name }}</div>{% endif %}
                 <div class="lbl-barcode-inline">
-                    {% if asset.barcode_image %}
-                    <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode">
-                    {% elif asset.barcode_svg_data %}
+                    {% if asset.barcode_svg_data %}
                     <img src="{{ asset.barcode_svg_data }}" alt="barcode">
+                    {% elif asset.barcode_image %}
+                    <img src="{{ asset.barcode_image.url }}?v={{ asset.updated_at|date:'U' }}" alt="barcode">
                     {% elif asset.barcode_data_uri %}
                     <img src="{{ asset.barcode_data_uri }}" alt="barcode">
                     {% else %}
