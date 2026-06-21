@@ -16,7 +16,7 @@ from ..code_generators import AssetCodeGenerator
 
 
 MM_PER_INCH = 25.4
-QR_WIDTH_RATIO = 0.35
+QR_WIDTH_RATIO = 0.30
 
 
 class PillowPDFLabelRenderer(LabelRenderer):
