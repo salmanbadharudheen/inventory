@@ -640,6 +640,15 @@ class AssetLookupByTagAPIView(APIView):
         )
 
         if barcode_tag:
+            asset = Asset.objects.filter(
+                organization=org,
+                is_deleted=False,
+                barcode_payload_value__iexact=barcode_tag,
+            ).select_related(*_select).first()
+
+            if asset:
+                return Response(AssetReadSerializer(asset).data)
+
             # Reverse-lookup: the barcode_payload() was printed on the label.
             # Extract the numeric suffix so we can narrow the DB query before
             # doing the Python-side exact match.

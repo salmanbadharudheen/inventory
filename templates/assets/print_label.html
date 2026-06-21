@@ -259,8 +259,8 @@
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
-            --split-qr-width: 15%;
-            --split-barcode-width: 85%;
+            --split-qr-width: 16%;
+            --split-barcode-width: 84%;
         }
 
         /* ── Shared label base ─────────────────────────────── */
@@ -430,7 +430,7 @@
             overflow: hidden;
         }
         .label-classic .lbl-qr img {
-            width: min(100%, calc(92px * var(--custom-qr-scale)));
+            width: min(100%, calc(104px * var(--custom-qr-scale)));
             height: auto;
             aspect-ratio: 1 / 1;
             border: none; border-radius: 0; padding: 0;
@@ -442,16 +442,16 @@
             max-width: var(--split-barcode-width);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
+            align-items: flex-end;
+            justify-content: flex-end;
+            gap: 1px;
         }
         .label-classic .lbl-right img { width: 100%; height: calc(90px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-classic .lbl-tag-bottom-center {
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: calc(0.54rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.04em;
             text-align: center;
-            padding: 1px 4px 2px;
+            padding: 0 4px 1px;
             line-height: 1;
         }
 
@@ -535,7 +535,7 @@
             overflow: hidden;
         }
         .label-detailed .lbl-qr img {
-            width: min(100%, calc(115px * var(--custom-qr-scale)));
+            width: min(100%, calc(128px * var(--custom-qr-scale)));
             height: auto;
             aspect-ratio: 1 / 1;
             border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px;
@@ -547,16 +547,16 @@
             max-width: var(--split-barcode-width);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
+            align-items: flex-end;
+            justify-content: flex-end;
+            gap: 2px;
         }
         .label-detailed .lbl-right img { width: 100%; height: calc(72px * var(--custom-barcode-scale)); object-fit: contain; }
         .label-detailed .lbl-tag-bottom-center {
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: calc(0.7rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700; color: #111827; letter-spacing: 0.06em;
             text-align: center;
-            padding: 1px 4px 2px;
+            padding: 0 4px 1px;
             line-height: 1;
         }
 
@@ -790,15 +790,15 @@
                 flex: 1;
             }
             .label-classic .lbl-qr img {
-                width: calc(0.60in * var(--custom-qr-scale));
-                height: calc(0.60in * var(--custom-qr-scale));
-                max-height: 0.60in;
+                width: calc(0.64in * var(--custom-qr-scale));
+                height: calc(0.64in * var(--custom-qr-scale));
+                max-height: 0.64in;
                 padding: 0;
                 border: none !important;
                 background: transparent !important;
             }
             .label-classic .lbl-qr {
-                max-height: 0.66in;
+                max-height: 0.70in;
                 overflow: hidden;
             }
             .label-classic .lbl-right {
@@ -815,6 +815,7 @@
             .label-classic .lbl-tag-bottom-center {
                 font-size: calc(5.4pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.03em;
+                padding: 0 3pt 0.5pt;
             }
 
             /* ── COMPACT print ─────────────────────────── */
@@ -854,8 +855,8 @@
                 flex: 1;
             }
             .label-detailed .lbl-qr img {
-                width: calc(0.73in * var(--custom-qr-scale));
-                height: calc(0.73in * var(--custom-qr-scale));
+                width: calc(0.78in * var(--custom-qr-scale));
+                height: calc(0.78in * var(--custom-qr-scale));
                 padding: 1pt;
                 border: 0.3pt solid #ccc;
             }
@@ -870,6 +871,7 @@
             .label-detailed .lbl-tag-bottom-center {
                 font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.05em;
+                padding: 0 3pt 0.5pt;
             }
 
             /* ── BARCODE ONLY print ────────────────────── */
@@ -1336,7 +1338,7 @@
         .label-detailed .lbl-right,
         .label-barcode-only .lbl-barcode-img,
         .label-modern .lbl-barcode-inline {
-            padding: 0 1px;
+            padding: 0 0 0 0.5px;
             box-sizing: border-box;
             background: #fff;
         }
@@ -1374,18 +1376,26 @@
             .label-classic .lbl-qr,
             .label-detailed .lbl-qr,
             .label-modern .lbl-qr {
-                flex: 0 0 15% !important;
-                width: 15% !important;
-                max-width: 15% !important;
+                flex: 0 0 16% !important;
+                width: 16% !important;
+                max-width: 16% !important;
                 min-width: 0 !important;
             }
 
             .label-classic .lbl-right,
             .label-detailed .lbl-right,
             .label-modern .lbl-modern-info {
-                flex: 1 1 85% !important;
-                width: 85% !important;
-                max-width: 85% !important;
+                flex: 1 1 84% !important;
+                width: 84% !important;
+                max-width: 84% !important;
+            }
+
+            .label-classic .lbl-right,
+            .label-detailed .lbl-right,
+            .label-barcode-only .lbl-barcode-img,
+            .label-modern .lbl-barcode-inline {
+                display: flex !important;
+                justify-content: flex-end !important;
             }
 
             .label.barcode-priority .lbl-qr {
@@ -1402,7 +1412,7 @@
             .label-detailed .lbl-right,
             .label-barcode-only .lbl-barcode-img,
             .label-modern .lbl-barcode-inline {
-                padding: 0 0.2mm !important;
+                padding: 0 0 0 0.2mm !important;
                 overflow: hidden !important;
                 background: #fff !important;
             }
@@ -1417,6 +1427,7 @@
                 height: auto !important;
                 max-width: 100% !important;
                 max-height: 100% !important;
+                margin-left: auto !important;
                 shape-rendering: crispEdges !important;
                 image-rendering: -webkit-optimize-contrast !important;
                 image-rendering: pixelated !important;
@@ -2120,8 +2131,11 @@ async function sendToExternalPrintApp() {
 /* ── JsBarcode: render Code128 as SVG with conservative module sizing ─
     Goal: avoid over-dense bars and keep scanner-friendly quiet zones. */
 
-function renderAllBarcodes() {
-     if (typeof JsBarcode === 'undefined') return;
+function renderAllBarcodes(mode) {
+    if (typeof JsBarcode === 'undefined') return;
+
+    var renderMode = (mode === 'print') ? 'print' : 'preview';
+    var isPrintMode = renderMode === 'print';
 
     var barcodeScaleControl = document.getElementById('barcode-scale');
     var barcodeScale = barcodeScaleControl ? parseFloat(barcodeScaleControl.value) : 1;
@@ -2145,10 +2159,17 @@ function renderAllBarcodes() {
             var inBarcodeOnlyDesign = Boolean(container.closest('.label-barcode-only'));
 
             var rect = container.getBoundingClientRect();
-            // Increase minimum target area to allow taller/wider barcodes for better scanning
-            // Force larger minimum target area for barcode display
-            var targetWidth = Math.max(220, rect.width || 300);
-            var targetHeight = Math.max(64, rect.height || 96);
+            // Render close to measured bounds to avoid downscaling blur/density artifacts.
+            var measuredWidth = Math.round(rect.width || 0);
+            var measuredHeight = Math.round(rect.height || 0);
+            var previewWidth = measuredWidth > 0 ? Math.round(measuredWidth * 0.82) : (isSmallSticker ? 146 : 186);
+            var previewHeight = measuredHeight > 0 ? Math.round(measuredHeight * 0.82) : (isSmallSticker ? 48 : 64);
+            var targetWidth = isPrintMode
+                ? (measuredWidth > 0 ? measuredWidth : (isSmallSticker ? 170 : 220))
+                : Math.max(120, previewWidth);
+            var targetHeight = isPrintMode
+                ? (measuredHeight > 0 ? measuredHeight : (isSmallSticker ? 58 : 78))
+                : Math.max(42, previewHeight);
 
             // Height in CSS px for JsBarcode, scaled by the slider.
             var baseHeightPx;
@@ -2159,19 +2180,22 @@ function renderAllBarcodes() {
             } else {
                 baseHeightPx = isSmallSticker ? 68 : 88;
             }
-            var barcodeHeight = Math.max(targetHeight, Math.round(baseHeightPx * barcodeScale));
+            var heightScale = isPrintMode ? 1 : 0.82;
+            var barcodeHeight = Math.max(targetHeight, Math.round(baseHeightPx * barcodeScale * heightScale));
 
-            // Approximate Code128 module budget (~11 modules per char + overhead).
-            var estimatedModules = Math.max(50, (String(tag).length * 10) + 30);
+            // Slightly lower module estimate so each bar module renders wider.
+            var estimatedModules = Math.max(40, (String(tag).length * 8) + 24);
             var moduleWidth = (targetWidth - 18) / estimatedModules;
-            // Increase minimum module width to favour scannability over extreme density
-            var minModule = isSmallSticker ? 1.05 : 1.15;
-            var maxModule = inModernDesign ? 1.35 : 1.5;
+            // Wider modules = less dense barcode and better scan reliability on thermal prints.
+            var minModule = isSmallSticker ? 1.25 : 1.4;
+            var maxModule = inModernDesign ? 1.9 : 2.2;
             var denseThreshold = isSmallSticker ? 1.4 : 1.6;
             if (labelNode) {
                 labelNode.classList.toggle('barcode-priority', moduleWidth < denseThreshold);
             }
             moduleWidth = Math.max(minModule, Math.min(maxModule, moduleWidth));
+            // Keep module width on stable pixel steps for sharper vertical edges.
+            moduleWidth = Math.round(moduleWidth * 20) / 20;
 
             container.innerHTML = '';
             var svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -2182,23 +2206,28 @@ function renderAllBarcodes() {
                 width: Math.max(moduleWidth, minModule),
                 height: barcodeHeight,
                 displayValue: false,
-                margin: isSmallSticker ? 6 : 8,
+                margin: isPrintMode ? (isSmallSticker ? 8 : 10) : (isSmallSticker ? 4 : 6),
                 lineColor: '#000000',
                 background: '#FFFFFF',
                 flat: true,
             });
 
             if (svgNode) {
-                svgNode.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                svgNode.setAttribute('preserveAspectRatio', 'xMaxYMid meet');
                 svgNode.style.display = 'block';
                 svgNode.style.width = '100%';
                 // Ensure the SVG has an explicit pixel height matching computed barcodeHeight
                 svgNode.style.height = String(barcodeHeight) + 'px';
                 svgNode.style.shapeRendering = 'crispEdges';
             }
-            // Ensure the container provides enough space for the barcode
-            container.style.minWidth = String(Math.round(targetWidth)) + 'px';
-            container.style.minHeight = String(Math.round(barcodeHeight)) + 'px';
+            // Keep preview light; enforce larger box only for print pass.
+            if (isPrintMode) {
+                container.style.minWidth = String(Math.round(targetWidth)) + 'px';
+                container.style.minHeight = String(Math.round(barcodeHeight)) + 'px';
+            } else {
+                container.style.minWidth = '';
+                container.style.minHeight = '';
+            }
             container.style.display = '';
         } catch (e) {
             container.style.display = 'none';
@@ -2206,9 +2235,15 @@ function renderAllBarcodes() {
     });
 }
 
-renderAllBarcodes();
+renderAllBarcodes('preview');
 updatePrintPaginationClasses();
-window.addEventListener('beforeprint', updatePrintPaginationClasses);
+window.addEventListener('beforeprint', function() {
+    renderAllBarcodes('print');
+    updatePrintPaginationClasses();
+});
+window.addEventListener('afterprint', function() {
+    renderAllBarcodes('preview');
+});
 
 /* ── Wait for all images, then enable Print ─────────── */
 (function() {

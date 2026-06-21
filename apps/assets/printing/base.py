@@ -35,6 +35,7 @@ class LabelData:
     """Everything needed to render a single asset label."""
 
     asset_tag: str
+    barcode_tag: str = ''
     org_name: str = ''
     asset_name: str = ''
     category: str = ''
@@ -43,6 +44,9 @@ class LabelData:
 
     def safe_tag(self) -> str:
         return (self.asset_tag or '').strip()
+
+    def safe_barcode_tag(self) -> str:
+        return (self.barcode_tag or '').strip() or self.safe_tag()
 
 
 @dataclass

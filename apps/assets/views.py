@@ -26,6 +26,7 @@ from django.core.files.base import ContentFile
 from django.core.cache import cache
 from uuid import uuid4
 import openpyxl
+from .barcode_utils import derive_new_asset_barcode_payload
 
 try:
     from weasyprint import HTML as WeasyprintHTML
@@ -2810,6 +2811,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     asset_remarks=asset_remarks,
                     notes=str(row.get('notes') or '')
                 )
+
+                asset.barcode_payload_value = derive_new_asset_barcode_payload(asset)
 
                 # bulk_create bypasses model/form validation; enforce CharField limits here.
                 self._validate_instance_charfield_lengths(asset)
@@ -7482,7 +7485,7 @@ def print_asset_labels_bulk(request):
         asset.barcode_svg_data = None
         asset.qr_svg_data = None
         try:
-            asset.barcode_svg_data = AssetCodeGenerator.generate_barcode_svg_data_uri(asset.asset_tag)
+            asset.barcode_svg_data = AssetCodeGenerator.generate_barcode_svg_data_uri(asset)
         except Exception as e:
             print(f"[print_asset_labels_bulk] barcode SVG fallback for {asset.asset_tag}: {e}")
         try:
@@ -7541,6 +7544,7 @@ def print_asset_labels_pdf(request):
     """
     from .printing import LabelData, LabelSpec, get_renderer, LABEL_SIZES, DEFAULT_SIZE_KEY
     from .code_generators import AssetCodeGenerator
+    from .barcode_utils import barcode_payload
     import io, base64
 
     org = request.user.organization
@@ -7577,6 +7581,7 @@ def print_asset_labels_pdf(request):
     for a in assets:
         ld = LabelData(
             asset_tag=a.asset_tag or '',
+            barcode_tag=barcode_payload(a),
             org_name=org_name,
             asset_name=getattr(a, 'name', '') or '',
             category=(a.category.name if getattr(a, 'category_id', None) else ''),

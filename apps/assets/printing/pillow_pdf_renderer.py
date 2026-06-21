@@ -55,6 +55,7 @@ class PillowPDFLabelRenderer(LabelRenderer):
         page = Image.new('RGB', (width, height), 'white')
         draw = ImageDraw.Draw(page)
         tag = label.safe_tag()
+        barcode_tag = label.safe_barcode_tag()
 
         margin = max(round(dpi * 0.035), 8)
         draw.rectangle((1, 1, width - 2, height - 2), outline='black', width=max(1, dpi // 300))
@@ -71,7 +72,7 @@ class PillowPDFLabelRenderer(LabelRenderer):
         show_barcode = spec.design == 'BARCODE_ONLY' or (spec.show_barcode and spec.design != 'QR_ONLY')
 
         if show_barcode and not show_qr:
-            self._paste_barcode(page, tag, content_x, content_y, content_w, content_h, dpi)
+            self._paste_barcode(page, barcode_tag, content_x, content_y, content_w, content_h, dpi)
             return page
         if show_qr and not show_barcode:
             self._paste_qr(page, tag, content_x, content_y, content_w, content_h, dpi)
@@ -85,11 +86,11 @@ class PillowPDFLabelRenderer(LabelRenderer):
 
         barcode_x = content_x + round(content_w * QR_WIDTH_RATIO) + gap
         barcode_w = width - margin - barcode_x
-        self._paste_barcode(page, tag, barcode_x, content_y, barcode_w, content_h, dpi)
+        self._paste_barcode(page, barcode_tag, barcode_x, content_y, barcode_w, content_h, dpi)
         return page
 
-    def _paste_barcode(self, page: Image.Image, tag: str, x: int, y: int, w: int, h: int, dpi: int) -> None:
-        barcode_img = AssetCodeGenerator.generate_barcode(tag, dpi=dpi).convert('RGB')
+    def _paste_barcode(self, page: Image.Image, barcode_value: str, x: int, y: int, w: int, h: int, dpi: int) -> None:
+        barcode_img = AssetCodeGenerator.generate_barcode(barcode_value, dpi=dpi).convert('RGB')
         barcode_img = self._trim_white(barcode_img)
 
         target_w = max(1, round(w * 0.94))
