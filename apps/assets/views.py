@@ -7349,7 +7349,7 @@ def print_asset_labels_bulk(request):
     """Renders the printable label sheet based on filters passed via GET params."""
     org = request.user.organization
     design = request.GET.get('design', 'CLASSIC').upper()
-    VALID_DESIGNS = {'CLASSIC', 'COMPACT', 'DETAILED', 'BARCODE_ONLY'}
+    VALID_DESIGNS = {'CLASSIC', 'COMPACT', 'DETAILED', 'BARCODE_ONLY', 'MODERN', 'QR_ONLY'}
     if design not in VALID_DESIGNS:
         design = 'CLASSIC'
 
@@ -7358,6 +7358,8 @@ def print_asset_labels_bulk(request):
         ('COMPACT', 'Compact'),
         ('DETAILED', 'Standard'),
         ('BARCODE_ONLY', 'Barcode Only'),
+        ('MODERN', 'Modern'),
+        ('QR_ONLY', 'QR Only'),
     ]
 
     qs = Asset.objects.filter(organization=org, is_deleted=False)
