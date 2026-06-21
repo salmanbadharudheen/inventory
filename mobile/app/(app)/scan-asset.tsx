@@ -88,12 +88,14 @@ export default function ScanAssetScreen() {
         return;
       }
 
-      // QR codes carry the original asset tag; linear barcodes (code128 etc.)
-      // also carry the raw asset tag in the browser print flow, so both paths
-      // use the same asset_tag lookup.
+      // QR codes encode the human-readable asset tag.
+      // Linear barcodes can now encode compact payloads, so they must use
+      // barcode_tag lookup on the detail screen/API.
       router.push({
         pathname: "/(app)/asset-detail",
-        params: { asset_tag: scannedValue, from_scan: "1" },
+        params: isQr
+          ? { asset_tag: scannedValue, from_scan: "1" }
+          : { barcode_tag: scannedValue, from_scan: "1" },
       });
       setTimeout(() => {
         processingRef.current = false;
