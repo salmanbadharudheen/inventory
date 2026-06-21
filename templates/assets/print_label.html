@@ -2154,6 +2154,14 @@ function renderAllBarcodes(mode) {
         if (!tag) return;
 
         var container = el;
+        var existingServerBarcode = container.querySelector('img[src]');
+        if (existingServerBarcode) {
+            // Keep server-generated barcode as source of truth for scan parity.
+            if (container.style.display === 'none') {
+                container.style.display = '';
+            }
+            return;
+        }
         var labelNode = container.closest('.label');
 
         try {
