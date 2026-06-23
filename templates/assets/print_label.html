@@ -1609,13 +1609,13 @@
     </div>
 
     <div class="field">
-        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">0.35x</span></label>
-        <input id="qr-scale" type="range" min="0.2" max="1.8" step="0.05" value="0.35">
+        <label for="qr-scale">QR Size <span class="control-value" id="qr-scale-value">1.00x</span></label>
+        <input id="qr-scale" type="range" min="0.2" max="1.8" step="0.05" value="1">
     </div>
 
     <div class="field">
-        <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.65x</span></label>
-        <input id="barcode-scale" type="range" min="0.8" max="2.5" step="0.05" value="1.65">
+        <label for="barcode-scale">Barcode Size <span class="control-value" id="barcode-scale-value">1.00x</span></label>
+        <input id="barcode-scale" type="range" min="0.8" max="2.5" step="0.05" value="1">
     </div>
 
     <div class="field">
@@ -2305,7 +2305,7 @@ window.addEventListener('afterprint', function() {
 (function() {
     var root = document.documentElement;
     var body = document.body;
-    var STORAGE_KEY = 'inventory_label_customization_v1';
+    var STORAGE_KEY = 'inventory_label_customization_v2';
 
     var controls = {
         size: document.getElementById('sticker-size'),
@@ -2346,8 +2346,8 @@ window.addEventListener('afterprint', function() {
         logoPosition: 'left',
         tagFont: '1',
         orgAlign: 'center',
-        qr: '0.35',
-        barcode: '1.65',
+        qr: '1',
+        barcode: '1',
         spacing: '1',
         radius: '4',
         borderWidth: '1.5',
