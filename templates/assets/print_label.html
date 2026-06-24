@@ -453,6 +453,8 @@
             text-align: center;
             padding: 0 4px 1px;
             line-height: 1;
+            position: relative;
+            top: -7px;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -558,6 +560,8 @@
             text-align: center;
             padding: 0 4px 1px;
             line-height: 1;
+            position: relative;
+            top: -7px;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -816,6 +820,7 @@
                 font-size: calc(5.4pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.03em;
                 padding: 0 3pt 0.5pt;
+                top: -5pt;
             }
 
             /* ── COMPACT print ─────────────────────────── */
@@ -872,6 +877,7 @@
                 font-size: calc(8pt * var(--custom-font-scale) * var(--custom-tag-font-scale));
                 letter-spacing: 0.05em;
                 padding: 0 3pt 0.5pt;
+                top: -5pt;
             }
 
             /* ── BARCODE ONLY print ────────────────────── */
@@ -1012,6 +1018,8 @@
             text-align: center;
             padding: 0 4px 2px;
             line-height: 1;
+            position: relative;
+            top: -7px;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -1044,6 +1052,8 @@
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: calc(0.72rem * var(--custom-font-scale) * var(--custom-tag-font-scale)); font-weight: 700;
             color: #111827; letter-spacing: 0.06em;
+            position: relative;
+            top: -7px;
         }
         .label-qr-only .org-name {
             --org-base-size: 0.54rem;
@@ -1266,12 +1276,12 @@
             .label-modern .lbl-category,
             .label-modern .lbl-location { font-size: calc(6pt * var(--custom-font-scale)); }
             .label-modern .lbl-barcode-inline img { height: calc(0.3in * var(--custom-barcode-scale)); width: 100%; object-fit: contain; }
-            .label-modern .lbl-tag-bottom-center { font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
+            .label-modern .lbl-tag-bottom-center { font-size: calc(7pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); top: -5pt; }
 
             /* ── QR ONLY print ─────────────────────────── */
             .label-qr-only { padding: 3pt !important; gap: 3pt !important; }
             .label-qr-only .lbl-qr-main img { width: calc(0.83in * var(--custom-qr-scale)); height: calc(0.83in * var(--custom-qr-scale)); }
-            .label-qr-only .lbl-tag-bottom { font-size: calc(9pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); }
+            .label-qr-only .lbl-tag-bottom { font-size: calc(9pt * var(--custom-font-scale) * var(--custom-tag-font-scale)); top: -5pt; }
             .label-qr-only .org-name { font-size: calc(6pt * var(--custom-font-scale)); }
         }
 

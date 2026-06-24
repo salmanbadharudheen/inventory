@@ -339,7 +339,7 @@ TEMPLATE_ASSET_IMPORT_FIELDS = [field for field in ASSET_IMPORT_FIELDS if field 
 
 SAMPLE_ASSET_IMPORT_FIELDS = [
     (
-        'purchase_date (required, YYYY-MM-DD)' if field == 'purchase_date'
+        'purchase_date (required, DD-MM-YYYY)' if field == 'purchase_date'
         else field
     )
     for field in TEMPLATE_ASSET_IMPORT_FIELDS
@@ -379,25 +379,25 @@ SAMPLE_ASSET_IMPORT_ROW = {
     'site': 'Main Site',
     'location': 'Main Location',
     'sub_location': 'Sub 1',
-    'purchase_date': '2023-01-01',
+    'purchase_date': '01-01-2023',
     'purchase_price': '5000',
     'currency': 'AED',
     'invoice_number': 'INV-001',
-    'invoice_date': '2023-01-01',
+    'invoice_date': '01-01-2023',
     'po_number': 'PO-100',
-    'po_date': '2022-12-15',
+    'po_date': '15-12-2022',
     'do_number': 'DO-100',
-    'do_date': '2022-12-28',
+    'do_date': '28-12-2022',
     'grn_number': 'GRN-100',
-    'warranty_start': '2023-01-01',
-    'warranty_end': '2026-01-01',
-    'tagged_date': '2023-01-02',
-    'date_placed_in_service': '2023-01-10',
-    'insurance_start_date': '2023-01-01',
-    'insurance_end_date': '2024-01-01',
-    'maintenance_start_date': '2023-01-01',
-    'maintenance_end_date': '2024-01-01',
-    'next_maintenance_date': '2023-06-01',
+    'warranty_start': '01-01-2023',
+    'warranty_end': '01-01-2026',
+    'tagged_date': '02-01-2023',
+    'date_placed_in_service': '10-01-2023',
+    'insurance_start_date': '01-01-2023',
+    'insurance_end_date': '01-01-2024',
+    'maintenance_start_date': '01-01-2023',
+    'maintenance_end_date': '01-01-2024',
+    'next_maintenance_date': '01-06-2023',
     'maintenance_frequency_days': '180',
     'expected_units': '1000',
     'useful_life_years': '5',
@@ -2071,6 +2071,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
         'purchase date': 'purchase_date', 'purchase price': 'purchase_price',
         'purchase_date (required, yyyy-mm-dd)': 'purchase_date',
         'purchase_date_(required,_yyyy-mm-dd)': 'purchase_date',
+        'purchase_date (required, dd-mm-yyyy)': 'purchase_date',
+        'purchase_date_(required,_dd-mm-yyyy)': 'purchase_date',
         'invoice number': 'invoice_number', 'invoice no': 'invoice_number',
         'invoice date': 'invoice_date', 'po number': 'po_number',
         'po date': 'po_date', 'do number': 'do_number', 'do date': 'do_date',
