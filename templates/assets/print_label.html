@@ -257,7 +257,7 @@
             --custom-barcode-scale: 1;
             --custom-logo-scale: 1;
             --logo-only-center-width: 75%;
-            --logo-only-center-height: 58%;
+            --logo-only-center-height: 100%;
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
@@ -1656,8 +1656,8 @@
     </div>
 
     <div class="field">
-        <label for="logo-only-center-height">Logo Only Center Height <span class="control-value" id="logo-only-center-height-value">58%</span></label>
-        <input id="logo-only-center-height" type="range" min="20" max="160" step="1" value="58">
+        <label for="logo-only-center-height">Logo Only Center Height <span class="control-value" id="logo-only-center-height-value">100%</span></label>
+        <input id="logo-only-center-height" type="range" min="20" max="160" step="1" value="100">
     </div>
 
     <div class="field">
@@ -2443,7 +2443,7 @@ window.addEventListener('afterprint', function() {
         logoSize: '1.7',
         logoPosition: 'left',
         logoOnlyCenterWidth: '75',
-        logoOnlyCenterHeight: '58',
+        logoOnlyCenterHeight: '100',
         tagFont: '1',
         orgAlign: 'center',
         qr: '1',
