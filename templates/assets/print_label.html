@@ -258,6 +258,14 @@
             --custom-logo-scale: 1;
             --logo-only-center-width: 75%;
             --logo-only-center-height: 100%;
+            --logo-only-center-header-height-screen: 34%;
+            --logo-only-center-header-height-print: 0.28in;
+            --logo-only-center-qr-size-screen: 88px;
+            --logo-only-center-barcode-height-screen: 76px;
+            --logo-only-center-tag-font-screen: 0.5rem;
+            --logo-only-center-qr-size-print: 0.5in;
+            --logo-only-center-barcode-height-print: 0.42in;
+            --logo-only-center-tag-font-print: 4.8pt;
             --custom-bg: #ffffff;
             --custom-border-color: #000000;
             --custom-border-width: 1.5px;
@@ -328,8 +336,7 @@
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
         }
         .label img {
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
+            image-rendering: auto;
         }
         .label .lbl-qr img {
             image-rendering: pixelated;  /* QR must stay pixel-sharp */
@@ -391,26 +398,70 @@
             text-align: center;
         }
         body.layout-logo-only-center .label-classic .lbl-header {
-            height: 24%;
+            height: var(--logo-only-center-header-height-screen);
             padding: calc(4px * var(--custom-inner-pad)) calc(10px * var(--custom-inner-pad)) 0;
             align-items: center;
             justify-content: center;
             overflow: hidden;
         }
         body.layout-logo-only-center .label-classic .lbl-header-main {
-            width: 100%;
-            height: 100%;
+            width: min(92%, var(--logo-only-center-width));
+            height: var(--logo-only-center-height);
+            flex: 0 0 auto;
             justify-content: center;
+            align-items: center;
             overflow: hidden;
         }
         body.layout-logo-only-center .label-classic .org-logo {
             width: auto;
             height: auto;
-            max-width: min(92%, var(--logo-only-center-width));
-            max-height: var(--logo-only-center-height);
+            max-width: 100%;
+            max-height: 100%;
             display: block;
             object-fit: contain;
             object-position: center;
+        }
+        body.layout-logo-only-center .label-classic .lbl-body {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: space-between;
+            padding: calc(1px * var(--custom-inner-pad)) calc(4px * var(--custom-inner-pad)) calc(0.5px * var(--custom-inner-pad));
+            gap: 0;
+            min-height: 0;
+        }
+        body.layout-logo-only-center .label-classic .lbl-qr {
+            flex: 0 0 42%;
+            width: 42%;
+            min-width: 0;
+            max-width: 42%;
+        }
+        body.layout-logo-only-center .label-classic .lbl-qr img {
+            width: min(100%, calc(var(--logo-only-center-qr-size-screen) * var(--custom-qr-scale)));
+        }
+        body.layout-logo-only-center .label-classic .lbl-right {
+            flex: 0 0 58%;
+            width: 58%;
+            min-width: 0;
+            max-width: 58%;
+            gap: 0;
+        }
+        body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-img {
+            width: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            overflow: hidden;
+        }
+        body.layout-logo-only-center .label-classic .lbl-right img {
+            height: calc(var(--logo-only-center-barcode-height-screen) * var(--custom-barcode-scale));
+            width: 100%;
+        }
+        body.layout-logo-only-center .label-classic .lbl-tag-bottom-center {
+            font-size: calc(var(--logo-only-center-tag-font-screen) * var(--custom-font-scale) * var(--custom-tag-font-scale));
+            top: -5px;
         }
         body.logo-pos-right .label-classic .lbl-header-main {
             flex-direction: row-reverse;
@@ -722,8 +773,7 @@
 
             /* ── Sharp image rendering ─────────────────── */
             .label img {
-                image-rendering: -webkit-optimize-contrast !important;
-                image-rendering: crisp-edges !important;
+                image-rendering: auto !important;
             }
             .label .lbl-qr img {
                 image-rendering: pixelated !important; /* QR stays pixel-perfect */
@@ -734,6 +784,9 @@
             .label .lbl-barcode-svg {
                 image-rendering: -webkit-optimize-contrast !important;
                 image-rendering: crisp-edges !important;
+            }
+            .label .org-logo {
+                image-rendering: auto !important;
             }
 
             .label .lbl-tag,
@@ -806,7 +859,7 @@
                 border-bottom: none;
             }
             body.layout-logo-only-center .label-classic .lbl-header {
-                height: 0.2in;
+                height: var(--logo-only-center-header-height-print);
                 padding: 2.2pt 5pt 0;
                 align-items: center;
                 justify-content: center;
@@ -817,18 +870,69 @@
                 height: calc(8.5pt * var(--custom-logo-scale));
             }
             body.layout-logo-only-center .label-classic .lbl-header-main {
-                height: 100%;
+                width: min(92%, var(--logo-only-center-width));
+                height: var(--logo-only-center-height);
+                flex: 0 0 auto;
                 justify-content: center;
+                align-items: center;
                 overflow: hidden;
             }
             body.layout-logo-only-center .label-classic .org-logo {
                 width: auto;
                 height: auto;
-                max-width: min(92%, var(--logo-only-center-width));
-                max-height: var(--logo-only-center-height);
+                max-width: 100%;
+                max-height: 100%;
                 display: block;
                 object-fit: contain;
                 object-position: center;
+            }
+            body.layout-logo-only-center .label-classic .lbl-body {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: nowrap;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.5pt 3pt 0;
+                gap: 0;
+                min-height: 0;
+            }
+            body.layout-logo-only-center .label-classic .lbl-qr {
+                flex: 0 0 42%;
+                width: 42%;
+                min-width: 0;
+                max-width: 42%;
+                max-height: calc(var(--logo-only-center-qr-size-print) + 0.06in);
+            }
+            body.layout-logo-only-center .label-classic .lbl-qr img {
+                width: calc(var(--logo-only-center-qr-size-print) * var(--custom-qr-scale));
+                height: calc(var(--logo-only-center-qr-size-print) * var(--custom-qr-scale));
+                max-height: var(--logo-only-center-qr-size-print);
+            }
+            body.layout-logo-only-center .label-classic .lbl-right {
+                flex: 0 0 58%;
+                width: 58%;
+                min-width: 0;
+                max-width: 58%;
+                gap: 0.5pt;
+                max-height: calc(var(--logo-only-center-barcode-height-print) + 0.08in);
+            }
+            body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-img {
+                width: 100%;
+                min-width: 0;
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                overflow: hidden;
+            }
+            body.layout-logo-only-center .label-classic .lbl-right img {
+                height: calc(var(--logo-only-center-barcode-height-print) * var(--custom-barcode-scale));
+                max-height: var(--logo-only-center-barcode-height-print);
+                width: 100%;
+            }
+            body.layout-logo-only-center .label-classic .lbl-tag-bottom-center {
+                font-size: calc(var(--logo-only-center-tag-font-print) * var(--custom-font-scale) * var(--custom-tag-font-scale));
+                top: -4pt;
+                padding: 0 2pt 0.5pt;
             }
             .label-classic .lbl-header .tag-num {
                 font-size: calc(5.6pt * var(--custom-font-scale));
@@ -1656,8 +1760,8 @@
     </div>
 
     <div class="field">
-        <label for="logo-only-center-height">Logo Only Center Height <span class="control-value" id="logo-only-center-height-value">100%</span></label>
-        <input id="logo-only-center-height" type="range" min="20" max="160" step="1" value="100">
+        <label for="logo-only-center-height">Logo Only Center Height <span class="control-value" id="logo-only-center-height-value">140%</span></label>
+        <input id="logo-only-center-height" type="range" min="20" max="250" step="1" value="140">
     </div>
 
     <div class="field">
@@ -2008,7 +2112,8 @@ function getDesignPresetState(value) {
     return {
         org: false,
         logo: true,
-        logoPosition: 'center'
+        logoPosition: 'center',
+        logoOnlyCenterHeight: '140'
     };
 }
 
@@ -2023,10 +2128,12 @@ function switchDesign(value) {
         var toggleOrg = document.getElementById('toggle-org');
         var toggleLogo = document.getElementById('toggle-logo');
         var logoPosition = document.getElementById('logo-position');
+        var logoOnlyCenterHeight = document.getElementById('logo-only-center-height');
         if (toggleOrg) toggleOrg.checked = preset.org;
         if (toggleLogo) toggleLogo.checked = preset.logo;
         if (logoPosition) logoPosition.value = preset.logoPosition;
-        [toggleOrg, toggleLogo, logoPosition].forEach(function(control) {
+        if (logoOnlyCenterHeight && preset.logoOnlyCenterHeight) logoOnlyCenterHeight.value = preset.logoOnlyCenterHeight;
+        [toggleOrg, toggleLogo, logoPosition, logoOnlyCenterHeight].forEach(function(control) {
             if (control) {
                 control.dispatchEvent(new Event('change', { bubbles: true }));
             }
@@ -2443,7 +2550,7 @@ window.addEventListener('afterprint', function() {
         logoSize: '1.7',
         logoPosition: 'left',
         logoOnlyCenterWidth: '75',
-        logoOnlyCenterHeight: '100',
+        logoOnlyCenterHeight: '140',
         tagFont: '1',
         orgAlign: 'center',
         qr: '1',
@@ -2576,7 +2683,7 @@ window.addEventListener('afterprint', function() {
         state.font = clampNumber(state.font, 0.8, 1.2, parseFloat(defaults.font)).toFixed(2);
         state.orgFont = clampNumber(state.orgFont, 0.7, 1.4, parseFloat(defaults.orgFont)).toFixed(2);
         state.logoOnlyCenterWidth = String(Math.round(clampNumber(state.logoOnlyCenterWidth, 40, 92, parseFloat(defaults.logoOnlyCenterWidth))));
-        state.logoOnlyCenterHeight = String(Math.round(clampNumber(state.logoOnlyCenterHeight, 20, 160, parseFloat(defaults.logoOnlyCenterHeight))));
+        state.logoOnlyCenterHeight = String(Math.round(clampNumber(state.logoOnlyCenterHeight, 20, 250, parseFloat(defaults.logoOnlyCenterHeight))));
         state.tagFont = clampNumber(state.tagFont, 0.7, 1.4, parseFloat(defaults.tagFont)).toFixed(2);
         state.qr = clampNumber(state.qr, 0.2, 1.8, parseFloat(defaults.qr)).toFixed(2);
         state.barcode = clampNumber(state.barcode, 0.8, 2.5, parseFloat(defaults.barcode)).toFixed(2);
@@ -2611,12 +2718,30 @@ window.addEventListener('afterprint', function() {
     function applyState(state) {    
         state = sanitizeState(state);
         applyPrintSize(state.size);
+        var logoOnlyCenterHeight = parseFloat(state.logoOnlyCenterHeight || defaults.logoOnlyCenterHeight);
+        var screenHeaderHeight = Math.max(30, Math.min(46, 16 + (logoOnlyCenterHeight * 0.14)));
+        var printHeaderHeight = Math.max(0.22, Math.min(0.34, 0.10 + (logoOnlyCenterHeight * 0.0012)));
+        var screenQrSize = Math.max(72, Math.min(92, 108 - (logoOnlyCenterHeight * 0.16)));
+        var screenBarcodeHeight = Math.max(66, Math.min(82, 92 - (logoOnlyCenterHeight * 0.12)));
+        var screenTagFont = Math.max(0.48, Math.min(0.53, 0.57 - (logoOnlyCenterHeight * 0.0004)));
+        var printQrSize = Math.max(0.46, Math.min(0.56, 0.62 - (logoOnlyCenterHeight * 0.0006)));
+        var printBarcodeHeight = Math.max(0.39, Math.min(0.48, 0.54 - (logoOnlyCenterHeight * 0.0006)));
+        var printTagFont = Math.max(4.4, Math.min(5.2, 5.8 - (logoOnlyCenterHeight * 0.007)));
+
         root.style.setProperty('--custom-font-family', resolveFontFamily(state.fontFamily));
         root.style.setProperty('--custom-font-scale', state.font);
         root.style.setProperty('--custom-org-font-scale', state.orgFont);
         root.style.setProperty('--custom-logo-scale', state.logoSize || defaults.logoSize);
         root.style.setProperty('--logo-only-center-width', (state.logoOnlyCenterWidth || defaults.logoOnlyCenterWidth) + '%');
         root.style.setProperty('--logo-only-center-height', (state.logoOnlyCenterHeight || defaults.logoOnlyCenterHeight) + '%');
+        root.style.setProperty('--logo-only-center-header-height-screen', screenHeaderHeight.toFixed(2) + '%');
+        root.style.setProperty('--logo-only-center-header-height-print', printHeaderHeight.toFixed(3) + 'in');
+        root.style.setProperty('--logo-only-center-qr-size-screen', screenQrSize.toFixed(2) + 'px');
+        root.style.setProperty('--logo-only-center-barcode-height-screen', screenBarcodeHeight.toFixed(2) + 'px');
+        root.style.setProperty('--logo-only-center-tag-font-screen', screenTagFont.toFixed(3) + 'rem');
+        root.style.setProperty('--logo-only-center-qr-size-print', printQrSize.toFixed(3) + 'in');
+        root.style.setProperty('--logo-only-center-barcode-height-print', printBarcodeHeight.toFixed(3) + 'in');
+        root.style.setProperty('--logo-only-center-tag-font-print', printTagFont.toFixed(2) + 'pt');
         root.style.setProperty('--custom-tag-font-scale', state.tagFont || defaults.tagFont);
         root.style.setProperty('--custom-org-align', state.orgAlign);
         root.style.setProperty('--custom-qr-scale', state.qr);
