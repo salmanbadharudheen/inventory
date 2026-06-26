@@ -445,6 +445,10 @@
             width: 58%;
             min-width: 0;
             max-width: 58%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             gap: 0;
         }
         body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-img {
@@ -913,6 +917,10 @@
                 width: 58%;
                 min-width: 0;
                 max-width: 58%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
                 gap: 0.5pt;
                 max-height: calc(var(--logo-only-center-barcode-height-print) + 0.08in);
             }
@@ -1554,6 +1562,19 @@
             .label-modern .lbl-barcode-inline {
                 display: flex !important;
                 justify-content: flex-end !important;
+            }
+
+            body.layout-logo-only-center .label-classic .lbl-right {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-img {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
             }
 
             .label.barcode-priority .lbl-qr {
