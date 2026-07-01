@@ -5,9 +5,9 @@ import uuid
 
 def validate_logo_file_size(value):
     # Keep organization branding lightweight and fast to load.
-    max_size = 2 * 1024 * 1024
+    max_size = 5 * 1024 * 1024
     if value and value.size > max_size:
-        raise ValidationError('Logo file size must be 2MB or less.')
+        raise ValidationError('Logo file size must be 5MB or less.')
 
 class Organization(models.Model):
     class TagSegment(models.TextChoices):
