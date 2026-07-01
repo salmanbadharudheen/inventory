@@ -790,7 +790,8 @@
                 image-rendering: crisp-edges !important;
             }
             .label .org-logo {
-                image-rendering: auto !important;
+                image-rendering: crisp-edges !important;
+                filter: none !important;
             }
 
             .label .lbl-tag,
@@ -1646,7 +1647,7 @@
 
 <!-- ── Toolbar ───────────────────────────────────────── -->
 <div class="toolbar">
-    <button class="btn btn-back" onclick="window.history.back();">← Back</button>
+    <button class="btn btn-back" type="button" onclick="goBackFromStickerCustomization();">← Back</button>
     <label for="design-picker">Design:</label>
     <select id="design-picker" onchange="switchDesign(this.value)">
         {% for value, label in designs %}
@@ -2168,6 +2169,26 @@ function switchDesign(value) {
     updatePrintPaginationClasses();
 }
 
+function goBackFromStickerCustomization() {
+    var fallbackUrl = "{% url 'asset-list' %}";
+    try {
+        if (document.referrer) {
+            var referrerUrl = new URL(document.referrer, window.location.origin);
+            if (referrerUrl.origin === window.location.origin) {
+                window.location.href = referrerUrl.toString();
+                return;
+            }
+        }
+    } catch (error) {}
+
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    window.location.href = fallbackUrl;
+}
+
 function updatePrintPaginationClasses() {
     var labels = Array.from(document.querySelectorAll('#label-grid .label'));
     labels.forEach(function(el) {
@@ -2469,14 +2490,128 @@ function renderAllBarcodes(mode) {
     });
 }
 
+function buildZebraLogoDataUrl(sourceImg) {
+    if (!sourceImg || !sourceImg.naturalWidth || !sourceImg.naturalHeight) {
+        return null;
+    }
+
+    var maxWidth = 1200;
+    var maxHeight = 420;
+    var scale = Math.min(maxWidth / sourceImg.naturalWidth, maxHeight / sourceImg.naturalHeight, 1);
+    var targetWidth = Math.max(1, Math.round(sourceImg.naturalWidth * scale));
+    var targetHeight = Math.max(1, Math.round(sourceImg.naturalHeight * scale));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+        return null;
+    }
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+    ctx.drawImage(sourceImg, 0, 0, targetWidth, targetHeight);
+
+    var imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+    var pixels = imageData.data;
+    var mono = new Uint8Array(targetWidth * targetHeight);
+    var expanded = new Uint8Array(targetWidth * targetHeight);
+
+    for (var i = 0, px = 0; i < pixels.length; i += 4, px += 1) {
+        var alpha = pixels[i + 3] / 255;
+        if (alpha < 0.08) {
+            mono[px] = 255;
+            continue;
+        }
+
+        var gray = (pixels[i] * 0.299) + (pixels[i + 1] * 0.587) + (pixels[i + 2] * 0.114);
+        gray = ((gray - 128) * 1.35) + 128 - 18;
+        mono[px] = gray >= 152 ? 255 : 0;
+    }
+
+    for (var y = 0; y < targetHeight; y += 1) {
+        for (var x = 0; x < targetWidth; x += 1) {
+            var index = (y * targetWidth) + x;
+            var value = mono[index];
+            if (value === 0) {
+                expanded[index] = 0;
+                continue;
+            }
+
+            var hasDarkNeighbor = false;
+            if (x > 0 && mono[index - 1] === 0) hasDarkNeighbor = true;
+            if (!hasDarkNeighbor && x < targetWidth - 1 && mono[index + 1] === 0) hasDarkNeighbor = true;
+            if (!hasDarkNeighbor && y > 0 && mono[index - targetWidth] === 0) hasDarkNeighbor = true;
+            if (!hasDarkNeighbor && y < targetHeight - 1 && mono[index + targetWidth] === 0) hasDarkNeighbor = true;
+
+            if (!hasDarkNeighbor) {
+                expanded[index] = 255;
+                continue;
+            }
+
+            var sourceOffset = index * 4;
+            var sourceGray = (pixels[sourceOffset] * 0.299) + (pixels[sourceOffset + 1] * 0.587) + (pixels[sourceOffset + 2] * 0.114);
+            expanded[index] = sourceGray >= 205 ? 255 : 0;
+        }
+    }
+
+    for (var p = 0, offset = 0; p < expanded.length; p += 1, offset += 4) {
+        var output = expanded[p];
+        pixels[offset] = output;
+        pixels[offset + 1] = output;
+        pixels[offset + 2] = output;
+        pixels[offset + 3] = 255;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL('image/png');
+}
+
+function applyZebraLogoPrintMode() {
+    document.querySelectorAll('.org-logo').forEach(function(img) {
+        if (!img.complete || !img.naturalWidth || img.dataset.zebraPrepared === '1') {
+            return;
+        }
+        try {
+            var zebraDataUrl = buildZebraLogoDataUrl(img);
+            if (!zebraDataUrl) {
+                return;
+            }
+            img.dataset.originalSrc = img.currentSrc || img.src;
+            img.dataset.zebraPrepared = '1';
+            img.src = zebraDataUrl;
+        } catch (error) {
+            img.dataset.zebraPrepared = '';
+        }
+    });
+}
+
+function restoreZebraLogoPrintMode() {
+    document.querySelectorAll('.org-logo').forEach(function(img) {
+        if (!img.dataset.originalSrc) {
+            return;
+        }
+        img.src = img.dataset.originalSrc;
+        delete img.dataset.originalSrc;
+        delete img.dataset.zebraPrepared;
+    });
+}
+
 renderAllBarcodes('preview');
 updatePrintPaginationClasses();
 window.addEventListener('beforeprint', function() {
+    applyZebraLogoPrintMode();
     renderAllBarcodes('print');
     updatePrintPaginationClasses();
 });
 window.addEventListener('afterprint', function() {
+    restoreZebraLogoPrintMode();
     renderAllBarcodes('preview');
+    updatePrintPaginationClasses();
 });
 
 /* ── Wait for all images, then enable Print ─────────── */
