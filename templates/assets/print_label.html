@@ -2381,9 +2381,6 @@ async function sendToExternalPrintApp() {
 function renderAllBarcodes(mode) {
     if (typeof JsBarcode === 'undefined') return;
 
-    var renderMode = (mode === 'print') ? 'print' : 'preview';
-    var isPrintMode = renderMode === 'print';
-
     var barcodeScaleControl = document.getElementById('barcode-scale');
     var barcodeScale = barcodeScaleControl ? parseFloat(barcodeScaleControl.value) : 1;
     if (Number.isNaN(barcodeScale) || barcodeScale <= 0) {
@@ -2395,18 +2392,11 @@ function renderAllBarcodes(mode) {
 
     // ── Code128 barcodes → vector SVG ─────
     document.querySelectorAll('.lbl-barcode-svg').forEach(function(el) {
-        var tag = el.dataset.tag;
+        var tag = (el.dataset.tag || '').trim();
         if (!tag) return;
 
         var container = el;
-        var existingServerBarcode = container.querySelector('img[src]');
-        if (existingServerBarcode) {
-            // Keep server-generated barcode as source of truth for scan parity.
-            if (container.style.display === 'none') {
-                container.style.display = '';
-            }
-            return;
-        }
+        var existingMarkup = container.innerHTML;
         var labelNode = container.closest('.label');
 
         try {
@@ -2414,17 +2404,13 @@ function renderAllBarcodes(mode) {
             var inBarcodeOnlyDesign = Boolean(container.closest('.label-barcode-only'));
 
             var rect = container.getBoundingClientRect();
-            // Render close to measured bounds to avoid downscaling blur/density artifacts.
+            // Keep preview and print on the same intrinsic barcode geometry.
             var measuredWidth = Math.round(rect.width || 0);
             var measuredHeight = Math.round(rect.height || 0);
             var previewWidth = measuredWidth > 0 ? Math.round(measuredWidth * 0.82) : (isSmallSticker ? 146 : 186);
             var previewHeight = measuredHeight > 0 ? Math.round(measuredHeight * 0.82) : (isSmallSticker ? 48 : 64);
-            var targetWidth = isPrintMode
-                ? (measuredWidth > 0 ? measuredWidth : (isSmallSticker ? 170 : 220))
-                : Math.max(120, previewWidth);
-            var targetHeight = isPrintMode
-                ? (measuredHeight > 0 ? measuredHeight : (isSmallSticker ? 58 : 78))
-                : Math.max(42, previewHeight);
+            var targetWidth = Math.max(120, previewWidth);
+            var targetHeight = Math.max(42, previewHeight);
 
             // Height in CSS px for JsBarcode, scaled by the slider.
             var baseHeightPx;
@@ -2435,8 +2421,7 @@ function renderAllBarcodes(mode) {
             } else {
                 baseHeightPx = isSmallSticker ? 68 : 88;
             }
-            var heightScale = isPrintMode ? 1 : 0.82;
-            var barcodeHeight = Math.max(targetHeight, Math.round(baseHeightPx * barcodeScale * heightScale));
+            var barcodeHeight = Math.max(targetHeight, Math.round(baseHeightPx * barcodeScale * 0.82));
 
             // Slightly lower module estimate so each bar module renders wider.
             var estimatedModules = Math.max(40, (String(tag).length * 8) + 24);
@@ -2461,7 +2446,7 @@ function renderAllBarcodes(mode) {
                 width: Math.max(moduleWidth, minModule),
                 height: barcodeHeight,
                 displayValue: false,
-                margin: isPrintMode ? (isSmallSticker ? 8 : 10) : (isSmallSticker ? 4 : 6),
+                margin: isSmallSticker ? 6 : 8,
                 lineColor: '#000000',
                 background: '#FFFFFF',
                 flat: true,
@@ -2469,23 +2454,19 @@ function renderAllBarcodes(mode) {
 
             if (svgNode) {
                 svgNode.setAttribute('preserveAspectRatio', 'xMaxYMid meet');
+                svgNode.setAttribute('shape-rendering', 'crispEdges');
                 svgNode.style.display = 'block';
                 svgNode.style.width = '100%';
-                // Ensure the SVG has an explicit pixel height matching computed barcodeHeight
-                svgNode.style.height = String(barcodeHeight) + 'px';
+                svgNode.style.maxWidth = '100%';
+                svgNode.style.height = 'auto';
                 svgNode.style.shapeRendering = 'crispEdges';
             }
-            // Keep preview light; enforce larger box only for print pass.
-            if (isPrintMode) {
-                container.style.minWidth = String(Math.round(targetWidth)) + 'px';
-                container.style.minHeight = String(Math.round(barcodeHeight)) + 'px';
-            } else {
-                container.style.minWidth = '';
-                container.style.minHeight = '';
-            }
+            container.style.minWidth = '';
+            container.style.minHeight = '';
             container.style.display = '';
         } catch (e) {
-            container.style.display = 'none';
+            container.innerHTML = existingMarkup;
+            container.style.display = '';
         }
     });
 }
