@@ -432,24 +432,24 @@
             min-height: 0;
         }
         body.layout-logo-only-center .label-classic .lbl-qr {
-            flex: 0 0 42%;
-            width: 42%;
+            flex: 0 0 35%;
+            width: 35%;
             min-width: 0;
-            max-width: 42%;
+            max-width: 35%;
         }
         body.layout-logo-only-center .label-classic .lbl-qr img {
             width: min(100%, calc(var(--logo-only-center-qr-size-screen) * var(--custom-qr-scale)));
         }
         body.layout-logo-only-center .label-classic .lbl-right {
-            flex: 0 0 58%;
-            width: 58%;
+            flex: 0 0 65%;
+            width: 65%;
             min-width: 0;
-            max-width: 58%;
+            max-width: 65%;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0;
+            gap: 2px;
         }
         body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-img {
             width: 100%;
@@ -902,11 +902,11 @@
                 min-height: 0;
             }
             body.layout-logo-only-center .label-classic .lbl-qr {
-                flex: 0 0 42%;
-                width: 42%;
+                flex: 0 0 35%;
+                width: 35%;
                 min-width: 0;
-                max-width: 42%;
-                max-height: calc(var(--logo-only-center-qr-size-print) + 0.06in);
+                max-width: 35%;
+                max-height: calc(var(--logo-only-center-qr-size-print) + 0.03in);
             }
             body.layout-logo-only-center .label-classic .lbl-qr img {
                 width: calc(var(--logo-only-center-qr-size-print) * var(--custom-qr-scale));
@@ -914,16 +914,16 @@
                 max-height: var(--logo-only-center-qr-size-print);
             }
             body.layout-logo-only-center .label-classic .lbl-right {
-                flex: 0 0 58%;
-                width: 58%;
+                flex: 0 0 65%;
+                width: 65%;
                 min-width: 0;
-                max-width: 58%;
+                max-width: 65%;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 0.5pt;
-                max-height: calc(var(--logo-only-center-barcode-height-print) + 0.08in);
+                gap: 1pt;
+                max-height: calc(var(--logo-only-center-barcode-height-print) + 0.16in);
             }
             body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-img {
                 width: 100%;
@@ -935,7 +935,7 @@
             }
             body.layout-logo-only-center .label-classic .lbl-right img {
                 height: calc(var(--logo-only-center-barcode-height-print) * var(--custom-barcode-scale));
-                max-height: var(--logo-only-center-barcode-height-print);
+                max-height: calc(var(--logo-only-center-barcode-height-print) + 0.08in);
                 width: 100%;
             }
             body.layout-logo-only-center .label-classic .lbl-tag-bottom-center {
@@ -1617,6 +1617,9 @@
             .label-classic .lbl-right .lbl-barcode-svg {
                 height: calc(0.60in * var(--custom-barcode-scale)) !important;
             }
+            body.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-svg {
+                height: calc(0.68in * var(--custom-barcode-scale)) !important;
+            }
             .label-detailed .lbl-right .lbl-barcode-svg {
                 height: calc(0.54in * var(--custom-barcode-scale)) !important;
             }
@@ -1637,6 +1640,9 @@
             body.size-roll-133x19 .label-modern .lbl-barcode-inline .lbl-barcode-svg,
             body.size-roll-133x19 .label-barcode-only .lbl-barcode-img .lbl-barcode-svg {
                 height: calc(7.4mm * var(--custom-barcode-scale)) !important;
+            }
+            body.size-roll-133x19.layout-logo-only-center .label-classic .lbl-right .lbl-barcode-svg {
+                height: calc(8.3mm * var(--custom-barcode-scale)) !important;
             }
         }
     </style>
@@ -2586,12 +2592,10 @@ renderAllBarcodes('preview');
 updatePrintPaginationClasses();
 window.addEventListener('beforeprint', function() {
     applyZebraLogoPrintMode();
-    renderAllBarcodes('print');
     updatePrintPaginationClasses();
 });
 window.addEventListener('afterprint', function() {
     restoreZebraLogoPrintMode();
-    renderAllBarcodes('preview');
     updatePrintPaginationClasses();
 });
 
