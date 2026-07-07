@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useAuth } from "../src/context/auth-context";
 import { router } from "expo-router";
+import API from "../src/config/api";
 
 const { width } = Dimensions.get("window");
 
@@ -147,6 +148,9 @@ export default function LoginScreen() {
         {/* Footer */}
         <Text style={styles.footer}>
           Inventory Management System
+        </Text>
+        <Text style={styles.apiHint} numberOfLines={2}>
+          API: {API.BASE_URL}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -313,5 +317,12 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
     fontSize: 12,
     marginTop: 24,
+  },
+  apiHint: {
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: 10,
+    marginTop: 8,
+    paddingHorizontal: 14,
   },
 });

@@ -26,6 +26,7 @@
       "package": "com.inventory.mobile",
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.NFC",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -47,6 +48,12 @@
         {
           "photosPermission": "Allow Inventory Manager to access your photos to attach images to assets.",
           "cameraPermission": "Allow Inventory Manager to use the camera to take photos of assets."
+        }
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Allow Inventory Manager to scan NFC and RFID asset tags."
         }
       ]
     ],

@@ -26,9 +26,11 @@ import {
   uploadAttachment,
   deleteAttachment,
   updateTaggingStatus,
+  updateAssetRfidTag,
 } from "../../src/services/asset-api";
 import type { AssetAttachment, AssetDetail, AttachmentType } from "../../src/types/api";
 import API from "../../src/config/api";
+import NfcManager, { Ndef, NfcTech } from "react-native-nfc-manager";
 
 const C = {
   primary: "#6366F1",
@@ -60,9 +62,60 @@ const CONDITION_LABELS: Record<string, string> = {
   UNDER_REPAIR: "Under Repair",
 };
 
-function normalizeIdentifier(value?: string) {
+function normalizeIdentifier(value?: string | null) {
   if (!value) return "";
   return value.trim().replace(/[\s.,;:!"'`]+$/g, "");
+}
+
+function normalizeRfidIdentifier(value?: string | null) {
+  return normalizeIdentifier(value).replace(/[\s:-]+/g, "").toUpperCase();
+}
+
+function decodeRfidNdefValue(ndefMessage: Array<{ tnf: number; type: number[] | string; payload: number[] }> | undefined): string | null {
+  if (!ndefMessage?.length) return null;
+
+  for (const record of ndefMessage) {
+    const recordType = Array.isArray(record.type)
+      ? String.fromCharCode(...record.type)
+      : record.type;
+    const payload = new Uint8Array(record.payload || []);
+
+    if (record.tnf === Ndef.TNF_WELL_KNOWN && recordType === Ndef.RTD_TEXT) {
+      const textValue = Ndef.text.decodePayload(payload).trim();
+      if (textValue) return textValue;
+    }
+
+    if (record.tnf === Ndef.TNF_WELL_KNOWN && recordType === Ndef.RTD_URI) {
+      const uriValue = Ndef.uri.decodePayload(payload).trim();
+      if (uriValue) return uriValue;
+    }
+
+    const fallbackValue = Ndef.util.bytesToString(record.payload || []).trim();
+    if (fallbackValue) return fallbackValue;
+  }
+
+  return null;
+}
+
+function extractRfidIdentifier(tag: {
+  id?: string;
+  identifier?: string;
+  serialNumber?: string;
+  ndefMessage?: Array<{ tnf: number; type: number[] | string; payload: number[] }>;
+} | null): string | null {
+  const candidates: Array<string | null | undefined> = [
+    tag?.id,
+    tag?.identifier,
+    tag?.serialNumber,
+    decodeRfidNdefValue(tag?.ndefMessage),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeRfidIdentifier(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
 }
 
 export default function AssetDetailScreen() {
@@ -80,6 +133,37 @@ export default function AssetDetailScreen() {
   const [uploadDesc, setUploadDesc] = useState("");
   const [pendingFile, setPendingFile] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [rfidSupported, setRfidSupported] = useState<boolean | null>(null);
+  const [rfidBusy, setRfidBusy] = useState(false);
+  const [showRfidModal, setShowRfidModal] = useState(false);
+  const [rfidInput, setRfidInput] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (Platform.OS === "web") {
+      setRfidSupported(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const supported = await NfcManager.isSupported();
+        if (!mounted) return;
+        setRfidSupported(supported);
+        if (supported) {
+          await NfcManager.start();
+        }
+      } catch {
+        if (mounted) setRfidSupported(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      NfcManager.cancelTechnologyRequest().catch(() => undefined);
+    };
+  }, []);
 
   const load = useCallback(
     async (silent = false) => {
@@ -251,6 +335,93 @@ export default function AssetDetailScreen() {
     ]);
   };
 
+  const saveRfidTag = useCallback(async (rfidValue: string) => {
+    if (!asset) return;
+    const normalized = normalizeRfidIdentifier(rfidValue);
+    if (!normalized) {
+      Alert.alert("RFID Required", "No RFID tag value was found.");
+      return;
+    }
+
+    const result = await updateAssetRfidTag(asset.id, normalized);
+    setAsset((prev) => prev ? { ...prev, rfid_tag: result.rfid_tag, tagging_status: result.tagging_status } : prev);
+    setRfidInput(result.rfid_tag);
+  }, [asset]);
+
+  const scanAndSaveRfid = useCallback(async () => {
+    if (!asset || rfidBusy) return;
+
+    if (Platform.OS === "web" || rfidSupported === false) {
+      Alert.alert(
+        "RFID Not Available",
+        "RFID scanning requires a physical device with NFC and a development or production build of the app."
+      );
+      return;
+    }
+
+    setRfidBusy(true);
+    try {
+      const enabled = await NfcManager.isEnabled().catch(() => true);
+      if (!enabled) {
+        if (Platform.OS === "android") {
+          Alert.alert("NFC Disabled", "Turn on NFC to scan RFID tags.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => { void NfcManager.goToNfcSetting(); } },
+          ]);
+        } else {
+          Alert.alert("NFC Disabled", "Turn on NFC in Settings to scan RFID tags.");
+        }
+        return;
+      }
+
+      const requestedTechs =
+        Platform.OS === "ios"
+          ? [NfcTech.Ndef, NfcTech.IsoDep, NfcTech.Iso15693IOS]
+          : [NfcTech.Ndef, NfcTech.NfcA, NfcTech.NfcV, NfcTech.IsoDep, NfcTech.MifareClassic, NfcTech.MifareUltralight];
+
+      await NfcManager.requestTechnology(requestedTechs, {
+        alertMessage: `Hold your phone near the RFID tag for ${asset.asset_tag}.`,
+      });
+
+      const tag = await NfcManager.getTag();
+      const rfidValue = extractRfidIdentifier(tag as any);
+      if (!rfidValue) {
+        Alert.alert("Unreadable Tag", "No RFID identifier was found on this tag.");
+        return;
+      }
+
+      await saveRfidTag(rfidValue);
+      Alert.alert("RFID Saved", `RFID tag ${rfidValue} was assigned to ${asset.asset_tag}.`);
+    } catch (err: any) {
+      const message = String(err?.message || err || "");
+      if (!/cancel|close|dismiss|abort/i.test(message)) {
+        Alert.alert("RFID Scan Failed", message || "Unable to read the RFID tag.");
+      }
+    } finally {
+      setRfidBusy(false);
+      NfcManager.cancelTechnologyRequest().catch(() => undefined);
+    }
+  }, [asset, rfidBusy, rfidSupported, saveRfidTag]);
+
+  const submitManualRfid = useCallback(async () => {
+    const normalized = normalizeRfidIdentifier(rfidInput);
+    if (!normalized) {
+      Alert.alert("RFID Required", "Enter an RFID tag value first.");
+      return;
+    }
+
+    try {
+      setRfidBusy(true);
+      await saveRfidTag(normalized);
+      setShowRfidModal(false);
+      Alert.alert("RFID Saved", `RFID tag ${normalized} was saved.`);
+    } catch (e: any) {
+      Alert.alert("Save Failed", e.message ?? "Failed to save RFID tag.");
+    } finally {
+      setRfidBusy(false);
+    }
+  }, [rfidInput, saveRfidTag]);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -396,16 +567,37 @@ export default function AssetDetailScreen() {
               <View style={styles.tagChip}>
                 <Text style={styles.tagChipLabel}>Serial No.</Text>
                 <Text style={styles.tagChipValue}>{a.serial_number}</Text>
-
-                        {a.rfid_tag ? (
-                          <View style={[styles.tagRow, { marginTop: 0 }]}>
-                            <View style={[styles.tagChip, { flex: 1 }]}>
-                              <Text style={styles.tagChipLabel}>RFID Tag</Text>
-                              <Text style={styles.tagChipValue}>{a.rfid_tag}</Text>
-                            </View>
-                          </View>
-                        ) : null}
               </View>
+            ) : null}
+          </View>
+
+          <View style={styles.rfidCard}>
+            <View style={styles.rfidHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tagChipLabel}>RFID Tag</Text>
+                <Text style={styles.rfidValue}>{a.rfid_tag || "Not assigned"}</Text>
+              </View>
+              <View style={styles.rfidActions}>
+                <TouchableOpacity
+                  style={[styles.rfidActionBtn, rfidBusy && styles.rfidActionBtnDisabled]}
+                  onPress={scanAndSaveRfid}
+                  disabled={rfidBusy}
+                >
+                  <Text style={styles.rfidActionBtnText}>{rfidBusy ? "Reading..." : "Scan RFID"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.rfidActionBtn, styles.rfidActionBtnSecondary]}
+                  onPress={() => {
+                    setRfidInput(a.rfid_tag || "");
+                    setShowRfidModal(true);
+                  }}
+                >
+                  <Text style={[styles.rfidActionBtnText, styles.rfidActionBtnSecondaryText]}>Type</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {rfidSupported === false ? (
+              <Text style={styles.rfidHint}>RFID scanning is available on native devices with NFC. You can still type the tag manually.</Text>
             ) : null}
           </View>
 
@@ -731,6 +923,51 @@ export default function AssetDetailScreen() {
           </View>
         </Modal>
 
+        <Modal
+          visible={showRfidModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => { if (!rfidBusy) setShowRfidModal(false); }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Assign RFID Tag</Text>
+              <Text style={styles.modalLabel}>RFID Tag</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={rfidInput}
+                onChangeText={setRfidInput}
+                placeholder="e.g. E20034120123456789ABCDEF"
+                placeholderTextColor={C.muted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!rfidBusy}
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalCancelBtn, rfidBusy && { opacity: 0.5 }]}
+                  onPress={() => { if (!rfidBusy) setShowRfidModal(false); }}
+                  disabled={rfidBusy}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalUploadBtn, rfidBusy && { opacity: 0.5 }]}
+                  onPress={submitManualRfid}
+                  disabled={rfidBusy}
+                >
+                  {rfidBusy ? (
+                    <ActivityIndicator color={C.white} size="small" />
+                  ) : (
+                    <Text style={styles.modalUploadText}>Save RFID</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* ── Scan Another button ── */}
         <TouchableOpacity
           style={styles.scanAnotherFull}
@@ -873,6 +1110,55 @@ const styles = StyleSheet.create({
   },
   tagChipLabel: { fontSize: 11, color: C.muted, fontWeight: "600", marginBottom: 2 },
   tagChipValue: { fontSize: 15, fontWeight: "700", color: C.primary },
+  rfidCard: {
+    marginTop: 8,
+    backgroundColor: C.bg,
+    borderRadius: 12,
+    padding: 14,
+  },
+  rfidHeader: {
+    gap: 12,
+  },
+  rfidValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.text,
+  },
+  rfidActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
+  rfidActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: C.primary,
+    alignItems: "center",
+  },
+  rfidActionBtnDisabled: {
+    opacity: 0.6,
+  },
+  rfidActionBtnSecondary: {
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.border,
+    flex: 0.6,
+  },
+  rfidActionBtnText: {
+    color: C.white,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  rfidActionBtnSecondaryText: {
+    color: C.text,
+  },
+  rfidHint: {
+    fontSize: 12,
+    color: C.muted,
+    marginTop: 10,
+    lineHeight: 18,
+  },
 
   // QR / Barcode images
   codeImagesRow: {

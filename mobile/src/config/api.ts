@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 
 const DEFAULT_REMOTE_API_URL = "https://web-production-62fee.up.railway.app";
 
@@ -6,13 +7,45 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+function getExpoHostApiUrl(): string | null {
+  const possibleHostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ??
+    null;
+
+  if (!possibleHostUri) return null;
+
+  const host = String(possibleHostUri).split(":")[0]?.trim();
+  if (!host) return null;
+  if (host === "localhost" || host === "127.0.0.1") return null;
+
+  return `http://${host}:8000`;
+}
+
+function resolveApiUrl(): string {
+  if (Platform.OS === "web") {
+    return "http://localhost:8000";
+  }
+
+  const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  if (__DEV__) {
+    const expoHostApiUrl = getExpoHostApiUrl();
+    if (expoHostApiUrl) {
+      return expoHostApiUrl;
+    }
+  }
+
+  return DEFAULT_REMOTE_API_URL;
+}
+
 // Web runs in the browser on the same machine as Django -> localhost.
-// Native release builds must not fall back to localhost; use deployed API.
-const API_URL = normalizeBaseUrl(
-  Platform.OS === "web"
-    ? "http://localhost:8000"
-    : (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_REMOTE_API_URL)
-);
+// Native development in Expo Go should use the host machine's LAN IP so the
+// phone can reach the local Django server. Release builds must use a deployed API.
+const API_URL = normalizeBaseUrl(resolveApiUrl());
 
 /** All API paths matching Django backend */
 const API = {
@@ -33,6 +66,7 @@ const API = {
     DETAIL: "/api/v1/assets/",          // append <uuid>/
     ATTACHMENTS: "/api/v1/assets/",     // append <uuid>/attachments/
     TAGGING_STATUS: "/api/v1/assets/",  // append <uuid>/tagging-status/
+    RFID_TAG: "/api/v1/assets/",        // append <uuid>/rfid-tag/
   },
   LOOKUPS: {
     CATEGORIES: "/api/v1/lookups/categories/",

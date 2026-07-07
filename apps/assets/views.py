@@ -2178,6 +2178,36 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 cache[str(val).strip().lower()] = obj
         return cache
 
+    def _generate_unique_branch_code(self, branch_name, org):
+        """Generate a globally unique branch code from branch name + org token."""
+        base = ''.join(ch for ch in str(branch_name).upper() if ch.isalnum())[:12] or 'BRANCH'
+        org_token = ''.join(ch for ch in str(getattr(org, 'id', '')).upper() if ch.isalnum())[:4] or 'ORG'
+        candidate = f"{base}-{org_token}"[:50]
+
+        if not Branch.objects.filter(code=candidate).exists():
+            return candidate
+
+        index = 2
+        while True:
+            suffix = f"-{index}"
+            trimmed = candidate[: max(1, 50 - len(suffix))]
+            retry = f"{trimmed}{suffix}"
+            if not Branch.objects.filter(code=retry).exists():
+                return retry
+            index += 1
+
+    def _get_or_create_branch_by_name(self, org, branch_name):
+        branch_name = str(branch_name or '').strip()
+        if not branch_name:
+            return None
+        branch = Branch.objects.filter(organization=org, name__iexact=branch_name).first()
+        if branch:
+            return branch
+        branch_code = self._generate_unique_branch_code(branch_name, org)
+        self._validate_model_field_length(Branch, 'name', branch_name, f"Branch '{branch_name}'")
+        self._validate_model_field_length(Branch, 'code', branch_code, f"Branch code for '{branch_name}'")
+        return Branch.objects.create(organization=org, name=branch_name, code=branch_code)
+
     def _detect_new_entities(self, rows, org):
         """Scan rows and return sets of entity names that don't exist in the system."""
         categories_by_code = self._build_cache(Category, 'code', org)
@@ -2186,10 +2216,18 @@ class AssetImportView(LoginRequiredMixin, FormView):
         groups = self._build_cache(Group, 'name', org)
         subgroups = self._build_cache(SubGroup, 'name', org)
         brands = self._build_cache(Brand, 'name', org)
+        companies = self._build_cache(Company, 'name', org)
+        suppliers = self._build_cache(Supplier, 'name', org)
+        vendors = self._build_cache(Vendor, 'name', org)
+        branches = self._build_cache(Branch, 'name', org)
+        departments = self._build_cache(Department, 'name', org)
         regions = self._build_cache(Region, 'name', org)
         sites = self._build_cache(Site, 'name', org)
         buildings = self._build_cache(Building, 'name', org)
         floors = self._build_cache(Floor, 'name', org)
+        rooms = self._build_cache(Room, 'name', org)
+        locations = self._build_cache(Location, 'name', org)
+        sub_locations = self._build_cache(SubLocation, 'name', org)
 
         new_entities = {
             'categories': set(),
@@ -2197,10 +2235,18 @@ class AssetImportView(LoginRequiredMixin, FormView):
             'groups': set(),
             'sub_groups': set(),
             'brands': set(),
+            'companies': set(),
+            'suppliers': set(),
+            'vendors': set(),
+            'branches': set(),
+            'departments': set(),
             'regions': set(),
             'sites': set(),
             'buildings': set(),
             'floors': set(),
+            'rooms': set(),
+            'locations': set(),
+            'sub_locations': set(),
         }
 
         for row in rows:
@@ -2224,6 +2270,26 @@ class AssetImportView(LoginRequiredMixin, FormView):
             if brand_val and not brands.get(brand_val.lower()):
                 new_entities['brands'].add(brand_val)
 
+            company_val = str(row.get('company') or '').strip()
+            if company_val and not companies.get(company_val.lower()):
+                new_entities['companies'].add(company_val)
+
+            supplier_val = str(row.get('supplier') or '').strip()
+            if supplier_val and not suppliers.get(supplier_val.lower()):
+                new_entities['suppliers'].add(supplier_val)
+
+            vendor_val = str(row.get('vendor') or '').strip()
+            if vendor_val and not vendors.get(vendor_val.lower()):
+                new_entities['vendors'].add(vendor_val)
+
+            branch_val = str(row.get('branch') or '').strip()
+            if branch_val and not branches.get(branch_val.lower()):
+                new_entities['branches'].add(branch_val)
+
+            department_val = str(row.get('department') or '').strip()
+            if department_val and not departments.get(department_val.lower()):
+                new_entities['departments'].add(department_val)
+
             region_val = str(row.get('region') or '').strip()
             if region_val and not regions.get(region_val.lower()):
                 new_entities['regions'].add(region_val)
@@ -2239,6 +2305,18 @@ class AssetImportView(LoginRequiredMixin, FormView):
             floor_val = str(row.get('floor') or '').strip()
             if floor_val and not floors.get(floor_val.lower()):
                 new_entities['floors'].add(floor_val)
+
+            room_val = str(row.get('room') or '').strip()
+            if room_val and not rooms.get(room_val.lower()):
+                new_entities['rooms'].add(room_val)
+
+            location_val = str(row.get('location') or '').strip()
+            if location_val and not locations.get(location_val.lower()):
+                new_entities['locations'].add(location_val)
+
+            sub_location_val = str(row.get('sub_location') or '').strip()
+            if sub_location_val and not sub_locations.get(sub_location_val.lower()):
+                new_entities['sub_locations'].add(sub_location_val)
 
         # Filter out empty sets
         return {k: sorted(v) for k, v in new_entities.items() if v}
@@ -2300,6 +2378,12 @@ class AssetImportView(LoginRequiredMixin, FormView):
 
         # Auto-create selected new entities
         selected = request.POST.getlist('create_entities')
+        selected_set = set(selected)
+        for auto_key in (
+            'companies', 'suppliers', 'vendors', 'branches', 'departments', 'rooms', 'locations', 'sub_locations'
+        ):
+            if auto_key in new_entities:
+                selected_set.add(auto_key)
         entity_errors = []
 
         def _validate_entity_name(model, entity_type, value):
@@ -2311,13 +2395,13 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 return False
 
         # Groups must be created before SubGroups (dependency order)
-        if 'groups' in selected:
+        if 'groups' in selected_set:
             for name in new_entities.get('groups', []):
                 if not _validate_entity_name(Group, 'Group', name):
                     continue
                 Group.objects.get_or_create(organization=org, name=name)
 
-        if 'sub_groups' in selected:
+        if 'sub_groups' in selected_set:
             for name in new_entities.get('sub_groups', []):
                 if not _validate_entity_name(SubGroup, 'Sub-group', name):
                     continue
@@ -2337,7 +2421,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     obj.save()
 
         # Categories must be created before SubCategories (dependency order)
-        if 'categories' in selected:
+        if 'categories' in selected_set:
             for name in new_entities.get('categories', []):
                 if not _validate_entity_name(Category, 'Category', name):
                     continue
@@ -2356,7 +2440,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     obj.sub_group = parent_sub_group
                     obj.save()
 
-        if 'subcategories' in selected:
+        if 'subcategories' in selected_set:
             for name in new_entities.get('subcategories', []):
                 if not _validate_entity_name(SubCategory, 'Sub-category', name):
                     continue
@@ -2376,19 +2460,59 @@ class AssetImportView(LoginRequiredMixin, FormView):
                         organization=org, category=parent_cat, name=name
                     )
 
-        if 'brands' in selected:
+        if 'brands' in selected_set:
             for name in new_entities.get('brands', []):
                 if not _validate_entity_name(Brand, 'Brand', name):
                     continue
                 Brand.objects.get_or_create(organization=org, name=name)
 
-        if 'regions' in selected:
+        if 'companies' in selected_set:
+            for name in new_entities.get('companies', []):
+                if not _validate_entity_name(Company, 'Company', name):
+                    continue
+                Company.objects.get_or_create(organization=org, name=name)
+
+        if 'suppliers' in selected_set:
+            for name in new_entities.get('suppliers', []):
+                if not _validate_entity_name(Supplier, 'Supplier', name):
+                    continue
+                Supplier.objects.get_or_create(organization=org, name=name)
+
+        if 'vendors' in selected_set:
+            for name in new_entities.get('vendors', []):
+                if not _validate_entity_name(Vendor, 'Vendor', name):
+                    continue
+                Vendor.objects.get_or_create(organization=org, name=name)
+
+        if 'branches' in selected_set:
+            for name in new_entities.get('branches', []):
+                if not _validate_entity_name(Branch, 'Branch', name):
+                    continue
+                self._get_or_create_branch_by_name(org, name)
+
+        if 'departments' in selected_set:
+            for name in new_entities.get('departments', []):
+                if not _validate_entity_name(Department, 'Department', name):
+                    continue
+                parent_branch = None
+                for row in rows:
+                    if str(row.get('department') or '').strip().lower() == name.lower():
+                        branch_val = str(row.get('branch') or '').strip()
+                        if branch_val:
+                            parent_branch = self._get_or_create_branch_by_name(org, branch_val)
+                        break
+                if parent_branch:
+                    Department.objects.get_or_create(
+                        organization=org, branch=parent_branch, name=name
+                    )
+
+        if 'regions' in selected_set:
             for name in new_entities.get('regions', []):
                 if not _validate_entity_name(Region, 'Region', name):
                     continue
                 Region.objects.get_or_create(organization=org, name=name)
 
-        if 'sites' in selected:
+        if 'sites' in selected_set:
             for name in new_entities.get('sites', []):
                 if not _validate_entity_name(Site, 'Site', name):
                     continue
@@ -2408,7 +2532,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                         defaults={'organization': org}
                     )
 
-        if 'buildings' in selected:
+        if 'buildings' in selected_set:
             for name in new_entities.get('buildings', []):
                 if not _validate_entity_name(Building, 'Building', name):
                     continue
@@ -2418,9 +2542,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     if str(row.get('building') or '').strip().lower() == name.lower():
                         branch_val = str(row.get('branch') or '').strip()
                         if branch_val:
-                            parent_branch = Branch.objects.filter(
-                                organization=org, name__iexact=branch_val
-                            ).first()
+                            parent_branch = self._get_or_create_branch_by_name(org, branch_val)
                         break
                 if parent_branch:
                     Building.objects.get_or_create(
@@ -2428,7 +2550,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                         defaults={'organization': org}
                     )
 
-        if 'floors' in selected:
+        if 'floors' in selected_set:
             for name in new_entities.get('floors', []):
                 if not _validate_entity_name(Floor, 'Floor', name):
                     continue
@@ -2448,6 +2570,69 @@ class AssetImportView(LoginRequiredMixin, FormView):
                         defaults={'organization': org}
                     )
 
+        if 'rooms' in selected_set:
+            for name in new_entities.get('rooms', []):
+                if not _validate_entity_name(Room, 'Room', name):
+                    continue
+                parent_floor = None
+                for row in rows:
+                    if str(row.get('room') or '').strip().lower() == name.lower():
+                        floor_val = str(row.get('floor') or '').strip()
+                        if floor_val:
+                            parent_floor = Floor.objects.filter(
+                                organization=org, name__iexact=floor_val
+                            ).first()
+                        break
+                if parent_floor:
+                    Room.objects.get_or_create(
+                        floor=parent_floor, name=name,
+                        defaults={'organization': org}
+                    )
+
+        if 'locations' in selected_set:
+            for name in new_entities.get('locations', []):
+                if not _validate_entity_name(Location, 'Location', name):
+                    continue
+                parent_site = None
+                parent_building = None
+                for row in rows:
+                    if str(row.get('location') or '').strip().lower() == name.lower():
+                        site_val = str(row.get('site') or '').strip()
+                        building_val = str(row.get('building') or '').strip()
+                        if site_val:
+                            parent_site = Site.objects.filter(
+                                organization=org, name__iexact=site_val
+                            ).first()
+                        if building_val:
+                            parent_building = Building.objects.filter(
+                                organization=org, name__iexact=building_val
+                            ).first()
+                        break
+                if parent_site:
+                    Location.objects.get_or_create(
+                        site=parent_site, name=name,
+                        defaults={'organization': org, 'building': parent_building}
+                    )
+
+        if 'sub_locations' in selected_set:
+            for name in new_entities.get('sub_locations', []):
+                if not _validate_entity_name(SubLocation, 'Sub location', name):
+                    continue
+                parent_location = None
+                for row in rows:
+                    if str(row.get('sub_location') or '').strip().lower() == name.lower():
+                        location_val = str(row.get('location') or '').strip()
+                        if location_val:
+                            parent_location = Location.objects.filter(
+                                organization=org, name__iexact=location_val
+                            ).first()
+                        break
+                if parent_location:
+                    SubLocation.objects.get_or_create(
+                        location=parent_location, name=name,
+                        defaults={'organization': org}
+                    )
+
         if entity_errors:
             for err in entity_errors[:15]:
                 messages.error(request, err)
@@ -2455,7 +2640,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 messages.error(request, f"...and {len(entity_errors) - 15} more entity validation errors.")
             return redirect('asset-import')
 
-        created_types = [t.replace('_', ' ').title() for t in selected]
+        created_types = [t.replace('_', ' ').title() for t in selected_set]
         if created_types:
             messages.info(request, f"Auto-created: {', '.join(created_types)}")
 
@@ -2495,6 +2680,11 @@ class AssetImportView(LoginRequiredMixin, FormView):
             str(c.user.username).lower(): c 
             for c in Custodian.objects.filter(organization=org).select_related('user') 
             if c.user
+        }
+        custodians_by_full_name = {
+            str(c.user.get_full_name()).strip().lower(): c
+            for c in Custodian.objects.filter(organization=org).select_related('user')
+            if c.user and str(c.user.get_full_name()).strip()
         }
 
         # Location master data
@@ -2668,34 +2858,158 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 sub_group = get_from_cache(subgroups, row.get('sub_group'))
                 brand_new = get_from_cache(brands, row.get('brand'))
                 company = get_from_cache(companies, row.get('company'))
+                if not company and row.get('company'):
+                    company_name = str(row.get('company')).strip()
+                    self._validate_model_field_length(Company, 'name', company_name, 'Company name')
+                    company, _ = Company.objects.get_or_create(
+                        organization=org,
+                        name=company_name,
+                    )
+                    companies[company_name.lower()] = company
+
                 supplier = get_from_cache(suppliers, row.get('supplier'))
+                if not supplier and row.get('supplier'):
+                    supplier_name = str(row.get('supplier')).strip()
+                    self._validate_model_field_length(Supplier, 'name', supplier_name, 'Supplier name')
+                    supplier, _ = Supplier.objects.get_or_create(
+                        organization=org,
+                        name=supplier_name,
+                    )
+                    suppliers[supplier_name.lower()] = supplier
+
                 vendor = get_from_cache(vendors, row.get('vendor'))
+                if not vendor and row.get('vendor'):
+                    vendor_name = str(row.get('vendor')).strip()
+                    self._validate_model_field_length(Vendor, 'name', vendor_name, 'Vendor name')
+                    vendor, _ = Vendor.objects.get_or_create(
+                        organization=org,
+                        name=vendor_name,
+                    )
+                    vendors[vendor_name.lower()] = vendor
                 
                 # Custodian lookup (EID then Username)
                 cust_val = row.get('custodian')
-                custodian = get_from_cache(custodians_by_eid, cust_val) or get_from_cache(custodians_by_user, cust_val)
+                if isinstance(cust_val, float) and cust_val.is_integer():
+                    cust_val = str(int(cust_val))
+                elif cust_val is not None:
+                    cust_val = str(cust_val).strip()
+                    if cust_val.endswith('.0') and cust_val[:-2].isdigit():
+                        cust_val = cust_val[:-2]
+                custodian = (
+                    get_from_cache(custodians_by_eid, cust_val)
+                    or get_from_cache(custodians_by_user, cust_val)
+                    or get_from_cache(custodians_by_full_name, cust_val)
+                )
+                if not custodian and cust_val:
+                    custodian_employee_id = str(cust_val).strip()
+                    self._validate_model_field_length(Custodian, 'employee_id', custodian_employee_id, 'Custodian')
+                    custodian = Custodian.objects.filter(
+                        organization=org,
+                        employee_id__iexact=custodian_employee_id,
+                    ).first()
+                    if not custodian:
+                        custodian = Custodian.objects.create(
+                            organization=org,
+                            employee_id=custodian_employee_id,
+                            department_name=str(row.get('department') or '')[:255],
+                        )
+                    custodians_by_eid[custodian_employee_id.lower()] = custodian
                 
                 asset_remarks = get_from_cache(remarks, row.get('remarks'))
 
                 # 4. Location Details (from cache)
                 branch = get_from_cache(branches, row.get('branch'))
+                if not branch and row.get('branch'):
+                    branch = self._get_or_create_branch_by_name(org, row.get('branch'))
+                    branches[str(row.get('branch')).strip().lower()] = branch
+
                 department = get_from_cache(departments, row.get('department'))
+                if not department and branch and row.get('department'):
+                    department_name = str(row.get('department')).strip()
+                    self._validate_model_field_length(Department, 'name', department_name, 'Department name')
+                    department, _ = Department.objects.get_or_create(
+                        organization=org,
+                        branch=branch,
+                        name=department_name,
+                    )
+                    departments[department_name.lower()] = department
+
                 building = get_from_cache(buildings, row.get('building'))
+                if not building and branch and row.get('building'):
+                    building_name = str(row.get('building')).strip()
+                    self._validate_model_field_length(Building, 'name', building_name, 'Building name')
+                    building, _ = Building.objects.get_or_create(
+                        organization=org,
+                        branch=branch,
+                        name=building_name,
+                    )
+                    buildings[building_name.lower()] = building
+
                 floor = get_from_cache(floors, row.get('floor'))
+                if not floor and building and row.get('floor'):
+                    floor_name = str(row.get('floor')).strip()
+                    self._validate_model_field_length(Floor, 'name', floor_name, 'Floor name')
+                    floor, _ = Floor.objects.get_or_create(
+                        organization=org,
+                        building=building,
+                        name=floor_name,
+                    )
+                    floors[floor_name.lower()] = floor
+
                 room = get_from_cache(rooms, row.get('room'))
                 
                 # Special case: Auto-create room if missing but floor exists
                 if not room and floor and row.get('room'):
                     room_name = str(row.get('room')).strip()
                     self._validate_model_field_length(Room, 'name', room_name, 'Room name')
-                    room = Room.objects.create(organization=org, floor=floor, name=room_name)
+                    room, _ = Room.objects.get_or_create(
+                        organization=org,
+                        floor=floor,
+                        name=room_name,
+                    )
                     # Add to cache to prevent duplicate creation in this session
                     rooms[room_name.lower()] = room
 
                 region = get_from_cache(regions, row.get('region'))
+                if not region and row.get('region'):
+                    region_name = str(row.get('region')).strip()
+                    self._validate_model_field_length(Region, 'name', region_name, 'Region name')
+                    region, _ = Region.objects.get_or_create(organization=org, name=region_name)
+                    regions[region_name.lower()] = region
+
                 site = get_from_cache(sites, row.get('site'))
+                if not site and region and row.get('site'):
+                    site_name = str(row.get('site')).strip()
+                    self._validate_model_field_length(Site, 'name', site_name, 'Site name')
+                    site, _ = Site.objects.get_or_create(
+                        organization=org,
+                        region=region,
+                        name=site_name,
+                    )
+                    sites[site_name.lower()] = site
+
                 location = get_from_cache(locations, row.get('location'))
+                if not location and site and row.get('location'):
+                    location_name = str(row.get('location')).strip()
+                    self._validate_model_field_length(Location, 'name', location_name, 'Location name')
+                    location, _ = Location.objects.get_or_create(
+                        organization=org,
+                        site=site,
+                        name=location_name,
+                        defaults={'building': building},
+                    )
+                    locations[location_name.lower()] = location
+
                 sub_location = get_from_cache(sub_locations, row.get('sub_location'))
+                if not sub_location and location and row.get('sub_location'):
+                    sub_location_name = str(row.get('sub_location')).strip()
+                    self._validate_model_field_length(SubLocation, 'name', sub_location_name, 'Sub location name')
+                    sub_location, _ = SubLocation.objects.get_or_create(
+                        organization=org,
+                        location=location,
+                        name=sub_location_name,
+                    )
+                    sub_locations[sub_location_name.lower()] = sub_location
 
                 # 5. Numerical Parsing
                 def parse_decimal(val):

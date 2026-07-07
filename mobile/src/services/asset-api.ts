@@ -210,3 +210,19 @@ export async function updateTaggingStatus(
     throw new Error(err.detail ?? "Failed to update tagging status");
   }
 }
+
+export async function updateAssetRfidTag(
+  assetId: string,
+  rfidTag: string
+): Promise<{ id: string; asset_tag: string; rfid_tag: string; tagging_status: "TAGGED" | "UNTAGGED" }> {
+  const url = `${API.ASSETS.RFID_TAG}${assetId}/rfid-tag/`;
+  const res = await authFetch(url, {
+    method: "PATCH",
+    body: JSON.stringify({ rfid_tag: rfidTag }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? "Failed to update RFID tag");
+  }
+  return res.json();
+}

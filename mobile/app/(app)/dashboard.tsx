@@ -121,6 +121,7 @@ export default function DashboardScreen() {
   const d = data!;
   const initials = `${(user?.first_name?.[0] ?? "").toUpperCase()}${(user?.last_name?.[0] ?? "").toUpperCase()}`;
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "User";
+  const displayUsername = user?.username?.trim() || fullName;
 
   return (
     <View style={st.root}>
@@ -139,7 +140,7 @@ export default function DashboardScreen() {
                   <Text style={st.avatarText}>{initials}</Text>
                 </View>
                 <View style={{ marginLeft: 14 }}>
-                  <Text style={st.heroGreeting}>Welcome back</Text>
+                  <Text style={st.heroGreeting}>Welcome back, {displayUsername}</Text>
                   <Text style={st.heroName}>{fullName}</Text>
                 </View>
               </View>
@@ -216,6 +217,15 @@ export default function DashboardScreen() {
               </View>
               <Text style={st.quickLabel}>Scan Asset</Text>
               <Text style={st.quickSub}>QR / Barcode</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/room-inventory")}>
+              <View style={[st.quickIconWrap, { backgroundColor: C.infoSoft }]}>
+                <View style={[st.quickIconInner, { backgroundColor: C.info }]}>
+                  <Text style={st.quickIconText}>RF</Text>
+                </View>
+              </View>
+              <Text style={st.quickLabel}>RFID Scan</Text>
+              <Text style={st.quickSub}>Live EPCs</Text>
             </TouchableOpacity>
             <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/add-asset")}>
               <View style={[st.quickIconWrap, { backgroundColor: C.successSoft }]}>

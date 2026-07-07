@@ -9,10 +9,13 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { Camera, CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { lookupAssetByRfidTag } from "../../src/services/asset-api";
+import { rfidManager } from "../../src/rfid";
+import type { ReaderInfo } from "../../src/rfid";
 
 function normalizeScannedIdentifier(value: string, isQr: boolean): string {
   let normalized = (value || "").trim();
@@ -28,6 +31,10 @@ function normalizeScannedIdentifier(value: string, isQr: boolean): string {
   return normalized;
 }
 
+function normalizeRfidIdentifier(value: string): string {
+  return normalizeScannedIdentifier(value, true).replace(/[\s:-]+/g, "").toUpperCase();
+}
+
 /* ─── Exported screen ─── */
 export default function ScanAssetScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -37,7 +44,45 @@ export default function ScanAssetScreen() {
   const [searchMode, setSearchMode] = useState<"tag" | "id" | "rfid">("tag");
   const [cameraReady, setCameraReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableReaders, setAvailableReaders] = useState<ReaderInfo[]>([]);
+  const [selectedReaderId, setSelectedReaderId] = useState<string | null>(null);
+  const [rfidSupported, setRfidSupported] = useState<boolean | null>(null);
+  const [rfidBusy, setRfidBusy] = useState(false);
+  const [lastRfidValue, setLastRfidValue] = useState<string | null>(null);
+  const [showReaderModal, setShowReaderModal] = useState(false);
   const processingRef = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const readers = rfidManager.getAvailableReaders();
+        const selected = rfidManager.getSelectedReader();
+        if (!mounted) return;
+        setAvailableReaders(readers);
+        setSelectedReaderId(selected?.id ?? null);
+
+        if (!selected) {
+          setRfidSupported(false);
+          return;
+        }
+
+        const supported = await rfidManager.isSelectedReaderSupported();
+        setRfidSupported(supported);
+      } catch {
+        if (mounted) {
+          setRfidSupported(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      rfidManager.stopScan().catch(() => undefined);
+      rfidManager.disconnect().catch(() => undefined);
+    };
+  }, []);
 
   const navigateToDetail = useCallback((assetTag: string) => {
     router.push({
@@ -52,6 +97,81 @@ export default function ScanAssetScreen() {
       params: { asset_id: assetId, from_scan: "1" },
     });
   }, []);
+
+  const handleRfidLookup = useCallback(async (rfidValue: string) => {
+    const asset = await lookupAssetByRfidTag(rfidValue);
+    router.push({
+      pathname: "/(app)/asset-detail",
+      params: { asset_id: asset.id, from_scan: "1" },
+    });
+  }, []);
+
+  const onSelectReader = useCallback(async (readerId: string) => {
+    try {
+      await rfidManager.stopScan().catch(() => undefined);
+      await rfidManager.disconnect().catch(() => undefined);
+      rfidManager.selectReader(readerId);
+      const selected = rfidManager.getSelectedReader();
+      setSelectedReaderId(selected?.id ?? null);
+      const supported = await rfidManager.isSelectedReaderSupported();
+      setRfidSupported(supported);
+      setShowReaderModal(false);
+    } catch (e: any) {
+      Alert.alert("Reader Selection Failed", e?.message ?? "Unable to switch RFID reader.");
+    }
+  }, []);
+
+  const startRfidScan = useCallback(async () => {
+    if (rfidBusy) return;
+
+    const selected = rfidManager.getSelectedReader();
+    if (!selected) {
+      Alert.alert("RFID Reader Not Configured", "No RFID reader adapter is configured.");
+      return;
+    }
+
+    if (rfidSupported === false) {
+      Alert.alert(
+        "RFID Not Available",
+        `${selected.name} is not supported in this build. Choose another reader adapter or add the vendor SDK module.`
+      );
+      return;
+    }
+
+    setRfidBusy(true);
+    setLastRfidValue(null);
+
+    try {
+      const unsubscribe = rfidManager.onRead(async (read) => {
+        const epc = normalizeRfidIdentifier(read.epc);
+        if (!epc) return;
+
+        setLastRfidValue(epc);
+        try {
+          await handleRfidLookup(epc);
+        } catch {
+          Alert.alert("Unknown RFID Tag", "Asset Not Registered.");
+        } finally {
+          await rfidManager.stopScan().catch(() => undefined);
+          unsubscribe();
+          setRfidBusy(false);
+        }
+      });
+
+      await rfidManager.connect();
+      await rfidManager.startScan();
+    } catch (err: any) {
+      const message = String(err?.message || err || "");
+      if (!/cancel|close|dismiss|abort/i.test(message)) {
+        Alert.alert("RFID Scan Failed", message || "Unable to read the RFID tag.");
+      }
+      await rfidManager.stopScan().catch(() => undefined);
+      await rfidManager.disconnect().catch(() => undefined);
+      setRfidBusy(false);
+    } finally {
+      // Keep cleanup in success/error paths where listener lifecycle is controlled.
+    }
+  }, [handleRfidLookup, rfidBusy, rfidSupported]);
 
   const handleBarcodeScanned = useCallback(
     ({ type, data }: { type: string; data: string }) => {
@@ -113,7 +233,8 @@ export default function ScanAssetScreen() {
     if (searchMode === "id") {
       navigateToDetailById(value);
     } else if (searchMode === "rfid") {
-      lookupAssetByRfidTag(value)
+      const normalizedValue = normalizeRfidIdentifier(value);
+      lookupAssetByRfidTag(normalizedValue)
         .then((asset) => {
           router.push({
             pathname: "/(app)/asset-detail",
@@ -137,6 +258,12 @@ export default function ScanAssetScreen() {
         <TouchableOpacity style={s.btn} onPress={() => setError(null)}>
           <Text style={s.btnText}>Retry</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={startRfidScan} disabled={rfidBusy}>
+          <Text style={s.secondaryBtnText}>{rfidBusy ? "Reading RFID..." : "Scan RFID Tag"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
+          <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.btn} onPress={() => setShowManualEntry(true)}>
           <Text style={s.btnText}>Find Asset Manually</Text>
         </TouchableOpacity>
@@ -152,6 +279,12 @@ export default function ScanAssetScreen() {
     return (
       <View style={s.centerContainer}>
         <ActivityIndicator size="large" color="#6366F1" />
+        <TouchableOpacity style={s.secondaryBtn} onPress={startRfidScan} disabled={rfidBusy}>
+          <Text style={s.secondaryBtnText}>{rfidBusy ? "Reading RFID..." : "Scan RFID Tag"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
+          <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -166,6 +299,15 @@ export default function ScanAssetScreen() {
         </Text>
         <TouchableOpacity style={s.btn} onPress={requestPermission}>
           <Text style={s.btnText}>Grant Permission</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={startRfidScan} disabled={rfidBusy}>
+          <Text style={s.secondaryBtnText}>{rfidBusy ? "Reading RFID..." : "Scan RFID Tag"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
+          <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowManualEntry(true)}>
+          <Text style={s.secondaryBtnText}>Find Asset Manually</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={s.linkText}>Go Back</Text>
@@ -269,12 +411,20 @@ export default function ScanAssetScreen() {
           <Text style={s.topBtnText}>Back</Text>
         </TouchableOpacity>
         <Text style={s.topTitle}>Scan Asset</Text>
-        <TouchableOpacity
-          style={s.topBtn}
-          onPress={() => setShowManualEntry(true)}
-        >
-          <Text style={s.topBtnText}>Type</Text>
-        </TouchableOpacity>
+        <View style={s.topBarActions}>
+          <TouchableOpacity style={s.topBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
+            <Text style={s.topBtnText}>Reader</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.topBtn} onPress={startRfidScan} disabled={rfidBusy}>
+            <Text style={s.topBtnText}>{rfidBusy ? "Reading" : "RFID"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.topBtn}
+            onPress={() => setShowManualEntry(true)}
+          >
+            <Text style={s.topBtnText}>Type</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Center guide */}
@@ -285,7 +435,11 @@ export default function ScanAssetScreen() {
           <View style={[s.corner, { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3 }]} />
           <View style={[s.corner, { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3 }]} />
         </View>
-        <Text style={s.guideText}>Point at QR code or barcode</Text>
+        <Text style={s.guideText}>Point at QR code or barcode, or tap RFID</Text>
+        <Text style={s.readerHint}>
+          Reader: {availableReaders.find((reader) => reader.id === selectedReaderId)?.name ?? "Not selected"}
+        </Text>
+        {lastRfidValue ? <Text style={s.rfidHint}>Last RFID: {lastRfidValue}</Text> : null}
       </View>
 
       {/* Bottom */}
@@ -302,6 +456,41 @@ export default function ScanAssetScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal
+        visible={showReaderModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReaderModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Select RFID Reader</Text>
+            <Text style={s.modalSub}>Choose the adapter for your hardware.</Text>
+            {availableReaders.map((reader) => (
+              <TouchableOpacity
+                key={reader.id}
+                style={[
+                  s.readerRow,
+                  reader.id === selectedReaderId && s.readerRowActive,
+                ]}
+                onPress={() => {
+                  void onSelectReader(reader.id);
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.readerName}>{reader.name}</Text>
+                  <Text style={s.readerMeta}>{reader.manufacturer} · {reader.transport}</Text>
+                </View>
+                <Text style={s.readerSelect}>{reader.id === selectedReaderId ? "Selected" : "Use"}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowReaderModal(false)}>
+              <Text style={s.modalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -338,7 +527,19 @@ const s = StyleSheet.create({
     minWidth: 200,
     alignItems: "center",
   },
+  secondaryBtn: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#D1D5DB",
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    minWidth: 200,
+    alignItems: "center",
+  },
   btnText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+  secondaryBtnText: { color: "#111827", fontSize: 16, fontWeight: "700" },
   linkText: { color: "#6B7280", fontSize: 14, fontWeight: "600", marginTop: 8 },
 
   card: {
@@ -402,6 +603,10 @@ const s = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
+  topBarActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
   topBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -429,6 +634,89 @@ const s = StyleSheet.create({
     fontWeight: "500",
     marginTop: 16,
     textAlign: "center",
+  },
+  readerHint: {
+    color: "#E5E7EB",
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  rfidHint: {
+    color: "#E5E7EB",
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 10,
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 18,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    padding: 18,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  modalSub: {
+    marginTop: 4,
+    marginBottom: 14,
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  readerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  readerRowActive: {
+    borderColor: "#6366F1",
+    backgroundColor: "#EEF2FF",
+  },
+  readerName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  readerMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  readerSelect: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4338CA",
+  },
+  modalCloseBtn: {
+    marginTop: 10,
+    alignSelf: "flex-end",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  modalCloseText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
   },
 
   bottomBar: {

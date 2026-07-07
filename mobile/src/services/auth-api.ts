@@ -51,6 +51,20 @@ async function fetchWithTimeout(
   }
 }
 
+async function parseJsonOrThrowResponseError(res: Response, fallbackMessage: string) {
+  const raw = await res.text();
+  const contentType = res.headers.get("content-type") || "unknown";
+
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    const preview = raw.replace(/\s+/g, " ").trim().slice(0, 120);
+    throw new Error(
+      `${fallbackMessage} Server returned ${contentType} from ${res.url || "the API"} instead of JSON${preview ? `: ${preview}` : "."}`
+    );
+  }
+}
+
 async function authFetch(
   path: string,
   options: RequestInit = {},
@@ -62,6 +76,7 @@ async function authFetch(
   // multipart boundary automatically.
   const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
+    Accept: "application/json",
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string>),
   };
@@ -95,12 +110,16 @@ export async function login(
 ): Promise<LoginResponse> {
   const res = await fetchWithTimeout(`${API.BASE_URL}${API.AUTH.LOGIN}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+    },
     body: JSON.stringify({ username, password }),
   });
 
   if (!res.ok) {
-    const err = await res.json();
+    const err = await parseJsonOrThrowResponseError(res, "Login failed.");
     throw new Error(
       err.non_field_errors?.[0] ??
         err.detail ??
@@ -108,7 +127,10 @@ export async function login(
     );
   }
 
-  const data: LoginResponse = await res.json();
+  const data: LoginResponse = await parseJsonOrThrowResponseError(
+    res,
+    "Login failed."
+  );
   await storeTokens(data.tokens);
   return data;
 }
@@ -131,7 +153,11 @@ export async function refreshAccessToken(): Promise<string | null> {
 
   const res = await fetchWithTimeout(`${API.BASE_URL}${API.AUTH.TOKEN_REFRESH}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+    },
     body: JSON.stringify({ refresh }),
   });
 
@@ -140,7 +166,10 @@ export async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
-  const data = await res.json();
+  const data = await parseJsonOrThrowResponseError(
+    res,
+    "Failed to refresh access token."
+  );
   await Storage.setItemAsync(ACCESS_KEY, data.access);
   return data.access;
 }
@@ -148,7 +177,7 @@ export async function refreshAccessToken(): Promise<string | null> {
 export async function getProfile(): Promise<ProfileResponse> {
   const res = await authFetch(API.AUTH.PROFILE);
   if (!res.ok) throw new Error("Failed to fetch profile");
-  return res.json();
+  return parseJsonOrThrowResponseError(res, "Failed to fetch profile.") as Promise<ProfileResponse>;
 }
 
 export { authFetch };
