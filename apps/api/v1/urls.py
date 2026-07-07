@@ -33,6 +33,7 @@ urlpatterns = [
 
     # Asset tagging status
     path('assets/<uuid:pk>/tagging-status/', views.AssetTaggingStatusUpdateView.as_view(), name='asset-tagging-status'),
+    path('assets/<uuid:pk>/rfid-tag/', views.AssetRfidTagUpdateView.as_view(), name='asset-rfid-tag'),
 
     # Lookups (for dropdown pickers on mobile)
     path('lookups/categories/', views.CategoryListAPIView.as_view(), name='lookup-categories'),

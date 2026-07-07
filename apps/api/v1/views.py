@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import login, logout
+from django.contrib.auth import logout
 from django.db.models import Sum, Count
 from django.db.models.functions import Coalesce
 from django.core.cache import cache
@@ -90,9 +90,6 @@ class LoginAPIView(APIView):
             
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
-            
-            # Login user (for session-based as well)
-            login(request, user)
             
             return Response({
                 'user': UserSerializer(user).data,
@@ -1064,3 +1061,65 @@ class AssetTaggingStatusUpdateView(APIView):
         asset.tagging_status = new_status
         asset.save(update_fields=['tagging_status'])
         return Response({'tagging_status': asset.tagging_status})
+
+
+class AssetRfidTagUpdateView(APIView):
+    """
+    PATCH /api/v1/assets/<uuid:pk>/rfid-tag/
+    Sets or replaces the RFID tag value for an asset.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        import re as _re
+        from apps.assets.models import Asset
+
+        org = getattr(request.user, 'organization', None)
+        if not org:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            asset = Asset.objects.get(pk=pk, organization=org, is_deleted=False)
+        except Asset.DoesNotExist:
+            return Response({'detail': 'Asset not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        raw_rfid_tag = request.data.get('rfid_tag', '')
+        normalized_rfid_tag = _re.sub(r'[\s:-]+', '', str(raw_rfid_tag or '').strip()).upper()
+        normalized_rfid_tag = _re.sub(r"[\s\.,;:!\"'`]+$", '', normalized_rfid_tag)
+
+        if not normalized_rfid_tag:
+            return Response(
+                {'detail': 'rfid_tag is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        duplicate = Asset.objects.filter(
+            organization=org,
+            is_deleted=False,
+            rfid_tag__iexact=normalized_rfid_tag,
+        ).exclude(pk=asset.pk).first()
+        if duplicate:
+            return Response(
+                {
+                    'detail': f'RFID tag is already assigned to asset {duplicate.asset_tag}.',
+                    'asset_id': str(duplicate.pk),
+                    'asset_tag': duplicate.asset_tag,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        asset.rfid_tag = normalized_rfid_tag
+        if asset.tagging_status != 'TAGGED':
+            asset.tagging_status = 'TAGGED'
+            asset.save(update_fields=['rfid_tag', 'tagging_status'])
+        else:
+            asset.save(update_fields=['rfid_tag'])
+
+        return Response(
+            {
+                'id': str(asset.pk),
+                'asset_tag': asset.asset_tag,
+                'rfid_tag': asset.rfid_tag,
+                'tagging_status': asset.tagging_status,
+            }
+        )

@@ -35,6 +35,10 @@ class SuperuserOrganizationPortalMiddleware:
         if not user or not user.is_authenticated or not user.is_superuser:
             return self.get_response(request)
 
+        # API endpoints must never be redirected to HTML portals.
+        if request.path.startswith('/api/'):
+            return self.get_response(request)
+
         org_mode = bool(request.session.get('superuser_org_mode') and user.organization_id)
 
         if org_mode:
@@ -47,7 +51,6 @@ class SuperuserOrganizationPortalMiddleware:
             '/users/',
             '/assets/',
             '/locations/',
-            '/api/',
             '/admin/',
         )
 
