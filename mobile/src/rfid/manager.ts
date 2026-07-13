@@ -5,6 +5,9 @@ export class RfidManager {
   private readonly adapters = new Map<string, RfidReaderAdapter>();
   private activeAdapterId: string | null = null;
   private readonly listeners = new Set<RfidReadListener>();
+  private connected = false;
+  private scanning = false;
+  private scanSession = 0;
 
   constructor() {
     for (const adapter of buildRfidAdapterRegistry()) {
@@ -39,32 +42,71 @@ export class RfidManager {
   }
 
   async connect(): Promise<void> {
+    if (this.connected) return;
     const adapter = this.requireActiveAdapter();
     await adapter.connect();
+    this.connected = true;
   }
 
   async disconnect(): Promise<void> {
+    if (this.scanning) {
+      await this.stopScan();
+    }
+    if (!this.connected) return;
     const adapter = this.requireActiveAdapter();
     await adapter.disconnect();
+    this.connected = false;
   }
 
   async startScan(): Promise<void> {
+    if (this.scanning) return;
     const adapter = this.requireActiveAdapter();
-    await adapter.startScan((read) => {
-      const normalized: StandardRfidRead = {
-        ...read,
-        epc: (read.epc || "").trim().toUpperCase(),
-        timestamp: read.timestamp || Date.now(),
-      };
-      for (const listener of this.listeners) {
-        listener(normalized);
-      }
-    });
+
+    const session = ++this.scanSession;
+    this.scanning = true;
+
+    try {
+      await adapter.startScan((read) => {
+        if (!this.scanning || session !== this.scanSession) return;
+
+        const normalized: StandardRfidRead = {
+          ...read,
+          epc: (read.epc || "").trim().toUpperCase(),
+          timestamp: read.timestamp || Date.now(),
+        };
+
+        for (const listener of this.listeners) {
+          try {
+            listener(normalized);
+          } catch {
+            // Keep dispatching reads even if one listener throws.
+          }
+        }
+      });
+    } catch (error) {
+      this.scanning = false;
+      throw error;
+    }
   }
 
   async stopScan(): Promise<void> {
+    if (!this.scanning) {
+      return;
+    }
+
+    this.scanSession++;
+    this.scanning = false;
+
     const adapter = this.requireActiveAdapter();
     await adapter.stopScan();
+  }
+
+  isConnected(): boolean {
+    return this.connected;
+  }
+
+  isScanning(): boolean {
+    return this.scanning;
   }
 
   onRead(listener: RfidReadListener): () => void {

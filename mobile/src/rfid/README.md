@@ -16,6 +16,7 @@ This module provides a hardware-independent RFID integration layer for the mobil
 ## Current adapters
 
 - `PhoneNfcAdapter` (`adapters/phone-nfc.ts`): generic phone NFC reader path.
+- `RscjaDeviceApiUhfAdapter` (`adapters/rscja-deviceapi-uhf.ts`): Android bridge for `DeviceAPI_ver20251103_release.aar`.
 - `MockUhfAdapter` (`adapters/mock-uhf.ts`): local testing/demo adapter.
 - Vendor placeholders (`adapters/vendor-placeholders.ts`):
   - EXARK
@@ -31,6 +32,8 @@ These placeholders intentionally throw until native SDK bridges are implemented.
 2. Implement `RfidReaderAdapter` in `src/rfid/adapters/<vendor>-uhf.ts`.
 3. Normalize EPC with `normalizeEpc` from `utils/normalize.ts`.
 4. Register adapter in `registry.ts`.
+
+For the RSCJA SDK scaffold, use `src/rfid/native/README.md` for the native module contract and Expo plugin steps.
 
 ## Expo/React Native requirements
 

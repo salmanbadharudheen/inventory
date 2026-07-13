@@ -51,6 +51,21 @@ export default function ScanAssetScreen() {
   const [lastRfidValue, setLastRfidValue] = useState<string | null>(null);
   const [showReaderModal, setShowReaderModal] = useState(false);
   const processingRef = useRef(false);
+  const rfidProcessingRef = useRef(false);
+  const rfidUnsubscribeRef = useRef<(() => void) | null>(null);
+
+  const cleanupRfidSubscription = useCallback(() => {
+    rfidUnsubscribeRef.current?.();
+    rfidUnsubscribeRef.current = null;
+    rfidProcessingRef.current = false;
+  }, []);
+
+  const stopRfidScan = useCallback(async () => {
+    cleanupRfidSubscription();
+    await rfidManager.stopScan().catch(() => undefined);
+    await rfidManager.disconnect().catch(() => undefined);
+    setRfidBusy(false);
+  }, [cleanupRfidSubscription]);
 
   useEffect(() => {
     let mounted = true;
@@ -79,10 +94,11 @@ export default function ScanAssetScreen() {
 
     return () => {
       mounted = false;
+      cleanupRfidSubscription();
       rfidManager.stopScan().catch(() => undefined);
       rfidManager.disconnect().catch(() => undefined);
     };
-  }, []);
+  }, [cleanupRfidSubscription]);
 
   const navigateToDetail = useCallback((assetTag: string) => {
     router.push({
@@ -108,8 +124,7 @@ export default function ScanAssetScreen() {
 
   const onSelectReader = useCallback(async (readerId: string) => {
     try {
-      await rfidManager.stopScan().catch(() => undefined);
-      await rfidManager.disconnect().catch(() => undefined);
+      await stopRfidScan();
       rfidManager.selectReader(readerId);
       const selected = rfidManager.getSelectedReader();
       setSelectedReaderId(selected?.id ?? null);
@@ -119,7 +134,7 @@ export default function ScanAssetScreen() {
     } catch (e: any) {
       Alert.alert("Reader Selection Failed", e?.message ?? "Unable to switch RFID reader.");
     }
-  }, []);
+  }, [stopRfidScan]);
 
   const startRfidScan = useCallback(async () => {
     if (rfidBusy) return;
@@ -140,22 +155,27 @@ export default function ScanAssetScreen() {
 
     setRfidBusy(true);
     setLastRfidValue(null);
+    rfidProcessingRef.current = false;
 
     try {
-      const unsubscribe = rfidManager.onRead(async (read) => {
+      cleanupRfidSubscription();
+      rfidUnsubscribeRef.current = rfidManager.onRead((read) => {
+        if (rfidProcessingRef.current) return;
+
         const epc = normalizeRfidIdentifier(read.epc);
         if (!epc) return;
 
+        rfidProcessingRef.current = true;
         setLastRfidValue(epc);
-        try {
-          await handleRfidLookup(epc);
-        } catch {
-          Alert.alert("Unknown RFID Tag", "Asset Not Registered.");
-        } finally {
-          await rfidManager.stopScan().catch(() => undefined);
-          unsubscribe();
-          setRfidBusy(false);
-        }
+        void (async () => {
+          try {
+            await handleRfidLookup(epc);
+          } catch {
+            Alert.alert("Unknown RFID Tag", "Asset Not Registered.");
+          } finally {
+            await stopRfidScan();
+          }
+        })();
       });
 
       await rfidManager.connect();
@@ -165,13 +185,9 @@ export default function ScanAssetScreen() {
       if (!/cancel|close|dismiss|abort/i.test(message)) {
         Alert.alert("RFID Scan Failed", message || "Unable to read the RFID tag.");
       }
-      await rfidManager.stopScan().catch(() => undefined);
-      await rfidManager.disconnect().catch(() => undefined);
-      setRfidBusy(false);
-    } finally {
-      // Keep cleanup in success/error paths where listener lifecycle is controlled.
+      await stopRfidScan();
     }
-  }, [handleRfidLookup, rfidBusy, rfidSupported]);
+  }, [cleanupRfidSubscription, handleRfidLookup, rfidBusy, rfidSupported, stopRfidScan]);
 
   const handleBarcodeScanned = useCallback(
     ({ type, data }: { type: string; data: string }) => {
@@ -258,8 +274,13 @@ export default function ScanAssetScreen() {
         <TouchableOpacity style={s.btn} onPress={() => setError(null)}>
           <Text style={s.btnText}>Retry</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.secondaryBtn} onPress={startRfidScan} disabled={rfidBusy}>
-          <Text style={s.secondaryBtnText}>{rfidBusy ? "Reading RFID..." : "Scan RFID Tag"}</Text>
+        <TouchableOpacity
+          style={s.secondaryBtn}
+          onPress={() => {
+            void (rfidBusy ? stopRfidScan() : startRfidScan());
+          }}
+        >
+          <Text style={s.secondaryBtnText}>{rfidBusy ? "Stop RFID Scan" : "Scan RFID Tag"}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
           <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
@@ -279,8 +300,13 @@ export default function ScanAssetScreen() {
     return (
       <View style={s.centerContainer}>
         <ActivityIndicator size="large" color="#6366F1" />
-        <TouchableOpacity style={s.secondaryBtn} onPress={startRfidScan} disabled={rfidBusy}>
-          <Text style={s.secondaryBtnText}>{rfidBusy ? "Reading RFID..." : "Scan RFID Tag"}</Text>
+        <TouchableOpacity
+          style={s.secondaryBtn}
+          onPress={() => {
+            void (rfidBusy ? stopRfidScan() : startRfidScan());
+          }}
+        >
+          <Text style={s.secondaryBtnText}>{rfidBusy ? "Stop RFID Scan" : "Scan RFID Tag"}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
           <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
@@ -300,8 +326,13 @@ export default function ScanAssetScreen() {
         <TouchableOpacity style={s.btn} onPress={requestPermission}>
           <Text style={s.btnText}>Grant Permission</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.secondaryBtn} onPress={startRfidScan} disabled={rfidBusy}>
-          <Text style={s.secondaryBtnText}>{rfidBusy ? "Reading RFID..." : "Scan RFID Tag"}</Text>
+        <TouchableOpacity
+          style={s.secondaryBtn}
+          onPress={() => {
+            void (rfidBusy ? stopRfidScan() : startRfidScan());
+          }}
+        >
+          <Text style={s.secondaryBtnText}>{rfidBusy ? "Stop RFID Scan" : "Scan RFID Tag"}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
           <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
@@ -415,8 +446,13 @@ export default function ScanAssetScreen() {
           <TouchableOpacity style={s.topBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
             <Text style={s.topBtnText}>Reader</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.topBtn} onPress={startRfidScan} disabled={rfidBusy}>
-            <Text style={s.topBtnText}>{rfidBusy ? "Reading" : "RFID"}</Text>
+          <TouchableOpacity
+            style={s.topBtn}
+            onPress={() => {
+              void (rfidBusy ? stopRfidScan() : startRfidScan());
+            }}
+          >
+            <Text style={s.topBtnText}>{rfidBusy ? "Stop RFID" : "RFID"}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.topBtn}

@@ -42,4 +42,14 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+
+# Android native source is committed because the RFID SDK bridge lives there.
+/android/.gradle
+/android/build
+/android/app/build
+/android/app/.cxx
+
+# Local SDK support artifacts
+/vendor-sdk/API_Ver20251103/doc.rar
+/vendor-sdk/API_Ver20251103/docs
+/vendor-sdk/API_Ver20251103/aar_contents

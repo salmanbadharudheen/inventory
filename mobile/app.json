@@ -55,7 +55,8 @@
         {
           "nfcPermission": "Allow Inventory Manager to scan NFC and RFID asset tags."
         }
-      ]
+      ],
+      "./plugins/with-rscja-deviceapi-sdk"
     ],
     "extra": {
       "router": {},

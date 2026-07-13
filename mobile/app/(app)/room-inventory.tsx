@@ -39,6 +39,12 @@ export default function RoomInventoryScreen() {
   const [currentStatus, setCurrentStatus] = useState<string>("Idle");
   const seenEpcsRef = useRef(new Set<string>());
   const pendingLookupRef = useRef(new Set<string>());
+  const scanUnsubscribeRef = useRef<(() => void) | null>(null);
+
+  const clearScanSubscription = useCallback(() => {
+    scanUnsubscribeRef.current?.();
+    scanUnsubscribeRef.current = null;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -59,10 +65,11 @@ export default function RoomInventoryScreen() {
 
     return () => {
       mounted = false;
+      clearScanSubscription();
       rfidManager.stopScan().catch(() => undefined);
       rfidManager.disconnect().catch(() => undefined);
     };
-  }, []);
+  }, [clearScanSubscription]);
 
   const roomLabel = useMemo(() => room.trim() || "All rooms", [room]);
 
@@ -94,7 +101,8 @@ export default function RoomInventoryScreen() {
 
     try {
       await rfidManager.connect();
-      const unsubscribe = rfidManager.onRead((read) => {
+      clearScanSubscription();
+      scanUnsubscribeRef.current = rfidManager.onRead((read) => {
         const epc = normalizeEpc(read.epc);
         if (!epc || seenEpcsRef.current.has(epc)) return;
         seenEpcsRef.current.add(epc);
@@ -104,32 +112,25 @@ export default function RoomInventoryScreen() {
       await rfidManager.startScan();
       setScanning(true);
       setCurrentStatus("Scanning room for EPCs...");
-
-      // Keep unsubscribe cleanup tied to stop action in state via ref storage.
-      (startScan as any)._unsubscribe = unsubscribe;
     } catch (error: any) {
       Alert.alert("Scan failed", error?.message ?? "Unable to start RFID scan.");
       setCurrentStatus(error?.message ?? "Scan failed");
+      clearScanSubscription();
       await rfidManager.stopScan().catch(() => undefined);
       await rfidManager.disconnect().catch(() => undefined);
       setScanning(false);
     } finally {
       setLoadingScan(false);
     }
-  }, [loadingScan, lookupAndStore, scanning, supported]);
+  }, [clearScanSubscription, loadingScan, lookupAndStore, scanning, supported]);
 
   const stopScan = useCallback(async () => {
-    const unsubscribe = (startScan as any)._unsubscribe as (() => void) | undefined;
-    try {
-      unsubscribe?.();
-      await rfidManager.stopScan().catch(() => undefined);
-      await rfidManager.disconnect().catch(() => undefined);
-      setScanning(false);
-      setCurrentStatus("Scan stopped");
-    } finally {
-      (startScan as any)._unsubscribe = undefined;
-    }
-  }, [startScan]);
+    clearScanSubscription();
+    await rfidManager.stopScan().catch(() => undefined);
+    await rfidManager.disconnect().catch(() => undefined);
+    setScanning(false);
+    setCurrentStatus("Scan stopped");
+  }, [clearScanSubscription]);
 
   const clearResults = useCallback(() => {
     seenEpcsRef.current.clear();
