@@ -1,6 +1,6 @@
-import { UnsupportedUhfAdapter } from "./unsupported-uhf";
+import { RscjaCompatibleUhfAdapter } from "./rscja-compatible-uhf";
 
-export const exarkAdapter = new UnsupportedUhfAdapter({
+export const exarkAdapter = new RscjaCompatibleUhfAdapter({
   id: "exark-uhf",
   name: "EXARK UHF Reader",
   manufacturer: "EXARK",
@@ -8,7 +8,7 @@ export const exarkAdapter = new UnsupportedUhfAdapter({
   capabilities: { continuousScan: true, supportsRssi: true },
 });
 
-export const zebraAdapter = new UnsupportedUhfAdapter({
+export const zebraAdapter = new RscjaCompatibleUhfAdapter({
   id: "zebra-uhf",
   name: "Zebra UHF Reader",
   manufacturer: "Zebra",
@@ -16,7 +16,7 @@ export const zebraAdapter = new UnsupportedUhfAdapter({
   capabilities: { continuousScan: true, supportsRssi: true },
 });
 
-export const chainwayAdapter = new UnsupportedUhfAdapter({
+export const chainwayAdapter = new RscjaCompatibleUhfAdapter({
   id: "chainway-uhf",
   name: "Chainway UHF Reader",
   manufacturer: "Chainway",
@@ -24,7 +24,7 @@ export const chainwayAdapter = new UnsupportedUhfAdapter({
   capabilities: { continuousScan: true, supportsRssi: true },
 });
 
-export const honeywellAdapter = new UnsupportedUhfAdapter({
+export const honeywellAdapter = new RscjaCompatibleUhfAdapter({
   id: "honeywell-uhf",
   name: "Honeywell UHF Reader",
   manufacturer: "Honeywell",

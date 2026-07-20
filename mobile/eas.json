@@ -6,7 +6,10 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_RFID_ADAPTER": "rscja-deviceapi-uhf"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -14,10 +17,14 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://web-production-62fee.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://web-production-62fee.up.railway.app",
+        "EXPO_PUBLIC_RFID_ADAPTER": "rscja-deviceapi-uhf"
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_RFID_ADAPTER": "rscja-deviceapi-uhf"
+      },
       "android": {
         "buildType": "app-bundle"
       }

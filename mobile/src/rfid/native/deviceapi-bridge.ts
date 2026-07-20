@@ -17,6 +17,11 @@ type RscjaDeviceApiNativeModule = {
   startInventory: () => Promise<boolean>;
   stopInventory: () => Promise<boolean>;
   free: () => Promise<boolean>;
+  setReaderPower: (power: number) => Promise<DeviceApiPowerSetResult>;
+  getReaderPower: () => Promise<DeviceApiPowerGetResult>;
+  isSdkAvailable: () => Promise<boolean>;
+  getDebugStatus: () => Promise<DeviceApiDebugStatus>;
+  testSdkBinding: () => Promise<DeviceApiBindingTestResult>;
 };
 
 const nativeModule =
@@ -31,6 +36,36 @@ export type DeviceApiTagRead = {
   epc: string;
   rssi?: number;
   raw?: NativeTagPayload;
+};
+
+export type DeviceApiDebugStatus = {
+  initialized: boolean;
+  hasReaderInstance: boolean;
+  hasInventoryCallback: boolean;
+  readerClassAvailable: boolean;
+  callbackClassAvailable: boolean;
+  readerInstanceClass?: string;
+};
+
+export type DeviceApiBindingTestResult = {
+  ok: boolean;
+  readerClass?: string;
+  callbackClass?: string;
+  error?: string;
+};
+
+export type DeviceApiPowerSetResult = {
+  ok: boolean;
+  power?: number;
+  methodUsed?: string;
+  error?: string;
+};
+
+export type DeviceApiPowerGetResult = {
+  ok: boolean;
+  power?: number;
+  methodUsed?: string;
+  error?: string;
 };
 
 export function isDeviceApiBridgeAvailable(): boolean {
@@ -103,4 +138,29 @@ export async function stopDeviceApiInventory(): Promise<void> {
 export async function freeDeviceApiReader(): Promise<void> {
   if (!isDeviceApiBridgeAvailable() || !nativeModule) return;
   await nativeModule.free().catch(() => false);
+}
+
+export async function setDeviceApiReaderPower(power: number): Promise<DeviceApiPowerSetResult | null> {
+  if (!isDeviceApiBridgeAvailable() || !nativeModule) return null;
+  return nativeModule.setReaderPower(power).catch(() => null);
+}
+
+export async function getDeviceApiReaderPower(): Promise<DeviceApiPowerGetResult | null> {
+  if (!isDeviceApiBridgeAvailable() || !nativeModule) return null;
+  return nativeModule.getReaderPower().catch(() => null);
+}
+
+export async function isDeviceApiSdkAvailable(): Promise<boolean> {
+  if (!isDeviceApiBridgeAvailable() || !nativeModule) return false;
+  return nativeModule.isSdkAvailable().catch(() => false);
+}
+
+export async function getDeviceApiDebugStatus(): Promise<DeviceApiDebugStatus | null> {
+  if (!isDeviceApiBridgeAvailable() || !nativeModule) return null;
+  return nativeModule.getDebugStatus().catch(() => null);
+}
+
+export async function testDeviceApiSdkBinding(): Promise<DeviceApiBindingTestResult | null> {
+  if (!isDeviceApiBridgeAvailable() || !nativeModule) return null;
+  return nativeModule.testSdkBinding().catch(() => null);
 }

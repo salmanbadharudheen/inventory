@@ -1,0 +1,12 @@
+# Keep native source for RFID bridge in cloud builds
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Exclude generated native build artifacts only
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+ios/build/

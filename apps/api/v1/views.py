@@ -597,8 +597,9 @@ class AssetLookupByTagAPIView(APIView):
     """
     GET /api/v1/assets/lookup/?asset_tag=XXX
     GET /api/v1/assets/lookup/?rfid_tag=XXX
+    GET /api/v1/assets/lookup/?asset_name=XXX
     GET /api/v1/assets/lookup/?barcode_tag=XXX  (reverse-lookup by barcode_payload value)
-    Look up a single asset by its asset_tag, rfid_tag, or barcode payload (from QR/barcode scan).
+    Look up a single asset by its asset_tag, rfid_tag, asset_name, or barcode payload (from QR/barcode scan).
     """
     permission_classes = [IsAuthenticated]
 
@@ -610,16 +611,18 @@ class AssetLookupByTagAPIView(APIView):
 
         tag = request.query_params.get('asset_tag', '').strip()
         rfid_tag = request.query_params.get('rfid_tag', '').strip()
+        asset_name = request.query_params.get('asset_name', '').strip()
         barcode_tag = request.query_params.get('barcode_tag', '').strip()
 
         # Mobile scanners can append punctuation on low-quality captures.
         strip_noise = lambda s: _re.sub(r"[\s\.,;:!\"'`]+$", '', (s or '').strip())
         tag = strip_noise(tag)
         rfid_tag = strip_noise(rfid_tag)
+        asset_name = strip_noise(asset_name)
         barcode_tag = strip_noise(barcode_tag)
-        if not tag and not rfid_tag and not barcode_tag:
+        if not tag and not rfid_tag and not asset_name and not barcode_tag:
             return Response(
-                {'detail': 'asset_tag, rfid_tag, or barcode_tag query parameter is required.'},
+                {'detail': 'asset_tag, rfid_tag, asset_name, or barcode_tag query parameter is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -659,6 +662,19 @@ class AssetLookupByTagAPIView(APIView):
                 if _barcode_payload(candidate) == barcode_tag:
                     asset = candidate
                     break
+        elif asset_name:
+            asset = Asset.objects.filter(
+                organization=org,
+                is_deleted=False,
+                name__iexact=asset_name,
+            ).select_related(*_select).first()
+
+            if not asset:
+                asset = Asset.objects.filter(
+                    organization=org,
+                    is_deleted=False,
+                    name__icontains=asset_name,
+                ).select_related(*_select).first()
         else:
             asset = Asset.objects.filter(
                 organization=org,

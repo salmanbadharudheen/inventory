@@ -10,12 +10,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ScrollView,
 } from "react-native";
 import { Camera, CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
-import { lookupAssetByRfidTag } from "../../src/services/asset-api";
+import { lookupAssetByName, lookupAssetByRfidTag } from "../../src/services/asset-api";
 import { rfidManager } from "../../src/rfid";
 import type { ReaderInfo } from "../../src/rfid";
+import { runDeviceApiDiagnostics } from "../../src/rfid/native/deviceapi-diagnostics";
+import {
+  getDeviceApiReaderPower,
+  setDeviceApiReaderPower,
+} from "../../src/rfid/native/deviceapi-bridge";
+
+const READER_POWER_PRESETS = [10, 15, 20, 25, 30] as const;
 
 function normalizeScannedIdentifier(value: string, isQr: boolean): string {
   let normalized = (value || "").trim();
@@ -41,7 +49,7 @@ export default function ScanAssetScreen() {
   const [scanned, setScanned] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualValue, setManualValue] = useState("");
-  const [searchMode, setSearchMode] = useState<"tag" | "id" | "rfid">("tag");
+  const [searchMode, setSearchMode] = useState<"tag" | "id" | "rfid" | "name">("tag");
   const [cameraReady, setCameraReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableReaders, setAvailableReaders] = useState<ReaderInfo[]>([]);
@@ -50,6 +58,11 @@ export default function ScanAssetScreen() {
   const [rfidBusy, setRfidBusy] = useState(false);
   const [lastRfidValue, setLastRfidValue] = useState<string | null>(null);
   const [showReaderModal, setShowReaderModal] = useState(false);
+  const [showDebugModal, setShowDebugModal] = useState(false);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugOutput, setDebugOutput] = useState<string>("Run diagnostics to view DeviceAPI debug values.");
+  const [readerPower, setReaderPower] = useState<number | null>(null);
+  const [powerLoading, setPowerLoading] = useState(false);
   const processingRef = useRef(false);
   const rfidProcessingRef = useRef(false);
   const rfidUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -130,11 +143,83 @@ export default function ScanAssetScreen() {
       setSelectedReaderId(selected?.id ?? null);
       const supported = await rfidManager.isSelectedReaderSupported();
       setRfidSupported(supported);
+
+      if (supported) {
+        await rfidManager.connect();
+        const currentPower = await getDeviceApiReaderPower();
+        setReaderPower(currentPower?.ok ? (currentPower.power ?? null) : null);
+      } else {
+        setReaderPower(null);
+      }
+
       setShowReaderModal(false);
     } catch (e: any) {
       Alert.alert("Reader Selection Failed", e?.message ?? "Unable to switch RFID reader.");
     }
   }, [stopRfidScan]);
+
+  const refreshReaderPower = useCallback(async () => {
+    if (powerLoading || rfidBusy) return;
+
+    setPowerLoading(true);
+    try {
+      await rfidManager.connect();
+      const result = await getDeviceApiReaderPower();
+      if (!result?.ok || typeof result.power !== "number") {
+        setReaderPower(null);
+        return;
+      }
+      setReaderPower(result.power);
+    } catch {
+      setReaderPower(null);
+    } finally {
+      setPowerLoading(false);
+    }
+  }, [powerLoading, rfidBusy]);
+
+  const applyReaderPower = useCallback(async (power: number) => {
+    if (powerLoading) return;
+
+    if (rfidBusy) {
+      Alert.alert("Stop Scan First", "Stop RFID scanning before changing reader power.");
+      return;
+    }
+
+    setPowerLoading(true);
+    try {
+      await rfidManager.connect();
+      const result = await setDeviceApiReaderPower(power);
+
+      if (!result?.ok) {
+        Alert.alert(
+          "Power Update Failed",
+          result?.error ?? "This reader firmware does not expose a compatible power API."
+        );
+        return;
+      }
+
+      setReaderPower(power);
+      Alert.alert("Reader Power Updated", `RFID reader strength set to ${power} dBm.`);
+    } catch (e: any) {
+      Alert.alert("Power Update Failed", e?.message ?? "Unable to change reader strength.");
+    } finally {
+      setPowerLoading(false);
+    }
+  }, [powerLoading, rfidBusy]);
+
+  const runRfidDiagnostics = useCallback(async () => {
+    setDebugLoading(true);
+    try {
+      const diagnostics = await runDeviceApiDiagnostics();
+      setDebugOutput(JSON.stringify(diagnostics, null, 2));
+      setShowDebugModal(true);
+    } catch (err: any) {
+      setDebugOutput(`Diagnostics failed: ${String(err?.message ?? err ?? "Unknown error")}`);
+      setShowDebugModal(true);
+    } finally {
+      setDebugLoading(false);
+    }
+  }, []);
 
   const startRfidScan = useCallback(async () => {
     if (rfidBusy) return;
@@ -188,6 +273,11 @@ export default function ScanAssetScreen() {
       await stopRfidScan();
     }
   }, [cleanupRfidSubscription, handleRfidLookup, rfidBusy, rfidSupported, stopRfidScan]);
+
+  useEffect(() => {
+    if (!showReaderModal || rfidSupported !== true) return;
+    void refreshReaderPower();
+  }, [showReaderModal, rfidSupported, refreshReaderPower]);
 
   const handleBarcodeScanned = useCallback(
     ({ type, data }: { type: string; data: string }) => {
@@ -243,7 +333,16 @@ export default function ScanAssetScreen() {
   const handleManualSubmit = () => {
     const value = manualValue.trim();
     if (!value) {
-      Alert.alert("Required", searchMode === "tag" ? "Please enter an asset tag." : searchMode === "rfid" ? "Please enter an RFID tag." : "Please enter an asset ID.");
+      Alert.alert(
+        "Required",
+        searchMode === "tag"
+          ? "Please enter an asset tag."
+          : searchMode === "rfid"
+          ? "Please enter an RFID tag."
+          : searchMode === "name"
+          ? "Please enter an asset name."
+          : "Please enter an asset ID."
+      );
       return;
     }
     if (searchMode === "id") {
@@ -259,6 +358,17 @@ export default function ScanAssetScreen() {
         })
         .catch((err: any) => {
           Alert.alert("Not Found", err.message ?? "No asset found with that RFID tag.");
+        });
+    } else if (searchMode === "name") {
+      lookupAssetByName(value)
+        .then((asset) => {
+          router.push({
+            pathname: "/(app)/asset-detail",
+            params: { asset_id: asset.id, from_scan: "1" },
+          });
+        })
+        .catch((err: any) => {
+          Alert.alert("Not Found", err.message ?? "No asset found with that name.");
         });
     } else {
       navigateToDetail(value);
@@ -284,6 +394,9 @@ export default function ScanAssetScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
           <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => { void runRfidDiagnostics(); }} disabled={debugLoading}>
+          <Text style={s.secondaryBtnText}>{debugLoading ? "Running Debug..." : "RFID Debug"}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.btn} onPress={() => setShowManualEntry(true)}>
           <Text style={s.btnText}>Find Asset Manually</Text>
@@ -311,6 +424,9 @@ export default function ScanAssetScreen() {
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
           <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => { void runRfidDiagnostics(); }} disabled={debugLoading}>
+          <Text style={s.secondaryBtnText}>{debugLoading ? "Running Debug..." : "RFID Debug"}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -336,6 +452,9 @@ export default function ScanAssetScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowReaderModal(true)} disabled={rfidBusy}>
           <Text style={s.secondaryBtnText}>Select RFID Reader</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryBtn} onPress={() => { void runRfidDiagnostics(); }} disabled={debugLoading}>
+          <Text style={s.secondaryBtnText}>{debugLoading ? "Running Debug..." : "RFID Debug"}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => setShowManualEntry(true)}>
           <Text style={s.secondaryBtnText}>Find Asset Manually</Text>
@@ -383,6 +502,14 @@ export default function ScanAssetScreen() {
                 RFID Tag
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.toggleBtn, searchMode === "name" && s.toggleBtnActive]}
+              onPress={() => { setSearchMode("name"); setManualValue(""); }}
+            >
+              <Text style={[s.toggleBtnText, searchMode === "name" && s.toggleBtnTextActive]}>
+                Name
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={s.subtitle}>
@@ -390,6 +517,8 @@ export default function ScanAssetScreen() {
               ? "Type the asset tag printed below the barcode"
               : searchMode === "rfid"
               ? "Enter the RFID tag number (e.g. E20034120123456789ABCDEF)"
+              : searchMode === "name"
+              ? "Enter the asset name (partial name also works)"
               : "Enter the numeric/UUID asset ID"}
           </Text>
 
@@ -397,9 +526,9 @@ export default function ScanAssetScreen() {
             style={s.input}
             value={manualValue}
             onChangeText={setManualValue}
-            placeholder={searchMode === "tag" ? "e.g. ABC-0001-26" : searchMode === "rfid" ? "e.g. E20034120123456789ABCDEF" : "e.g. 1042 or UUID"}
+            placeholder={searchMode === "tag" ? "e.g. ABC-0001-26" : searchMode === "rfid" ? "e.g. E20034120123456789ABCDEF" : searchMode === "name" ? "e.g. Dell Laptop" : "e.g. 1042 or UUID"}
             placeholderTextColor="#9CA3AF"
-            autoCapitalize={searchMode === "tag" || searchMode === "rfid" ? "characters" : "none"}
+            autoCapitalize={searchMode === "tag" || searchMode === "rfid" ? "characters" : "words"}
             autoCorrect={false}
             autoFocus
             returnKeyType="search"
@@ -460,6 +589,15 @@ export default function ScanAssetScreen() {
           >
             <Text style={s.topBtnText}>Type</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={s.topBtn}
+            onPress={() => {
+              void runRfidDiagnostics();
+            }}
+            disabled={debugLoading}
+          >
+            <Text style={s.topBtnText}>{debugLoading ? "..." : "Debug"}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -476,6 +614,15 @@ export default function ScanAssetScreen() {
           Reader: {availableReaders.find((reader) => reader.id === selectedReaderId)?.name ?? "Not selected"}
         </Text>
         {lastRfidValue ? <Text style={s.rfidHint}>Last RFID: {lastRfidValue}</Text> : null}
+        <TouchableOpacity
+          style={s.debugQuickBtn}
+          onPress={() => {
+            void runRfidDiagnostics();
+          }}
+          disabled={debugLoading}
+        >
+          <Text style={s.debugQuickBtnText}>{debugLoading ? "Running Debug..." : "RFID Debug"}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Bottom */}
@@ -521,9 +668,83 @@ export default function ScanAssetScreen() {
                 <Text style={s.readerSelect}>{reader.id === selectedReaderId ? "Selected" : "Use"}</Text>
               </TouchableOpacity>
             ))}
+
+            <View style={s.powerCard}>
+              <Text style={s.powerTitle}>Reader Strength (Power)</Text>
+              <Text style={s.powerSub}>
+                Current: {readerPower != null ? `${readerPower} dBm` : "Unavailable"}
+              </Text>
+              <View style={s.powerPresetRow}>
+                {READER_POWER_PRESETS.map((power) => (
+                  <TouchableOpacity
+                    key={power}
+                    style={[
+                      s.powerPresetBtn,
+                      readerPower === power && s.powerPresetBtnActive,
+                    ]}
+                    onPress={() => {
+                      void applyReaderPower(power);
+                    }}
+                    disabled={powerLoading}
+                  >
+                    <Text
+                      style={[
+                        s.powerPresetText,
+                        readerPower === power && s.powerPresetTextActive,
+                      ]}
+                    >
+                      {power}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={s.powerRefreshBtn}
+                onPress={() => {
+                  void refreshReaderPower();
+                }}
+                disabled={powerLoading}
+              >
+                <Text style={s.powerRefreshText}>{powerLoading ? "Refreshing..." : "Refresh Power"}</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowReaderModal(false)}>
               <Text style={s.modalCloseText}>Close</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showDebugModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDebugModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>RFID Debug Values</Text>
+            <Text style={s.modalSub}>These values come from the native DeviceAPI bridge in this build.</Text>
+            <View style={s.debugPanel}>
+              <ScrollView style={s.debugScroll}>
+                <Text style={s.debugText}>{debugOutput}</Text>
+              </ScrollView>
+            </View>
+            <View style={s.debugActionsRow}>
+              <TouchableOpacity
+                style={s.modalCloseBtn}
+                onPress={() => {
+                  void runRfidDiagnostics();
+                }}
+                disabled={debugLoading}
+              >
+                <Text style={s.modalCloseText}>{debugLoading ? "Running..." : "Refresh"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowDebugModal(false)}>
+                <Text style={s.modalCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -641,7 +862,10 @@ const s = StyleSheet.create({
   },
   topBarActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
     gap: 8,
+    maxWidth: "62%",
   },
   topBtn: {
     paddingHorizontal: 14,
@@ -685,6 +909,19 @@ const s = StyleSheet.create({
     marginTop: 10,
     textAlign: "center",
     paddingHorizontal: 24,
+  },
+  debugQuickBtn: {
+    marginTop: 12,
+    backgroundColor: "rgba(99,102,241,0.9)",
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  debugQuickBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   modalOverlay: {
     flex: 1,
@@ -741,6 +978,65 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: "#4338CA",
   },
+  powerCard: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+  },
+  powerTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  powerSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  powerPresetRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  powerPresetBtn: {
+    minWidth: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+  },
+  powerPresetBtnActive: {
+    borderColor: "#6366F1",
+    backgroundColor: "#EEF2FF",
+  },
+  powerPresetText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
+  },
+  powerPresetTextActive: {
+    color: "#4338CA",
+  },
+  powerRefreshBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#EEF2FF",
+  },
+  powerRefreshText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4338CA",
+  },
   modalCloseBtn: {
     marginTop: 10,
     alignSelf: "flex-end",
@@ -753,6 +1049,29 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: "#111827",
+  },
+  debugPanel: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    backgroundColor: "#F9FAFB",
+    maxHeight: 260,
+    padding: 10,
+  },
+  debugScroll: {
+    maxHeight: 240,
+  },
+  debugText: {
+    fontFamily: Platform.select({ ios: "Courier", android: "monospace", default: "monospace" }),
+    fontSize: 12,
+    color: "#111827",
+    lineHeight: 18,
+  },
+  debugActionsRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
   },
 
   bottomBar: {

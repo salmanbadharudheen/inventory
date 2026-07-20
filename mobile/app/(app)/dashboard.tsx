@@ -227,14 +227,14 @@ export default function DashboardScreen() {
               <Text style={st.quickLabel}>RFID Scan</Text>
               <Text style={st.quickSub}>Live EPCs</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/add-asset")}>
+            <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/assets-list")}>
               <View style={[st.quickIconWrap, { backgroundColor: C.successSoft }]}>
                 <View style={[st.quickIconInner, { backgroundColor: C.success }]}>
-                  <Text style={st.quickIconText}>+</Text>
+                  <Text style={st.quickIconText}>L</Text>
                 </View>
               </View>
-              <Text style={st.quickLabel}>Add Asset</Text>
-              <Text style={st.quickSub}>Create new</Text>
+              <Text style={st.quickLabel}>Asset List</Text>
+              <Text style={st.quickSub}>View all</Text>
             </TouchableOpacity>
           </View>
 

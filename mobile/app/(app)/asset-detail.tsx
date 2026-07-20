@@ -30,6 +30,7 @@ import {
 } from "../../src/services/asset-api";
 import type { AssetAttachment, AssetDetail, AttachmentType } from "../../src/types/api";
 import API from "../../src/config/api";
+import { rfidManager } from "../../src/rfid";
 import NfcManager, { Ndef, NfcTech } from "react-native-nfc-manager";
 
 const C = {
@@ -133,37 +134,61 @@ export default function AssetDetailScreen() {
   const [uploadDesc, setUploadDesc] = useState("");
   const [pendingFile, setPendingFile] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [rfidSupported, setRfidSupported] = useState<boolean | null>(null);
+  const [rfidMode, setRfidMode] = useState<"uhf" | "nfc" | "none">("none");
   const [rfidBusy, setRfidBusy] = useState(false);
   const [showRfidModal, setShowRfidModal] = useState(false);
   const [rfidInput, setRfidInput] = useState("");
+  const uhfUnsubscribeRef = useRef<(() => void) | null>(null);
+  const uhfTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cleanupUhfScan = useCallback(async () => {
+    uhfUnsubscribeRef.current?.();
+    uhfUnsubscribeRef.current = null;
+    if (uhfTimeoutRef.current) {
+      clearTimeout(uhfTimeoutRef.current);
+      uhfTimeoutRef.current = null;
+    }
+    await rfidManager.stopScan().catch(() => undefined);
+    await rfidManager.disconnect().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
     if (Platform.OS === "web") {
-      setRfidSupported(false);
+      setRfidMode("none");
       return;
     }
 
     (async () => {
       try {
-        const supported = await NfcManager.isSupported();
+        const uhfSupported = await rfidManager.isSelectedReaderSupported().catch(() => false);
         if (!mounted) return;
-        setRfidSupported(supported);
-        if (supported) {
-          await NfcManager.start();
+        if (uhfSupported) {
+          setRfidMode("uhf");
+          return;
         }
+
+        const nfcSupported = await NfcManager.isSupported().catch(() => false);
+        if (!mounted) return;
+        if (nfcSupported) {
+          await NfcManager.start();
+          setRfidMode("nfc");
+          return;
+        }
+
+        setRfidMode("none");
       } catch {
-        if (mounted) setRfidSupported(false);
+        if (mounted) setRfidMode("none");
       }
     })();
 
     return () => {
       mounted = false;
+      void cleanupUhfScan();
       NfcManager.cancelTechnologyRequest().catch(() => undefined);
     };
-  }, []);
+  }, [cleanupUhfScan]);
 
   const load = useCallback(
     async (silent = false) => {
@@ -351,16 +376,70 @@ export default function AssetDetailScreen() {
   const scanAndSaveRfid = useCallback(async () => {
     if (!asset || rfidBusy) return;
 
-    if (Platform.OS === "web" || rfidSupported === false) {
+    if (Platform.OS === "web" || rfidMode === "none") {
       Alert.alert(
         "RFID Not Available",
-        "RFID scanning requires a physical device with NFC and a development or production build of the app."
+        "RFID scanning requires a compatible reader on this device and a development or production build of the app."
       );
       return;
     }
 
     setRfidBusy(true);
     try {
+      if (rfidMode === "uhf") {
+        const selected = rfidManager.getSelectedReader();
+        if (!selected) {
+          throw new Error("No RFID reader is selected.");
+        }
+
+        await cleanupUhfScan();
+        await rfidManager.connect();
+
+        await new Promise<void>((resolve, reject) => {
+          let settled = false;
+          const finish = (fn: () => void) => {
+            if (settled) return;
+            settled = true;
+            fn();
+          };
+
+          uhfUnsubscribeRef.current = rfidManager.onRead((read) => {
+            const epc = normalizeRfidIdentifier(read.epc);
+            if (!epc) return;
+
+            finish(() => {
+              void (async () => {
+                try {
+                  await saveRfidTag(epc);
+                  Alert.alert("RFID Saved", `RFID tag ${epc} was assigned to ${asset.asset_tag}.`);
+                  resolve();
+                } catch (e: any) {
+                  reject(e instanceof Error ? e : new Error(String(e?.message ?? e ?? "Failed to save RFID tag.")));
+                } finally {
+                  await cleanupUhfScan();
+                }
+              })();
+            });
+          });
+
+          uhfTimeoutRef.current = setTimeout(() => {
+            finish(() => {
+              void cleanupUhfScan();
+              reject(new Error("No RFID tag detected. Move the scanner closer and try again."));
+            });
+          }, 10000);
+
+          void rfidManager.startScan().catch((e) => {
+            finish(() => {
+              void cleanupUhfScan();
+              reject(e instanceof Error ? e : new Error("Unable to start RFID scan."));
+            });
+          });
+        });
+
+        return;
+      }
+
       const enabled = await NfcManager.isEnabled().catch(() => true);
       if (!enabled) {
         if (Platform.OS === "android") {
@@ -399,9 +478,10 @@ export default function AssetDetailScreen() {
       }
     } finally {
       setRfidBusy(false);
+      await cleanupUhfScan();
       NfcManager.cancelTechnologyRequest().catch(() => undefined);
     }
-  }, [asset, rfidBusy, rfidSupported, saveRfidTag]);
+  }, [asset, cleanupUhfScan, rfidBusy, rfidMode, saveRfidTag]);
 
   const submitManualRfid = useCallback(async () => {
     const normalized = normalizeRfidIdentifier(rfidInput);
@@ -596,8 +676,10 @@ export default function AssetDetailScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            {rfidSupported === false ? (
-              <Text style={styles.rfidHint}>RFID scanning is available on native devices with NFC. You can still type the tag manually.</Text>
+            {rfidMode === "none" ? (
+              <Text style={styles.rfidHint}>RFID scanning is unavailable on this device/reader. You can still type the tag manually.</Text>
+            ) : rfidMode === "uhf" ? (
+              <Text style={styles.rfidHint}>Using integrated UHF reader mode.</Text>
             ) : null}
           </View>
 

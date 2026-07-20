@@ -90,6 +90,19 @@ export async function lookupAssetByRfidTag(
   return res.json();
 }
 
+export async function lookupAssetByName(
+  assetName: string
+): Promise<AssetDetail> {
+  const url = `${API.ASSETS.LOOKUP}?asset_name=${encodeURIComponent(assetName)}`;
+  const res = await authFetch(url);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("Asset not found");
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? "Failed to look up asset by name");
+  }
+  return res.json();
+}
+
 export async function getAssetDetail(id: string): Promise<AssetDetail> {
   const url = `${API.ASSETS.DETAIL}${id}/`;
   const res = await authFetch(url);
