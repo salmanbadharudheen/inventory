@@ -2252,7 +2252,8 @@ class AssetImportView(LoginRequiredMixin, FormView):
             'sub_locations': set(),
         }
 
-        new_subcategories = set()
+        new_subcategories = []
+        new_subcategories_seen = set()
         for row in rows:
             cat_val = str(row.get('category') or '').strip()
             category = None
@@ -2265,11 +2266,16 @@ class AssetImportView(LoginRequiredMixin, FormView):
             sub_val = str(row.get('sub_category') or '').strip()
             if sub_val:
                 if category:
-                    if (category.id, sub_val.lower()) not in subcategories_by_category:
-                        new_subcategories.add((cat_val, sub_val))
+                    sub_key = (category.id, sub_val.lower())
+                    if sub_key not in subcategories_by_category and sub_key not in new_subcategories_seen:
+                        new_subcategories.append((cat_val, sub_val))
+                        new_subcategories_seen.add(sub_key)
                 else:
                     # Category is new or not yet known, so the subcategory is effectively new
-                    new_subcategories.add((cat_val, sub_val))
+                    sub_key = (cat_val.lower(), sub_val.lower())
+                    if sub_key not in new_subcategories_seen:
+                        new_subcategories.append((cat_val, sub_val))
+                        new_subcategories_seen.add(sub_key)
 
             grp_val = str(row.get('group') or '').strip()
             if grp_val and not groups.get(grp_val.lower()):
@@ -2334,7 +2340,7 @@ class AssetImportView(LoginRequiredMixin, FormView):
         if new_subcategories:
             new_entities['subcategories'] = [
                 {'category': cat, 'sub_category': sub}
-                for cat, sub in sorted(new_subcategories)
+                for cat, sub in new_subcategories
             ]
 
         # Filter out empty sets and keep category-aware subcategories
@@ -2491,9 +2497,17 @@ class AssetImportView(LoginRequiredMixin, FormView):
                             break
 
                 if parent_cat and name:
-                    SubCategory.objects.get_or_create(
-                        organization=org, category=parent_cat, name=name
-                    )
+                    normalized_name = str(name).strip()
+                    existing_subcategory = SubCategory.objects.filter(
+                        category=parent_cat,
+                        name__iexact=normalized_name,
+                    ).first()
+                    if not existing_subcategory:
+                        SubCategory.objects.create(
+                            organization=org,
+                            category=parent_cat,
+                            name=normalized_name,
+                        )
 
         if 'brands' in selected_set:
             for name in new_entities.get('brands', []):
