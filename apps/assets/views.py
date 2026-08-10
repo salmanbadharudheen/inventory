@@ -2212,7 +2212,10 @@ class AssetImportView(LoginRequiredMixin, FormView):
         """Scan rows and return sets of entity names that don't exist in the system."""
         categories_by_code = self._build_cache(Category, 'code', org)
         categories_by_name = self._build_cache(Category, 'name', org)
-        subcategories = self._build_cache(SubCategory, 'name', org)
+        subcategories_by_category = {
+            (obj.category_id, str(obj.name).strip().lower())
+            for obj in SubCategory.objects.filter(organization=org).only('category_id', 'name')
+        }
         groups = self._build_cache(Group, 'name', org)
         subgroups = self._build_cache(SubGroup, 'name', org)
         brands = self._build_cache(Brand, 'name', org)
@@ -2249,14 +2252,24 @@ class AssetImportView(LoginRequiredMixin, FormView):
             'sub_locations': set(),
         }
 
+        new_subcategories = set()
         for row in rows:
             cat_val = str(row.get('category') or '').strip()
-            if cat_val and not (categories_by_code.get(cat_val.lower()) or categories_by_name.get(cat_val.lower())):
+            category = None
+            if cat_val:
+                category = categories_by_code.get(cat_val.lower()) or categories_by_name.get(cat_val.lower())
+
+            if cat_val and not category:
                 new_entities['categories'].add(cat_val)
 
             sub_val = str(row.get('sub_category') or '').strip()
-            if sub_val and not subcategories.get(sub_val.lower()):
-                new_entities['subcategories'].add(sub_val)
+            if sub_val:
+                if category:
+                    if (category.id, sub_val.lower()) not in subcategories_by_category:
+                        new_subcategories.add((cat_val, sub_val))
+                else:
+                    # Category is new or not yet known, so the subcategory is effectively new
+                    new_subcategories.add((cat_val, sub_val))
 
             grp_val = str(row.get('group') or '').strip()
             if grp_val and not groups.get(grp_val.lower()):
@@ -2318,8 +2331,14 @@ class AssetImportView(LoginRequiredMixin, FormView):
             if sub_location_val and not sub_locations.get(sub_location_val.lower()):
                 new_entities['sub_locations'].add(sub_location_val)
 
-        # Filter out empty sets
-        return {k: sorted(v) for k, v in new_entities.items() if v}
+        if new_subcategories:
+            new_entities['subcategories'] = [
+                {'category': cat, 'sub_category': sub}
+                for cat, sub in sorted(new_subcategories)
+            ]
+
+        # Filter out empty sets and keep category-aware subcategories
+        return {k: sorted(v) if k != 'subcategories' else v for k, v in new_entities.items() if v}
 
     def form_valid(self, form):
         import_file = form.cleaned_data['import_file']
@@ -2441,21 +2460,37 @@ class AssetImportView(LoginRequiredMixin, FormView):
                     obj.save()
 
         if 'subcategories' in selected_set:
-            for name in new_entities.get('subcategories', []):
+            for item in new_entities.get('subcategories', []):
+                if isinstance(item, dict):
+                    name = item.get('sub_category')
+                    cat_val = item.get('category')
+                else:
+                    name = item
+                    cat_val = None
+
                 if not _validate_entity_name(SubCategory, 'Sub-category', name):
                     continue
+
                 parent_cat = None
-                for row in rows:
-                    if str(row.get('sub_category') or '').strip().lower() == name.lower():
-                        cat_val = str(row.get('category') or '').strip()
-                        if cat_val:
-                            parent_cat = Category.objects.filter(
-                                organization=org
-                            ).filter(
-                                models.Q(name__iexact=cat_val) | models.Q(code__iexact=cat_val)
-                            ).first()
-                        break
-                if parent_cat:
+                if cat_val:
+                    parent_cat = Category.objects.filter(
+                        organization=org
+                    ).filter(
+                        models.Q(name__iexact=cat_val) | models.Q(code__iexact=cat_val)
+                    ).first()
+                else:
+                    for row in rows:
+                        if str(row.get('sub_category') or '').strip().lower() == str(name).strip().lower():
+                            cat_val = str(row.get('category') or '').strip()
+                            if cat_val:
+                                parent_cat = Category.objects.filter(
+                                    organization=org
+                                ).filter(
+                                    models.Q(name__iexact=cat_val) | models.Q(code__iexact=cat_val)
+                                ).first()
+                            break
+
+                if parent_cat and name:
                     SubCategory.objects.get_or_create(
                         organization=org, category=parent_cat, name=name
                     )
@@ -2664,7 +2699,9 @@ class AssetImportView(LoginRequiredMixin, FormView):
         # Asset-specific master data
         categories_by_code = build_cache(Category, 'code')
         categories_by_name = build_cache(Category, 'name')
-        subcategories = build_cache(SubCategory, 'name')
+        subcategories = {}
+        for obj in SubCategory.objects.filter(organization=org).select_related('category').only('category_id', 'name'):
+            subcategories[(obj.category_id, str(obj.name).strip().lower())] = obj
         groups = build_cache(Group, 'name')
         subgroups = build_cache(SubGroup, 'name')
         brands = build_cache(Brand, 'name')
@@ -2853,7 +2890,12 @@ class AssetImportView(LoginRequiredMixin, FormView):
                 label_type = get_choice(row.get('label_type'), Asset.LabelType, Asset.LabelType.BARCODE)
 
                 # 3. Master Data Lookups (from cache)
-                sub_category = get_from_cache(subcategories, row.get('sub_category'))
+                def get_subcategory(category, value):
+                    if not category or value is None:
+                        return None
+                    return subcategories.get((category.id, str(value).strip().lower()))
+
+                sub_category = get_subcategory(category, row.get('sub_category'))
                 group = get_from_cache(groups, row.get('group'))
                 sub_group = get_from_cache(subgroups, row.get('sub_group'))
                 brand_new = get_from_cache(brands, row.get('brand'))

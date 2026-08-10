@@ -70,7 +70,11 @@
                     <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-left: 2.25rem;">
                         {% for item in new_entities.subcategories %}
                         <span style="background: white; border: 1px solid #BBF7D0; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500;">
-                            {{ item }}
+                            {% if item.category %}
+                                {{ item.category }} &raquo; {{ item.sub_category }}
+                            {% else %}
+                                {{ item.sub_category }}
+                            {% endif %}
                         </span>
                         {% endfor %}
                     </div>
