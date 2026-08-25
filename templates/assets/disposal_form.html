@@ -881,6 +881,53 @@
     padding: 16px 18px;
 }
 
+.disposal-asset-card .search-row {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+}
+
+.disposal-asset-card .search-wrap {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.disposal-asset-card .asset-picker-search {
+    height: 38px;
+    line-height: 18px;
+}
+
+.disposal-asset-card #asset-select-all {
+    flex: 0 0 108px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s, color .15s;
+}
+
+.disposal-asset-card #asset-select-all:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #111827;
+}
+
+.disposal-asset-card #asset-select-all:focus-visible,
+.disposal-asset-card #asset-clear-selected:focus-visible {
+    outline: 2px solid #a5b4fc;
+    outline-offset: 2px;
+}
+
 .disposal-asset-card .asset-picker-search-wrap svg {
     position: absolute;
     left: 11px;
@@ -1054,6 +1101,11 @@
     }
 
     .disposal-asset-card .search-row .btn-load {
+        width: 100%;
+    }
+
+    .disposal-asset-card #asset-select-all {
+        flex-basis: auto;
         width: 100%;
     }
 
