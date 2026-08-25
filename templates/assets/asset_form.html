@@ -402,17 +402,18 @@ Add New Asset
         resultSpan.style.color = '#334155';
       }
 
-      fetch(`/assets/ajax/lookup/?q=${encodeURIComponent(code)}`)
+      fetch(`{% url 'asset-lookup' %}?q=${encodeURIComponent(code)}`)
         .then(response => {
           if (!response.ok) throw new Error("Not found");
           return response.json();
         })
         .then(data => {
-          if (data && data.id) {
-            if (idInput) idInput.value = data.id;
-            if (descInput) descInput.value = data.name || '';
+          const asset = data && (data.asset || data);
+          if (asset && asset.id) {
+            if (idInput) idInput.value = asset.id;
+            if (descInput) descInput.value = asset.name || '';
             if (resultSpan) {
-              resultSpan.innerText = "Found: " + (data.name || '');
+              resultSpan.innerText = "Found: " + (asset.name || '');
               resultSpan.style.color = 'green';
             }
           } else {
