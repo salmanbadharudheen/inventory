@@ -810,15 +810,15 @@
 }
 
 .form-card {
-    border-color: #e5e7eb;
-    border-radius: 12px;
-    padding: 18px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .07);
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
 }
 
 .section-title {
     color: #4338ca;
-    margin-top: 14px;
+    margin: 0 0 12px;
 }
 
 .field-group input,
@@ -838,7 +838,7 @@
     position: sticky;
     bottom: 0;
     z-index: 2;
-    margin: 0 -18px -18px;
+    margin: 24px 0 0;
     padding: 12px 18px;
     background: rgba(255, 255, 255, .95);
     border-top-color: #e5e7eb;
@@ -854,7 +854,7 @@
 }
 
 .disposal-asset-card {
-    margin: 0 -1px 0;
+    margin: 0 0 18px;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, .07);
@@ -932,6 +932,47 @@
     white-space: nowrap;
 }
 
+.selected-assets-box {
+    max-height: 280px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .04);
+}
+
+.selected-asset-row {
+    min-height: 38px;
+    padding: 9px 13px;
+    border-bottom-color: #f3f4f6;
+}
+
+.selected-asset-tag {
+    font-size: 12px;
+    color: #111827;
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+.selected-asset-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.disposal-asset-card .asset-picker-tip {
+    padding: 24px 16px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.disposal-asset-card .asset-picker-footer .asset-picker-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+}
+
 .transfer-style-picker {
     padding: 0;
     border: 0;
@@ -1006,6 +1047,28 @@
     .disposal-step strong {
         display: none;
     }
+
+    .disposal-asset-card .search-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .disposal-asset-card .search-row .btn-load {
+        width: 100%;
+    }
+
+    .disposal-asset-card .asset-checkbox-item {
+        grid-template-columns: 20px 1fr;
+    }
+
+    .disposal-asset-card .a-meta {
+        display: none;
+    }
+
+    .disposal-asset-card .asset-picker-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
 }
 </style>
 
@@ -1019,10 +1082,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchEl = document.getElementById('asset-picker-search');
     const clearBtn = document.getElementById('asset-clear-selected');
     const selectAllBtn = document.getElementById('asset-select-all');
-    const masterCheckbox = document.getElementById('asset-master-checkbox');
     const countEl = document.getElementById('asset-picker-count-label');
     const badgeEl = document.getElementById('asset-picker-count');
-    const visibleEl = document.getElementById('asset-picker-visible');
     const noMatchEl = document.getElementById('asset-picker-no-match');
     const loadingEl = document.getElementById('asset-picker-loading');
 
@@ -1047,12 +1108,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getVisibleRows() {
         return Array.from(listEl.querySelectorAll('.asset-checkbox-item'));
-    }
-
-    function getVisibleCheckboxes() {
-        return getVisibleRows()
-            .map(item => item.querySelector('.asset-checkbox-input'))
-            .filter(Boolean);
     }
 
     function syncRowSelectedState() {
@@ -1081,22 +1136,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderSelectionCount() {
-        const visible = getVisibleCheckboxes();
-        const visibleChecked = visible.filter(cb => selectedSet.has(cb.value)).length;
-
         if (countEl) {
             countEl.textContent = `${selectedSet.size} selected`;
         }
         if (badgeEl) {
             badgeEl.textContent = selectedSet.size;
             badgeEl.style.display = selectedSet.size ? '' : 'none';
-        }
-        if (visibleEl) {
-            visibleEl.textContent = `${visible.length} visible`;
-        }
-        if (masterCheckbox) {
-            masterCheckbox.checked = visible.length > 0 && visibleChecked === visible.length;
-            masterCheckbox.indeterminate = visibleChecked > 0 && visibleChecked < visible.length;
         }
         syncRowSelectedState();
         syncHiddenSelectedInputs();
@@ -1178,20 +1223,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
             fetchAssets('');
-        });
-    }
-
-    if (masterCheckbox) {
-        masterCheckbox.addEventListener('change', function() {
-            const targetState = !!masterCheckbox.checked;
-            getVisibleCheckboxes().forEach(cb => {
-                if (targetState) {
-                    selectedSet.add(cb.value);
-                } else {
-                    selectedSet.delete(cb.value);
-                }
-            });
-            renderSelectionCount();
         });
     }
 
