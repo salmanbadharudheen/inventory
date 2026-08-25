@@ -12,6 +12,14 @@
         <p class="form-subtitle">{% if form.instance.pk %}Update disposal request details for this transaction.{% else %}Submit disposal requests with complete details for faster review and approval.{% endif %}</p>
     </div>
 
+    <div class="disposal-steps" aria-label="Disposal request steps">
+        <div class="disposal-step is-active"><span>1</span><strong>Assets</strong></div>
+        <div class="disposal-step-line"></div>
+        <div class="disposal-step"><span>2</span><strong>Details</strong></div>
+        <div class="disposal-step-line"></div>
+        <div class="disposal-step"><span>3</span><strong>Approval</strong></div>
+    </div>
+
     <div class="form-grid">
         <!-- Form Column -->
         <div class="form-main">
@@ -722,6 +730,140 @@
 
     .form-actions {
         flex-direction: column;
+    }
+}
+</style>
+
+<style>
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+}
+
+.hero-panel {
+    margin-bottom: 22px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.hero-panel h1 {
+    font-size: 20px;
+    margin: 8px 0 2px;
+}
+
+.form-subtitle {
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.btn-back-link {
+    color: #6366f1;
+    border-color: #c7d2fe;
+    border-radius: 6px;
+    background: #eef2ff;
+    font-size: 12px;
+    padding: 5px 9px;
+}
+
+.btn-back-link:hover {
+    background: #dde4fd;
+}
+
+.disposal-steps {
+    display: flex;
+    align-items: center;
+    margin-bottom: 22px;
+}
+
+.disposal-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.disposal-step span {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    font-weight: 700;
+}
+
+.disposal-step.is-active {
+    color: #6366f1;
+}
+
+.disposal-step.is-active span {
+    background: #6366f1;
+    color: #fff;
+    box-shadow: 0 0 0 3px #eef2ff;
+}
+
+.disposal-step-line {
+    height: 2px;
+    flex: 1;
+    margin: 0 6px;
+    background: #e5e7eb;
+}
+
+.form-card {
+    border-color: #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .07);
+}
+
+.section-title {
+    color: #4338ca;
+    margin-top: 14px;
+}
+
+.field-group input,
+.field-group select,
+.field-group textarea {
+    border-color: #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    padding: 9px 11px;
+}
+
+.field-group textarea {
+    min-height: 70px;
+}
+
+.form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -18px -18px;
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, .95);
+    border-top-color: #e5e7eb;
+    backdrop-filter: blur(6px);
+}
+
+.form-actions .btn-primary {
+    background: #6366f1;
+}
+
+.form-actions .btn-primary:hover {
+    background: #4f46e5;
+}
+
+@media (max-width: 640px) {
+    .disposal-step strong {
+        display: none;
     }
 }
 </style>
