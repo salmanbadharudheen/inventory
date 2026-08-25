@@ -112,12 +112,14 @@ def lookup_asset(request):
             asset = None
 
     elif asset_tag:
-        # Search by asset tag, asset code, ERP number, RFID (exact) then partial
+        # Search by asset identifiers (exact) then partial.
         asset = Asset.objects.filter(
             Q(asset_tag__iexact=asset_tag) |
+            Q(custom_asset_tag__iexact=asset_tag) |
             Q(asset_code__iexact=asset_tag) |
             Q(erp_asset_number__iexact=asset_tag) |
-            Q(rfid_tag__iexact=asset_tag),
+            Q(rfid_tag__iexact=asset_tag) |
+            Q(barcode_payload_value__iexact=asset_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -129,8 +131,10 @@ def lookup_asset(request):
             # Partial match fallback
             asset = Asset.objects.filter(
                 Q(asset_tag__icontains=asset_tag) |
+                Q(custom_asset_tag__icontains=asset_tag) |
                 Q(asset_code__icontains=asset_tag) |
                 Q(rfid_tag__icontains=asset_tag) |
+                Q(barcode_payload_value__icontains=asset_tag) |
                 Q(name__icontains=asset_tag),
                 organization=org
             ).select_related(
@@ -142,7 +146,9 @@ def lookup_asset(request):
     elif rfid_tag:
         asset = Asset.objects.filter(
             Q(rfid_tag__iexact=rfid_tag) |
-            Q(asset_tag__iexact=rfid_tag),
+            Q(asset_tag__iexact=rfid_tag) |
+            Q(custom_asset_tag__iexact=rfid_tag) |
+            Q(barcode_payload_value__iexact=rfid_tag),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
@@ -154,9 +160,11 @@ def lookup_asset(request):
         # Prioritize exact match on tags, then partial on name
         asset = Asset.objects.filter(
             Q(asset_tag__iexact=query) |
+            Q(custom_asset_tag__iexact=query) |
             Q(asset_code__iexact=query) |
             Q(erp_asset_number__iexact=query) |
-            Q(rfid_tag__iexact=query),
+            Q(rfid_tag__iexact=query) |
+            Q(barcode_payload_value__iexact=query),
             organization=org
         ).select_related(
             'department', 'branch', 'building', 'floor', 'room',
