@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from apps.core.models import TenantAwareModel
 import uuid
 from datetime import date
@@ -1274,6 +1275,7 @@ class AssetDisposal(TenantAwareModel):
         decimal_places=2,
         null=True,
         blank=True,
+        validators=[MinValueValidator(0)],
         help_text="Estimated value if sold or donated"
     )
 

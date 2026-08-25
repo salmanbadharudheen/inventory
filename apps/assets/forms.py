@@ -769,6 +769,17 @@ class AssetTransferReceiveForm(forms.ModelForm):
 class AssetDisposalForm(forms.ModelForm):
     """Form for creating disposal requests for one or many assets."""
 
+    estimated_salvage_value = forms.DecimalField(
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': '0.00',
+            'min': '0',
+            'step': '0.01',
+        })
+    )
+
     # Used when coming from bulk selection on the asset list page.
     asset_ids = forms.CharField(required=False, widget=forms.HiddenInput())
 
@@ -789,7 +800,6 @@ class AssetDisposalForm(forms.ModelForm):
             'disposal_method': forms.Select(attrs={'class': 'form-control'}),
             'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for disposal'}),
             'disposal_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'estimated_salvage_value': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional notes'}),
         }
     
