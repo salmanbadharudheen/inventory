@@ -55,34 +55,31 @@
                     <div class="section-title">Asset Selection</div>
                     <div class="field-group">
                         <label for="{{ form.selected_assets.id_for_label }}">Assets to Dispose <span class="req">*</span></label>
-                        <div class="asset-picker transfer-style-picker">
-                            <div class="asset-picker-toolbar search-row">
-                                <div class="asset-picker-search-wrap search-wrap">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <circle cx="11" cy="11" r="8"></circle>
-                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                    </svg>
-                                    <input type="text" id="asset-picker-search" class="asset-picker-search search-in" placeholder="Search by tag, name, or serial number...">
+                        <div class="card disposal-asset-card">
+                            <div class="card-head">
+                                <div class="card-icon purple">
+                                    <i data-lucide="package-search"></i>
                                 </div>
-                                <div class="asset-picker-actions">
-                                    <button type="button" class="asset-picker-btn btn-load" id="asset-select-all">Select Visible</button>
-                                    <button type="button" class="asset-picker-btn btn-load" id="asset-clear-selected">Clear</button>
+                                <span class="card-ttl">Select Assets</span>
+                                <span class="card-badge" id="asset-picker-count">0</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="search-row">
+                                    <div class="search-wrap asset-picker-search-wrap">
+                                        <i data-lucide="search"></i>
+                                        <input type="text" id="asset-picker-search" class="search-in asset-picker-search" placeholder="Search by tag, name, serial number...">
+                                    </div>
+                                    <button type="button" class="btn-load" id="asset-select-all">Browse All</button>
                                 </div>
-                            </div>
-                            <div class="asset-picker-header">
-                                <label class="asset-master-check">
-                                    <input type="checkbox" id="asset-master-checkbox">
-                                    <span>Select all visible assets</span>
-                                </label>
-                            </div>
-                            <div id="asset-picker-list" class="asset-checkbox-list" data-selected="{% with selected_vals=form.selected_assets.value %}{% if selected_vals %}{{ selected_vals|join:',' }}{% endif %}{% endwith %}">
+                                <div id="asset-picker-list" class="asset-results asset-checkbox-list" data-selected="{% with selected_vals=form.selected_assets.value %}{% if selected_vals %}{{ selected_vals|join:',' }}{% endif %}{% endwith %}">
                                 <div class="asset-picker-tip" id="asset-picker-loading">Loading assets...</div>
                                 <div id="asset-picker-no-match" class="asset-picker-tip asset-picker-no-match" style="display:none;">No assets match your search.</div>
-                            </div>
-                            <div id="asset-selected-hidden"></div>
-                            <div class="asset-picker-footer">
-                                <span id="asset-picker-count" class="asset-picker-count">0 selected</span>
-                                <span id="asset-picker-visible" class="asset-picker-visible">0 visible</span>
+                                </div>
+                                <div id="asset-selected-hidden"></div>
+                                <div class="asset-picker-footer">
+                                    <span id="asset-picker-count-label" class="asset-picker-count">0 selected</span>
+                                    <button type="button" class="asset-picker-btn" id="asset-clear-selected">Clear selection</button>
+                                </div>
                             </div>
                         </div>
                         {% if form.selected_assets.errors %}<span class="field-error">{{ form.selected_assets.errors.0 }}</span>{% endif %}
@@ -856,6 +853,85 @@
     background: #4f46e5;
 }
 
+.disposal-asset-card {
+    margin: 0 -1px 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .07);
+    overflow: hidden;
+}
+
+.disposal-asset-card .card-head {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.disposal-asset-card .card-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.disposal-asset-card .card-icon svg {
+    width: 16px;
+    height: 16px;
+    color: #6366f1;
+}
+
+.disposal-asset-card .card-body {
+    padding: 16px 18px;
+}
+
+.disposal-asset-card .asset-picker-search-wrap svg {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    transform: translateY(-50%);
+    color: #9ca3af;
+}
+
+.disposal-asset-card .asset-picker-search {
+    width: 100%;
+    padding: 9px 12px 9px 34px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.disposal-asset-card .asset-checkbox-list {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.disposal-asset-card .asset-checkbox-item {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 13px;
+    border-left: 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.disposal-asset-card .asset-checkbox-item.is-selected {
+    background: #eef2ff;
+    border-left: 0;
+}
+
+.disposal-asset-card .a-main {
+    min-width: 0;
+}
+
+.disposal-asset-card .a-meta {
+    font-size: 11px;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
 .transfer-style-picker {
     padding: 0;
     border: 0;
@@ -944,7 +1020,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearBtn = document.getElementById('asset-clear-selected');
     const selectAllBtn = document.getElementById('asset-select-all');
     const masterCheckbox = document.getElementById('asset-master-checkbox');
-    const countEl = document.getElementById('asset-picker-count');
+    const countEl = document.getElementById('asset-picker-count-label');
+    const badgeEl = document.getElementById('asset-picker-count');
     const visibleEl = document.getElementById('asset-picker-visible');
     const noMatchEl = document.getElementById('asset-picker-no-match');
     const loadingEl = document.getElementById('asset-picker-loading');
@@ -1010,6 +1087,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (countEl) {
             countEl.textContent = `${selectedSet.size} selected`;
         }
+        if (badgeEl) {
+            badgeEl.textContent = selectedSet.size;
+            badgeEl.style.display = selectedSet.size ? '' : 'none';
+        }
         if (visibleEl) {
             visibleEl.textContent = `${visible.length} visible`;
         }
@@ -1038,11 +1119,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         assets.forEach(function(asset) {
             const row = document.createElement('label');
-            row.className = 'asset-checkbox-item';
+            row.className = 'a-item asset-checkbox-item';
             row.innerHTML = `
                 <input type="checkbox" class="asset-checkbox-input" value="${escapeHtml(asset.id)}">
-                <span class="asset-checkbox-tag">${escapeHtml(asset.asset_tag || 'NO-TAG')}</span>
-                <span class="asset-checkbox-name">${escapeHtml(asset.name || 'Unnamed Asset')}</span>
+                <span class="a-main"><span class="a-tag">${escapeHtml(asset.asset_tag || 'NO-TAG')}</span><span class="a-name">${escapeHtml(asset.name || 'Unnamed Asset')}</span></span>
+                <span class="a-meta">${escapeHtml(asset.serial_number || '')}</span>
             `;
             listEl.insertBefore(row, noMatchEl);
         });
@@ -1096,10 +1177,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
-            getVisibleCheckboxes().forEach(cb => {
-                selectedSet.add(cb.value);
-            });
-            renderSelectionCount();
+            fetchAssets('');
         });
     }
 
