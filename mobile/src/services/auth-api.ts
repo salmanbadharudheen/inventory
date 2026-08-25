@@ -45,7 +45,15 @@ async function fetchWithTimeout(
     if (err.name === "AbortError") {
       throw new Error("Request timed out. Please check your connection and try again.");
     }
-    throw err;
+
+    // Some Android device/runtime combinations can throw a generic
+    // "Network request failed" when AbortController is attached.
+    // Retry once without signal before surfacing the error.
+    try {
+      return await fetch(url, options);
+    } catch {
+      throw err;
+    }
   } finally {
     clearTimeout(timer);
   }

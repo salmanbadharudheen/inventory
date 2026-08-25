@@ -227,9 +227,18 @@ export default function DashboardScreen() {
               <Text style={st.quickLabel}>RFID Scan</Text>
               <Text style={st.quickSub}>Live EPCs</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/assets-list")}>
+            <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/add-asset")}>
               <View style={[st.quickIconWrap, { backgroundColor: C.successSoft }]}>
                 <View style={[st.quickIconInner, { backgroundColor: C.success }]}>
+                  <Text style={st.quickIconText}>+</Text>
+                </View>
+              </View>
+              <Text style={st.quickLabel}>Add Asset</Text>
+              <Text style={st.quickSub}>New entry</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.quickCard} activeOpacity={0.75} onPress={() => router.push("/(app)/assets-list")}>
+              <View style={[st.quickIconWrap, { backgroundColor: C.warningSoft }]}>
+                <View style={[st.quickIconInner, { backgroundColor: C.warning }]}>
                   <Text style={st.quickIconText}>L</Text>
                 </View>
               </View>
@@ -456,12 +465,20 @@ const st = StyleSheet.create({
   body: { paddingHorizontal: 18, marginTop: -12 },
 
   /* ── quick actions ── */
-  quickRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  quickRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   quickCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: 16, padding: 18,
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: C.card,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: "center",
-    shadowColor: "#4338CA", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    shadowColor: "#4338CA",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
   },
   quickIconWrap: {
     width: 56, height: 56, borderRadius: 18,

@@ -5,6 +5,12 @@ import { lookupAssetByRfidTag } from "../../src/services/asset-api";
 import { rfidManager } from "../../src/rfid";
 import type { AssetDetail } from "../../src/types/api";
 import type { StandardRfidRead } from "../../src/rfid";
+import {
+  getDeviceApiReaderPower,
+  setDeviceApiReaderPower,
+} from "../../src/rfid/native/deviceapi-bridge";
+
+const READER_POWER_PRESETS = [10, 15, 20, 25, 30] as const;
 
 const C = {
   bg: "#F3F4F6",
@@ -37,6 +43,8 @@ export default function RoomInventoryScreen() {
   const [matchedAssets, setMatchedAssets] = useState<AssetDetail[]>([]);
   const [unknownEpcs, setUnknownEpcs] = useState<string[]>([]);
   const [currentStatus, setCurrentStatus] = useState<string>("Idle");
+  const [readerPower, setReaderPower] = useState<number | null>(null);
+  const [powerLoading, setPowerLoading] = useState(false);
   const seenEpcsRef = useRef(new Set<string>());
   const pendingLookupRef = useRef(new Set<string>());
   const scanUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -89,6 +97,56 @@ export default function RoomInventoryScreen() {
     }
   }, []);
 
+  const refreshReaderPower = useCallback(async () => {
+    if (powerLoading) return;
+
+    setPowerLoading(true);
+    try {
+      await rfidManager.connect();
+      const result = await getDeviceApiReaderPower();
+      if (!result?.ok || typeof result.power !== "number") {
+        setReaderPower(null);
+        return;
+      }
+      setReaderPower(result.power);
+    } catch {
+      setReaderPower(null);
+    } finally {
+      setPowerLoading(false);
+    }
+  }, [powerLoading]);
+
+  const applyReaderPower = useCallback(async (power: number) => {
+    if (powerLoading) return;
+
+    if (scanning || loadingScan) {
+      Alert.alert("Stop Scan First", "Stop RFID scanning before changing reader strength.");
+      return;
+    }
+
+    setPowerLoading(true);
+    try {
+      await rfidManager.connect();
+      const result = await setDeviceApiReaderPower(power);
+
+      if (!result?.ok) {
+        Alert.alert(
+          "Power Update Failed",
+          result?.error ?? "This reader firmware does not expose a compatible power API."
+        );
+        return;
+      }
+
+      setReaderPower(power);
+      setCurrentStatus(`Reader strength set to ${power} dBm`);
+      Alert.alert("Reader Power Updated", `RFID reader strength set to ${power} dBm.`);
+    } catch (error: any) {
+      Alert.alert("Power Update Failed", error?.message ?? "Unable to change reader strength.");
+    } finally {
+      setPowerLoading(false);
+    }
+  }, [loadingScan, powerLoading, scanning]);
+
   const startScan = useCallback(async () => {
     if (loadingScan || scanning) return;
     if (supported === false) {
@@ -132,6 +190,7 @@ export default function RoomInventoryScreen() {
     setCurrentStatus("Scan stopped");
   }, [clearScanSubscription]);
 
+
   const clearResults = useCallback(() => {
     seenEpcsRef.current.clear();
     pendingLookupRef.current.clear();
@@ -160,6 +219,46 @@ export default function RoomInventoryScreen() {
             />
             <TouchableOpacity style={styles.smallBtn} onPress={() => router.setParams({ room })}>
               <Text style={styles.smallBtnText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.powerCard}>
+            <Text style={styles.powerTitle}>Read Strength (Power)</Text>
+            <Text style={styles.powerSub}>
+              Current: {readerPower != null ? `${readerPower} dBm` : "Unavailable"}
+            </Text>
+            <View style={styles.powerPresetRow}>
+              {READER_POWER_PRESETS.map((power) => (
+                <TouchableOpacity
+                  key={power}
+                  style={[
+                    styles.powerPresetBtn,
+                    readerPower === power && styles.powerPresetBtnActive,
+                  ]}
+                  onPress={() => {
+                    void applyReaderPower(power);
+                  }}
+                  disabled={powerLoading || supported !== true}
+                >
+                  <Text
+                    style={[
+                      styles.powerPresetText,
+                      readerPower === power && styles.powerPresetTextActive,
+                    ]}
+                  >
+                    {power}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.powerRefreshBtn}
+              onPress={() => {
+                void refreshReaderPower();
+              }}
+              disabled={powerLoading || supported !== true}
+            >
+              <Text style={styles.powerRefreshText}>{powerLoading ? "Refreshing..." : "Refresh Power"}</Text>
             </TouchableOpacity>
           </View>
 
@@ -239,6 +338,65 @@ const styles = StyleSheet.create({
   roomInput: { flex: 1, backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: C.text },
   smallBtn: { backgroundColor: C.primarySoft, borderRadius: 12, justifyContent: "center", paddingHorizontal: 14 },
   smallBtnText: { color: C.primary, fontWeight: "700" },
+  powerCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+  },
+  powerTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: C.text,
+  },
+  powerSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: C.sub,
+  },
+  powerPresetRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  powerPresetBtn: {
+    minWidth: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+  },
+  powerPresetBtnActive: {
+    borderColor: C.primary,
+    backgroundColor: C.primarySoft,
+  },
+  powerPresetText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
+  },
+  powerPresetTextActive: {
+    color: "#4338CA",
+  },
+  powerRefreshBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: C.primarySoft,
+  },
+  powerRefreshText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4338CA",
+  },
   actionsRow: { flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" },
   primaryBtn: { flexGrow: 1, backgroundColor: C.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center", minWidth: 120 },
   disabledBtn: { opacity: 0.7 },

@@ -33,6 +33,14 @@ import API from "../../src/config/api";
 import { rfidManager } from "../../src/rfid";
 import NfcManager, { Ndef, NfcTech } from "react-native-nfc-manager";
 
+const UHF_READER_PRIORITY = [
+  "rscja-deviceapi-uhf",
+  "chainway-uhf",
+  "exark-uhf",
+  "zebra-uhf",
+  "honeywell-uhf",
+] as const;
+
 const C = {
   primary: "#6366F1",
   primaryLight: "#EEF2FF",
@@ -135,6 +143,7 @@ export default function AssetDetailScreen() {
   const [pendingFile, setPendingFile] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [rfidMode, setRfidMode] = useState<"uhf" | "nfc" | "none">("none");
+  const [rfidReaderName, setRfidReaderName] = useState<string>("Not selected");
   const [rfidBusy, setRfidBusy] = useState(false);
   const [showRfidModal, setShowRfidModal] = useState(false);
   const [rfidInput, setRfidInput] = useState("");
@@ -152,6 +161,42 @@ export default function AssetDetailScreen() {
     await rfidManager.disconnect().catch(() => undefined);
   }, []);
 
+  const selectSupportedUhfReader = useCallback(async () => {
+    const availableReaders = rfidManager.getAvailableReaders();
+    const availableIds = new Set(availableReaders.map((reader) => reader.id));
+    const current = rfidManager.getSelectedReader();
+    const currentId = current?.id ?? null;
+
+    const prioritizedCandidates = UHF_READER_PRIORITY.filter((id) => availableIds.has(id));
+    const fallbackCandidates = availableReaders
+      .map((reader) => reader.id)
+      .filter((id) => !prioritizedCandidates.includes(id as any) && /uhf|rscja|chainway/i.test(id));
+
+    const candidateIds = [...prioritizedCandidates, ...fallbackCandidates];
+
+    for (const readerId of candidateIds) {
+      try {
+        rfidManager.selectReader(readerId);
+        const supported = await rfidManager.isSelectedReaderSupported();
+        if (supported) {
+          return rfidManager.getSelectedReader();
+        }
+      } catch {
+        // Try next reader candidate.
+      }
+    }
+
+    if (currentId && availableIds.has(currentId)) {
+      try {
+        rfidManager.selectReader(currentId);
+      } catch {
+        // Ignore restore failures and continue with fallback checks.
+      }
+    }
+
+    return null;
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -162,9 +207,14 @@ export default function AssetDetailScreen() {
 
     (async () => {
       try {
-        const uhfSupported = await rfidManager.isSelectedReaderSupported().catch(() => false);
+        const selected = rfidManager.getSelectedReader();
+        setRfidReaderName(selected?.name ?? "Not selected");
+
+        const supportedUhfReader = await selectSupportedUhfReader();
         if (!mounted) return;
-        if (uhfSupported) {
+
+        if (supportedUhfReader) {
+          setRfidReaderName(supportedUhfReader.name);
           setRfidMode("uhf");
           return;
         }
@@ -173,13 +223,18 @@ export default function AssetDetailScreen() {
         if (!mounted) return;
         if (nfcSupported) {
           await NfcManager.start();
+          setRfidReaderName("Phone NFC");
           setRfidMode("nfc");
           return;
         }
 
+        setRfidReaderName("Not available");
         setRfidMode("none");
       } catch {
-        if (mounted) setRfidMode("none");
+        if (mounted) {
+          setRfidReaderName("Not available");
+          setRfidMode("none");
+        }
       }
     })();
 
@@ -188,7 +243,7 @@ export default function AssetDetailScreen() {
       void cleanupUhfScan();
       NfcManager.cancelTechnologyRequest().catch(() => undefined);
     };
-  }, [cleanupUhfScan]);
+  }, [cleanupUhfScan, selectSupportedUhfReader]);
 
   const load = useCallback(
     async (silent = false) => {
@@ -376,17 +431,29 @@ export default function AssetDetailScreen() {
   const scanAndSaveRfid = useCallback(async () => {
     if (!asset || rfidBusy) return;
 
-    if (Platform.OS === "web" || rfidMode === "none") {
+    let effectiveMode: "uhf" | "nfc" | "none" = rfidMode;
+
+    // Re-evaluate UHF availability at scan-time in case reader selection changed.
+    if (Platform.OS !== "web") {
+      const supportedUhfReader = await selectSupportedUhfReader();
+      if (supportedUhfReader) {
+        setRfidReaderName(supportedUhfReader.name);
+        effectiveMode = "uhf";
+        if (rfidMode !== "uhf") setRfidMode("uhf");
+      }
+    }
+
+    if (Platform.OS === "web" || effectiveMode === "none") {
       Alert.alert(
         "RFID Not Available",
-        "RFID scanning requires a compatible reader on this device and a development or production build of the app."
+        "RFID scanning requires an Android device build with a supported UHF/NFC reader. It does not work in the web browser."
       );
       return;
     }
 
     setRfidBusy(true);
     try {
-      if (rfidMode === "uhf") {
+      if (effectiveMode === "uhf") {
         const selected = rfidManager.getSelectedReader();
         if (!selected) {
           throw new Error("No RFID reader is selected.");
@@ -474,14 +541,21 @@ export default function AssetDetailScreen() {
     } catch (err: any) {
       const message = String(err?.message || err || "");
       if (!/cancel|close|dismiss|abort/i.test(message)) {
-        Alert.alert("RFID Scan Failed", message || "Unable to read the RFID tag.");
+        if (/network request failed|failed to fetch|timed out/i.test(message)) {
+          Alert.alert(
+            "RFID Save Failed",
+            "Tag was read, but saving to server failed due to network/API issue. Check internet/API connectivity and try again, or use Type to save manually."
+          );
+        } else {
+          Alert.alert("RFID Scan Failed", message || "Unable to read the RFID tag.");
+        }
       }
     } finally {
       setRfidBusy(false);
       await cleanupUhfScan();
       NfcManager.cancelTechnologyRequest().catch(() => undefined);
     }
-  }, [asset, cleanupUhfScan, rfidBusy, rfidMode, saveRfidTag]);
+  }, [asset, cleanupUhfScan, rfidBusy, rfidMode, saveRfidTag, selectSupportedUhfReader]);
 
   const submitManualRfid = useCallback(async () => {
     const normalized = normalizeRfidIdentifier(rfidInput);
@@ -679,8 +753,10 @@ export default function AssetDetailScreen() {
             {rfidMode === "none" ? (
               <Text style={styles.rfidHint}>RFID scanning is unavailable on this device/reader. You can still type the tag manually.</Text>
             ) : rfidMode === "uhf" ? (
-              <Text style={styles.rfidHint}>Using integrated UHF reader mode.</Text>
-            ) : null}
+              <Text style={styles.rfidHint}>Using UHF reader: {rfidReaderName}</Text>
+            ) : (
+              <Text style={styles.rfidHint}>Using NFC mode (Reader: {rfidReaderName}). UHF assign needs supported UHF adapter.</Text>
+            )}
           </View>
 
           {a.asset_code ? <InfoRow label="Asset Code" value={a.asset_code} /> : null}
